@@ -176,132 +176,280 @@ def validate_qwen_items(
 class QwenAlignerConfig:
     model_path: str = str(DEFAULT_QWEN_ALIGNER_PATH)
     worker_python: str = str(DEFAULT_QWEN_PYTHON)
-    device: str = "auto"
+    device: str = "cuda:0"  # GPU required; CPU only with explicit device="cpu".
     timeout_s: float = 120.0
+    startup_timeout_s: float = 120.0
+    min_free_vram_bytes: int = 2_600_000_000
 
 
-class QwenForcedAlignerAdapter:
-    """``ExternalForcedAligner`` adapter invoking Qwen3-ForcedAligner-0.6B in its isolated venv."""
+class QwenWorkerError(RuntimeError):
+    """A typed, non-silent failure of the isolated forced-aligner worker."""
 
-    def __init__(self, config: QwenAlignerConfig | None = None) -> None:
-        self.config = config or QwenAlignerConfig()
+    def __init__(self, status: str, detail: str = "") -> None:
+        super().__init__(detail or status)
+        self.status = status
 
-    def align(
-        self,
-        *,
-        audio_path: Path,
-        text: str,
-        language: str | None,
-        source_offset_s: float,
-    ) -> dict[str, Any]:
-        qwen_lang = map_language_for_qwen_aligner(language)
-        if qwen_lang is None:
-            return {
-                "units": [],
-                "diagnostic": {
-                    "backend": "qwen3_forced_aligner",
-                    "status": "unsupported_language",
-                    "requested_language": language,
-                },
-            }
 
+class QwenAlignerSession:
+    """One isolated model load for multiple requests; no implicit CPU downgrade.
+
+    JSONL worker protocol v1: init -> ready -> align* -> shutdown. Parent owns
+    subprocess session and kills the entire worker group on every exit path.
+    """
+
+    def __init__(self, config: QwenAlignerConfig) -> None:
+        self.config = config
+        self.process: subprocess.Popen[bytes] | None = None
+        self._stderr: Any = None
+        self._buffer = bytearray()
+        self._pending = bytearray()
+        self._next_id = 1
+        self.started = False
+        self.failed = False
+        self.metrics: dict[str, Any] = {
+            "model_load_count": 0, "align_count": 0,
+            "startup_wall_s": 0.0, "inference_wall_s": 0.0,
+            "peak_gpu_allocated_bytes": None,
+        }
+
+    def __enter__(self) -> "QwenAlignerSession":
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        self.close()
+
+    def _read(self, timeout_s: float) -> dict[str, Any]:
+        import os
+        import select
+        import time
+
+        assert self.process is not None and self.process.stdout is not None
+        fd = self.process.stdout.fileno()
+        deadline = time.monotonic() + timeout_s
+        while True:
+            nl = self._buffer.find(b"\n")
+            if nl >= 0:
+                raw = bytes(self._buffer[:nl])
+                del self._buffer[:nl + 1]
+                if len(raw) > 4_000_000:
+                    raise QwenWorkerError("malformed_worker_output", "Worker JSON response too large")
+                try:
+                    response = json.loads(raw.decode("utf-8"))
+                except (UnicodeError, ValueError) as exc:
+                    raise QwenWorkerError("malformed_worker_output", str(exc)) from exc
+                if not isinstance(response, dict) or response.get("protocol") != 1:
+                    raise QwenWorkerError("malformed_worker_output", "Worker protocol mismatch")
+                return response
+            if len(self._buffer) > 4_000_000:
+                raise QwenWorkerError("malformed_worker_output", "Worker response exceeds 4 MB")
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise QwenWorkerError("worker_timeout", "Qwen worker deadline exceeded")
+            ready, _, _ = select.select([fd], [], [], remaining)
+            if not ready:
+                raise QwenWorkerError("worker_timeout", "Qwen worker deadline exceeded")
+            chunk = os.read(fd, 65536)
+            if not chunk:
+                raise QwenWorkerError("worker_exited", f"Qwen worker exited ({self.process.poll()})")
+            self._buffer.extend(chunk)
+
+    def _request(self, action: str, payload: dict[str, Any], timeout_s: float) -> dict[str, Any]:
+        assert self.process is not None and self.process.stdin is not None
+        req_id = self._next_id
+        self._next_id += 1
+        message = json.dumps({"protocol": 1, "id": req_id, "action": action, **payload}, ensure_ascii=False)
+        if len(message.encode("utf-8")) > 100_000:
+            raise QwenWorkerError("invalid_request", "Worker request too large")
+        try:
+            self.process.stdin.write((message + "\n").encode("utf-8"))
+            self.process.stdin.flush()
+            response = self._read(timeout_s)
+        except (BrokenPipeError, OSError) as exc:
+            raise QwenWorkerError("worker_exited", str(exc)) from exc
+        if response.get("id") != req_id:
+            raise QwenWorkerError("malformed_worker_output", "Worker request/response ID mismatch")
+        if response.get("status") != "ok":
+            raise QwenWorkerError(str(response.get("status") or "worker_error"),
+                                  str(response.get("error") or "")[:300])
+        return response
+
+    def start(self) -> None:
+        import tempfile
+        import time
+
+        if self.started:
+            return
+        if self.failed:
+            raise QwenWorkerError("worker_failed", "Prior session failure; cannot reuse")
         py_path = Path(self.config.worker_python)
         model_dir = Path(self.config.model_path)
         if not py_path.is_file() or not model_dir.is_dir() or not WORKER_SCRIPT.is_file():
-            return {
-                "units": [],
-                "diagnostic": {
-                    "backend": "qwen3_forced_aligner",
-                    "status": "unavailable",
-                    "worker_python": str(py_path),
-                    "model_path": str(model_dir),
-                },
-            }
+            raise QwenWorkerError("unavailable", "Qwen worker Python, model, or worker script unavailable")
+        if self.config.device not in {"cuda:0", "auto", "cpu"}:
+            raise QwenWorkerError("invalid_device", "Use cuda:0, auto (CUDA-required), or explicit cpu")
+        self._stderr = tempfile.TemporaryFile(mode="w+b")
+        t0 = time.monotonic()
+        try:
+            self.process = subprocess.Popen(
+                [str(py_path), str(WORKER_SCRIPT), "--jsonl"],
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                stderr=self._stderr, bufsize=0, start_new_session=True,
+            )
+            ready = self._request("init", {
+                "model_path": str(model_dir),
+                "device": "cuda:0" if self.config.device == "auto" else self.config.device,
+                "min_free_vram_bytes": self.config.min_free_vram_bytes,
+            }, self.config.startup_timeout_s)
+            used = str(ready.get("device_used") or "")
+            expected = "cpu" if self.config.device == "cpu" else "cuda:0"
+            if used != expected:
+                raise QwenWorkerError("device_mismatch", f"Expected {expected}, worker used {used}")
+            self.metrics.update(
+                model_load_count=ready.get("model_load_count", 0),
+                device_used=used, dtype=ready.get("dtype"),
+                model_load_wall_s=ready.get("model_load_wall_s"),
+                startup_wall_s=round(time.monotonic() - t0, 4),
+                peak_gpu_allocated_bytes=ready.get("peak_gpu_allocated_bytes"),
+            )
+            if self.metrics["model_load_count"] != 1:
+                raise QwenWorkerError("unexpected_model_load_count", "Worker did not load exactly once")
+            self.started = True
+        except Exception:
+            self.failed = True
+            self.close()
+            raise
 
+    def align(
+        self, *, audio_path: Path, text: str, language: str, source_offset_s: float,
+    ) -> dict[str, Any]:
+        import time
+
+        self.start()
+        t0 = time.monotonic()
+        try:
+            result = self._request("align", {
+                "audio_path": str(audio_path), "text": text, "language": language,
+            }, self.config.timeout_s)
+        except Exception:
+            self.failed = True
+            self.close()
+            raise
+        elapsed = time.monotonic() - t0
+        self.metrics["align_count"] += 1
+        self.metrics["inference_wall_s"] += elapsed
+        current_peak = result.get("peak_gpu_allocated_bytes")
+        if isinstance(current_peak, (int, float)):
+            old_peak = self.metrics.get("peak_gpu_allocated_bytes") or 0
+            self.metrics["peak_gpu_allocated_bytes"] = max(old_peak, int(current_peak))
+        return result
+
+    def close(self) -> None:
+        import os
+        import signal
+
+        process = self.process
+        self.process = None
+        self.started = False
+        if process is not None:
+            try:
+                if process.poll() is None and process.stdin is not None:
+                    process.stdin.write(
+                        (json.dumps({"protocol": 1, "id": self._next_id, "action": "shutdown"}) + "\n").encode()
+                    )
+                    process.stdin.flush()
+                    process.wait(timeout=3)
+            except (OSError, BrokenPipeError, subprocess.TimeoutExpired):
+                pass
+            # The whole isolated session belongs to this adapter. Kill any
+            # residual children even when the worker leader exited first.
+            try:
+                os.killpg(process.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+            try:
+                process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                process.wait(timeout=2)
+            if process.stdin is not None:
+                process.stdin.close()
+            if process.stdout is not None:
+                process.stdout.close()
+        if self._stderr is not None:
+            self._stderr.close()
+            self._stderr = None
+
+
+class QwenForcedAlignerAdapter:
+    """Lazy session-backed adapter; one worker/model across multiple span alignments."""
+
+    def __init__(self, config: QwenAlignerConfig | None = None) -> None:
+        self.config = config or QwenAlignerConfig()
+        self.session = QwenAlignerSession(self.config)
+
+    def __enter__(self) -> "QwenForcedAlignerAdapter":
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        self.close()
+
+    def close(self) -> None:
+        self.session.close()
+
+    @property
+    def metrics(self) -> dict[str, Any]:
+        return dict(self.session.metrics)
+
+    def align(self, *, audio_path: Path, text: str, language: str | None,
+              source_offset_s: float) -> dict[str, Any]:
+        qwen_lang = map_language_for_qwen_aligner(language)
+        if qwen_lang is None:
+            return {"units": [], "diagnostic": {
+                "backend": "qwen3_forced_aligner", "status": "unsupported_language",
+                "requested_language": language,
+            }}
+        py_path = Path(self.config.worker_python)
+        model_dir = Path(self.config.model_path)
+        if not py_path.is_file() or not model_dir.is_dir() or not WORKER_SCRIPT.is_file():
+            return {"units": [], "diagnostic": {
+                "backend": "qwen3_forced_aligner", "status": "unavailable",
+                "worker_python": str(py_path), "model_path": str(model_dir),
+            }}
         dur_s = _wav_duration_s(Path(audio_path))
         if dur_s is not None and dur_s > MAX_QWEN_ALIGN_SECONDS:
-            return {
-                "units": [],
-                "diagnostic": {
-                    "backend": "qwen3_forced_aligner",
-                    "status": "duration_exceeds_max_limit",
-                    "audio_duration_s": round(dur_s, 3),
-                    "max_seconds": MAX_QWEN_ALIGN_SECONDS,
-                },
-            }
-
-        payload = {
-            "model_path": str(model_dir),
-            "audio_path": str(audio_path),
-            "text": text,
-            "language": qwen_lang,
-            "device": self.config.device,
-        }
+            return {"units": [], "diagnostic": {
+                "backend": "qwen3_forced_aligner", "status": "duration_exceeds_max_limit",
+                "audio_duration_s": round(dur_s, 3), "max_seconds": MAX_QWEN_ALIGN_SECONDS,
+            }}
         try:
-            proc = subprocess.run(
-                [str(py_path), str(WORKER_SCRIPT)],
-                input=json.dumps(payload, ensure_ascii=False),
-                capture_output=True,
-                text=True,
-                timeout=self.config.timeout_s,
+            raw_out = self.session.align(
+                audio_path=Path(audio_path), text=text,
+                language=qwen_lang, source_offset_s=source_offset_s,
             )
-        except Exception as exc:
-            return {
-                "units": [],
-                "diagnostic": {
-                    "backend": "qwen3_forced_aligner",
-                    "status": "worker_invocation_failed",
-                    "error": f"{type(exc).__name__}: {exc}",
-                },
-            }
-
-        if proc.returncode != 0:
-            return {
-                "units": [],
-                "diagnostic": {
-                    "backend": "qwen3_forced_aligner",
-                    "status": "worker_error",
-                    "returncode": proc.returncode,
-                    "stderr": proc.stderr[-500:],
-                },
-            }
-
-        try:
-            raw_out = json.loads(proc.stdout.strip().splitlines()[-1])
-        except Exception as exc:
-            return {
-                "units": [],
-                "diagnostic": {
-                    "backend": "qwen3_forced_aligner",
-                    "status": "malformed_worker_output",
-                    "error": str(exc),
-                },
-            }
-
-        if raw_out.get("status") != "ok":
-            return {
-                "units": [],
-                "diagnostic": {
-                    "backend": "qwen3_forced_aligner",
-                    "status": "aligner_failed",
-                    "error": raw_out.get("error"),
-                },
-            }
-
-        validated, val_stats = validate_qwen_items(
-            raw_out.get("items") or [],
-            audio_duration_s=dur_s,
-            source_offset_s=source_offset_s,
-        )
-        return {
-            "units": validated,
-            "diagnostic": {
+        except (QwenWorkerError, OSError, RuntimeError) as exc:
+            return {"units": [], "diagnostic": {
                 "backend": "qwen3_forced_aligner",
-                "status": "ok" if val_stats["valid_items"] > 0 else "no_valid_units",
-                "qwen_language": qwen_lang,
-                "device_used": raw_out.get("device_used"),
-                "dtype": raw_out.get("dtype"),
-                "quantized_resolution_s": 0.08,
-                **val_stats,
-            },
-        }
+                "status": exc.status if isinstance(exc, QwenWorkerError) else "worker_error",
+                "error_type": type(exc).__name__, "error": str(exc)[:300],
+            }}
+        items = raw_out.get("items")
+        if not isinstance(items, list):
+            return {"units": [], "diagnostic": {
+                "backend": "qwen3_forced_aligner", "status": "malformed_worker_output",
+            }}
+        validated, stats = validate_qwen_items(
+            items, audio_duration_s=dur_s, source_offset_s=source_offset_s,
+        )
+        return {"units": validated, "diagnostic": {
+            "backend": "qwen3_forced_aligner",
+            "status": "ok" if stats["valid_items"] else "no_valid_units",
+            "qwen_language": qwen_lang, "device_used": raw_out.get("device_used"),
+            "dtype": raw_out.get("dtype"), "quantized_resolution_s": 0.08,
+            "inference_wall_s": raw_out.get("inference_wall_s"),
+            "model_load_count": self.session.metrics["model_load_count"],
+            "peak_gpu_allocated_bytes": self.session.metrics["peak_gpu_allocated_bytes"],
+            **stats,
+        }}

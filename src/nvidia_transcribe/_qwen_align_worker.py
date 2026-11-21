@@ -1,77 +1,124 @@
 #!/usr/bin/env python3
-"""Isolated subprocess worker for Qwen3-ForcedAligner-0.6B.
+"""JSONL session worker for a single local Qwen3 ForcedAligner model load.
 
-Executed strictly inside ``outputs/modular-eval/.venv`` (qwen-asr==0.0.6,
-transformers==4.57.6) via JSON-over-stdio/args so the primary Nemotron
-environment never mixes incompatible Transformers dependencies.
+Only the parent process owns orchestration. The worker cannot stop any other
+service and cannot silently fall back to CPU for a CUDA request.
 """
-
 from __future__ import annotations
 
 import json
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
 
+def _reply(request_id: object, status: str, **fields: Any) -> None:
+    sys.stdout.write(json.dumps({
+        "protocol": 1, "id": request_id, "status": status, **fields,
+    }, ensure_ascii=False) + "\n")
+    sys.stdout.flush()
+
+
 def main(argv: list[str] | None = None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+    if argv != ["--jsonl"]:
+        print("Qwen forced-aligner worker requires --jsonl protocol v1", file=sys.stderr)
+        return 2
     os.environ.setdefault("HF_HOME", "/workspace/models/.hf-cache")
     os.environ.setdefault("HF_HUB_CACHE", "/workspace/models/.hf-cache/hub")
     os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
     os.environ.setdefault("HF_HUB_OFFLINE", "1")
 
-    req = json.loads(sys.stdin.read())
-    model_path = str(req["model_path"])
-    audio_path = str(req["audio_path"])
-    text = str(req["text"])
-    language = str(req["language"])
-    device = str(req.get("device") or "auto")
-
-    if not Path(model_path).is_dir():
-        print(json.dumps({"status": "error", "error": f"model_dir_missing:{model_path}"}))
-        return 0
-
-    import torch
-    from qwen_asr import Qwen3ForcedAligner
-
-    if device == "auto":
-        if torch.cuda.is_available():
-            free_b, _ = torch.cuda.mem_get_info()
-            # Aligner takes ~1.84 GiB BF16 weights + ~0.4 GiB activations
-            use_device = "cuda:0" if free_b >= 2_600_000_000 else "cpu"
-        else:
-            use_device = "cpu"
-    else:
-        use_device = device
-
-    dtype = torch.bfloat16 if use_device.startswith("cuda") else torch.float32
-    aligner = Qwen3ForcedAligner.from_pretrained(
-        model_path,
-        dtype=dtype,
-        device_map=use_device,
-        local_files_only=True,
-    )
-    res = aligner.align(audio=audio_path, text=text, language=language)[0]
-    items: list[dict[str, Any]] = [
-        {
-            "text": str(it.text),
-            "start": float(it.start_time),
-            "end": float(it.end_time),
-        }
-        for it in res.items
-    ]
-    print(
-        json.dumps(
-            {
-                "status": "ok",
-                "device_used": use_device,
-                "dtype": str(dtype),
-                "items": items,
-            },
-            ensure_ascii=False,
-        )
-    )
+    aligner: Any = None
+    torch: Any = None
+    device: str | None = None
+    dtype: str | None = None
+    model_load_count = 0
+    for line in sys.stdin:
+        if len(line) > 100_000:
+            _reply(None, "invalid_request", error="Input exceeds 100 KB")
+            continue
+        try:
+            req = json.loads(line)
+            if not isinstance(req, dict) or req.get("protocol") != 1:
+                raise ValueError("Protocol mismatch")
+            action = req.get("action")
+            req_id = req.get("id")
+            if action == "shutdown":
+                _reply(req_id, "ok")
+                return 0
+            if action == "init":
+                if aligner is not None:
+                    _reply(req_id, "already_initialized")
+                    continue
+                model_path = Path(str(req.get("model_path") or ""))
+                requested = str(req.get("device") or "cuda:0")
+                if requested not in {"cuda:0", "cpu"}:
+                    _reply(req_id, "invalid_device")
+                    continue
+                if not model_path.is_dir():
+                    _reply(req_id, "unavailable", error="Model directory missing")
+                    continue
+                import torch as torch_module
+                torch = torch_module
+                if requested == "cuda:0":
+                    if not torch.cuda.is_available() or torch.cuda.device_count() < 1:
+                        _reply(req_id, "blocked_gpu_unavailable")
+                        continue
+                    if not torch.cuda.is_bf16_supported():
+                        _reply(req_id, "blocked_bf16_unsupported")
+                        continue
+                    free_b, _ = torch.cuda.mem_get_info(0)
+                    if free_b < int(req.get("min_free_vram_bytes") or 2_600_000_000):
+                        _reply(req_id, "blocked_insufficient_vram", free_bytes=free_b)
+                        continue
+                device = requested
+                use_dtype = torch.bfloat16 if device.startswith("cuda") else torch.float32
+                t0 = time.monotonic()
+                from qwen_asr import Qwen3ForcedAligner
+                aligner = Qwen3ForcedAligner.from_pretrained(
+                    str(model_path), dtype=use_dtype,
+                    device_map=device, local_files_only=True,
+                )
+                dtype = str(use_dtype)
+                model_load_count += 1
+                _reply(req_id, "ok", device_used=device, dtype=dtype,
+                       model_load_count=model_load_count,
+                       model_load_wall_s=round(time.monotonic() - t0, 4),
+                       peak_gpu_allocated_bytes=(
+                           int(torch.cuda.max_memory_allocated(0))
+                           if device.startswith("cuda") else None
+                       ))
+                continue
+            if action != "align" or aligner is None:
+                _reply(req_id, "not_initialized")
+                continue
+            audio_path = Path(str(req["audio_path"]))
+            text = str(req["text"])
+            language = str(req["language"])
+            if not audio_path.is_file() or not text.strip() or len(text) > 30_000:
+                _reply(req_id, "invalid_request", error="Invalid audio or text")
+                continue
+            t0 = time.monotonic()
+            output = aligner.align(audio=str(audio_path), text=text, language=language)[0]
+            items = [
+                {"text": str(item.text),
+                 "start": float(item.start_time), "end": float(item.end_time)}
+                for item in output.items
+            ]
+            _reply(req_id, "ok", items=items, device_used=device, dtype=dtype,
+                   model_load_count=model_load_count,
+                   inference_wall_s=round(time.monotonic() - t0, 4),
+                   peak_gpu_allocated_bytes=(
+                       int(torch.cuda.max_memory_allocated(0))
+                       if device and device.startswith("cuda") else None
+                   ))
+        except Exception as exc:
+            _reply(req.get("id") if "req" in locals() and isinstance(req, dict) else None,
+                   "worker_error", error=f"{type(exc).__name__}: {str(exc)[:240]}")
     return 0
 
 
