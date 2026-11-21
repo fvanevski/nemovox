@@ -1,0 +1,60 @@
+{
+  "issue": 1,
+  "repository": "fvanevski/nemovox",
+  "base_main_sha": "242c418f55cd2afb796ee2c4fa742a10ff04f7a3",
+  "previous_qualified_head": "28655e0d6fe57d9363e576cd0795a24aae77a4a3",
+  "central_bounds_fix_commit": "0bd775c56d720484e75c1e933628d3b58731a4ef",
+  "final_source_sha": "d5700b47a4e2f1abb60ebe99f53750c254de2696",
+  "evidence_branch": "evidence/issue-1-qwen-review-20261121",
+  "evidence_directory": "staging/agent-evidence/issue-1-qwen-review/",
+  "managed_asr_disposition": "MANAGED_GPU_BLOCKED",
+  "cpu_tests": {
+    "focused": "32 passed",
+    "venv": "109 passed",
+    "venv_studio": "109 passed"
+  },
+  "gpu_qualification": "PASS (available cuda:0 torch.bfloat16, model_load_count=1 multi-span reuse)",
+  "privacy_scan": "PASS (0 personal paths/tokens)",
+  "members": {
+    "HANDback.md": {
+      "sha256": "1156adc4e7e5f33d47d32113a6bcab02eace4f0caaa34f332f7cf133b9825e3d",
+      "size_bytes": 4262
+    },
+    "admission-replay.md": {
+      "sha256": "05524903113d3bd0c535bfc126c282d0b8d5d9b6c5f95a248a18782d7ccc4b27",
+      "size_bytes": 3380
+    },
+    "diff_from_28655e0.patch": {
+      "sha256": "e7ae87f61db1ded128a3ba686a1d9b1211fafdc231989453c72fccc090199ace",
+      "size_bytes": 13212
+    },
+    "logs/adjacency_checks.json": {
+      "sha256": "4e10a536db90ec604e05a4323b9f1299f465d330d227af7a2241bfd5882a1422",
+      "size_bytes": 1386
+    },
+    "logs/compileall.txt": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "logs/focused_pytest.txt": {
+      "sha256": "ca46072e22e2d22f3dba52de9ac5d34d4c25b5bcfad5e9af83a4d6cbf22e69dc",
+      "size_bytes": 5025
+    },
+    "logs/gpu_qualification_results.json": {
+      "sha256": "44baa1dab604d8719687f9de7ce2f2a771adc9482fddcf946158007f5c24cceb",
+      "size_bytes": 24417
+    },
+    "logs/pytest_venv_cpu.txt": {
+      "sha256": "2073ae207d769eab67ddddec32bcd7602984a86544db01295b8f3bb5fc99ef26",
+      "size_bytes": 791
+    },
+    "logs/pytest_venv_studio_cpu.txt": {
+      "sha256": "5ad7cc9ad233a14308b249d21e673eb6aed13f35f7880dffdc4ef9eaa616d733",
+      "size_bytes": 180
+    },
+    "test-results.md": {
+      "sha256": "1c5db25090cafd94809e2854cf535ad8bfe2b5cf2747dd90426a5030a8aad93e",
+      "size_bytes": 2666
+    }
+  }
+}
