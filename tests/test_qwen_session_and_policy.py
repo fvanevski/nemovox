@@ -352,3 +352,54 @@ def test_qwen_cli_policy_defaults_and_explicit_managed_options() -> None:
         "--base-url", "http://127.0.0.1:8190/v1", "--model", "m",
         "--lease-path", "/tmp/lease", "--journal", "/tmp/journal",
     ]).command == "recover-qwen-asr"
+
+
+def test_managed_sigterm_restores_original_asr_and_handler(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A normal Studio SIGTERM unwinds the managed ASR context before exit."""
+    import signal
+
+    cfg = _managed_cfg(tmp_path)
+    cfg.lease_path.write_text("", encoding="utf-8")
+    cfg.lease_path.chmod(0o600)
+    state = {"active": True, "free": 300}
+    commands: list[str] = []
+    prior_handler = signal.getsignal(signal.SIGTERM)
+
+    def control(*args: str) -> str:
+        commands.append(args[0])
+        if args[0] == "stop":
+            state.update(active=False, free=5000)
+        if args[0] == "start":
+            state["active"] = True
+        return ""
+
+    monkeypatch.setattr(gpu_handoff, "_free_vram_mb", lambda: state["free"])
+    monkeypatch.setattr(gpu_handoff, "_verified_owner", lambda cfg: {
+        "ActiveState": "active", "InvocationID": "original",
+        "ExecStart": "{ path=/bin/true ; argv[]=/bin/true ; }",
+        "FragmentPath": "/synthetic/nemovox-asr.service",
+    })
+    monkeypatch.setattr(gpu_handoff, "_run_systemctl", control)
+    monkeypatch.setattr(gpu_handoff, "_wait_unit",
+                        lambda unit, active, deadline: {
+                            "ActiveState": "active" if state["active"] else "inactive",
+                            "MainPID": "123" if state["active"] else "0",
+                            "InvocationID": "restored" if state["active"] else "original",
+                        })
+    monkeypatch.setattr(gpu_handoff, "_unit_properties",
+                        lambda unit: {"ActiveState": "active" if state["active"] else "inactive",
+                                      "InvocationID": "restored"})
+    monkeypatch.setattr(gpu_handoff, "_models_healthy", lambda *a, **kw: state["active"])
+
+    with pytest.raises(KeyboardInterrupt, match="SIGTERM"):
+        with gpu_handoff.managed_asr_handoff(cfg) as telemetry:
+            assert telemetry["released"] is True
+            active_handler = signal.getsignal(signal.SIGTERM)
+            assert active_handler is not prior_handler
+            active_handler(signal.SIGTERM, None)
+    assert commands == ["stop", "start"]
+    assert state["active"]
+    assert signal.getsignal(signal.SIGTERM) is prior_handler
+    assert json.loads(cfg.journal_path.read_text())["phase"] == "restored"
