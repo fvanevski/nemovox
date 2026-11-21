@@ -93,6 +93,7 @@ def _config_signature(
     media: MediaInfo,
     model_name: str,
     cfg: RecordingPipelineConfig,
+    model_endpoint: str = "",
 ) -> str:
     payload = {
         "media_path": media.path,
@@ -101,6 +102,7 @@ def _config_signature(
         "media_duration_s": media.duration_s,
         "audio_stream": media.selected_audio_stream,
         "model_name": model_name,
+        "model_endpoint": model_endpoint,
         "asr_resource_fingerprint": cfg.asr_resource_fingerprint,
         "mode": cfg.mode,
         "source_language": normalize_language_code(cfg.source_language) or "auto",
@@ -211,7 +213,8 @@ def process_media(
         min_tail_seconds=cfg.min_tail_seconds,
     )
     chunks: list[ChunkSpec] = plan_chunks(media.duration_s, chunk_cfg)
-    sig = _config_signature(media=media, model_name=client.model, cfg=cfg)
+    sig = _config_signature(media=media, model_name=client.model, cfg=cfg,
+                            model_endpoint=getattr(client, "base_url", ""))
 
     existing_manifest: dict[str, Any] = {}
     if cfg.resume and manifest_path.is_file():

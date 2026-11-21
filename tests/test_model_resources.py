@@ -58,6 +58,8 @@ def test_env_new_overrides_legacy_and_command_override_last(tmp_path):
     {"version": 1, "roles": {"unexpected": "text_local"}},
     {"version": 1, "roles": {"source_refinement": "asr_local"}},
     {"version": 1, "roles": {"text_translation": "missing"}},
+    {"version": 1, "roles": {"text_translation": ["unhashable"]}},
+    {"version": 1, "roles": {"text_translation": ""}},
     {"version": 1, "resources": {"malformed": {"adapter": "openai_chat", "endpoint": "file:///x", "model": "a"}}},
     {"version": 1, "resources": {"x": {"adapter": "openai_chat", "endpoint": "http://user:pass@host/v1", "model": "a"}}},
     {"version": 1, "resources": {"x": {"adapter": "openai_chat", "endpoint": "http://host:bad/v1", "model": "a"}}},

@@ -174,7 +174,9 @@ def main(argv: list[str] | None = None) -> int:
                 "asr", resource_name=args.asr_resource, endpoint=args.base_url, model=args.model)
             if args.command in ("process-media", "generate-subtitles"):
                 qwen_resource = registry.resolve(
-                    "forced_alignment", require_local_paths=args.alignment_fallback == "qwen")
+                    "forced_alignment", require_local_paths=(args.alignment_fallback == "qwen" and
+                                         (args.command == "process-media" or
+                                          (not args.recording_contract and not args.re_render))))
                 speaker_resource = registry.resolve("speaker_embedding")
                 qwen_device = args.qwen_device or qwen_resource.device or "cuda:0"
             if args.command == "generate-subtitles":
@@ -186,7 +188,7 @@ def main(argv: list[str] | None = None) -> int:
                 condensation_resource = registry.resolve(
                     "subtitle_condensation", resource_name=args.condensation_resource, **text_overrides)
                 riva_resource = registry.resolve(
-                    "riva_translation", require_local_paths=args.translator == "riva")
+                    "riva_translation", require_local_paths=args.translator == "riva" and not args.re_render)
             asr_key = asr_resource.credential() if (
                 args.command != "generate-subtitles" or
                 (args.recording_contract is None and not args.re_render)) else None

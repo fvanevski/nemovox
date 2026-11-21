@@ -99,7 +99,7 @@ class ModelResource:
 
 
 def _validate_resource(name: str, spec: Mapping[str, Any]) -> ModelResource:
-    if not _ID.fullmatch(name):
+    if not isinstance(name, str) or not _ID.fullmatch(name):
         raise ResourceConfigError(f"Invalid resource name {name!r}")
     unexpected = set(spec) - RESOURCE_FIELDS
     if unexpected:
@@ -143,7 +143,9 @@ class ModelResources:
                 require_local_paths: bool = False) -> ModelResource:
         if role not in ROLE_ADAPTERS:
             raise ResourceConfigError(f"Unknown task role {role!r}")
-        name = resource_name or self.roles.get(role)
+        name = resource_name if resource_name is not None else self.roles.get(role)
+        if not isinstance(name, str) or not _ID.fullmatch(name):
+            raise ResourceConfigError(f"Role {role!r} has invalid resource name {name!r}")
         if name not in self.resources:
             raise ResourceConfigError(f"Role {role!r} references unknown resource {name!r}")
         resource = self.resources[name]
@@ -206,6 +208,9 @@ def load_model_resources(
             resources[name] = {**resources.get(name, {}), **spec}
         if set(role_overrides) - ROLE_ADAPTERS.keys():
             raise ResourceConfigError(f"Unknown roles: {sorted(set(role_overrides) - ROLE_ADAPTERS.keys())}")
+        for role, name in role_overrides.items():
+            if not isinstance(name, str) or not _ID.fullmatch(name):
+                raise ResourceConfigError(f"Role {role!r} must reference a valid resource name")
         roles.update(role_overrides)
 
     # Environment overrides are scoped to *default resource identities* only.
