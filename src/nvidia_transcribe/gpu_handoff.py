@@ -138,6 +138,20 @@ def _verified_owner(cfg: ManagedASRConfig) -> dict[str, str]:
         raise ManagedASRBlocked("asr_identity_mismatch")
     if not _models_healthy(cfg.base_url, cfg.served_model):
         raise ManagedASRBlocked("asr_model_health_mismatch")
+    # Catch live non-cooperating clients at the handoff boundary. This is
+    # supplemental to, not a replacement for, the cooperative lease contract.
+    try:
+        observed = subprocess.run(
+            ["ss", "-Htn", "state", "established",
+             f"( sport = :{urllib.parse.urlsplit(cfg.base_url).port} )"],
+            text=True, capture_output=True, timeout=5, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise ManagedASRBlocked("asr_clients_unverifiable") from exc
+    if observed.returncode != 0:
+        raise ManagedASRBlocked("asr_clients_unverifiable")
+    if observed.stdout.strip():
+        raise ManagedASRBlocked("asr_has_live_connections")
     return props
 
 
