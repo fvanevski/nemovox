@@ -117,3 +117,10 @@ configs/*.env
 *.log
 *.jsonl
 *.checkpoint.json
+
+# Studio GUI build/runtime
+!web/**/*.ts
+web/node_modules/
+web/dist/
+web/.vite/
+.venv-studio/
