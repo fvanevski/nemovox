@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { studio, secondsLabel, type Cue, type Glossary, type Job, type JobOptions, type JobRequest, type MediaKind, type Step, type TaskKind } from "./api";
 import { emptySource, sourceForSubmission, uploadResponseIsCurrent, type SourceMethod } from "./source-selection";
+import { mediaPreviewState, resultQueryKey } from "./job-display";
 
 const INITIAL_OPTIONS: JobOptions = {
   source_language: "auto", target_language: "en", asr_mode: "speaker",
@@ -120,14 +121,21 @@ export default function App() {
   }, [step, jobId]);
   const selectedJob = useQuery({queryKey: ["job", jobId], queryFn: () => studio.job(jobId!), enabled: !!jobId,
     refetchInterval: (query) => ["running", "queued"].includes(query.state.data?.state || "") ? 1500 : false});
+  const currentJob = selectedJob.data;
+  const mediaState = mediaPreviewState(currentJob);
+  const canShowVideo = mediaState === "ready" && !videoError;
   const jobs = useQuery({queryKey: ["jobs"], queryFn: studio.jobs, refetchInterval: 4000});
   const health = useQuery({queryKey: ["health"], queryFn: studio.health, refetchInterval: 30000});
   const listing = useQuery({queryKey: ["media", browserDir], queryFn: () => studio.browse(browserDir), enabled: sourceMethod === "browse"});
   const glossaries = useQuery({queryKey: ["glossaries"], queryFn: studio.glossaries});
-  const preview = useQuery({queryKey: ["preview", jobId], queryFn: () => studio.preview(jobId!), enabled: !!jobId,
-    refetchInterval: selectedJob.data?.state === "complete" ? false : 4000});
-  const artifacts = useQuery({queryKey: ["artifacts", jobId], queryFn: () => studio.artifacts(jobId!), enabled: !!jobId,
-    refetchInterval: selectedJob.data?.state === "complete" ? false : 5000});
+  // A distinct final cache key guarantees one post-completion fetch, even if
+  // the job poll finishes before the preview/artifact poll runs.
+  const preview = useQuery({queryKey: resultQueryKey("preview", jobId, currentJob?.state),
+    queryFn: () => studio.preview(jobId!), enabled: !!jobId,
+    refetchInterval: currentJob?.state === "complete" ? false : 4000});
+  const artifacts = useQuery({queryKey: resultQueryKey("artifacts", jobId, currentJob?.state),
+    queryFn: () => studio.artifacts(jobId!), enabled: !!jobId,
+    refetchInterval: currentJob?.state === "complete" ? false : 5000});
   const assUrl = artifacts.data?.find(item => item.name.endsWith(".ass"))?.url;
   const logs = useQuery({queryKey: ["logs", jobId], queryFn: () => studio.logs(jobId!), enabled: !!jobId,
     refetchInterval: selectedJob.data?.state === "running" ? 3000 : false});
@@ -170,14 +178,13 @@ export default function App() {
     submit.mutate(req);
   }
   const ready = selectedSource !== null;
-  const currentJob = selectedJob.data;
   const cues = preview.data?.cues || [];
   const active = cues.filter(c => c.start !== null && c.end !== null && currentTime >= c.start && currentTime < c.end).slice(0, 3);
   const filteredCues = useMemo(() => cues.filter(c => c.text.toLowerCase().includes(cueSearch.toLowerCase())), [cues, cueSearch]);
   useEffect(() => {setCurrentTime(0); setVideoError(false);}, [jobId]);
   useEffect(() => {
     setAssPreviewReady(false);
-    if (!assUrl || !videoRef.current || step !== "preview") return;
+    if (!assUrl || !canShowVideo || !videoRef.current || step !== "preview") return;
     let disposed = false;
     let renderer: { destroy?: () => void } | undefined;
     void import("jassub").then(async ({default: JASSUB}) => {
@@ -188,7 +195,7 @@ export default function App() {
       if (!disposed) setAssPreviewReady(true);
     }).catch(() => {if (!disposed) setAssPreviewReady(false);});
     return () => {disposed = true; renderer?.destroy?.();};
-  }, [jobId, assUrl, step]);
+  }, [jobId, assUrl, step, canShowVideo]);
 
   return <div className="min-h-screen">
     <header className="border-b border-[#273648] bg-[#0b121b]/90">
@@ -459,17 +466,25 @@ export default function App() {
                   <div className="flex items-center gap-2"><Pill>{assPreviewReady ? "ASS · libass" : assUrl ? "HTML text fallback" : preview.data?.kind === "subtitles" ? "SRT text cues" : preview.data?.kind === "transcript" ? "Transcript cues" : "Text preview"}</Pill><Pill><Clock3 size={12}/>{secondsLabel(currentTime)}</Pill></div>
                 </div>
                 <div className="preview-pane relative aspect-video w-full overflow-hidden">
-                  {!videoError ? <video ref={videoRef} controls playsInline preload="metadata"
-                    src={"/api/jobs/" + jobId + "/media"} className="h-full w-full object-contain"
-                    onTimeUpdate={e => setCurrentTime(e.currentTarget.currentTime)}
-                    onError={() => setVideoError(true)}
-                    aria-label="Media preview with synchronized subtitle text"/>
+                  {mediaState === "loading" || mediaState === "pending"
+                    ? <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center" role="status">
+                      <LoaderCircle size={28} className="animate-spin text-teal-400"/>
+                      <div className="text-sm font-semibold text-slate-200">{mediaState === "pending" ? "Downloading remote media…" : "Loading media…"}</div>
+                      <p className="max-w-md text-xs leading-5 muted">The player will load when the processing host has the source file.</p>
+                    </div>
+                    : canShowVideo ? <video ref={videoRef} controls playsInline preload="metadata"
+                      src={"/api/jobs/" + jobId + "/media"} className="h-full w-full object-contain"
+                      onTimeUpdate={e => setCurrentTime(e.currentTarget.currentTime)}
+                      onError={() => setVideoError(true)}
+                      aria-label="Media preview with synchronized subtitle text"/>
                     : <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
                       <Film size={28} className="text-slate-500"/>
                       <div className="text-sm font-semibold text-slate-200">Browser video preview unavailable</div>
-                      <p className="max-w-md text-xs leading-5 muted">This container/codec cannot play natively in the browser or the job started from an existing transcript contract. Dialogue cues and exports remain available.</p>
+                      <p className="max-w-md text-xs leading-5 muted">{mediaState === "unavailable"
+                        ? "The remote source was not downloaded. Check job status and logs for details."
+                        : "This container/codec cannot play natively in the browser or the job started from an existing transcript contract. Dialogue cues and exports remain available."}</p>
                     </div>}
-                  {!assPreviewReady && !videoError && active.length > 0 && <div className="pointer-events-none absolute inset-x-3 bottom-14 flex flex-col items-center gap-1 text-center">
+                  {!assPreviewReady && canShowVideo && active.length > 0 && <div className="pointer-events-none absolute inset-x-3 bottom-14 flex flex-col items-center gap-1 text-center">
                     {active.map((cue, i) => <div key={String(cue.utterance_id || cue.start) + "-" + i} className="max-w-[90%] rounded-md bg-black/80 px-3 py-1.5 text-sm font-semibold text-white shadow-xl md:text-base"
                       style={{textShadow: "0 1px 3px black"}}>{cue.text}</div>)}
                   </div>}
