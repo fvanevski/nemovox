@@ -212,8 +212,10 @@ def managed_asr_handoff(cfg: ManagedASRConfig) -> Iterator[dict[str, Any]]:
             "served_model": cfg.served_model,
             "base_url": cfg.base_url, "originally_active": True,
         })
-        _run_systemctl("stop", cfg.unit)
+        # From this point even a systemctl transport error is ambiguous:
+        # always inspect/restore the prior unit in the finally path.
         stopped = True
+        _run_systemctl("stop", cfg.unit)
         _wait_unit(cfg.unit, False, time.monotonic() + cfg.timeout_s)
         deadline = time.monotonic() + min(cfg.timeout_s, 30)
         while time.monotonic() < deadline:
@@ -229,10 +231,14 @@ def managed_asr_handoff(cfg: ManagedASRConfig) -> Iterator[dict[str, Any]]:
     finally:
         try:
             if stopped and original is not None:
-                _run_systemctl("start", cfg.unit)
-                restored = _wait_unit(cfg.unit, True, time.monotonic() + cfg.timeout_s)
-                if restored.get("InvocationID") == original.get("InvocationID"):
-                    raise ManagedASRBlocked("asr_restart_identity_invalid")
+                current = _unit_properties(cfg.unit)
+                if current.get("ActiveState") != "active":
+                    _run_systemctl("start", cfg.unit)
+                    current = _wait_unit(cfg.unit, True, time.monotonic() + cfg.timeout_s)
+                # An already-running unit can be the original process when
+                # stop failed without side effects; do not restart it needlessly.
+                if current.get("ActiveState") != "active":
+                    raise ManagedASRBlocked("asr_restore_not_active")
                 deadline = time.monotonic() + cfg.timeout_s
                 while time.monotonic() < deadline:
                     if _models_healthy(cfg.base_url, cfg.served_model):
@@ -244,7 +250,7 @@ def managed_asr_handoff(cfg: ManagedASRConfig) -> Iterator[dict[str, Any]]:
                 _write_journal(cfg.journal_path, {
                     "phase": "restored", "unit": cfg.unit,
                     "original_invocation_id": original.get("InvocationID"),
-                    "restored_invocation_id": restored.get("InvocationID"),
+                    "restored_invocation_id": current.get("InvocationID"),
                 })
         finally:
             fcntl.flock(lease.fileno(), fcntl.LOCK_UN)

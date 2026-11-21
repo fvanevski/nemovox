@@ -360,20 +360,41 @@ class QwenAlignerSession:
                     process.wait(timeout=3)
             except (OSError, BrokenPipeError, subprocess.TimeoutExpired):
                 pass
-            # The whole isolated session belongs to this adapter. Kill any
-            # residual children even when the worker leader exited first.
-            try:
-                os.killpg(process.pid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
-            try:
-                process.wait(timeout=2)
-            except subprocess.TimeoutExpired:
+            # Reap remaining live group members even when the model-worker
+            # leader already exited. Zombies are not mistaken for active GPU
+            # consumers, and no unrelated system service is signaled.
+            import time
+            def group_live() -> bool:
+                proc_root = Path("/proc")
+                if proc_root.is_dir():
+                    for entry in proc_root.iterdir():
+                        if not entry.name.isdecimal():
+                            continue
+                        try:
+                            stat = (entry / "stat").read_text().rsplit(") ", 1)[1].split()
+                            if stat[0] not in {"Z", "X"} and int(stat[2]) == process.pid and int(stat[3]) == process.pid:
+                                return True
+                        except (OSError, IndexError, ValueError):
+                            continue
+                    return False
                 try:
-                    os.killpg(process.pid, signal.SIGKILL)
+                    os.killpg(process.pid, 0)
+                    return True
                 except ProcessLookupError:
-                    pass
-                process.wait(timeout=2)
+                    return False
+            for sig in (signal.SIGTERM, signal.SIGKILL):
+                if not group_live():
+                    break
+                try:
+                    os.killpg(process.pid, sig)
+                except ProcessLookupError:
+                    break
+                deadline = time.monotonic() + 2
+                while group_live() and time.monotonic() < deadline:
+                    time.sleep(0.05)
+            process.wait(timeout=2)
+            if group_live():
+                raise QwenWorkerError("worker_cleanup_failed", "Qwen worker descendants remain")
             if process.stdin is not None:
                 process.stdin.close()
             if process.stdout is not None:
