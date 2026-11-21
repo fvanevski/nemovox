@@ -84,8 +84,31 @@ def main(argv: list[str] | None = None) -> int:
                     device_map=device, local_files_only=True,
                 )
                 dtype = str(use_dtype)
+                observed_dtype = None
+                for candidate in (aligner, *(getattr(aligner, name, None)
+                                              for name in ("model", "_model", "aligner_model"))):
+                    if candidate is None or not hasattr(candidate, "parameters"):
+                        continue
+                    try:
+                        observed_dtype = str(next(candidate.parameters()).dtype)
+                        break
+                    except (AttributeError, StopIteration, TypeError):
+                        continue
+                cuda_allocated = (
+                    int(torch.cuda.memory_allocated(0)) if device.startswith("cuda") else None
+                )
+                if device.startswith("cuda") and (cuda_allocated or 0) < 100_000_000:
+                    _reply(req_id, "blocked_device_unverified",
+                           error="CUDA was requested but substantial GPU model allocation was not observed")
+                    return 3
+                if observed_dtype is not None and observed_dtype != str(use_dtype):
+                    _reply(req_id, "blocked_dtype_mismatch",
+                           error=f"Requested {use_dtype}, observed {observed_dtype}")
+                    return 3
                 model_load_count += 1
                 _reply(req_id, "ok", device_used=device, dtype=dtype,
+                       observed_dtype=observed_dtype,
+                       cuda_allocated_bytes=cuda_allocated,
                        model_load_count=model_load_count,
                        model_load_wall_s=round(time.monotonic() - t0, 4),
                        peak_gpu_allocated_bytes=(
