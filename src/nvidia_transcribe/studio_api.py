@@ -184,6 +184,23 @@ class JobRunner:
         self.executor.submit(self._run, job_id)
         return record
 
+    @staticmethod
+    def _terminate_process_group(process: subprocess.Popen) -> None:
+        if process.poll() is not None:
+            return
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            return
+        try:
+            process.wait(timeout=8)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait(timeout=2)
+
     def cancel(self, job_id: str) -> dict:
         value = self.get(job_id)
         if value["state"] in {"complete", "failed", "cancelled", "interrupted"}:
@@ -220,11 +237,7 @@ class JobRunner:
             try:
                 while process.poll() is None:
                     if job_id in self._cancelled:
-                        os.killpg(process.pid, signal.SIGTERM)
-                        try:
-                            process.wait(timeout=8)
-                        except subprocess.TimeoutExpired:
-                            os.killpg(process.pid, signal.SIGKILL)
+                        self._terminate_process_group(process)
                         raise InterruptedError("Cancelled")
                     time.sleep(0.4)
                 if job_id in self._cancelled:
@@ -236,6 +249,8 @@ class JobRunner:
                     self._processes.pop(job_id, None)
 
     def _download(self, job_id: str, url: str) -> Path:
+        if job_id in self._cancelled:
+            raise InterruptedError("Cancelled")
         if shutil.which("yt-dlp") is None:
             raise RuntimeError("Install yt-dlp to process remote media URLs.")
         root = self.config.job_root / job_id / "remote"
@@ -257,9 +272,11 @@ class JobRunner:
             try:
                 while process.poll() is None:
                     if job_id in self._cancelled:
-                        os.killpg(process.pid, signal.SIGTERM)
+                        self._terminate_process_group(process)
                         raise InterruptedError("Cancelled")
                     time.sleep(0.4)
+                if job_id in self._cancelled:
+                    raise InterruptedError("Cancelled")
                 if process.returncode:
                     raise RuntimeError("Remote download failed; see execution.log")
             finally:
@@ -272,6 +289,8 @@ class JobRunner:
 
     def _run(self, job_id: str) -> None:
         try:
+            if job_id in self._cancelled:
+                raise InterruptedError("Cancelled")
             self.update(job_id, state="running", stage="Preparing media", progress=2)
             value = self.get(job_id)
             spec = JobRequest.model_validate(value["request"])
@@ -282,6 +301,11 @@ class JobRunner:
             else:
                 source = Path(value["source_path"])
             self.update(job_id, source_path=str(source))
+
+            asr_base_url = os.environ.get("ASR_BASE_URL", "").strip()
+            asr_model = os.environ.get("ASR_MODEL", "").strip()
+            swiftu_base_url = os.environ.get("SWIFTU_BASE_URL", "").strip()
+            swiftu_model = os.environ.get("SWIFTU_MODEL", "").strip()
 
             if spec.source.kind == "contract":
                 contract = source
@@ -296,6 +320,10 @@ class JobRunner:
                 ]
                 if opt.source_language != "auto":
                     args.extend(["--source-language", opt.source_language])
+                if asr_base_url:
+                    args.extend(["--base-url", asr_base_url])
+                if asr_model:
+                    args.extend(["--model", asr_model])
                 self._command(job_id, args, "Transcribing audio and speakers", 8)
                 contract = root / "asr" / "recording.contract.json"
             if spec.task != "transcription":
@@ -314,12 +342,23 @@ class JobRunner:
                     args.append("--condense-high-cps")
                 if opt.glossary:
                     args.extend(["--glossary", opt.glossary])
+                if asr_base_url:
+                    args.extend(["--base-url", asr_base_url])
+                if asr_model:
+                    args.extend(["--model", asr_model])
+                if swiftu_base_url:
+                    args.extend(["--swiftu-url", swiftu_base_url])
+                if swiftu_model:
+                    args.extend(["--swiftu-model", swiftu_model])
                 self._command(job_id, args, "Refining, translating and rendering", 60)
             self.update(job_id, state="complete", stage="Complete", progress=100, finished_at=time.time())
         except InterruptedError:
             self.update(job_id, state="cancelled", stage="Cancelled", finished_at=time.time())
         except Exception as exc:
             self.update(job_id, state="failed", stage="Failed", error=str(exc), finished_at=time.time())
+        finally:
+            with self._lock:
+                self._cancelled.discard(job_id)
 
 
 def _srt_cues(text: str) -> list[dict]:
@@ -489,9 +528,13 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
         root = runner.path(job_id)
         paths = [
             root / "asr/recording.contract.json",
+            root / "asr/transcript.txt",
             root / "output/refined.contract.json",
             root / "output/translated.contract.json",
+            root / "output/raw_source_transcript.txt",
+            root / "output/refined_source_transcript.txt",
             root / "output/final_english_subtitles.txt",
+            root / "output/subtitles.metadata.json",
             *sorted((root / "output").glob("*.srt")),
             *sorted((root / "output").glob("*.ass")),
         ]
@@ -518,6 +561,14 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
             raise HTTPException(404, "Media not available yet.")
         path = Path(path_raw).resolve()
         allowed = settings.media_roots + (settings.upload_root, settings.job_root)
+        if path.suffix.lower() == ".json" and path.is_file() and _within(path, allowed):
+            try:
+                contract_doc = json.loads(path.read_text(encoding="utf-8"))
+                embedded = (contract_doc.get("source") or {}).get("path")
+                if embedded:
+                    path = Path(str(embedded)).expanduser().resolve()
+            except (OSError, ValueError):
+                raise HTTPException(404, "Media not available for preview.")
         if not path.is_file() or not _within(path, allowed) or path.suffix.lower() not in MEDIA_EXTENSIONS:
             raise HTTPException(404, "Media not available for preview.")
         return FileResponse(path)

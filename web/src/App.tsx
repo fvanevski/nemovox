@@ -78,21 +78,43 @@ function StatusIcon({state}: {state: Job["state"]}) {
   return <CircleAlert size={17} className="text-amber-300"/>;
 }
 
+function readInitialLocation(): { step: Step; jobId: string | null } {
+  if (typeof window === "undefined") return { step: "media", jobId: null };
+  const params = new URLSearchParams(window.location.search);
+  const job = params.get("job");
+  const rawStep = params.get("step");
+  const validStep: Step = rawStep === "media" || rawStep === "configure" || rawStep === "preview"
+    ? rawStep
+    : (job ? "preview" : "media");
+  return { step: validStep, jobId: job || null };
+}
+
 export default function App() {
   const queryClient = useQueryClient();
-  const [step, setStep] = useState<Step>("media");
+  const initialLocation = useMemo(readInitialLocation, []);
+  const [step, setStep] = useState<Step>(initialLocation.step);
   const [sourceMethod, setSourceMethod] = useState<"browse" | "upload" | "url">("browse");
   const [source, setSource] = useState<{kind: MediaKind; value: string}>({kind: "path", value: ""});
   const [browserDir, setBrowserDir] = useState<string | null>(null);
   const [task, setTask] = useState<TaskKind>("subtitles");
   const [options, setOptions] = useState<JobOptions>(INITIAL_OPTIONS);
-  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobId, setJobId] = useState<string | null>(initialLocation.jobId);
   const [error, setError] = useState<string>("");
   const [advanced, setAdvanced] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [cueSearch, setCueSearch] = useState("");
   const [assPreviewReady, setAssPreviewReady] = useState(false);
+  const [videoError, setVideoError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (jobId) params.set("job", jobId); else params.delete("job");
+    if (step !== "media" || jobId) params.set("step", step); else params.delete("step");
+    const qs = params.toString();
+    const nextUrl = window.location.pathname + (qs ? "?" + qs : "");
+    window.history.replaceState(null, "", nextUrl);
+  }, [step, jobId]);
   const selectedJob = useQuery({queryKey: ["job", jobId], queryFn: () => studio.job(jobId!), enabled: !!jobId,
     refetchInterval: (query) => ["running", "queued"].includes(query.state.data?.state || "") ? 1500 : false});
   const jobs = useQuery({queryKey: ["jobs"], queryFn: studio.jobs, refetchInterval: 4000});
@@ -135,7 +157,7 @@ export default function App() {
   const cues = preview.data?.cues || [];
   const active = cues.filter(c => c.start !== null && c.end !== null && currentTime >= c.start && currentTime < c.end).slice(0, 3);
   const filteredCues = useMemo(() => cues.filter(c => c.text.toLowerCase().includes(cueSearch.toLowerCase())), [cues, cueSearch]);
-  useEffect(() => {setCurrentTime(0);}, [jobId]);
+  useEffect(() => {setCurrentTime(0); setVideoError(false);}, [jobId]);
   useEffect(() => {
     setAssPreviewReady(false);
     if (!assUrl || !videoRef.current || step !== "preview") return;
@@ -172,22 +194,20 @@ export default function App() {
       </div>
     </header>
 
-    <div className="shell grid gap-7 pt-8 lg:grid-cols-[265px_minmax(0,1fr)]">
+    <Tabs.Root value={step} onValueChange={v => setStep(v as Step)} orientation="vertical" className="shell grid gap-7 pt-8 lg:grid-cols-[265px_minmax(0,1fr)]">
       <aside className="space-y-6">
         <div className="panel p-3">
           <div className="eyebrow px-3 pb-3 pt-2">Workflow</div>
-          <Tabs.Root value={step} onValueChange={v => setStep(v as Step)} orientation="vertical">
-            <Tabs.List className="grid gap-1" aria-label="Workflow stages">
-              {stages.map((item, i) => {
-                const Icon = item.icon;
-                return <Tabs.Trigger key={item.id} value={item.id} className="step w-full text-left" data-state={step === item.id ? "active" : i < stages.findIndex(s => s.id === step) ? "done" : "inactive"}>
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#223141]"><Icon size={17}/></span>
-                  <span className="min-w-0"><span className="block">{item.name}</span>
-                    <span className="mt-0.5 block text-[11px] font-normal text-slate-500">{item.detail}</span></span>
-                </Tabs.Trigger>;
-              })}
-            </Tabs.List>
-          </Tabs.Root>
+          <Tabs.List className="grid gap-1" aria-label="Workflow stages">
+            {stages.map((item, i) => {
+              const Icon = item.icon;
+              return <Tabs.Trigger key={item.id} value={item.id} className="step w-full text-left" data-state={step === item.id ? "active" : i < stages.findIndex(s => s.id === step) ? "done" : "inactive"}>
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#223141]"><Icon size={17}/></span>
+                <span className="min-w-0"><span className="block">{item.name}</span>
+                  <span className="mt-0.5 block text-[11px] font-normal text-slate-500">{item.detail}</span></span>
+              </Tabs.Trigger>;
+            })}
+          </Tabs.List>
         </div>
         <div className="panel p-4">
           <div className="mb-4 flex items-center justify-between"><span className="eyebrow">Recent runs</span><RotateCcw size={14} className="text-slate-500"/></div>
@@ -221,7 +241,7 @@ export default function App() {
           <CircleAlert size={18}/><span className="flex-1">{error}</span><button aria-label="Dismiss error" onClick={() => setError("")}><X size={16}/></button>
         </div>}
 
-        {step === "media" && <motion.div initial={{opacity: 0, y: 8}} animate={{opacity: 1, y: 0}} className="space-y-6">
+        <Tabs.Content value="media" className="outline-none"><motion.div initial={{opacity: 0, y: 8}} animate={{opacity: 1, y: 0}} className="space-y-6">
           <section className="panel p-6">
             <SectionTitle eyebrow="01 / Source" title="Choose your media" sub="Browse a file on the processing host, upload from this browser, or import a YouTube/remote URL."/>
             <div className="mb-5 grid grid-cols-3 gap-2">
@@ -298,9 +318,9 @@ export default function App() {
               Continue to settings <ChevronRight size={16}/>
             </button>
           </div>
-        </motion.div>}
+        </motion.div></Tabs.Content>
 
-        {step === "configure" && <motion.div initial={{opacity: 0, y: 8}} animate={{opacity: 1, y: 0}} className="space-y-6">
+        <Tabs.Content value="configure" className="outline-none"><motion.div initial={{opacity: 0, y: 8}} animate={{opacity: 1, y: 0}} className="space-y-6">
           <section className="panel p-6">
             <SectionTitle eyebrow="03 / Processing" title="Tailor the workflow" sub="Only settings relevant to the selected task are shown. Defaults are optimized for personal subtitle generation."/>
             <div className="mb-5 flex flex-wrap items-center gap-2"><Pill><Film size={12}/>{source.value.split("/").pop() || "Source not selected"}</Pill>
@@ -380,9 +400,9 @@ export default function App() {
               {submit.isPending ? "Creating job…" : "Start processing"}
             </button>
           </div>
-        </motion.div>}
+        </motion.div></Tabs.Content>
 
-        {step === "preview" && <motion.div initial={{opacity: 0, y: 8}} animate={{opacity: 1, y: 0}} className="space-y-6">
+        <Tabs.Content value="preview" className="outline-none"><motion.div initial={{opacity: 0, y: 8}} animate={{opacity: 1, y: 0}} className="space-y-6">
           <SectionTitle eyebrow="05 / Output" title="Review your result" sub="Follow processing, play the source media, and inspect synchronized transcript or subtitle cues."/>
           {!jobId && <div className="panel flex flex-col items-center justify-center gap-4 px-6 py-20 text-center">
             <MonitorPlay size={38} className="text-teal-400"/>
@@ -409,7 +429,7 @@ export default function App() {
               <div className="progress-track"><div className="progress-fill" style={{width: String(currentJob?.progress || 0) + "%"}}/></div>
               <div className="mt-2 flex justify-between text-xs muted"><span>{currentJob?.progress || 0}% recorded stage progress</span><span>{currentJob?.state === "complete" ? "Ready to review" : "Long-running tasks stay on the host"}</span></div>
               {currentJob?.error && <div className="mt-4 text-sm text-rose-300">{currentJob.error}</div>}
-              {(currentJob?.state === "running" || currentJob?.state === "failed") && !!logs.data?.lines.length &&
+              {(currentJob?.state === "running" || currentJob?.state === "failed" || currentJob?.state === "cancelled" || currentJob?.state === "interrupted") && !!logs.data?.lines.length &&
                 <details className="mt-4 rounded-lg border border-[#2c3c50] bg-[#0b131d] p-3">
                   <summary className="cursor-pointer text-xs font-semibold muted">Processing log</summary>
                   <pre className="scrollbar mt-3 max-h-40 overflow-auto whitespace-pre-wrap text-[11px] leading-5 text-slate-400">{logs.data.lines.join("\n")}</pre>
@@ -419,14 +439,20 @@ export default function App() {
               <section className="panel min-w-0 overflow-hidden">
                 <div className="flex items-center justify-between border-b border-[#2b3c4c] px-5 py-4">
                   <span className="text-sm font-semibold">Media preview</span>
-                  <div className="flex items-center gap-2"><Pill>{assPreviewReady ? "ASS · libass" : "Text preview"}</Pill><Pill><Clock3 size={12}/>{secondsLabel(currentTime)}</Pill></div>
+                  <div className="flex items-center gap-2"><Pill>{assPreviewReady ? "ASS · libass" : assUrl ? "HTML text fallback" : preview.data?.kind === "subtitles" ? "SRT text cues" : preview.data?.kind === "transcript" ? "Transcript cues" : "Text preview"}</Pill><Pill><Clock3 size={12}/>{secondsLabel(currentTime)}</Pill></div>
                 </div>
                 <div className="preview-pane relative aspect-video w-full overflow-hidden">
-                  <video ref={videoRef} controls playsInline preload="metadata"
+                  {!videoError ? <video ref={videoRef} controls playsInline preload="metadata"
                     src={"/api/jobs/" + jobId + "/media"} className="h-full w-full object-contain"
                     onTimeUpdate={e => setCurrentTime(e.currentTarget.currentTime)}
+                    onError={() => setVideoError(true)}
                     aria-label="Media preview with synchronized subtitle text"/>
-                  {!assPreviewReady && active.length > 0 && <div className="pointer-events-none absolute inset-x-3 bottom-14 flex flex-col items-center gap-1 text-center">
+                    : <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
+                      <Film size={28} className="text-slate-500"/>
+                      <div className="text-sm font-semibold text-slate-200">Browser video preview unavailable</div>
+                      <p className="max-w-md text-xs leading-5 muted">This container/codec cannot play natively in the browser or the job started from an existing transcript contract. Dialogue cues and exports remain available.</p>
+                    </div>}
+                  {!assPreviewReady && !videoError && active.length > 0 && <div className="pointer-events-none absolute inset-x-3 bottom-14 flex flex-col items-center gap-1 text-center">
                     {active.map((cue, i) => <div key={String(cue.utterance_id || cue.start) + "-" + i} className="max-w-[90%] rounded-md bg-black/80 px-3 py-1.5 text-sm font-semibold text-white shadow-xl md:text-base"
                       style={{textShadow: "0 1px 3px black"}}>{cue.text}</div>)}
                   </div>}
@@ -434,7 +460,7 @@ export default function App() {
                 <div className="border-t border-[#2a3b4b] p-4">
                   <div className="mb-2 flex items-center justify-between"><span className="text-xs font-bold text-slate-200">Export results</span><span className="text-[11px] muted">Files stay on your host</span></div>
                   <div className="flex flex-wrap gap-2">
-                    {artifacts.data?.map(item => <a key={item.path} href={item.url} className="btn btn-secondary !min-h-9 !px-3"><Download size={13}/>{item.name.split(".").slice(-2).join(".")}</a>)}
+                    {artifacts.data?.map(item => <a key={item.path} href={item.url} download={item.name} className="btn btn-secondary !min-h-9 !px-3"><Download size={13}/>{item.name}</a>)}
                     {!artifacts.data?.length && <span className="text-xs muted">Exports will appear when processing finishes.</span>}
                   </div>
                 </div>
@@ -459,8 +485,8 @@ export default function App() {
             </div>
             <div className="flex justify-end"><button className="btn btn-secondary" onClick={() => {setStep("media"); setJobId(null);}}>New task <ChevronRight size={15}/></button></div>
           </>}
-        </motion.div>}
+        </motion.div></Tabs.Content>
       </main>
-    </div>
+    </Tabs.Root>
   </div>;
 }
