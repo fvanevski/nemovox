@@ -191,6 +191,10 @@ def managed_asr_handoff(cfg: ManagedASRConfig) -> Iterator[dict[str, Any]]:
     future automatic takeovers: operator must inspect/restore service first.
     """
     telemetry: dict[str, Any] = {"mode": "managed", "released": False, "restored": False}
+    # A previous interrupted release must never be ignored simply because
+    # VRAM happens to be free (the ASR unit might still be stopped).
+    if _pending_journal(cfg.journal_path):
+        raise ManagedASRBlocked("prior_handoff_requires_recovery")
     free = _free_vram_mb()
     telemetry["free_vram_before_mb"] = free
     if free is None:
@@ -199,8 +203,6 @@ def managed_asr_handoff(cfg: ManagedASRConfig) -> Iterator[dict[str, Any]]:
         telemetry["status"] = "cuda_already_available"
         yield telemetry
         return
-    if _pending_journal(cfg.journal_path):
-        raise ManagedASRBlocked("prior_handoff_requires_recovery")
     lease = _check_lease(cfg.lease_path)
     stopped = False
     original: dict[str, str] | None = None
