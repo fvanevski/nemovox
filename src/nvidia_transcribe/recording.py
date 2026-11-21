@@ -464,8 +464,21 @@ def process_media(
                                     extract_wav=lambda start, end, _idx=idx: _extract_sub_wav(_idx, start, end),
                                 )
                             qwen_metrics.update(adapter.metrics)
+                            attempted_statuses = [
+                                d.get("aligner_status") for rec in native_records
+                                for d in (rec.get("diagnostic", {}).get("external_aligner") or {}).get("localized_spans", [])
+                                if d.get("aligner_status")
+                            ]
+                            blocked = next(
+                                (v for v in attempted_statuses
+                                 if v.startswith("blocked_") or v in {
+                                     "worker_timeout", "worker_exited", "worker_failed",
+                                     "unavailable", "device_mismatch", "worker_error",
+                                 }), None,
+                            )
                             qwen_metrics["status"] = (
-                                "executed" if adapter.metrics["align_count"] else "deferred_no_successful_worker_requests"
+                                blocked or ("executed" if adapter.metrics["align_count"]
+                                else "deferred_no_successful_worker_requests")
                             )
                     # Snapshot the handoff report *after* context exit so
                     # restored=True reflects verified ASR health, not a
