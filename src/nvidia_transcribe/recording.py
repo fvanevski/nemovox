@@ -25,7 +25,7 @@ from nvidia_transcribe.media import MediaInfo, compute_file_sha256, extract_wav_
 from nvidia_transcribe.prompts import cleanup_generation_loops
 from nvidia_transcribe.qwen_aligner import (QwenAlignerConfig, QwenForcedAlignerAdapter, map_language_for_qwen_aligner)
 from nvidia_transcribe.selective_alignment import AdmissionPolicy, apply_selective_recovery, plan_selective_recovery
-from nvidia_transcribe.gpu_handoff import ManagedASRBlocked, ManagedASRConfig, managed_asr_handoff
+from nvidia_transcribe.gpu_handoff import (ManagedASRBlocked, ManagedASRLifecycleError, ManagedASRConfig, managed_asr_handoff)
 from nvidia_transcribe.speakers import (
     SpeakerEmbedder,
     TitaNetSpeakerEmbedder,
@@ -484,11 +484,14 @@ def process_media(
                     # restored=True reflects verified ASR health, not a
                     # premature pre-restoration observation.
                     qwen_metrics["resource_handoff"] = dict(lease_report)
+                except ManagedASRLifecycleError as exc:
+                    # A stop was attempted or restoration could not be proved:
+                    # never convert this into a successful optional deferral.
+                    raise RuntimeError(
+                        f"Managed ASR lifecycle could not be verified: {exc.status}"
+                    ) from exc
                 except ManagedASRBlocked as exc:
-                    # Admission failures occur *before* changing a non-owned
-                    # service. Restoration failures are fatal, not a mere skip.
-                    if exc.status.startswith(("asr_restore", "unit_transition", "systemctl_failed")):
-                        raise RuntimeError(f"Managed ASR lifecycle could not be verified: {exc.status}") from exc
+                    # Only failures before a stop attempt may defer alignment.
                     qwen_metrics["status"] = exc.status
                     warnings.append(f"Optional managed Qwen deferred: {exc.status}")
                 except Exception:

@@ -32,6 +32,14 @@ class ManagedASRBlocked(RuntimeError):
         self.status = status
 
 
+class ManagedASRLifecycleError(ManagedASRBlocked):
+    """Fatal after a managed ASR stop attempt or failed restoration.
+
+    Unlike an admission block, this must never be converted into optional
+    alignment deferral. The journal remains pending unless health is verified.
+    """
+
+
 @dataclass(frozen=True)
 class ManagedASRConfig:
     unit: str
@@ -290,30 +298,46 @@ def managed_asr_handoff(cfg: ManagedASRConfig) -> Iterator[dict[str, Any]]:
             raise ManagedASRBlocked("vram_not_released")
         telemetry["released"] = True
         yield telemetry
+    except ManagedASRBlocked as exc:
+        # A systemctl failure *after* attempting stop has uncertain service
+        # effects even if a restoration attempt later succeeds. It is not
+        # equivalent to a safe pre-stop admission refusal.
+        if stopped:
+            raise ManagedASRLifecycleError("asr_handoff_unverified", exc.status) from exc
+        raise
     finally:
         try:
             if stopped and original is not None:
-                current = _unit_properties(cfg.unit)
-                if current.get("ActiveState") != "active":
-                    _run_systemctl("start", cfg.unit)
-                    current = _wait_unit(cfg.unit, True, time.monotonic() + cfg.timeout_s)
-                # An already-running unit can be the original process when
-                # stop failed without side effects; do not restart it needlessly.
-                if current.get("ActiveState") != "active":
-                    raise ManagedASRBlocked("asr_restore_not_active")
-                deadline = time.monotonic() + cfg.timeout_s
-                while time.monotonic() < deadline:
-                    if _models_healthy(cfg.base_url, cfg.served_model):
-                        telemetry["restored"] = True
-                        break
-                    time.sleep(0.5)
-                if not telemetry["restored"]:
-                    raise ManagedASRBlocked("asr_restore_health_failed")
-                _write_journal(cfg.journal_path, {
-                    "phase": "restored", "unit": cfg.unit,
-                    "original_invocation_id": original.get("InvocationID"),
-                    "restored_invocation_id": current.get("InvocationID"),
-                })
+                try:
+                    current = _unit_properties(cfg.unit)
+                    if current.get("ActiveState") != "active":
+                        _run_systemctl("start", cfg.unit)
+                        current = _wait_unit(cfg.unit, True, time.monotonic() + cfg.timeout_s)
+                    # If stop failed harmlessly and the original process is
+                    # still healthy, do not restart it unnecessarily.
+                    if current.get("ActiveState") != "active":
+                        raise ManagedASRBlocked("asr_restore_not_active")
+                    deadline = time.monotonic() + cfg.timeout_s
+                    while time.monotonic() < deadline:
+                        if _models_healthy(cfg.base_url, cfg.served_model):
+                            telemetry["restored"] = True
+                            break
+                        time.sleep(0.5)
+                    if not telemetry["restored"]:
+                        raise ManagedASRBlocked("asr_restore_health_failed")
+                    _write_journal(cfg.journal_path, {
+                        "phase": "restored", "unit": cfg.unit,
+                        "original_invocation_id": original.get("InvocationID"),
+                        "restored_invocation_id": current.get("InvocationID"),
+                    })
+                except BaseException as exc:
+                    # Preserve the original cause, but make every failure to
+                    # verify restoration fatal, including systemctl transport
+                    # errors, signal interruptions and journal-write failures.
+                    raise ManagedASRLifecycleError(
+                        "asr_restore_unverified",
+                        getattr(exc, "status", type(exc).__name__),
+                    ) from exc
         finally:
             try:
                 if sigterm_installed:
