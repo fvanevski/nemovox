@@ -1,0 +1,24 @@
+# Earlier Diagnostic Run Summary (Pre-Auth-Header Fix, TEI Stop/Restore Probe)
+
+# Note: In the first harness run (22:51:11Z-22:55:30Z), two harness issues occurred:
+# 1) At 22:51:40Z, an external transient GPU allocation dropped free VRAM to 8.44/31.37 GiB during initial vLLM startup, failing startup before model load (22:51:51Z returned to 29,075 MiB free).
+# 2) _http_ok lacked Authorization Bearer VLLM_API_KEY, so /v1/models polling saw HTTP 401 and timed out at 180s even though vLLM was up.
+# Nevertheless, that diagnostic run directly exercised and measured TEI stop/restore and Lane B coexistence:
+
+tei_container_id=64c86ba8a443dddafc9ae268d7381bdbfe538f25aa74c2214d1d4863bad77b84
+gpu_free_before_tei_stop_mib=29075
+gpu_free_after_tei_stop_mib=30809
+gpu_free_gain_from_tei_stop_mib=1734
+
+# Lane B with TEI stopped & VLLM::EngineCore resident (23,822 MiB):
+pre_qwen_free_mib=6981
+min_free_mib_during_qwen=4411
+max_used_mib_during_qwen=27716
+qwen_worker_mib=2564
+qwen_status=executed (model_load_count=1, align_count=2, cuda:0, torch.bfloat16, 1.9802s -> 0.0338s)
+
+# TEI restore after ASR teardown:
+tei_restored_running=true
+tei_restored_health=healthy
+tei_restored_http_200=true
+tei_restore_wall_s=20.36

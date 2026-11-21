@@ -1,0 +1,386 @@
+{
+  "source_sha": "7b4112cc31784953abbb041fd0b5d7997851841d",
+  "source_tree": "3d2cc429f9b49da3079df7d1fc178f6fd09d7987",
+  "baseline_gpu": {
+    "timestamp": "2026-11-21T22:56:14.445268+00:00",
+    "gpu_index": 0,
+    "gpu_uuid": "GPU-c75b2559-b8e1-ebf9-fe82-65cd2b3ca4c0",
+    "gpu_name": "NVIDIA GeForce RTX 5090",
+    "memory_total_mib": 32607,
+    "memory_used_mib": 3082,
+    "memory_free_mib": 29045,
+    "compute_apps": [
+      {
+        "pid": 11480,
+        "name": "/usr/bin/kwin_wayland",
+        "used_mib": 329
+      },
+      {
+        "pid": 1216176,
+        "name": "/usr/local/bin/text-embeddings-router",
+        "used_mib": 1758
+      }
+    ]
+  },
+  "baseline_tei": {
+    "name": "/tei-qwen3-embedding",
+    "id": "64c86ba8a443dddafc9ae268d7381bdbfe538f25aa74c2214d1d4863bad77b84",
+    "id_prefix": "64c86ba8a443",
+    "running": true,
+    "status": "running",
+    "health": "healthy",
+    "restart_policy": "unless-stopped"
+  },
+  "baseline_port_8190": false,
+  "asr_launch_lane_a": {
+    "pid": 1224121,
+    "pgid": 1224121,
+    "returncode": null,
+    "ready": true,
+    "startup_wall_s": 85.56,
+    "quantization_modelopt_mixed_seen": true,
+    "ctc_middleware_seen": true,
+    "oom_seen": false,
+    "models_response": {
+      "models": [
+        "nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4"
+      ]
+    }
+  },
+  "asr_warmup_ctc": {
+    "ok": true,
+    "wall_s": 7.5143,
+    "clip": "zh_fleurs_00_1906.wav",
+    "text_len": 34,
+    "ctc_word_count": 23,
+    "ctc_error": null,
+    "diar_count": 2
+  },
+  "asr_oov_pre_qwen": {
+    "ok": true,
+    "wall_s": 0.7158,
+    "clip": "zh_fleurs_01_2006.wav",
+    "text_len": 32,
+    "ctc_word_count": 0,
+    "ctc_error": "alignment_failed",
+    "diar_count": 3
+  },
+  "gpu_with_asr_tei_on": {
+    "timestamp": "2026-11-21T22:57:48.312064+00:00",
+    "gpu_index": 0,
+    "gpu_uuid": "GPU-c75b2559-b8e1-ebf9-fe82-65cd2b3ca4c0",
+    "gpu_name": "NVIDIA GeForce RTX 5090",
+    "memory_total_mib": 32607,
+    "memory_used_mib": 27490,
+    "memory_free_mib": 4637,
+    "compute_apps": [
+      {
+        "pid": 11480,
+        "name": "/usr/bin/kwin_wayland",
+        "used_mib": 327
+      },
+      {
+        "pid": 1216176,
+        "name": "/usr/local/bin/text-embeddings-router",
+        "used_mib": 1758
+      },
+      {
+        "pid": 1225862,
+        "name": "VLLM::EngineCore",
+        "used_mib": 24404
+      }
+    ]
+  },
+  "lane_a": {
+    "lane": "lane_a_tei_on",
+    "provenance": "LIVE_ASR_AND_QWEN_RESIDENT",
+    "wall_s": 12.297,
+    "pre_gpu": {
+      "timestamp": "2026-11-21T22:57:48.362130+00:00",
+      "gpu_index": 0,
+      "gpu_uuid": "GPU-c75b2559-b8e1-ebf9-fe82-65cd2b3ca4c0",
+      "gpu_name": "NVIDIA GeForce RTX 5090",
+      "memory_total_mib": 32607,
+      "memory_used_mib": 27490,
+      "memory_free_mib": 4637,
+      "compute_apps": [
+        {
+          "pid": 11480,
+          "name": "/usr/bin/kwin_wayland",
+          "used_mib": 327
+        },
+        {
+          "pid": 1216176,
+          "name": "/usr/local/bin/text-embeddings-router",
+          "used_mib": 1758
+        },
+        {
+          "pid": 1225862,
+          "name": "VLLM::EngineCore",
+          "used_mib": 24404
+        }
+      ]
+    },
+    "post_gpu": {
+      "timestamp": "2026-11-21T22:58:00.704148+00:00",
+      "gpu_index": 0,
+      "gpu_uuid": "GPU-c75b2559-b8e1-ebf9-fe82-65cd2b3ca4c0",
+      "gpu_name": "NVIDIA GeForce RTX 5090",
+      "memory_total_mib": 32607,
+      "memory_used_mib": 27492,
+      "memory_free_mib": 4635,
+      "compute_apps": [
+        {
+          "pid": 11480,
+          "name": "/usr/bin/kwin_wayland",
+          "used_mib": 327
+        },
+        {
+          "pid": 1216176,
+          "name": "/usr/local/bin/text-embeddings-router",
+          "used_mib": 1758
+        },
+        {
+          "pid": 1225862,
+          "name": "VLLM::EngineCore",
+          "used_mib": 24406
+        }
+      ]
+    },
+    "sample_count": 42,
+    "min_free_mib_during_qwen": 2066,
+    "max_used_mib_during_qwen": 30061,
+    "max_compute_apps_seen": 4,
+    "peak_sample": {
+      "timestamp": "2026-11-21T22:57:59.166050+00:00",
+      "gpu_index": 0,
+      "gpu_uuid": "GPU-c75b2559-b8e1-ebf9-fe82-65cd2b3ca4c0",
+      "gpu_name": "NVIDIA GeForce RTX 5090",
+      "memory_total_mib": 32607,
+      "memory_used_mib": 30061,
+      "memory_free_mib": 2066,
+      "compute_apps": [
+        {
+          "pid": 11480,
+          "name": "/usr/bin/kwin_wayland",
+          "used_mib": 327
+        },
+        {
+          "pid": 1216176,
+          "name": "/usr/local/bin/text-embeddings-router",
+          "used_mib": 1758
+        },
+        {
+          "pid": 1225862,
+          "name": "VLLM::EngineCore",
+          "used_mib": 24406
+        },
+        {
+          "pid": 1235339,
+          "name": "/workspace/nvidia-transcribe/outputs/modular-eval/.venv/bin/python",
+          "used_mib": 2564
+        }
+      ]
+    },
+    "qwen_recovery": {
+      "status": "executed",
+      "policy": "subtitle",
+      "eligible_candidates": 2,
+      "skipped_candidates": 0,
+      "mode": "available",
+      "model_load_count": 1,
+      "align_count": 2,
+      "startup_wall_s": 7.8142,
+      "inference_wall_s": 1.942308811005205,
+      "peak_gpu_allocated_bytes": 1900171776,
+      "device_used": "cuda:0",
+      "dtype": "torch.bfloat16",
+      "observed_dtype": "torch.bfloat16",
+      "cuda_allocated_bytes": 1841616896,
+      "model_load_wall_s": 5.9827,
+      "resource_handoff": {
+        "mode": "available",
+        "released": false
+      }
+    },
+    "localized_spans": [
+      {
+        "span_range": [
+          0,
+          21
+        ],
+        "untimed_units": 21,
+        "status": "recovered",
+        "window": [
+          0.77,
+          6.99
+        ],
+        "aligner_status": "ok",
+        "aligner_diagnostic": {
+          "backend": "qwen3_forced_aligner",
+          "status": "ok",
+          "qwen_language": "Chinese",
+          "device_used": "cuda:0",
+          "dtype": "torch.bfloat16",
+          "quantized_resolution_s": 0.08,
+          "inference_wall_s": 1.9088,
+          "model_load_count": 1,
+          "observed_dtype": "torch.bfloat16",
+          "cuda_allocated_bytes": 1841616896,
+          "peak_gpu_allocated_bytes": 1900171264,
+          "total_items": 21,
+          "valid_items": 21,
+          "zero_duration_count": 0,
+          "invalid_bounds_count": 0,
+          "non_monotonic_count": 0
+        },
+        "matched_untimed_units": 21,
+        "rejected_bounds_units": 0
+      },
+      {
+        "span_range": [
+          0,
+          21
+        ],
+        "untimed_units": 21,
+        "status": "recovered",
+        "window": [
+          11.05,
+          17.27
+        ],
+        "aligner_status": "ok",
+        "aligner_diagnostic": {
+          "backend": "qwen3_forced_aligner",
+          "status": "ok",
+          "qwen_language": "Chinese",
+          "device_used": "cuda:0",
+          "dtype": "torch.bfloat16",
+          "quantized_resolution_s": 0.08,
+          "inference_wall_s": 0.0329,
+          "model_load_count": 1,
+          "observed_dtype": "torch.bfloat16",
+          "cuda_allocated_bytes": 1841616896,
+          "peak_gpu_allocated_bytes": 1900171776,
+          "total_items": 21,
+          "valid_items": 21,
+          "zero_duration_count": 0,
+          "invalid_bounds_count": 0,
+          "non_monotonic_count": 0
+        },
+        "matched_untimed_units": 21,
+        "rejected_bounds_units": 0
+      }
+    ],
+    "jia_timings": [
+      {
+        "utt": "utt-0000",
+        "start": 1.41,
+        "end": 1.65
+      },
+      {
+        "utt": "utt-0001",
+        "start": 11.69,
+        "end": 11.93
+      }
+    ],
+    "error": null,
+    "asr_models_ok_post_qwen": true,
+    "asr_ctc_post_qwen": {
+      "ok": true,
+      "wall_s": 0.2215,
+      "clip": "zh_fleurs_00_1906.wav",
+      "text_len": 34,
+      "ctc_word_count": 23,
+      "ctc_error": null,
+      "diar_count": 2
+    }
+  },
+  "lane_b_needed": false,
+  "asr_teardown": {
+    "stopped": true,
+    "pid": 1224121,
+    "returncode": 0,
+    "port_8190_open": false
+  },
+  "final_gpu": {
+    "timestamp": "2026-11-21T22:58:03.304771+00:00",
+    "gpu_index": 0,
+    "gpu_uuid": "GPU-c75b2559-b8e1-ebf9-fe82-65cd2b3ca4c0",
+    "gpu_name": "NVIDIA GeForce RTX 5090",
+    "memory_total_mib": 32607,
+    "memory_used_mib": 3080,
+    "memory_free_mib": 29047,
+    "compute_apps": [
+      {
+        "pid": 11480,
+        "name": "/usr/bin/kwin_wayland",
+        "used_mib": 327
+      },
+      {
+        "pid": 1216176,
+        "name": "/usr/local/bin/text-embeddings-router",
+        "used_mib": 1758
+      }
+    ]
+  },
+  "final_tei": {
+    "name": "/tei-qwen3-embedding",
+    "id": "64c86ba8a443dddafc9ae268d7381bdbfe538f25aa74c2214d1d4863bad77b84",
+    "id_prefix": "64c86ba8a443",
+    "running": true,
+    "status": "running",
+    "health": "healthy",
+    "restart_policy": "unless-stopped"
+  },
+  "timeline": [
+    {
+      "step": "baseline",
+      "time": "2026-11-21T22:56:14.466653+00:00",
+      "free_mib": 29045,
+      "tei_running": true
+    },
+    {
+      "step": "asr_launch_start",
+      "time": "2026-11-21T22:56:14.466664+00:00"
+    },
+    {
+      "step": "asr_launch_done",
+      "time": "2026-11-21T22:57:40.035243+00:00",
+      "ready": true,
+      "startup_wall_s": 85.56
+    },
+    {
+      "step": "asr_warmed",
+      "time": "2026-11-21T22:57:48.312522+00:00",
+      "free_mib": 4637,
+      "warmup_ok": true,
+      "oov_ctc_err": "alignment_failed"
+    },
+    {
+      "step": "lane_a_start",
+      "time": "2026-11-21T22:57:48.312528+00:00",
+      "use_live_asr_for_two_span": true
+    },
+    {
+      "step": "lane_a_done",
+      "time": "2026-11-21T22:58:00.933758+00:00",
+      "qwen_status": "executed",
+      "min_free_mib": 2066,
+      "asr_post_ok": true
+    },
+    {
+      "step": "asr_teardown_start",
+      "time": "2026-11-21T22:58:00.933819+00:00"
+    },
+    {
+      "step": "asr_teardown_done",
+      "time": "2026-11-21T22:58:03.263204+00:00",
+      "teardown": {
+        "stopped": true,
+        "pid": 1224121,
+        "returncode": 0,
+        "port_8190_open": false
+      }
+    }
+  ]
+}

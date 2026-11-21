@@ -1,0 +1,33 @@
+# Final Host State & Service Verification (Sanitized)
+
+# Timestamp: 2026-11-21T22:58:10Z (post-experiment)
+gpu_index=0
+gpu_name=NVIDIA GeForce RTX 5090
+gpu_uuid=GPU-c75b2559-b8e1-ebf9-fe82-65cd2b3ca4c0
+memory_total_mib=32607
+memory_used_mib=3080
+memory_free_mib=29047
+
+# Compute apps remaining (preexisting only)
+pid=11480 name=/usr/bin/kwin_wayland used_mib=327
+pid=1216176 name=/usr/local/bin/text-embeddings-router used_mib=1758
+
+# Ports & processes
+port_8190=closed
+test_owned_vllm_or_qwen_processes=none
+
+# Docker tei-qwen3-embedding
+container_name=/tei-qwen3-embedding
+container_id=64c86ba8a443dddafc9ae268d7381bdbfe538f25aa74c2214d1d4863bad77b84
+running=true
+health=healthy
+http_8005_health=200
+
+# Systemd user services
+nemovox-studio.service=active
+local_embedding.service=active
+
+# Live checkout (/workspace/nvidia-transcribe)
+live_head=7b4112cc31784953abbb041fd0b5d7997851841d
+live_tree=3d2cc429f9b49da3079df7d1fc178f6fd09d7987
+live_worktree_clean=yes

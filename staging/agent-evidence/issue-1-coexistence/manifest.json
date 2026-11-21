@@ -1,0 +1,66 @@
+{
+  "issue": 1,
+  "merged_pr": 4,
+  "repository": "fvanevski/nemovox",
+  "source_sha": "7b4112cc31784953abbb041fd0b5d7997851841d",
+  "source_tree": "3d2cc429f9b49da3079df7d1fc178f6fd09d7987",
+  "handoff_commit": "c01d306e6f542b6ab7dd93768a7259667ab399d9",
+  "evidence_branch": "evidence/issue-1-asr-qwen-coexistence-20261121",
+  "evidence_directory": "staging/agent-evidence/issue-1-coexistence/",
+  "gpu_uuid": "GPU-c75b2559-b8e1-ebf9-fe82-65cd2b3ca4c0",
+  "dispositions": {
+    "ASR_SOURCE": "AGENT_OWNED",
+    "ASR_LOADED_AND_WARMED": "PASS",
+    "ASR_CTC_PRE_QWEN": "PASS",
+    "ASR_CTC_POST_QWEN": "PASS",
+    "LANE_A_TEI_ON": "COEXIST_PASS",
+    "LANE_B_TEI_OFF": "NOT_NEEDED",
+    "OVERALL_COEXISTENCE": "COEXIST_PASS_TEI_ON",
+    "TEI_RESTORE": "NOT_NEEDED",
+    "LIVE_MANAGED_HANDOFF": "NOT_TESTED",
+    "ISSUE1_RECOMMENDATION": "CLOSE_WITH_DOCUMENTED_OPTIONAL_MODE_LIMITATION"
+  },
+  "privacy_scan": "PASS (0 personal paths/tokens)",
+  "members": {
+    "HANDback.md": {
+      "sha256": "340d747e27261d10cf36c6c00723c56857fde4e5079c4be7b7a66909f9ed9889",
+      "size_bytes": 3944
+    },
+    "asr-and-gpu-samples.md": {
+      "sha256": "93265c2c89296a4f8c0ae774f36a20de4882c87e5b1b7b9e828550fe9ddc52d3",
+      "size_bytes": 2781
+    },
+    "coexistence-decision.md": {
+      "sha256": "e09082b2dee7ff247a880bc9e5e2335e5e33ae431e224e38054f0ce6631b148e",
+      "size_bytes": 2620
+    },
+    "logs/asr_startup_and_routes_sanitized.txt": {
+      "sha256": "66956412f065f2709b3199305f6b9462b133475355127c920f41491584760aa7",
+      "size_bytes": 6519
+    },
+    "logs/coexistence_results.json": {
+      "sha256": "e6eca16f105474ea2eced8d0e400a6a35a9df6c11c73da82d6807a3f39f3b0b5",
+      "size_bytes": 10115
+    },
+    "logs/diagnostic_lane_b_tei_check_sanitized.txt": {
+      "sha256": "afc1921ea03faf8d7034744993e7d964aaed8531dc1bc42694c4ed7dc75ff458",
+      "size_bytes": 1213
+    },
+    "logs/host_final_state.txt": {
+      "sha256": "9631ee60ae7b4ef617d97902554c5e877f6fada757a3714a097a6ef27e8fa8d3",
+      "size_bytes": 962
+    },
+    "qwen-results.md": {
+      "sha256": "44968f1f919cc7ff9b6efd939e879309d56b1fd76d25abe52e30ef7f7eec1ee2",
+      "size_bytes": 2216
+    },
+    "source-and-runtime.md": {
+      "sha256": "39411210970b4d6fba12a56572c2ca35d2c76e48b0708796674159c2432e66dd",
+      "size_bytes": 1801
+    },
+    "tei-lifecycle.md": {
+      "sha256": "41bfda5b959f968d5104f53bea93e1a99401e9a9d45de1f74f18f4c49203ee4d",
+      "size_bytes": 1620
+    }
+  }
+}
