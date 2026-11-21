@@ -69,6 +69,10 @@ The user wants review from GitHub, not manual uploaded handbacks.
 5. On the evidence branch, publish:
    staging/agent-evidence/gui-foundation-20261121/gui-foundation-evidence.tar.gz
    staging/agent-evidence/gui-foundation-20261121/manifest.json
+   staging/agent-evidence/gui-foundation-20261121/HANDback.md
+   staging/agent-evidence/gui-foundation-20261121/test-results.md
+   staging/agent-evidence/gui-foundation-20261121/browser-review.md
+   These human-readable records must also be committed as individual text files so central ChatGPT can inspect them through GitHub even when the binary archive is too large for the connector.
    Git ignores tar.gz: use git add -f for the single approved archive.
 6. Commit/push the evidence branch; return browser URLs, exact full branch SHAs, archive size and SHA256, and verification status.
 7. Do NOT merge an evidence branch containing binary archives to main.
