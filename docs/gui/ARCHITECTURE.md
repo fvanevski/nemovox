@@ -2,10 +2,7 @@
 
 ## Git authority
 
-Current reviewed source authority was GitHub fvanevski/nemovox main at exact SHA:
-9b4c8b539c67f2f6266fef135a259e92f5477b19.
-
-Central GUI implementation is staged on branch central/gui-foundation-20261121. Local integration must inspect fresh branch heads before testing/writing.
+For development and review, use the live repository source and exact Git branch/commit identities as authority. Historical GUI staging branches and integration handoffs do not establish the current source head.
 
 ## Processing boundary
 
@@ -34,7 +31,7 @@ Use a separate HTTP Studio environment and NEMOVOX_CLI_PYTHON to invoke the mode
 | GET /api/jobs/{id}/artifact/{path} | Allowed output file download |
 | GET /api/jobs/{id}/media | Source video/audio stream for preview |
 
-Task models are Pydantic in src/nvidia_transcribe/studio_api.py and mirrored as TypeScript interfaces in web/src/api.ts. Keep both in sync.
+Task models are Pydantic in `src/nvidia_transcribe/studio_api.py` and mirrored as TypeScript interfaces in `web/src/api.ts`. Keep both in sync. Model-resource resolution runs in the child CLI using `model_resources.py` and its inherited `NEMOVOX_MODEL_RESOURCES` environment; Studio must not silently promote host environment values into higher-precedence CLI overrides. See [model-resource configuration](../model-resources/CONFIGURATION.md).
 
 Background work uses ThreadPoolExecutor(max_workers=1), file-backed atomic job.json, subprocess CLI calls and bounded status/reporting. This is a pragmatic single-user local queue, not a durable distributed job service. Run one Uvicorn worker only. Browser uploads and remote media are stored under ignored outputs/studio.
 
@@ -43,7 +40,7 @@ Media browsing is limited to explicit roots, without arbitrary host-path executi
 ## UX
 
 - Media & task: browse host paths, upload from browser, remote URL, source language, task.
-- Configure: dynamic task options, glossary and names, SwiftU profile/style, ASS layout and acoustic controls.
+- Configure: dynamic task options, glossary and names, generic text-refinement profile/style, translation adapter, ASS layout and acoustic controls. Resource identities and task-role bindings are set in host configuration rather than the current GUI.
 - Process & preview: progress/history, output file access, synchronized dialogue search/click-to-seek, browser JASSUB where available, HTML overlay fallback.
 
 Design aims for a contemporary media workstation, not a generic enterprise dashboard: clear typography, progressive disclosure, dark subdued palette, responsive controls, easily accessible task state.
@@ -57,4 +54,4 @@ Design aims for a contemporary media workstation, not a generic enterprise dashb
 - Public-service URL hardening.
 - Re-encoding entire episodes for browser preview.
 
-Keep API and GUI modifications focused on getting the existing authored foundation working on the host.
+Keep API and GUI modifications focused on local media workflows; model service startup and GPU resource management remain outside Studio's responsibility.
