@@ -1,0 +1,49 @@
+{
+  "campaign": "issue-2-codex-ui",
+  "pr": "https://github.com/fvanevski/nemovox/pull/3",
+  "issue": "https://github.com/fvanevski/nemovox/issues/2",
+  "repository": "https://github.com/fvanevski/nemovox",
+  "origin_main_sha": "9b4c8b539c67f2f6266fef135a259e92f5477b19",
+  "prior_backend_qualified_sha": "49fac0f4ae9c607078cbc71e34bc448c5aab318f",
+  "prior_backend_evidence_branch": "evidence/issue-2-studio-final-20261121",
+  "prior_backend_evidence_sha": "0f0a87097b781d8cddfc8b5469490cb7eab5cf53",
+  "prior_browser_evidence_branch": "evidence/issue-2-studio-20261121",
+  "prior_browser_evidence_sha": "e97e5dc0cf644bb9b614a933154ab559aabea466",
+  "final_implementation_branch": "integration/gui-foundation-20261121",
+  "final_implementation_sha": "9ee4757ea24bbd68cb190f606b75a7f1af360ea1",
+  "codex_remediation_commits": [
+    "91979bb",
+    "9ee4757ea24bbd68cb190f606b75a7f1af360ea1"
+  ],
+  "unchanged_backend_trees": {
+    "src_tree_sha": "d5447a9f845579826c694473fde17cfde930049f",
+    "tests_tree_sha": "3d119fc42e2bab9c0159bcc491255a254013b667"
+  },
+  "evidence_branch": "evidence/issue-2-codex-ui-20261121",
+  "archive": {
+    "path": "staging/agent-evidence/issue-2-codex-ui/issue-2-codex-ui-evidence.tar.gz",
+    "local_staging_path": "outputs/handbacks/issue-2-codex-ui-evidence.tar.gz",
+    "size_bytes": 977967,
+    "sha256": "246f8e7c2dcc66a121a2bd2464af296ada24a8cecd41ec288d5f055694f7a530"
+  },
+  "payload_sha256": {
+    "backend_tree_identity.txt": "964377e83e38e6dbb154731bb7ecf8e541c06a5eb4edd36ee0a145ff7e5c02b8",
+    "changed_files/docs/gui/ISSUE2_CODEX_UI_REMEDIATION.md": "57ade0dac1a2e554e374b70682c8dc7a89660988a8f09a81b294990bbda18288",
+    "changed_files/web/src/App.tsx": "7076cc4ab470742b73292ec7d681a2fb7f21a3ecbafd21f1a4f8d406ba6b2c12",
+    "changed_files/web/src/job-display.test.ts": "e7d5daae7975e10d993abd4ffe8e61e2139d42af60dcfea7c2c6edf5099c6f7d",
+    "changed_files/web/src/job-display.ts": "359ebc084ce7d5e3c64c9deb99bf177414c2c0e61256a7b3efe1d2670ed15439",
+    "codex_ui_commits.diff": "008d667ba33a801ce57ad559d005b80f45f335fec286637a7387d56773145c45",
+    "git_shas_and_stat.txt": "daaed7cdf73496368ee5c369fe368fa5a94cb6579bfdc6d041c92c1433449609",
+    "logs/browser_polling_trace.log": "445cb4526e03d81868fe69e68d437dd5ee1a86a6bf32351fdd0137503eb53134",
+    "logs/web_test_build.log": "b84b03c6afe28661266f89f2c9d4fe11812a08f1f77db5590edc0a2e77d1cd59",
+    "screenshots/scenario_a_complete_jassub.png": "597667f83c9598818d35bbe29ed9cc5da67c76365b6ef37a1c6c51aa2c7ffa58",
+    "screenshots/scenario_a_pending.png": "b3a167e830ad7b8af357f4d642bad45b508c9fca9f7c7fe3910f4379c66798c6",
+    "screenshots/scenario_b_failed_unavailable.png": "a0c57653fcaf191730dcf59d35f8edda919ffc4bd910784baa4e81bdd454bee4"
+  },
+  "checks": {
+    "vitest": "3 files passed, 8 tests passed in 154ms (exit 0)",
+    "vite_tsc_build": "tsc --noEmit && vite build succeeded (2037 modules, 737ms, exit 0)",
+    "browser_polling_and_media_gating": "PASS (controlled polling Chromium verification: pending remote download issues zero /media or JASSUB; supplying source_path mounts video & loads /media mid-run without reload; completion refetches both /preview and /artifacts immediately and activates JASSUB ASS · libass; failed remote URL shows unavailable with zero /media; local media preview verified; 0 console errors)",
+    "unchanged_backend": "src/ (d5447a9f845579826c694473fde17cfde930049f) and tests/ (3d119fc42e2bab9c0159bcc491255a254013b667) unchanged since 49fac0f4ae9c607078cbc71e34bc448c5aab318f (evidenced on evidence/issue-2-studio-final-20261121)"
+  }
+}
