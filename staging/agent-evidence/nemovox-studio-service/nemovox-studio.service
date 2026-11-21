@@ -1,0 +1,28 @@
+[Unit]
+Description=Nemovox Studio local subtitle GUI
+Documentation=https://github.com/fvanevski/nemovox/tree/main/web
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=exec
+WorkingDirectory=/workspace/nvidia-transcribe
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/workspace/nvidia-transcribe/src
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=NEMOVOX_CLI_PYTHON=/workspace/nvidia-transcribe/.venv/bin/python
+Environment=NEMOVOX_STUDIO_JOBS=/workspace/nvidia-transcribe/outputs/studio/jobs
+Environment=NEMOVOX_STUDIO_UPLOADS=/workspace/nvidia-transcribe/outputs/studio/uploads
+EnvironmentFile=-%h/.config/nemovox/studio.env
+ExecStartPre=/usr/bin/test -f /workspace/nvidia-transcribe/web/dist/index.html
+ExecStart=/workspace/nvidia-transcribe/.venv-studio/bin/python -m uvicorn nvidia_transcribe.studio_api:app --host 127.0.0.1 --port 8765 --workers 1
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=45s
+KillMode=control-group
+UMask=0077
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
