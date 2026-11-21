@@ -1,0 +1,197 @@
+=== process-media --help ===
+usage: nvidia-transcribe process-media [-h] --output-dir OUTPUT_DIR
+                                       [--base-url BASE_URL] [--model MODEL]
+                                       [--model-path MODEL_PATH]
+                                       [--source-language SOURCE_LANGUAGE]
+                                       [--mode {speaker,multispeaker_sot,rich,verbatim}]
+                                       [--chunk-seconds CHUNK_SECONDS]
+                                       [--context-seconds CONTEXT_SECONDS]
+                                       [--min-tail-seconds MIN_TAIL_SECONDS]
+                                       [--audio-stream AUDIO_STREAM]
+                                       [--speaker-embeddings {titanet,none}]
+                                       [--embedding-threshold EMBEDDING_THRESHOLD]
+                                       [--no-subinterval-recovery]
+                                       [--alignment-fallback {off,qwen}]
+                                       [--fresh]
+                                       [--qwen-policy {subtitle,fine}]
+                                       [--qwen-device {cuda:0,cpu}]
+                                       [--qwen-gpu-mode {available,managed}]
+                                       [--qwen-owned-asr-unit QWEN_OWNED_ASR_UNIT]
+                                       [--qwen-asr-lease-path QWEN_ASR_LEASE_PATH]
+                                       media
+
+positional arguments:
+  media                 Path to local audio or video media file.
+
+options:
+  -h, --help            show this help message and exit
+  --output-dir OUTPUT_DIR
+                        Directory to store chunks, manifest, transcript, and
+                        contract JSON.
+  --base-url BASE_URL
+  --model MODEL
+  --model-path MODEL_PATH
+  --source-language SOURCE_LANGUAGE
+                        Explicit source language (e.g. 'fr', 'zh') or omit for
+                        auto.
+  --mode {speaker,multispeaker_sot,rich,verbatim}
+  --chunk-seconds CHUNK_SECONDS
+  --context-seconds CONTEXT_SECONDS
+  --min-tail-seconds MIN_TAIL_SECONDS
+  --audio-stream AUDIO_STREAM
+  --speaker-embeddings {titanet,none}
+  --embedding-threshold EMBEDDING_THRESHOLD
+  --no-subinterval-recovery
+  --alignment-fallback {off,qwen}
+  --fresh               Ignore previous manifest checkpoints and recompute all
+                        chunks.
+  --qwen-policy {subtitle,fine}
+                        Admit useful untimed subtitle windows by default; fine
+                        admits smaller gaps.
+  --qwen-device {cuda:0,cpu}
+                        CUDA BF16 required unless CPU is explicitly selected.
+  --qwen-gpu-mode {available,managed}
+                        Default never alters other services; managed requires
+                        a cooperative ASR lease.
+  --qwen-owned-asr-unit QWEN_OWNED_ASR_UNIT
+                        Explicit Nemovox-owned ASR systemd user unit, managed
+                        mode only.
+  --qwen-asr-lease-path QWEN_ASR_LEASE_PATH
+                        Cooperative ASR ownership lease file, managed mode
+                        only.
+=== generate-subtitles --help ===
+usage: nvidia-transcribe generate-subtitles [-h]
+                                            [--recording-contract RECORDING_CONTRACT]
+                                            --output-dir OUTPUT_DIR
+                                            [--source-language SOURCE_LANGUAGE]
+                                            [--target-language TARGET_LANGUAGE]
+                                            [--refinement {off,conservative,balanced,expressive}]
+                                            [--translator {swiftu,riva,none}]
+                                            [--style {natural,literal,expressive}]
+                                            [--glossary GLOSSARY]
+                                            [--formats FORMATS]
+                                            [--episode-stem EPISODE_STEM]
+                                            [--sidecar-dir SIDECAR_DIR]
+                                            [--overwrite-sidecar]
+                                            [--base-url BASE_URL]
+                                            [--model MODEL]
+                                            [--alignment-fallback {off,qwen}]
+                                            [--chunk-seconds CHUNK_SECONDS]
+                                            [--context-seconds CONTEXT_SECONDS]
+                                            [--min-tail-seconds MIN_TAIL_SECONDS]
+                                            [--swiftu-url SWIFTU_URL]
+                                            [--swiftu-model SWIFTU_MODEL]
+                                            [--max-chars MAX_CHARS]
+                                            [--max-lines MAX_LINES]
+                                            [--min-display MIN_DISPLAY]
+                                            [--max-display MAX_DISPLAY]
+                                            [--overlap-threshold OVERLAP_THRESHOLD]
+                                            [--ass-layout {standard,raised_main}]
+                                            [--ass-margin-v ASS_MARGIN_V]
+                                            [--ass-opaque-box]
+                                            [--ass-max-lanes {2,3}]
+                                            [--condense-high-cps]
+                                            [--condense-threshold CONDENSE_THRESHOLD]
+                                            [--fresh] [--fresh-refinement]
+                                            [--fresh-translation]
+                                            [--re-render]
+                                            [--validation-overlay VALIDATION_OVERLAY]
+                                            [--qwen-policy {subtitle,fine}]
+                                            [--qwen-device {cuda:0,cpu}]
+                                            [--qwen-gpu-mode {available,managed}]
+                                            [--qwen-owned-asr-unit QWEN_OWNED_ASR_UNIT]
+                                            [--qwen-asr-lease-path QWEN_ASR_LEASE_PATH]
+                                            [media]
+
+positional arguments:
+  media                 Path to local media file (omit when using --recording-
+                        contract).
+
+options:
+  -h, --help            show this help message and exit
+  --recording-contract RECORDING_CONTRACT
+                        Existing recording.contract.json to start from (skips
+                        ASR).
+  --output-dir OUTPUT_DIR
+                        Directory for refined/translated contracts and SRT/ASS
+                        outputs.
+  --source-language SOURCE_LANGUAGE
+                        Source language code (e.g. 'fr', 'zh').
+  --target-language TARGET_LANGUAGE
+                        Target subtitle language (default: en).
+  --refinement {off,conservative,balanced,expressive}
+  --translator {swiftu,riva,none}
+  --style {natural,literal,expressive}
+  --glossary GLOSSARY   Path to character/term glossary (.yaml/.json) or
+                        comma-separated terms.
+  --formats FORMATS     Comma-separated subtitle formats (default: srt,ass).
+  --episode-stem EPISODE_STEM
+                        Override subtitle output filename stem.
+  --sidecar-dir SIDECAR_DIR
+                        Optional directory for EpisodeName.<lang>.srt/.ass
+                        sidecars.
+  --overwrite-sidecar   Allow overwriting existing sidecar files.
+  --base-url BASE_URL   Nemotron ASR vLLM base URL.
+  --model MODEL         Nemotron ASR served model.
+  --alignment-fallback {off,qwen}
+  --chunk-seconds CHUNK_SECONDS
+  --context-seconds CONTEXT_SECONDS
+  --min-tail-seconds MIN_TAIL_SECONDS
+  --swiftu-url SWIFTU_URL
+                        SwiftU/NInfer OpenAI-compatible base URL.
+  --swiftu-model SWIFTU_MODEL
+                        SwiftU served model ID.
+  --max-chars MAX_CHARS
+  --max-lines MAX_LINES
+  --min-display MIN_DISPLAY
+  --max-display MAX_DISPLAY
+  --overlap-threshold OVERLAP_THRESHOLD
+  --ass-layout {standard,raised_main}
+                        ASS positioning layout ('raised_main' clears bottom
+                        Chinese hardsubs).
+  --ass-margin-v ASS_MARGIN_V
+                        Bottom margin (px) for raised_main ASS layout.
+  --ass-opaque-box      Draw semi-opaque dark box behind ASS cues.
+  --ass-max-lanes {2,3}
+                        Maximum simultaneous ASS speaker lanes.
+  --condense-high-cps   Condense overly fast (>threshold CPS) English cues
+                        with SwiftU.
+  --condense-threshold CONDENSE_THRESHOLD
+                        CPS threshold triggering selective SwiftU
+                        condensation.
+  --fresh               Recompute ASR, refinement, and translation without
+                        reusing caches.
+  --fresh-refinement    Ignore refinement checkpoint cache.
+  --fresh-translation   Ignore translation checkpoint cache.
+  --re-render           Re-render SRT/ASS directly from
+                        translated.contract.json without model calls.
+  --validation-overlay VALIDATION_OVERLAY
+                        Optional viewing-validation JSON overlay for coarse
+                        timing & polish.
+  --qwen-policy {subtitle,fine}
+                        Admit useful untimed subtitle windows by default; fine
+                        admits smaller gaps.
+  --qwen-device {cuda:0,cpu}
+                        CUDA BF16 required unless CPU is explicitly selected.
+  --qwen-gpu-mode {available,managed}
+                        Default never alters other services; managed requires
+                        a cooperative ASR lease.
+  --qwen-owned-asr-unit QWEN_OWNED_ASR_UNIT
+                        Explicit Nemovox-owned ASR systemd user unit, managed
+                        mode only.
+  --qwen-asr-lease-path QWEN_ASR_LEASE_PATH
+                        Cooperative ASR ownership lease file, managed mode
+                        only.
+=== recover-qwen-asr --help ===
+usage: nvidia-transcribe recover-qwen-asr [-h] --asr-unit ASR_UNIT
+                                          --base-url BASE_URL --model MODEL
+                                          --lease-path LEASE_PATH
+                                          --journal JOURNAL
+
+options:
+  -h, --help            show this help message and exit
+  --asr-unit ASR_UNIT
+  --base-url BASE_URL
+  --model MODEL
+  --lease-path LEASE_PATH
+  --journal JOURNAL

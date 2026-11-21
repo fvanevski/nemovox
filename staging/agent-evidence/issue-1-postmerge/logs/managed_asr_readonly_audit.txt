@@ -1,0 +1,32 @@
+# Read-Only Managed-ASR Feasibility Audit (Sanitized)
+
+# Systemd user unit enumeration (filtered model/nemovox units)
+nemovox_units=['nemovox-studio.service']
+other_model_units=['llama-cpp-embed.service', 'llama-cpp-reranker.service', 'llama-server.service', 'local_embedding.service', 'plasma-xembedsniproxy.service', 'vllm-tools-shim.service']
+
+# gpu_handoff._has_exact_cooperative_markers verdict (redacted environment)
+unit=nemovox-studio.service active=active mainpid=1006972 has_asr_var=False has_lease_var=False has_exact_markers=False (rejected by ManagedASRConfig: studio unit)
+unit=llama-cpp-embed.service active=inactive mainpid=0 has_asr_var=False has_lease_var=False has_exact_markers=False
+unit=llama-cpp-reranker.service active=inactive mainpid=0 has_asr_var=False has_lease_var=False has_exact_markers=False
+unit=llama-server.service active=inactive mainpid=0 has_asr_var=False has_lease_var=False has_exact_markers=False
+unit=local_embedding.service active=active mainpid=25721 has_asr_var=False has_lease_var=False has_exact_markers=False
+unit=vllm-tools-shim.service active=inactive mainpid=0 has_asr_var=False has_lease_var=False has_exact_markers=False
+
+# Listening ports (model/studio range check)
+127.0.0.1:8765 -> python pid=1006972 (nemovox-studio.service)
+127.0.0.1:8004 -> uvicorn pid=25721 (local_embedding.service)
+127.0.0.1:8002 -> litellm pid=730241 (litellm-proxy)
+127.0.0.1:8000 -> active (non-Nemotron)
+127.0.0.1:8190 -> NOT LISTENING (no live Nemotron ASR server)
+
+# Process check (pgrep -af 'vllm|nemotron|nemo_speechlm')
+no matching Nemotron / vLLM ASR processes running
+
+# Launcher & caller audit
+scripts/start_vllm_server.sh + configs/vllm_rtx5090.env -> interactive bash exec (.venv/bin/vllm serve ... --host 127.0.0.1 --port 8190 --gpu-memory-utilization 0.78), no systemd unit, no lease acquisition, no NEMOVOX_MANAGED_ASR/NEMOVOX_ASR_LEASE_PATH markers.
+studio_api.py -> invokes CLI with --alignment-fallback (off|qwen), does not pass --qwen-gpu-mode managed or acquire cooperative ASR leases.
+outputs/logs/vllm_ep166.log (historical loaded-ASR telemetry) -> desired GPU memory utilization (0.78, 24.47 GiB), 20.13 GiB weights+non-torch, 2.2 GiB peak activation, 2.14 GiB KV cache, 0.08 GiB CUDAGraph; leaves ~3.4 GiB free on 31.37 GiB device alongside 2,056 MiB baseline GPU usage.
+
+# Post-audit service verification
+nemovox-studio.service=active
+local_embedding.service=active

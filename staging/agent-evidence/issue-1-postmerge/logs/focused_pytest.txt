@@ -1,0 +1,76 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.15, pytest-9.2.0, pluggy-1.7.0 -- /workspace/nvidia-transcribe/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace/nemovox-main-accept-lxOtyeHl
+configfile: pyproject.toml
+plugins: anyio-4.13.0, hydra-core-1.3.8
+collecting ... collected 57 items
+
+tests/test_qwen_session_and_policy.py::test_admission_recovers_anchored_untimed_utterance_and_preserves_words PASSED [  1%]
+tests/test_qwen_session_and_policy.py::test_admission_default_skips_small_gap_in_usable_cue PASSED [  3%]
+tests/test_qwen_session_and_policy.py::test_admission_skips_unanchored_ambiguous_multiwindow_and_overlap PASSED [  5%]
+tests/test_qwen_session_and_policy.py::test_no_eligible_spans_does_not_touch_aligner PASSED [  7%]
+tests/test_qwen_session_and_policy.py::test_one_model_load_and_one_pid_for_multiple_spans PASSED [  8%]
+tests/test_qwen_session_and_policy.py::test_gpu_required_rejects_misreported_cpu_and_reaps_worker PASSED [ 10%]
+tests/test_qwen_session_and_policy.py::test_explicit_cpu_is_not_a_silent_fallback PASSED [ 12%]
+tests/test_qwen_session_and_policy.py::test_worker_timeout_is_not_retried_or_converted_to_cpu PASSED [ 14%]
+tests/test_qwen_session_and_policy.py::test_managed_gpu_busy_lease_never_stops_service PASSED [ 15%]
+tests/test_qwen_session_and_policy.py::test_managed_gpu_restores_after_failure_and_journals PASSED [ 17%]
+tests/test_qwen_session_and_policy.py::test_interrupted_managed_journal_blocks_reentrant_takeover PASSED [ 19%]
+tests/test_qwen_session_and_policy.py::test_qwen_pipeline_finishes_all_native_chunks_before_worker PASSED [ 21%]
+tests/test_qwen_session_and_policy.py::test_qwen_cli_policy_defaults_and_explicit_managed_options PASSED [ 22%]
+tests/test_qwen_session_and_policy.py::test_managed_sigterm_restores_original_asr_and_handler PASSED [ 24%]
+tests/test_qwen_session_and_policy.py::test_available_gpu_never_stops_asr PASSED [ 26%]
+tests/test_qwen_session_and_policy.py::test_pending_journal_blocks_even_when_gpu_has_capacity PASSED [ 28%]
+tests/test_qwen_session_and_policy.py::test_recovery_refuses_changed_asr_unit_without_start PASSED [ 29%]
+tests/test_qwen_session_and_policy.py::test_default_off_never_loads_worker_or_touches_managed_services PASSED [ 31%]
+tests/test_qwen_session_and_policy.py::test_admission_merges_short_intra_utterance_diar_pauses_and_cross_speaker_neighbor PASSED [ 33%]
+tests/test_qwen_session_and_policy.py::test_worker_protocol_id_mismatch_reaps_worker PASSED [ 35%]
+tests/test_qwen_session_and_policy.py::test_linux_parent_death_sigkill_reaps_harmless_worker PASSED [ 36%]
+tests/test_qwen_session_and_policy.py::test_managed_config_and_owner_rejects_studio_unmarked_and_live_clients PASSED [ 38%]
+tests/test_qwen_session_and_policy.py::test_unique_diar_window_respects_adjacent_native_timed_speech PASSED [ 40%]
+tests/test_qwen_session_and_policy.py::test_neighbor_bounds_fail_closed_if_candidate_overlaps_native_timing PASSED [ 42%]
+tests/test_qwen_session_and_policy.py::test_managed_owner_rejects_nonexact_or_duplicate_lease_markers[NEMOVOX_MANAGED_ASR=1 NEMOVOX_ASR_LEASE_PATH={lease}.other] PASSED [ 43%]
+tests/test_qwen_session_and_policy.py::test_managed_owner_rejects_nonexact_or_duplicate_lease_markers[NEMOVOX_MANAGED_ASR=10 NEMOVOX_ASR_LEASE_PATH={lease}] PASSED [ 45%]
+tests/test_qwen_session_and_policy.py::test_managed_owner_rejects_nonexact_or_duplicate_lease_markers[NEMOVOX_MANAGED_ASR=1 NEMOVOX_ASR_LEASE_PATH={lease} NEMOVOX_ASR_LEASE_PATH={lease}.other] PASSED [ 47%]
+tests/test_qwen_session_and_policy.py::test_managed_owner_rejects_nonexact_or_duplicate_lease_markers[NEMOVOX_MANAGED_ASR=1 NEMOVOX_ASR_LEASE_PATH={lease}.other NEMOVOX_ASR_LEASE_PATH={lease}] PASSED [ 49%]
+tests/test_qwen_session_and_policy.py::test_cooperative_marker_parser_accepts_exact_quoted_assignment PASSED [ 50%]
+tests/test_qwen_session_and_policy.py::test_managed_crash_recovery_rejects_prefix_lease_before_start PASSED [ 52%]
+tests/test_qwen_session_and_policy.py::test_partly_timed_span_covers_diarized_untimed_edge[True] PASSED [ 54%]
+tests/test_qwen_session_and_policy.py::test_partly_timed_span_covers_diarized_untimed_edge[False] PASSED [ 56%]
+tests/test_qwen_session_and_policy.py::test_partly_timed_untimed_edge_without_unique_diarization_is_skipped PASSED [ 57%]
+tests/test_qwen_session_and_policy.py::test_restoration_systemctl_transport_error_is_fatal_and_journal_stays_pending PASSED [ 59%]
+tests/test_qwen_session_and_policy.py::test_recording_propagates_typed_post_stop_failure PASSED [ 61%]
+tests/test_qwen_fallback.py::test_map_language_for_qwen_aligner PASSED   [ 63%]
+tests/test_qwen_fallback.py::test_validate_qwen_items_rejects_zero_duration_and_invalid_bounds PASSED [ 64%]
+tests/test_qwen_fallback.py::test_qwen_adapter_unavailable_and_unsupported_language PASSED [ 66%]
+tests/test_qwen_fallback.py::test_qwen_adapter_session_zero_duration_filtered PASSED [ 68%]
+tests/test_qwen_fallback.py::test_selective_qwen_fallback_preserves_ctc_and_recovers_oov PASSED [ 70%]
+tests/test_qwen_fallback.py::test_qwen_fallback_skips_mixed_speaker_overlap PASSED [ 71%]
+tests/test_qwen_fallback.py::test_cli_and_config_alignment_fallback PASSED [ 73%]
+tests/test_qwen_fallback.py::test_qwen_fallback_localizes_oov_span_and_never_migrates_to_earlier_utterance PASSED [ 75%]
+tests/test_studio_api.py::test_health_and_media_roots PASSED             [ 77%]
+tests/test_studio_api.py::test_path_traversal_is_denied PASSED           [ 78%]
+tests/test_studio_api.py::test_job_submission_and_preview PASSED         [ 80%]
+tests/test_studio_api.py::test_artifact_links_url_encode_reserved_and_unicode_filenames[.srt] PASSED [ 82%]
+tests/test_studio_api.py::test_artifact_links_url_encode_reserved_and_unicode_filenames[.ass] PASSED [ 84%]
+tests/test_studio_api.py::test_invalid_options_and_bad_url PASSED        [ 85%]
+tests/test_studio_api.py::test_parse_srt PASSED                          [ 87%]
+tests/test_studio_api.py::test_upload_and_extension_rejection PASSED     [ 89%]
+tests/test_studio_api.py::test_interrupted_job_persistence_and_contract_media PASSED [ 91%]
+tests/test_studio_api.py::test_cancel_process_group_and_env_forwarding PASSED [ 92%]
+tests/test_studio_api.py::test_contract_transcription_import_and_empty_contract PASSED [ 94%]
+tests/test_studio_api.py::test_cancel_cleans_descendant_after_group_leader_exits PASSED [ 96%]
+tests/test_studio_api.py::test_app_creation_does_not_reconcile_another_running_server PASSED [ 98%]
+tests/test_studio_api.py::test_cancel_and_completion_have_serialized_terminal_state PASSED [100%]
+
+=============================== warnings summary ===============================
+../nvidia-transcribe/.venv/lib/python3.13/site-packages/anyio/pytest_plugin.py:14
+  /workspace/nvidia-transcribe/.venv/lib/python3.13/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+  The CallSpec2 alias will be removed in pytest 10.
+  Update imports to use CallSpec instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
+    from _pytest.python import CallSpec2
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 57 passed, 1 warning in 7.88s =========================

@@ -1,0 +1,114 @@
+{
+  "finding_1": {
+    "exact_unquoted": true,
+    "exact_quoted_with_space": true,
+    "reject_suffix_prefix": true,
+    "reject_duplicate": true,
+    "reject_malformed": true,
+    "crash_recovery_wrong_lease": {
+      "blocked_status": "asr_not_cooperatively_owned",
+      "start_called": [],
+      "journal_phase": "pending_restore"
+    }
+  },
+  "finding_2": {
+    "leading_edge_7_8s": {
+      "window": [
+        0.25,
+        8.35
+      ],
+      "decision": {
+        "span_range": [
+          0,
+          7
+        ],
+        "untimed_units": 6,
+        "status": "admitted",
+        "window": [
+          0.25,
+          8.35
+        ]
+      }
+    },
+    "trailing_edge_7_8s": {
+      "window": [
+        6.65,
+        16.85
+      ],
+      "decision": {
+        "span_range": [
+          0,
+          7
+        ],
+        "untimed_units": 6,
+        "status": "admitted",
+        "window": [
+          6.65,
+          16.85
+        ]
+      }
+    },
+    "neighbor_bounded_leading": {
+      "window": [
+        1.15,
+        8.35
+      ],
+      "decision": {
+        "span_range": [
+          1,
+          8
+        ],
+        "untimed_units": 6,
+        "status": "admitted",
+        "window": [
+          1.15,
+          8.35
+        ]
+      }
+    },
+    "absent_diar_skipped": {
+      "candidates": 0,
+      "decision": {
+        "span_range": [
+          0,
+          7
+        ],
+        "untimed_units": 6,
+        "status": "skipped_partial_span_unanchored_edge"
+      }
+    },
+    "ambiguous_diar_skipped": {
+      "candidates": 0,
+      "decision": {
+        "span_range": [
+          0,
+          7
+        ],
+        "untimed_units": 6,
+        "status": "skipped_partial_span_unanchored_edge"
+      }
+    }
+  },
+  "finding_3": {
+    "post_stop_start_transport_error": {
+      "error_type": "ManagedASRLifecycleError",
+      "status": "asr_restore_unverified",
+      "cause_status": "systemctl_unavailable",
+      "journal_phase": "pending_restore",
+      "is_subclass_of_blocked": true
+    },
+    "pre_stop_deferral": {
+      "qwen_recovery": {
+        "status": "asr_has_live_connections",
+        "policy": "subtitle",
+        "eligible_candidates": 1,
+        "skipped_candidates": 0,
+        "mode": "managed"
+      },
+      "warnings": [
+        "Optional managed Qwen deferred: asr_has_live_connections",
+        "Chunk 0 alignment degraded (diarization_bounded_only): cause=alignment_failed, oov=[]"
+      ]
+    }
+  }
+}

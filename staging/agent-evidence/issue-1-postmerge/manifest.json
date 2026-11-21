@@ -1,0 +1,99 @@
+{
+  "issue": 1,
+  "merged_pr": 4,
+  "repository": "fvanevski/nemovox",
+  "merged_main_sha": "7b4112cc31784953abbb041fd0b5d7997851841d",
+  "merged_main_tree": "3d2cc429f9b49da3079df7d1fc178f6fd09d7987",
+  "prior_live_sha": "242c418f55cd2afb796ee2c4fa742a10ff04f7a3",
+  "final_live_sha": "7b4112cc31784953abbb041fd0b5d7997851841d",
+  "handoff_commit_reference": "d8883482b1eac6d81449531b193eef2b6cb9863c",
+  "evidence_branch": "evidence/issue-1-postmerge-host-20261121",
+  "evidence_directory": "staging/agent-evidence/issue-1-postmerge/",
+  "service_pid_before": 4157910,
+  "service_pid_after": 1006972,
+  "unit_sha256": "118c256bc94768b52c2f286c8b3cbdc9cf28423718413bdd6e9e3ba2107342d3",
+  "dispositions": {
+    "POSTMERGE_SOURCE_IDENTITY": "PASS",
+    "HOST_PROMOTION": "PASS",
+    "STUDIO_FRESH_PROCESS": "PASS",
+    "CPU_REGRESSIONS": "PASS",
+    "GPU_QWEN_AVAILABLE": "PASS",
+    "MANAGED_ASR_FEASIBILITY": "MANAGED_GPU_BLOCKED",
+    "LIVE_ASR_RELEASE_RESTORE": "NOT_TESTED",
+    "ISSUE1_CLOSURE_RECOMMENDATION": "REQUIRES_OWNERSHIP_INTEGRATION"
+  },
+  "cpu_tests": {
+    "compileall": "exit 0",
+    "focused": "57 passed, 1 warning in 7.88s (exit 0)",
+    "venv": "120 passed, 1 warning in 8.75s (exit 0)",
+    "venv_studio": "120 passed in 8.74s (exit 0)"
+  },
+  "gpu_qualification": "PASS (available cuda:0 torch.bfloat16 recorded ASR replay; model_load_count=1 multi-span reuse)",
+  "privacy_scan": "PASS (0 personal paths/tokens)",
+  "members": {
+    "HANDback.md": {
+      "sha256": "c846825cb987d0166cc76d6692fcb977a3205d03d638fd4cf5db597dd9f01740",
+      "size_bytes": 3615
+    },
+    "cpu-tests.md": {
+      "sha256": "865a4c8f7312e05c08bfd688cccb930f6456554f85d5fa2b8ee05d1cdd4fc876",
+      "size_bytes": 1529
+    },
+    "gpu-alignment.md": {
+      "sha256": "9640d31bc4aa6e7b1177f55fd5cc5f2a05785ca3ec1f20054e4fac44d943e66e",
+      "size_bytes": 2909
+    },
+    "host-promotion.md": {
+      "sha256": "d5474b857652d21ebca1f678b74be17609726b589fe2db654bea54a2e5676a67",
+      "size_bytes": 1637
+    },
+    "logs/adversarial_codex_checks.json": {
+      "sha256": "3f8f565b6e1f91833e07a64e8691658ebf45ff44fd7d1d3f3446d95183018cdd",
+      "size_bytes": 2444
+    },
+    "logs/cli_help.txt": {
+      "sha256": "56eb3295c27f3defb35027b6f33597ef7d45cc9b32a55113c6b18c5937002635",
+      "size_bytes": 10550
+    },
+    "logs/compileall.txt": {
+      "sha256": "92a7f691dade26b3ab096f87b063c6be67eec8e4167bd7c3e3696c72fa2f59cf",
+      "size_bytes": 18
+    },
+    "logs/focused_pytest.txt": {
+      "sha256": "684fddd0aa8442cf5a6867492e249ee792cde3f695b189f0e217c70915d6da6f",
+      "size_bytes": 7317
+    },
+    "logs/gpu_qualification_results.json": {
+      "sha256": "a90fcb9da710ce6337abe470c76a52a198becad45907a24df865db0cdc29295e",
+      "size_bytes": 19052
+    },
+    "logs/managed_asr_readonly_audit.txt": {
+      "sha256": "8876473951e382676aae14dcd561688b13a0ac03e8a80563513e1ae46e920781",
+      "size_bytes": 2422
+    },
+    "logs/pytest_venv_cpu.txt": {
+      "sha256": "37cdeb3c26c640351f089f22750ca6413c12718b88ea8a0862b82d3bf7b7c41e",
+      "size_bytes": 812
+    },
+    "logs/pytest_venv_studio_cpu.txt": {
+      "sha256": "ae71003f4c7392d8a4ef9d693e67b66c8253b47e0b1fb99f545c342a84dee525",
+      "size_bytes": 180
+    },
+    "logs/studio_fresh_process_sanitized.txt": {
+      "sha256": "7558d38038121022fcf0cd7f141dfba189518a0f9372d027f9357e1c27d7fa7c",
+      "size_bytes": 2183
+    },
+    "managed-asr-feasibility.md": {
+      "sha256": "e45aaddb5d750b8778d80b6911e6547ae83ad7bc5481110aa979860f11a091c5",
+      "size_bytes": 3106
+    },
+    "runtime-health.md": {
+      "sha256": "ba642ac2a0dba811fb0a8126270f0f8d01bb5313f23ac7a00838f9152122c620",
+      "size_bytes": 1614
+    },
+    "source-provenance.md": {
+      "sha256": "33b0554f7c0383ab816dd9998bec57fe5d486709c162731dad7c4444b5cf3713",
+      "size_bytes": 1520
+    }
+  }
+}
