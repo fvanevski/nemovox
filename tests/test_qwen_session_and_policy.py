@@ -705,8 +705,10 @@ def test_unique_diar_window_respects_adjacent_native_timed_speech() -> None:
         {"text": "你", "speaker": "0", "start": 0.5, "end": 0.9, "valid_timing": True},
         {"text": "好。", "speaker": "0", "start": 1.0, "end": 1.7, "valid_timing": True},
         {"text": "世", "speaker": "0", "start": None, "end": None, "valid_timing": False},
-        {"text": "界", "speaker": "0", "start": None, "end": None, "valid_timing": False},
-        {"text": "啊。", "speaker": "0", "start": None, "end": None, "valid_timing": False},
+        {"text": "界", "speaker": "0", "start": None, "end": None, "valid_timing": False,
+         "join_no_space_prev": True},
+        {"text": "啊。", "speaker": "0", "start": None, "end": None, "valid_timing": False,
+         "join_no_space_prev": True},
         {"text": "再", "speaker": "0", "start": 6.5, "end": 6.8, "valid_timing": True},
         {"text": "见。", "speaker": "0", "start": 6.9, "end": 7.2, "valid_timing": True},
     ]
