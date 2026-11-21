@@ -192,3 +192,42 @@ def test_condensation_cache_respects_model_identity(tmp_path):
             checkpoint_path=cache,
         )
     assert fake.calls == 2
+
+
+def test_no_translation_skips_unused_condensation_credentials(tmp_path, monkeypatch, capsys):
+    path = _resource_file(tmp_path)
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    doc["resources"]["condensation"]["api_key_env"] = "NEMOVOX_UNSET_CONDENSE_TEST_TOKEN"
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    monkeypatch.delenv("NEMOVOX_UNSET_CONDENSE_TEST_TOKEN", raising=False)
+    captured = {}
+    monkeypatch.setattr(cli, "generate_subtitles",
+                        lambda *args, **kwargs: captured.setdefault("cfg", kwargs["config"]) and {"ok": True})
+    code = cli.main([
+        "generate-subtitles", "--recording-contract", "unused",
+        "--output-dir", str(tmp_path / "output"),
+        "--model-resources", str(path), "--refinement", "off",
+        "--translator", "none", "--condense-high-cps",
+    ])
+    assert code == 0, capsys.readouterr()
+    assert captured["cfg"].translation.backend == "none"
+    assert captured["cfg"].condensation.api_key is None
+
+
+def test_programmatic_riva_condensation_requires_explicit_text_resource(tmp_path):
+    from nvidia_transcribe.subtitle_pipeline import SubtitlePipelineConfig, generate_subtitles
+    cfg = SubtitlePipelineConfig(
+        translation=TranslationConfig(backend="riva"), condense_high_cps=True)
+    with pytest.raises(ValueError, match="explicit OpenAI-compatible condensation resource"):
+        generate_subtitles(
+            recording_contract_path=tmp_path / "not_needed",
+            output_dir=tmp_path / "out",
+            config=cfg,
+        )
+    assert not (tmp_path / "out").exists()
+
+
+def test_condensation_rejects_specialized_riva_adapter():
+    with pytest.raises(ValueError, match="OpenAI-compatible text resource"):
+        condense_high_cps_cues_with_text_model(
+            [], source_language="fr", config=TranslationConfig(backend="riva"))

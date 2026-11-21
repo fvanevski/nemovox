@@ -198,7 +198,7 @@ def main(argv: list[str] | None = None) -> int:
                 translation_key = (translation_resource.credential()
                                    if args.translator in ("openai_chat", "swiftu") and not args.re_render else None)
                 condensation_key = (condensation_resource.credential()
-                                    if args.condense_high_cps and not args.re_render else None)
+                                    if args.condense_high_cps and args.translator != "none" and not args.re_render else None)
         except ResourceConfigError as exc:
             print(json.dumps({"status": "CONFIG_ERROR", "error": str(exc)}), file=sys.stderr)
             return 2

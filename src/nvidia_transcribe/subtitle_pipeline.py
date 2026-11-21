@@ -117,6 +117,12 @@ def generate_subtitles(
     """
     t0 = time.perf_counter()
     cfg = config or SubtitlePipelineConfig()
+    if (cfg.condense_high_cps and cfg.translation.backend == "riva"
+            and cfg.condensation is None and not cfg.re_render_only):
+        raise ValueError(
+            "Riva translation with subtitle condensation requires an explicit "
+            "OpenAI-compatible condensation resource config."
+        )
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     gl = glossary if isinstance(glossary, GlossaryConfig) else load_glossary(glossary)

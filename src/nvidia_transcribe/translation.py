@@ -746,6 +746,11 @@ def condense_high_cps_cues_with_text_model(
     out_utts = [{**u} for u in utterances]
     if cfg.backend == "none":
         return out_utts, {"status": "skipped_backend_none", "candidate_count": 0, "condensed_count": 0}
+    if cfg.backend not in ("openai_chat", "swiftu"):
+        raise ValueError(
+            "Subtitle condensation requires an OpenAI-compatible text resource, "
+            f"not translation backend {cfg.backend!r}"
+        )
 
     client = text_client or OpenAIChatTextClient(
         base_url=cfg.base_url,
