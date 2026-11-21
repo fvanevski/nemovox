@@ -1,0 +1,56 @@
+{
+  "gui_url": "http://127.0.0.1:8765/",
+  "html_before_status": 200,
+  "html_after_status": 200,
+  "html_after_title_ok": true,
+  "bundled_assets": {
+    "/assets/index-Bwa8rYL-.js": {
+      "status": 200,
+      "bytes": 442992
+    },
+    "/assets/index-DJ2GBhMf.css": {
+      "status": 200,
+      "bytes": 24855
+    }
+  },
+  "health_before": {
+    "status_code": 200,
+    "body": {
+      "status": "ok",
+      "backend": "local",
+      "ffmpeg": true,
+      "ytdlp": true,
+      "media_roots": [
+        "/workspace/nvidia-transcribe/outputs",
+        "<USER_HOME>/Videos",
+        "/opt/mcog",
+        "/workspace/pyannote/outputs/sources"
+      ]
+    }
+  },
+  "health_after": {
+    "status_code": 200,
+    "body": {
+      "status": "ok",
+      "backend": "local",
+      "ffmpeg": true,
+      "ytdlp": true,
+      "media_roots": [
+        "/workspace/nvidia-transcribe/outputs",
+        "<USER_HOME>/Videos",
+        "/opt/mcog",
+        "/workspace/pyannote/outputs/sources"
+      ]
+    }
+  },
+  "synthetic_job": {
+    "job_id": "9be92af3ba144e6eb984ee43af0807de",
+    "state_after_restart": "complete",
+    "cues_after_restart": 2,
+    "artifacts_after_restart": [
+      "recording.contract.json",
+      "transcript.txt"
+    ],
+    "transcript_excerpt": "# Source: synthetic://postdeploy-check | Language: zh (explicit) | Utterances: 2\n\n[0000.20 -> 0001.60] SPK_00 (exact): 部署验证测试一。\n[untimed -> untimed] SPK_01 (untimed): Réplique de test.\n"
+  }
+}

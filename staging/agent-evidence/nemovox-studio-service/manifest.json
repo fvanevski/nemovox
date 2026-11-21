@@ -1,0 +1,45 @@
+{
+  "campaign": "nemovox-studio-service",
+  "repository": "https://github.com/fvanevski/nemovox",
+  "source_main_sha": "242c418f55cd2afb796ee2c4fa742a10ff04f7a3",
+  "source_main_tree": "122f8466db22098ba9427373af7e87ceb8421076",
+  "deployment_branch": "evidence/nemovox-studio-service-20261121",
+  "deployment_handoff_commit": "e739cd604088e65a1a2d674ee563fe3a83d5dc73",
+  "staged_unit_sha256": "118c256bc94768b52c2f286c8b3cbdc9cf28423718413bdd6e9e3ba2107342d3",
+  "installed_unit_sha256": "118c256bc94768b52c2f286c8b3cbdc9cf28423718413bdd6e9e3ba2107342d3",
+  "effective_gui_url": "http://127.0.0.1:8765/",
+  "service_pids": {
+    "before_restart": 4154778,
+    "after_restart": 4157910
+  },
+  "boot_configuration": {
+    "user_systemd_enablement": "enabled",
+    "user_systemd_active": "active",
+    "linger": "yes",
+    "boot_startup_config": "PASS",
+    "post_reboot_observed": "no"
+  },
+  "included_members": {
+    "HANDback.md": {
+      "size_bytes": 2820,
+      "sha256": "6d3c32413f6c6e123ad8cab5113a47d59a21c9f983303ac8e72f89239c97ad42"
+    },
+    "logs/web_test_build.log": {
+      "size_bytes": 1393,
+      "sha256": "efae47d3389307e4db6bc0a77d959159f3949fe667f51dd7722873208616c38b"
+    },
+    "service-health.json": {
+      "size_bytes": 1474,
+      "sha256": "0701c380fb0fd1255c047608b7cffacc37f5291d3745e5833e8da8c665a3611b"
+    },
+    "service-identity.txt": {
+      "size_bytes": 6777,
+      "sha256": "e7d77030a69362a13df8b136d4a4e4e65c61b772d87e92997768dd76c5a8b72c"
+    },
+    "test-results.md": {
+      "size_bytes": 2744,
+      "sha256": "9a8bf8f2d3a52598686095cd051a8d505bbf032787bcaa05bcc41dd2a1d3115e"
+    }
+  },
+  "privacy_check": "ZERO_SENSITIVE_MATCHES; personal home/host/user redacted"
+}
