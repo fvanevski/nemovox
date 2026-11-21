@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import subprocess
 import signal
 import threading
@@ -113,6 +114,31 @@ def _wait_unit(unit: str, active: bool, deadline: float) -> dict[str, str]:
     raise ManagedASRBlocked("unit_transition_timeout", f"{unit} did not reach expected state")
 
 
+def _has_exact_cooperative_markers(environment: str, lease_path: Path) -> bool:
+    """Match full systemd Environment assignments, never path prefixes.
+
+    systemctl show uses whitespace-separated assignments, with quoted values
+    where needed. Malformed or duplicate ownership assignments fail closed.
+    """
+    try:
+        assignments = shlex.split(environment)
+    except ValueError:
+        return False
+    observed: dict[str, list[str]] = {
+        "NEMOVOX_MANAGED_ASR": [], "NEMOVOX_ASR_LEASE_PATH": [],
+    }
+    for assignment in assignments:
+        if "=" not in assignment:
+            return False
+        name, value = assignment.split("=", 1)
+        if name in observed:
+            observed[name].append(value)
+    return (
+        observed["NEMOVOX_MANAGED_ASR"] == ["1"]
+        and observed["NEMOVOX_ASR_LEASE_PATH"] == [str(lease_path)]
+    )
+
+
 def _verified_owner(cfg: ManagedASRConfig) -> dict[str, str]:
     props = _unit_properties(cfg.unit)
     if props.get("LoadState") != "loaded" or props.get("ActiveState") != "active":
@@ -125,9 +151,7 @@ def _verified_owner(cfg: ManagedASRConfig) -> dict[str, str]:
     # The marker is a specific opt-in contract installed by the ASR unit's
     # operator, not a wildcard permission to stop any vLLM service.
     env = props.get("Environment") or ""
-    if "NEMOVOX_MANAGED_ASR=1" not in env or (
-        "NEMOVOX_ASR_LEASE_PATH=" + str(cfg.lease_path)
-    ) not in env:
+    if not _has_exact_cooperative_markers(env, cfg.lease_path):
         raise ManagedASRBlocked("asr_not_cooperatively_owned")
     try:
         cmdline = Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\0", b" ").decode("utf-8")
@@ -331,9 +355,7 @@ def recover_pending_managed_asr(cfg: ManagedASRConfig) -> dict[str, Any]:
         env = props.get("Environment") or ""
         if props.get("LoadState") != "loaded":
             raise ManagedASRBlocked("asr_unit_not_loaded")
-        if "NEMOVOX_MANAGED_ASR=1" not in env or (
-            "NEMOVOX_ASR_LEASE_PATH=" + str(cfg.lease_path)
-        ) not in env:
+        if not _has_exact_cooperative_markers(env, cfg.lease_path):
             raise ManagedASRBlocked("asr_not_cooperatively_owned")
         if props.get("FragmentPath") != data["unit_fragment_path"]:
             raise ManagedASRBlocked("asr_unit_changed_since_handoff")
