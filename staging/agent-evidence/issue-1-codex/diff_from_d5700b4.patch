@@ -1,0 +1,536 @@
+diff --git a/docs/alignment/ISSUE1_CODEX_REMEDIATION_HANDOFF.md b/docs/alignment/ISSUE1_CODEX_REMEDIATION_HANDOFF.md
+new file mode 100644
+index 0000000..7a38305
+--- /dev/null
++++ b/docs/alignment/ISSUE1_CODEX_REMEDIATION_HANDOFF.md
+@@ -0,0 +1,45 @@
++# PR #4 Codex remediation: single bounded exact-head qualification
++
++## Source and task
++
++Repository `fvanevski/nemovox`; PR #4 (existing consolidated issue #1 PR); branch `issue/1`.
++Base remains `main@242c418f55cd2afb796ee2c4fa742a10ff04f7a3`, unless current remote authority changed.
++Previously CUDA-qualified PR head: `d5700b47a4e2f1abb60ebe99f53750c254de2696`, evidence `evidence/issue-1-qwen-review-20261121@a2c5479d5a7f2bbb8420dd6fb1f92adcd8833185`. It **does not establish PASS** for the new source below.
++
++Codex review `6008270229` at the prior head reported three verified blocking issues:
++
++1. P1 [review thread](https://github.com/fvanevski/nemovox/pull/4#discussion_r4655089438): substring cooperative lease marker matching may authorize an unrelated lease. Central corrected *both* ordinary admission and explicit crash recovery with exact parsed/unique assignments.
++2. P2 [review thread](https://github.com/fvanevski/nemovox/pull/4#discussion_r4655089439): partially timed utterance crops with untimed prefix/suffix may exclude that speech. Central requires one uniquely grouped/overlapping same-speaker diar interval for missing edge and applies native neighbor/window bounds, otherwise skips without fake timing.
++3. P2 [review thread](https://github.com/fvanevski/nemovox/pull/4#discussion_r4655089443): `systemctl_unavailable` after stop can be misclassified as optional deferral. Central introduced `ManagedASRLifecycleError` for any post-stop failure or unverifiable restoration; recording propagates it as fatal; pre-stop admission blocks remain deferrable.
++
++**Controlling implementation SHA:** `5e56304ec848f43807cf9ad91d61350090fd7525` is the Central-authored fix-and-test checkpoint; validate the fresh *current* `issue/1` head, including the documentation commit containing this handoff. Verify that the changes since `d5700b4...` are confined to `gpu_handoff.py`, `selective_alignment.py`, `recording.py`, `tests/test_qwen_session_and_policy.py`, and the two touched docs. If any unrelated remote movement occurs, stop as STALE. Read `AGENTS.md`, issue #1 and `docs/alignment/ISSUE1_QWEN_DESIGN.md` before execution.
++
++## Authority, host and scope
++
++Run OpenCode primary `build` on Garuda, preferably from the already isolated `/workspace/nemovox-issue1` checkout; use the existing `.venv`, `.venv-studio`, and dependency-isolated `outputs/modular-eval/.venv` *via source-bound PYTHONPATH*. The live checkout `/workspace/nvidia-transcribe`, `nemovox-studio.service`, `local_embedding.service`, vLLM, model checkpoints, SwiftU and all unrelated services are out of scope. No service stop/start/restart or ASR ownership marker/lease creation, no full-episode processing, no new PR, merge or issue mutation. CPU tests and bounded optional CUDA are permitted when available VRAM is safe.
++
++This is one **post-Codex remediation qualification**, not a new implementation initiative. Resolve trivial environment or fixture breakage and syntax/import problems if proved and bounded; do not silently rewrite the safety protocol, timing semantics, owner identity, lease policy, source-language text or trusted timing behavior. If a substantive defect remains, return its reproducer and FAIL for Central. Preserve exact provenance after any local source correction; no force writes.
++
++## Required checks
++
++1. Fetch `origin/main` and `origin/issue/1`; authenticate exact SHAs/tree, changed files, and runtime imports before execution. Preserve dirty worktrees by using a new isolated worktree when necessary.
++2. Compile package with `python -m compileall -q src/nvidia_transcribe`; run focused Qwen tests `tests/test_qwen_session_and_policy.py tests/test_qwen_fallback.py`. Verify *all newly added* exact-lease/prefix/duplicate/quoted-marker, crash-recovery wrong-lease, partial leading and trailing untimed edge, ambiguous-edge fail-closed, post-stop systemctl transport failure, and recording-level fatal propagation tests. Existing regressions may not be weakened.
++3. Run full `pytest -q -m "not gpu"` in the existing `.venv` and `.venv-studio`, report actual counts/exits. The previously qualified head had 109 tests; additional parameterized cases were added. Do not assert an expected count instead of actual pytest output.
++4. For ownership controls, use only mocks/fake user-unit inputs: prove exact marker matches, reject `/tmp/a.lock.other` for requested `/tmp/a.lock`, duplicates and malformed values; prove `recover_pending_managed_asr` does not start wrong-lease unit. Test a synthetic post-stop start timeout/`systemctl_unavailable` that raises fatal `ManagedASRLifecycleError`, leaves a pending journal and does not return an accepted completed job. Confirm genuine pre-stop `ManagedASRBlocked` is still deferred without touching a service. No live managed ASR takeover is allowed by this campaign.
++5. For selection, inspect candidate spans in adversarial *partially* timed utterances whose native-timed anchor lies at `7..8s` but which have long untimed leading or trailing speech; verify crop contains the uniquely diarized missing edge, respecting max duration, neighboring native timing and overlap protections. With absent/ambiguous diarization, assert reason-coded skip, not invented timing. Recheck existing intra-utterance pause grouping, native-neighbor clipping and `subtitle` vs `fine` admission.
++6. If the RTX 5090 has demonstrably spare VRAM, run just the prior bounded real-Qwen BF16 replay fixtures most likely affected by window selection: `zh_multichunk_synthetic` (subtitle and fine) and optionally `two_span_oov`. The Nemotron inputs must be clearly labeled **recorded ASR replay**. Compare exact candidate windows, subtitle-relevant recovered timing, worker `model_load_count`, actual `cuda:0`/observed dtype, peak VRAM and process cleanup against prior qualified `d5700b4` receipts. If GPU unavailable, mark GPU delta BLOCKED, retain earlier worker-source-equivalent evidence, and do not substitute CPU silently. Do not reprocess whole episodes.
++7. Confirm PR #4 still points to candidate head, no unrelated service was altered, and `main` remains unchanged. Managed ASR remains `MANAGED_GPU_BLOCKED` due to no owned live ASR unit/lease; mock behavior is not real stop/release/restore acceptance.
++
++## Evidence and stop
++
++Publish **one** self-contained sanitized `.tar.gz` with member SHA-256s, terminal command exits, exact source/head/tree, focused/full CPU results, bounded GPU replay results if performed, fake ownership/lifecycle trace, per-Codex-finding regression mapping and full bounded source delta. No private media/transcripts, credentials, unredacted logs or model weights. Publish browsable `HANDback.md`, `test-results.md`, `codex-remediation.md`, `gpu-replay.md` (or explicit unavailable), `manifest.json`, test logs and archive under `staging/agent-evidence/issue-1-codex/` on one new evidence-only branch `evidence/issue-1-codex-20261121` **based directly on the final exact implementation SHA**. If branch exists, inspect before write; never force-push. Compute archive hash/size, check gzip/member integrity, scan for secrets and verify GitHub ref/file readback.
++
++Return `PASS|FAIL|BLOCKED|STALE`, exact final `issue/1` and evidence commit SHAs, all new regression results, CPU and GPU receipts, managed ownership status, any correction diff, archive hash/bytes, cleanup/service invariants and canonical `COMMAND_SHAPE_FRICTION` ledger. Stop. Central alone adjudicates Codex findings/PR review, consumes the remaining **one** manual Codex request slot (PR #4 default cap 2; one request already created), performs formal approval and decides later merge. No new PR or merge during this handoff.
++
++Canonical ledger:
++```text
++COMMAND_SHAPE_FRICTION:
++  encountered=<yes|no>
++  events: [<bounded events, or empty>]
++  omitted_sensitive_values=<yes|no>
++```
+diff --git a/docs/alignment/ISSUE1_QWEN_DESIGN.md b/docs/alignment/ISSUE1_QWEN_DESIGN.md
+index 7a69f1a..19f6c34 100644
+--- a/docs/alignment/ISSUE1_QWEN_DESIGN.md
++++ b/docs/alignment/ISSUE1_QWEN_DESIGN.md
+@@ -9,7 +9,7 @@ The objective is subtitle coverage, not character timestamp perfection. All exis
+ ## Two-phase processing invariant
+ 
+ 1. The recording pipeline finishes all chunk ASR, LID and **native CTC/subinterval recovery**, checkpointing raw responses and an independent `native-alignment.checkpoint.json` when Qwen opt-in is selected. The ASR vLLM model must still be available for every native request.
+-2. Only after native work is finished, a bounded `AdmissionPolicy` scans untimed speech spans. Each candidate must be meaningful, uniquely anchored in a finite localized window, non-overlapping with mixed speakers, and short enough to align. Default `subtitle` skips low-value isolated character gaps in otherwise timed cues; `fine` is opt-in.
++2. Only after native work is finished, a bounded `AdmissionPolicy` scans untimed speech spans. Each candidate must be meaningful, uniquely anchored in a finite localized window, non-overlapping with mixed speakers, and short enough to align. A partially timed sentence with untimed words at its leading or trailing edge requires a unique overlapping diarization interval that covers the entire missing edge; a fixed pad around the timed word is insufficient. Native-timed neighboring units still bound the crop, and ambiguous edges remain untimed. Default `subtitle` skips low-value isolated character gaps in otherwise timed cues; `fine` is opt-in.
+ 3. If there are zero eligible spans, no worker is launched and no service is touched. Otherwise one isolated `QwenForcedAlignerAdapter` owns one JSONL `QwenAlignerSession` across all chunks/candidates, with the model loaded once and responses validated before attaching timings. The same lexical matching and monotonic bounds validation in `alignment._apply_verified_sequence_timings` rejects invalid results without rewriting source text.
+ 4. The worker is deterministically shut down **before** the pipeline normalizes speakers/reconstructs utterances, and **before** any managed ASR vLLM restoration is adjudicated as complete. The final contract includes candidate/admission diagnostics and worker telemetry.
+ 
+@@ -29,11 +29,11 @@ Files: `recording.py`, `selective_alignment.py`, `qwen_aligner.py`, `_qwen_align
+ The managed controller refuses to stop a service unless all of the following hold:
+ 
+ - Service is an exact `nemovox-*.service` **user** unit (never `nemovox-studio.service`), loaded, active and has a valid MainPID and invocation identity.
+-- The service unit includes the operator-provisioned `NEMOVOX_MANAGED_ASR=1` and `NEMOVOX_ASR_LEASE_PATH=<exact private path>` markers. The lease file exists, is user-owned/private and can be locked exclusively without waiting. **All supported ASR consumers must participate in this lease discipline.** Nonparticipating clients cannot be made safe by examining a PID or guessing a port.
++- The service unit includes the operator-provisioned `NEMOVOX_MANAGED_ASR=1` and `NEMOVOX_ASR_LEASE_PATH=<exact private path>` markers. The controller parses exact complete systemd environment assignments, rejecting marker prefixes and duplicate/ambiguous values. The lease file exists, is user-owned/private and can be locked exclusively without waiting. **All supported ASR consumers must participate in this lease discipline.** Nonparticipating clients cannot be made safe by examining a PID or guessing a port.
+ - Live process command and `/v1/models` identify the *same* Nemotron ASR vLLM model/loopback port requested by the pipeline. Unknown, shared or externally managed services are not touched.
+ - Native ASR has finished and a checkpoint has been written. The controller checks actual free VRAM first; it does not stop a service if CUDA is already available.
+ 
+-Once admitted, journal original unit identity/config before stop; stop only that unit; verify stopped state and sufficient freed VRAM; launch bounded Qwen session; teardown; restart original active unit with existing unit configuration; and verify `/v1/models` returns the original model. Restore is attempted after normal return, worker failure, timeout, ordinary CLI SIGTERM cancellation (Python main-thread signal unwind), and ambiguous stop. An interrupted pending journal blocks **new automatic handoff** even if VRAM is free. Uncatchable SIGKILL, power loss and fatal process termination cannot guarantee immediate ASR restoration and require explicit journal/identity-checked recovery; never claim them as automatically recovered. Explicit `recover-qwen-asr` can restore only after revalidating unit executable/hash, fragment path, cooperative marker, lease and original active state.
++Once admitted, journal original unit identity/config before stop; stop only that unit; verify stopped state and sufficient freed VRAM; launch bounded Qwen session; teardown; restart original active unit with existing unit configuration; and verify `/v1/models` returns the original model. Restore is attempted after normal return, worker failure, timeout, ordinary CLI SIGTERM cancellation (Python main-thread signal unwind), and ambiguous stop. After any stop attempt, all unverified lifecycle/restoration outcomes (including `systemctl_unavailable` transport/timeouts) are fatal rather than optional Qwen deferrals; the pending journal is retained unless restoration and served-model health are verified. An interrupted pending journal blocks **new automatic handoff** even if VRAM is free. Uncatchable SIGKILL, power loss and fatal process termination cannot guarantee immediate ASR restoration and require explicit journal/identity-checked recovery; never claim them as automatically recovered. Explicit `recover-qwen-asr` can restore only after revalidating unit executable/hash, fragment path, cooperative marker, lease and original active state.
+ 
+ **Important boundary:** a user-specified unit name or a private lease file alone is not proof that no unrelated applications depend on the model. Host qualification must check launcher/consumer participation and status. If existing launcher/lease semantics do not satisfy this contract, report `BLOCKED_SAFE_HANDOFF` and leave vLLM alone. Do not silently add markers or create a competing service controller as a local-agent workaround. Central must evaluate any material launcher integration separately.
+ 
+diff --git a/src/nvidia_transcribe/gpu_handoff.py b/src/nvidia_transcribe/gpu_handoff.py
+index 204aff0..ddbbb34 100644
+--- a/src/nvidia_transcribe/gpu_handoff.py
++++ b/src/nvidia_transcribe/gpu_handoff.py
+@@ -10,6 +10,7 @@ import hashlib
+ import json
+ import os
+ import re
++import shlex
+ import subprocess
+ import signal
+ import threading
+@@ -31,6 +32,14 @@ class ManagedASRBlocked(RuntimeError):
+         self.status = status
+ 
+ 
++class ManagedASRLifecycleError(ManagedASRBlocked):
++    """Fatal after a managed ASR stop attempt or failed restoration.
++
++    Unlike an admission block, this must never be converted into optional
++    alignment deferral. The journal remains pending unless health is verified.
++    """
++
++
+ @dataclass(frozen=True)
+ class ManagedASRConfig:
+     unit: str
+@@ -113,6 +122,31 @@ def _wait_unit(unit: str, active: bool, deadline: float) -> dict[str, str]:
+     raise ManagedASRBlocked("unit_transition_timeout", f"{unit} did not reach expected state")
+ 
+ 
++def _has_exact_cooperative_markers(environment: str, lease_path: Path) -> bool:
++    """Match full systemd Environment assignments, never path prefixes.
++
++    systemctl show uses whitespace-separated assignments, with quoted values
++    where needed. Malformed or duplicate ownership assignments fail closed.
++    """
++    try:
++        assignments = shlex.split(environment)
++    except ValueError:
++        return False
++    observed: dict[str, list[str]] = {
++        "NEMOVOX_MANAGED_ASR": [], "NEMOVOX_ASR_LEASE_PATH": [],
++    }
++    for assignment in assignments:
++        if "=" not in assignment:
++            return False
++        name, value = assignment.split("=", 1)
++        if name in observed:
++            observed[name].append(value)
++    return (
++        observed["NEMOVOX_MANAGED_ASR"] == ["1"]
++        and observed["NEMOVOX_ASR_LEASE_PATH"] == [str(lease_path)]
++    )
++
++
+ def _verified_owner(cfg: ManagedASRConfig) -> dict[str, str]:
+     props = _unit_properties(cfg.unit)
+     if props.get("LoadState") != "loaded" or props.get("ActiveState") != "active":
+@@ -125,9 +159,7 @@ def _verified_owner(cfg: ManagedASRConfig) -> dict[str, str]:
+     # The marker is a specific opt-in contract installed by the ASR unit's
+     # operator, not a wildcard permission to stop any vLLM service.
+     env = props.get("Environment") or ""
+-    if "NEMOVOX_MANAGED_ASR=1" not in env or (
+-        "NEMOVOX_ASR_LEASE_PATH=" + str(cfg.lease_path)
+-    ) not in env:
++    if not _has_exact_cooperative_markers(env, cfg.lease_path):
+         raise ManagedASRBlocked("asr_not_cooperatively_owned")
+     try:
+         cmdline = Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\0", b" ").decode("utf-8")
+@@ -266,30 +298,46 @@ def managed_asr_handoff(cfg: ManagedASRConfig) -> Iterator[dict[str, Any]]:
+             raise ManagedASRBlocked("vram_not_released")
+         telemetry["released"] = True
+         yield telemetry
++    except ManagedASRBlocked as exc:
++        # A systemctl failure *after* attempting stop has uncertain service
++        # effects even if a restoration attempt later succeeds. It is not
++        # equivalent to a safe pre-stop admission refusal.
++        if stopped:
++            raise ManagedASRLifecycleError("asr_handoff_unverified", exc.status) from exc
++        raise
+     finally:
+         try:
+             if stopped and original is not None:
+-                current = _unit_properties(cfg.unit)
+-                if current.get("ActiveState") != "active":
+-                    _run_systemctl("start", cfg.unit)
+-                    current = _wait_unit(cfg.unit, True, time.monotonic() + cfg.timeout_s)
+-                # An already-running unit can be the original process when
+-                # stop failed without side effects; do not restart it needlessly.
+-                if current.get("ActiveState") != "active":
+-                    raise ManagedASRBlocked("asr_restore_not_active")
+-                deadline = time.monotonic() + cfg.timeout_s
+-                while time.monotonic() < deadline:
+-                    if _models_healthy(cfg.base_url, cfg.served_model):
+-                        telemetry["restored"] = True
+-                        break
+-                    time.sleep(0.5)
+-                if not telemetry["restored"]:
+-                    raise ManagedASRBlocked("asr_restore_health_failed")
+-                _write_journal(cfg.journal_path, {
+-                    "phase": "restored", "unit": cfg.unit,
+-                    "original_invocation_id": original.get("InvocationID"),
+-                    "restored_invocation_id": current.get("InvocationID"),
+-                })
++                try:
++                    current = _unit_properties(cfg.unit)
++                    if current.get("ActiveState") != "active":
++                        _run_systemctl("start", cfg.unit)
++                        current = _wait_unit(cfg.unit, True, time.monotonic() + cfg.timeout_s)
++                    # If stop failed harmlessly and the original process is
++                    # still healthy, do not restart it unnecessarily.
++                    if current.get("ActiveState") != "active":
++                        raise ManagedASRBlocked("asr_restore_not_active")
++                    deadline = time.monotonic() + cfg.timeout_s
++                    while time.monotonic() < deadline:
++                        if _models_healthy(cfg.base_url, cfg.served_model):
++                            telemetry["restored"] = True
++                            break
++                        time.sleep(0.5)
++                    if not telemetry["restored"]:
++                        raise ManagedASRBlocked("asr_restore_health_failed")
++                    _write_journal(cfg.journal_path, {
++                        "phase": "restored", "unit": cfg.unit,
++                        "original_invocation_id": original.get("InvocationID"),
++                        "restored_invocation_id": current.get("InvocationID"),
++                    })
++                except BaseException as exc:
++                    # Preserve the original cause, but make every failure to
++                    # verify restoration fatal, including systemctl transport
++                    # errors, signal interruptions and journal-write failures.
++                    raise ManagedASRLifecycleError(
++                        "asr_restore_unverified",
++                        getattr(exc, "status", type(exc).__name__),
++                    ) from exc
+         finally:
+             try:
+                 if sigterm_installed:
+@@ -331,9 +379,7 @@ def recover_pending_managed_asr(cfg: ManagedASRConfig) -> dict[str, Any]:
+         env = props.get("Environment") or ""
+         if props.get("LoadState") != "loaded":
+             raise ManagedASRBlocked("asr_unit_not_loaded")
+-        if "NEMOVOX_MANAGED_ASR=1" not in env or (
+-            "NEMOVOX_ASR_LEASE_PATH=" + str(cfg.lease_path)
+-        ) not in env:
++        if not _has_exact_cooperative_markers(env, cfg.lease_path):
+             raise ManagedASRBlocked("asr_not_cooperatively_owned")
+         if props.get("FragmentPath") != data["unit_fragment_path"]:
+             raise ManagedASRBlocked("asr_unit_changed_since_handoff")
+diff --git a/src/nvidia_transcribe/recording.py b/src/nvidia_transcribe/recording.py
+index 09e9dd1..560d04e 100644
+--- a/src/nvidia_transcribe/recording.py
++++ b/src/nvidia_transcribe/recording.py
+@@ -25,7 +25,7 @@ from nvidia_transcribe.media import MediaInfo, compute_file_sha256, extract_wav_
+ from nvidia_transcribe.prompts import cleanup_generation_loops
+ from nvidia_transcribe.qwen_aligner import (QwenAlignerConfig, QwenForcedAlignerAdapter, map_language_for_qwen_aligner)
+ from nvidia_transcribe.selective_alignment import AdmissionPolicy, apply_selective_recovery, plan_selective_recovery
+-from nvidia_transcribe.gpu_handoff import ManagedASRBlocked, ManagedASRConfig, managed_asr_handoff
++from nvidia_transcribe.gpu_handoff import (ManagedASRBlocked, ManagedASRLifecycleError, ManagedASRConfig, managed_asr_handoff)
+ from nvidia_transcribe.speakers import (
+     SpeakerEmbedder,
+     TitaNetSpeakerEmbedder,
+@@ -484,11 +484,14 @@ def process_media(
+                     # restored=True reflects verified ASR health, not a
+                     # premature pre-restoration observation.
+                     qwen_metrics["resource_handoff"] = dict(lease_report)
++                except ManagedASRLifecycleError as exc:
++                    # A stop was attempted or restoration could not be proved:
++                    # never convert this into a successful optional deferral.
++                    raise RuntimeError(
++                        f"Managed ASR lifecycle could not be verified: {exc.status}"
++                    ) from exc
+                 except ManagedASRBlocked as exc:
+-                    # Admission failures occur *before* changing a non-owned
+-                    # service. Restoration failures are fatal, not a mere skip.
+-                    if exc.status.startswith(("asr_restore", "unit_transition", "systemctl_failed")):
+-                        raise RuntimeError(f"Managed ASR lifecycle could not be verified: {exc.status}") from exc
++                    # Only failures before a stop attempt may defer alignment.
+                     qwen_metrics["status"] = exc.status
+                     warnings.append(f"Optional managed Qwen deferred: {exc.status}")
+                 except Exception:
+diff --git a/src/nvidia_transcribe/selective_alignment.py b/src/nvidia_transcribe/selective_alignment.py
+index 7e13421..93cdab5 100644
+--- a/src/nvidia_transcribe/selective_alignment.py
++++ b/src/nvidia_transcribe/selective_alignment.py
+@@ -144,11 +144,35 @@ def plan_selective_recovery(
+         )
+         interval: tuple[float, float] | None = None
+         if valid_in_span:
+-            # A partly timed utterance is itself a reliable localization anchor.
+-            interval = (
+-                max(chunk_start_s, min(s for s, _ in valid_in_span) - 1.2),
+-                min(chunk_end_s, max(e for _, e in valid_in_span) + 1.2),
+-            )
++            native_start = min(s for s, _ in valid_in_span)
++            native_end = max(e for _, e in valid_in_span)
++            untimed_prefix = not span[0].get("valid_timing")
++            untimed_suffix = not span[-1].get("valid_timing")
++            if untimed_prefix or untimed_suffix:
++                # The submitted text includes the entire utterance: a fixed
++                # pad near its native-timed words could omit a long untimed
++                # lead-in/tail. Require one uniquely grouped same-speaker
++                # diarization interval overlapping native timing.
++                if len(grouped_diar) != 1 or untimed_spans_by_speaker.get(speaker, 0) != 1:
++                    decision["status"] = "skipped_partial_span_unanchored_edge"
++                    continue
++                diar_start, diar_end = grouped_diar[0]
++                if diar_end < native_start - 0.35 or diar_start > native_end + 0.35:
++                    decision["status"] = "skipped_partial_span_unanchored_edge"
++                    continue
++                interval = (
++                    max(chunk_start_s, min(diar_start, native_start) - 0.35)
++                    if untimed_prefix else max(chunk_start_s, native_start - 0.35),
++                    min(chunk_end_s, max(diar_end, native_end) + 0.35)
++                    if untimed_suffix else min(chunk_end_s, native_end + 0.35),
++                )
++            else:
++                # Both boundaries have native timing, so small local pads
++                # retain the complete utterance without guessing edge audio.
++                interval = (
++                    max(chunk_start_s, native_start - 1.2),
++                    min(chunk_end_s, native_end + 1.2),
++                )
+         elif len(grouped_diar) == 1 and untimed_spans_by_speaker.get(speaker, 0) == 1:
+             # Intra-utterance pauses (<=0.6s) merge into one speech window for a sole untimed span;
+             # multiple separated same-speaker windows remain ambiguous.
+diff --git a/tests/test_qwen_session_and_policy.py b/tests/test_qwen_session_and_policy.py
+index e275c17..b828919 100644
+--- a/tests/test_qwen_session_and_policy.py
++++ b/tests/test_qwen_session_and_policy.py
+@@ -741,3 +741,227 @@ def test_neighbor_bounds_fail_closed_if_candidate_overlaps_native_timing() -> No
+     )
+     assert not cands
+     assert decisions[0]["status"] == "skipped_conflicting_or_long_window"
++
++
++@pytest.mark.parametrize("marker", [
++    "NEMOVOX_MANAGED_ASR=1 NEMOVOX_ASR_LEASE_PATH={lease}.other",
++    "NEMOVOX_MANAGED_ASR=10 NEMOVOX_ASR_LEASE_PATH={lease}",
++    "NEMOVOX_MANAGED_ASR=1 NEMOVOX_ASR_LEASE_PATH={lease} "
++    "NEMOVOX_ASR_LEASE_PATH={lease}.other",
++    "NEMOVOX_MANAGED_ASR=1 NEMOVOX_ASR_LEASE_PATH={lease}.other "
++    "NEMOVOX_ASR_LEASE_PATH={lease}",
++])
++def test_managed_owner_rejects_nonexact_or_duplicate_lease_markers(
++    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, marker: str,
++) -> None:
++    cfg = _managed_cfg(tmp_path)
++    monkeypatch.setattr(gpu_handoff, "_unit_properties", lambda u: {
++        "LoadState": "loaded", "ActiveState": "active",
++        "FragmentPath": "/synthetic/nemovox-asr.service",
++        "InvocationID": "abc", "MainPID": str(os.getpid()),
++        "Environment": marker.format(lease=cfg.lease_path),
++        "ExecStart": "vllm serve nemotron --port 8190",
++    })
++    monkeypatch.setattr(Path, "read_bytes", lambda self: (
++        _ for _ in ()
++    ).throw(AssertionError("reject ownership before inspecting process")))
++    with pytest.raises(gpu_handoff.ManagedASRBlocked) as error:
++        gpu_handoff._verified_owner(cfg)
++    assert error.value.status == "asr_not_cooperatively_owned"
++
++
++def test_cooperative_marker_parser_accepts_exact_quoted_assignment(tmp_path: Path) -> None:
++    lease = tmp_path / "space in name.lock"
++    assert gpu_handoff._has_exact_cooperative_markers(
++        f'NEMOVOX_MANAGED_ASR=1 "NEMOVOX_ASR_LEASE_PATH={lease}"', lease,
++    )
++    assert not gpu_handoff._has_exact_cooperative_markers(
++        f'NEMOVOX_MANAGED_ASR=1 "NEMOVOX_ASR_LEASE_PATH={lease}.suffix"', lease,
++    )
++    assert not gpu_handoff._has_exact_cooperative_markers(
++        'NEMOVOX_MANAGED_ASR=1 "NEMOVOX_ASR_LEASE_PATH=unterminated', lease,
++    )
++
++
++def test_managed_crash_recovery_rejects_prefix_lease_before_start(
++    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    import hashlib
++    cfg = _managed_cfg(tmp_path)
++    cfg.lease_path.write_text("", encoding="utf-8")
++    cfg.lease_path.chmod(0o600)
++    command = "vllm serve nemotron --port 8190"
++    fragment = "/synthetic/nemovox-asr.service"
++    cfg.journal_path.write_text(json.dumps({
++        "phase": "pending_restore", "unit": cfg.unit,
++        "served_model": cfg.served_model, "base_url": cfg.base_url,
++        "originally_active": True,
++        "unit_exec_sha256": hashlib.sha256(command.encode()).hexdigest(),
++        "unit_fragment_path": fragment,
++    }), encoding="utf-8")
++    monkeypatch.setattr(gpu_handoff, "_unit_properties", lambda u: {
++        "LoadState": "loaded", "ActiveState": "inactive",
++        "Environment": f"NEMOVOX_MANAGED_ASR=1 NEMOVOX_ASR_LEASE_PATH={cfg.lease_path}.other",
++        "FragmentPath": fragment, "ExecStart": command,
++    })
++    monkeypatch.setattr(gpu_handoff, "_run_systemctl", lambda *args: (
++        _ for _ in ()
++    ).throw(AssertionError("must not start mismatched ASR")))
++    with pytest.raises(gpu_handoff.ManagedASRBlocked) as error:
++        gpu_handoff.recover_pending_managed_asr(cfg)
++    assert error.value.status == "asr_not_cooperatively_owned"
++    assert json.loads(cfg.journal_path.read_text())["phase"] == "pending_restore"
++
++
++@pytest.mark.parametrize("leading", [True, False])
++def test_partly_timed_span_covers_diarized_untimed_edge(leading: bool) -> None:
++    untimed = [
++        {"text": word, "speaker": "spk_0", "start": None, "end": None,
++         "valid_timing": False}
++        for word in ("好", "久", "啊")
++    ]
++    timed = {"text": "回来了", "speaker": "spk_0", "start": 7.0, "end": 8.0,
++             "valid_timing": True}
++    if leading:
++        units = untimed + [timed]
++        diar = [_diar(0.5, 8.0)]
++    else:
++        timed = {**timed, "start": 2.0, "end": 3.0}
++        units = [timed] + untimed
++        diar = [_diar(2.0, 11.0)]
++    candidates, decisions = plan_selective_recovery(
++        native={"units": units, "diarization": diar},
++        raw_text="<spk:0>好久啊回来了",
++        chunk_start_s=0.0, chunk_end_s=12.0, policy=AdmissionPolicy(),
++    )
++    assert len(candidates) == 1
++    assert decisions[0]["status"] == "admitted"
++    if leading:
++        assert candidates[0].start_s <= 0.5
++        assert candidates[0].end_s >= 8.0
++    else:
++        assert candidates[0].start_s <= 2.0
++        assert candidates[0].end_s >= 11.0
++
++
++def test_partly_timed_untimed_edge_without_unique_diarization_is_skipped() -> None:
++    units = [
++        {"text": "好", "speaker": "spk_0", "start": None, "end": None,
++         "valid_timing": False},
++        {"text": "久", "speaker": "spk_0", "start": None, "end": None,
++         "valid_timing": False},
++        {"text": "回来了", "speaker": "spk_0", "start": 7.0, "end": 8.0,
++         "valid_timing": True},
++    ]
++    for diar in ([], [_diar(0.2, 2.0), _diar(6.5, 8.2)]):
++        candidates, decisions = plan_selective_recovery(
++            native={"units": units, "diarization": diar},
++            raw_text="<spk:0>好久回来了", chunk_start_s=0.0,
++            chunk_end_s=10.0, policy=AdmissionPolicy(),
++        )
++        assert not candidates
++        assert decisions[0]["status"] == "skipped_partial_span_unanchored_edge"
++
++
++def test_restoration_systemctl_transport_error_is_fatal_and_journal_stays_pending(
++    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    cfg = _managed_cfg(tmp_path)
++    cfg.lease_path.write_text("", encoding="utf-8")
++    cfg.lease_path.chmod(0o600)
++    state = {"active": True, "free": 100}
++    def control(*args: str) -> str:
++        if args[0] == "stop":
++            state.update(active=False, free=8000)
++            return ""
++        if args[0] == "start":
++            raise gpu_handoff.ManagedASRBlocked("systemctl_unavailable", "TimeoutExpired")
++        raise AssertionError(args)
++
++    monkeypatch.setattr(gpu_handoff, "_free_vram_mb", lambda: state["free"])
++    monkeypatch.setattr(gpu_handoff, "_verified_owner", lambda config: {
++        "ActiveState": "active", "InvocationID": "original",
++        "ExecStart": "vllm serve nemotron --port 8190",
++        "FragmentPath": "/synthetic/nemovox-asr.service",
++    })
++    monkeypatch.setattr(gpu_handoff, "_run_systemctl", control)
++    monkeypatch.setattr(gpu_handoff, "_unit_properties", lambda unit: {
++        "ActiveState": "active" if state["active"] else "inactive",
++        "InvocationID": "original",
++    })
++    monkeypatch.setattr(gpu_handoff, "_wait_unit",
++                        lambda unit, active, deadline: {
++                            "ActiveState": "active" if state["active"] else "inactive",
++                        })
++    with pytest.raises(gpu_handoff.ManagedASRLifecycleError) as error:
++        with gpu_handoff.managed_asr_handoff(cfg) as telemetry:
++            assert telemetry["released"]
++    assert error.value.status == "asr_restore_unverified"
++    assert isinstance(error.value.__cause__, gpu_handoff.ManagedASRBlocked)
++    assert error.value.__cause__.status == "systemctl_unavailable"
++    assert state["active"] is False
++    assert json.loads(cfg.journal_path.read_text())["phase"] == "pending_restore"
++
++
++def test_recording_propagates_typed_post_stop_failure(
++    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    from contextlib import contextmanager
++    import wave
++    from nvidia_transcribe import recording
++    from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
++
++    source = tmp_path / "clip.wav"
++    with wave.open(str(source), "wb") as wf:
++        wf.setnchannels(1)
++        wf.setsampwidth(2)
++        wf.setframerate(16000)
++        wf.writeframes(b"\x00\x00" * 16000 * 5)
++
++    class Client:
++        model = "test-nemotron"
++        base_url = "http://127.0.0.1:8190/v1"
++        def transcribe(self, path: Path, request: object) -> dict:
++            raw = {
++                "choices": [{"message": {"content": "<spk:0>你好朋友。"}}],
++                "ctc_timestamps": {
++                    "words": [], "error": "alignment_failed",
++                    "diarization": [{"speaker": 0, "start": 0.4, "end": 3.0}],
++                    "speaker_tag_to_diarization_speaker": {"0": 0},
++                },
++            }
++            return {
++                "raw_response": raw,
++                "contract": {"raw_text": "<spk:0>你好朋友。"},
++                "latency_s": 0.01,
++            }
++
++    class Aligner:
++        metrics = {"model_load_count": 1, "align_count": 0}
++        def __init__(self, *args: object, **kwargs: object) -> None:
++            pass
++        def __enter__(self) -> "Aligner":
++            return self
++        def __exit__(self, *args: object) -> None:
++            return None
++        def align(self, **kwargs: object) -> dict:
++            self.metrics["align_count"] += 1
++            return {"units": [], "diagnostic": {"status": "no_valid_units"}}
++
++    @contextmanager
++    def interrupted_restore(config: object):
++        yield {"released": True, "restored": False}
++        raise gpu_handoff.ManagedASRLifecycleError("systemctl_unavailable")
++
++    monkeypatch.setattr(recording, "managed_asr_handoff", interrupted_restore)
++    monkeypatch.setattr(recording, "QwenForcedAlignerAdapter", Aligner)
++    with pytest.raises(RuntimeError, match="Managed ASR lifecycle could not be verified"):
++        process_media(
++            source, output_dir=tmp_path / "out", client=Client(),
++            config=RecordingPipelineConfig(
++                source_language="zh", speaker_embeddings="none",
++                enable_subinterval_recovery=False, alignment_fallback="qwen",
++                qwen_gpu_mode="managed", qwen_owned_asr_unit="nemovox-asr.service",
++                qwen_asr_lease_path=str(tmp_path / "lease"),
++            ),
++        )
