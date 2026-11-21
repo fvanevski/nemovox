@@ -231,3 +231,28 @@ def test_condensation_rejects_specialized_riva_adapter():
     with pytest.raises(ValueError, match="OpenAI-compatible text resource"):
         condense_high_cps_cues_with_text_model(
             [], source_language="fr", config=TranslationConfig(backend="riva"))
+
+
+def test_single_clip_asr_role_default_and_legacy_explicit_endpoint(monkeypatch, capsys):
+    constructed = []
+
+    class FakeASR:
+        def __init__(self, *, base_url, model, api_key=None):
+            constructed.append((base_url, model))
+
+        def transcribe(self, audio, config):
+            return {"contract": {"raw_text": "synthetic"}, "raw_response": {}}
+
+    monkeypatch.setattr(cli, "NemotronVLLMClient", FakeASR)
+    assert cli.main(["transcribe", "synthetic.wav"]) == 0, capsys.readouterr()
+    assert constructed[-1] == (
+        "http://127.0.0.1:8190/v1",
+        "nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4",
+    )
+
+    legacy_model = "/workspace/models/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4"
+    assert cli.main([
+        "transcribe", "synthetic.wav",
+        "--base-url", "http://127.0.0.1:8000/v1", "--model", legacy_model,
+    ]) == 0, capsys.readouterr()
+    assert constructed[-1] == ("http://127.0.0.1:8000/v1", legacy_model)
