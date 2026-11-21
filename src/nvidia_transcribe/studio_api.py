@@ -10,6 +10,7 @@ import ipaddress
 import json
 import os
 import re
+import signal
 import shutil
 import socket
 import subprocess
@@ -123,7 +124,7 @@ class StudioConfig:
             job_root=Path(os.getenv("NEMOVOX_STUDIO_JOBS", PROJECT / "outputs/studio/jobs")).resolve(),
             upload_root=Path(os.getenv("NEMOVOX_STUDIO_UPLOADS", PROJECT / "outputs/studio/uploads")).resolve(),
             media_roots=existing,
-            python=sys.executable,
+            python=os.environ.get("NEMOVOX_CLI_PYTHON", str(PROJECT / ".venv/bin/python") if (PROJECT / ".venv/bin/python").is_file() else sys.executable),
         )
 
 
@@ -191,7 +192,7 @@ class JobRunner:
             self._cancelled.add(job_id)
             process = self._processes.get(job_id)
         if process is not None and process.poll() is None:
-            process.terminate()
+            os.killpg(process.pid, signal.SIGTERM)
         self.update(job_id, stage="Cancelling")
         return self.get(job_id)
 
@@ -216,11 +217,11 @@ class JobRunner:
             try:
                 while process.poll() is None:
                     if job_id in self._cancelled:
-                        process.terminate()
+                        os.killpg(process.pid, signal.SIGTERM)
                         try:
                             process.wait(timeout=8)
                         except subprocess.TimeoutExpired:
-                            process.kill()
+                            os.killpg(process.pid, signal.SIGKILL)
                         raise InterruptedError("Cancelled")
                     time.sleep(0.4)
                 if process.returncode != 0:
@@ -251,7 +252,7 @@ class JobRunner:
             try:
                 while process.poll() is None:
                     if job_id in self._cancelled:
-                        process.terminate()
+                        os.killpg(process.pid, signal.SIGTERM)
                         raise InterruptedError("Cancelled")
                     time.sleep(0.4)
                 if process.returncode:
