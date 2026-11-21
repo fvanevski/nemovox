@@ -451,7 +451,7 @@ def build_batched_refinement_messages(
 
 
 def parse_batched_refinement_response(raw_response: dict[str, Any]) -> dict[str, Any]:
-    """Parse batched JSON output from NInfer/OpenAI chat completion cleanly."""
+    """Parse batched OpenAI-compatible chat completion JSON cleanly."""
     choices = raw_response.get("choices") or []
     if not choices:
         return {"status": "empty_choices", "corrections": []}
@@ -831,6 +831,7 @@ def refine_utterances_with_text_model(
     changed_count = sum(1 for u in out_utts if u["refinement_applied"])
     summary = {
         "backend": cfg.backend,
+        "resource_fingerprint": cfg.resource_fingerprint,
         "profile": cfg.profile,
         "glossary_digest": gl_digest,
         "audio_verification": cfg.audio_verification,

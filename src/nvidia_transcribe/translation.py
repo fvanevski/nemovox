@@ -529,6 +529,7 @@ def translate_utterances(
 
         return out_utts, {
             "backend": "riva",
+            "resource_fingerprint": cfg.resource_fingerprint,
             "lang_pair": lang_pair,
             "total_utterances": len(out_utts),
             "cache_hits": cache_hits,
@@ -695,6 +696,7 @@ def translate_utterances(
 
     return out_utts, {
         "backend": cfg.backend,
+        "resource_fingerprint": cfg.resource_fingerprint,
         "style": cfg.style,
         "target_language": cfg.target_language,
         "signature": gl_sig,
@@ -803,6 +805,8 @@ def condense_high_cps_cues_with_text_model(
             "endpoint": cfg.base_url,
             "resource_fingerprint": cfg.resource_fingerprint,
             "temperature": cfg.temperature,
+            "use_json_schema": cfg.use_json_schema,
+            "reasoning_effort": cfg.reasoning_effort,
         }
         ckey = f"{uid}:{hashlib.sha256(json.dumps(ckey_payload, ensure_ascii=False, sort_keys=True).encode('utf-8')).hexdigest()[:24]}"
 
@@ -863,6 +867,7 @@ def condense_high_cps_cues_with_text_model(
 
     return out_utts, {
         "status": "ok",
+        "resource_fingerprint": cfg.resource_fingerprint,
         "cps_threshold": cps_threshold,
         "candidate_count": len(candidates),
         "condensed_count": condensed_count,

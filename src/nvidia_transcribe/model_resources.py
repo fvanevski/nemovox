@@ -10,7 +10,7 @@ import hashlib
 import json
 import os
 import re
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 from urllib.parse import urlsplit
