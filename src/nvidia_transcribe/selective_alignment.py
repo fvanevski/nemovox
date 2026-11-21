@@ -16,6 +16,7 @@ from nvidia_transcribe.alignment import (
     _contiguous_speaker_spans,
     _has_mixed_speaker_overlap,
     _join_units_for_aligner,
+    group_diarization_windows,
 )
 
 
@@ -90,7 +91,17 @@ def plan_selective_recovery(
         if interval is not None:
             diar_valid.append((*interval, _speaker_key(d.get("speaker"))))
 
-    for lo, hi in _contiguous_speaker_spans(units):
+    spans = _contiguous_speaker_spans(units)
+    untimed_spans_by_speaker: dict[str, int] = {}
+    for s_lo, s_hi in spans:
+        s_span = units[s_lo:s_hi]
+        if any(not u.get("valid_timing") for u in s_span):
+            s_keys = {_speaker_key(u.get("speaker")) for u in s_span}
+            if len(s_keys) == 1:
+                k = next(iter(s_keys))
+                untimed_spans_by_speaker[k] = untimed_spans_by_speaker.get(k, 0) + 1
+
+    for lo, hi in spans:
         span = units[lo:hi]
         untimed = [u for u in span if not u.get("valid_timing")]
         if not untimed:
@@ -125,6 +136,12 @@ def plan_selective_recovery(
             (s, e) for s, e, who in diar_valid
             if who == speaker and e > chunk_start_s and s < chunk_end_s
         ]
+        grouped_diar = group_diarization_windows(
+            [{"start": s, "end": e, "valid_timing": True} for s, e in matching_diar],
+            max_gap_s=0.6,
+            pad_s=0.0,
+            max_duration_s=policy.max_window_s,
+        )
         interval: tuple[float, float] | None = None
         if valid_in_span:
             # A partly timed utterance is itself a reliable localization anchor.
@@ -132,25 +149,54 @@ def plan_selective_recovery(
                 max(chunk_start_s, min(s for s, _ in valid_in_span) - 1.2),
                 min(chunk_end_s, max(e for _, e in valid_in_span) + 1.2),
             )
-        elif len(matching_diar) == 1:
-            # Multiple same-speaker diarization windows cannot be matched to
-            # an untimed sentence uniquely. Do not guess by index.
-            s, e = matching_diar[0]
+        elif len(grouped_diar) == 1 and untimed_spans_by_speaker.get(speaker, 0) == 1:
+            # Intra-utterance pauses (<=0.6s) merge into one speech window for a sole untimed span;
+            # multiple separated same-speaker windows remain ambiguous.
+            s, e = grouped_diar[0]
             interval = max(chunk_start_s, s - 0.35), min(chunk_end_s, e + 0.35)
         else:
             # An untimed sentence needs *both* neighboring time anchors.
-            left = next(
+            left_same = next(
                 (_finite_interval(u.get("start"), u.get("end")) for u in reversed(units[:lo])
                  if _speaker_key(u.get("speaker")) == speaker and u.get("valid_timing")),
                 None,
             )
-            right = next(
+            right_same = next(
                 (_finite_interval(u.get("start"), u.get("end")) for u in units[hi:]
                  if _speaker_key(u.get("speaker")) == speaker and u.get("valid_timing")),
                 None,
             )
+            left = left_same or next(
+                (_finite_interval(u.get("start"), u.get("end")) for u in reversed(units[:lo])
+                 if u.get("valid_timing")),
+                None,
+            )
+            right = right_same or next(
+                (_finite_interval(u.get("start"), u.get("end")) for u in units[hi:]
+                 if u.get("valid_timing")),
+                None,
+            )
             if left is not None and right is not None and right[0] > left[1]:
-                interval = max(chunk_start_s, left[1] - 0.15), min(chunk_end_s, right[0] + 0.15)
+                between_diar = group_diarization_windows(
+                    [
+                        {"start": s, "end": e, "valid_timing": True}
+                        for s, e in matching_diar
+                        if s >= left[1] - 0.25 and e <= right[0] + 0.25
+                    ],
+                    max_gap_s=0.6,
+                    pad_s=0.0,
+                    max_duration_s=policy.max_window_s,
+                )
+                right_pad = 0.15 if right_same is not None else 0.0
+                left_pad = 0.15 if left_same is not None else 0.0
+                if len(between_diar) == 1:
+                    bs, be = between_diar[0]
+                    interval = (
+                        max(chunk_start_s, left[1] - left_pad, bs - 0.35),
+                        min(chunk_end_s, right[0] + right_pad, be + 0.35),
+                    )
+                elif left_same is not None and right_same is not None:
+                    interval = max(chunk_start_s, left[1] - 0.15), min(chunk_end_s, right[0] + 0.15)
         if interval is None:
             decision["status"] = "skipped_unanchored_or_ambiguous"
             continue
