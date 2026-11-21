@@ -342,3 +342,39 @@ def test_cancel_cleans_descendant_after_group_leader_exits(tmp_path: Path):
         if JobRunner._group_has_live_members(process.pid):
             os.killpg(process.pid, signal.SIGKILL)
         process.wait(timeout=3)
+
+
+
+def test_app_creation_does_not_reconcile_another_running_server(tmp_path: Path):
+    """Import/app construction is read-only; exclusive startup owns reconciliation."""
+    root = tmp_path / "jobs"
+    job_dir = root / ("d" * 32)
+    job_dir.mkdir(parents=True)
+    record = {
+        "id": "d" * 32, "state": "running", "stage": "Transcribing", "progress": 25,
+        "request": {"source": {"kind": "path", "value": str(tmp_path / "sample.webm")},
+                    "task": "transcription", "options": {}},
+        "source_path": str(tmp_path / "sample.webm"),
+        "created_at": 1.0, "updated_at": 1.0, "error": None,
+    }
+    record_file = job_dir / "job.json"
+    record_file.write_text(json.dumps(record), encoding="utf-8")
+    settings = StudioConfig(
+        job_root=root, upload_root=tmp_path / "uploads", media_roots=(tmp_path,),
+        python=sys.executable,
+    )
+    first = create_app(settings)
+    second = create_app(settings)
+    # Constructing a second app, including during a separate module import,
+    # cannot change the running owner's persisted job record.
+    assert json.loads(record_file.read_text(encoding="utf-8")) == record
+    try:
+        with TestClient(first) as owner_client:
+            assert owner_client.get(f"/api/jobs/{record['id']}").json()["state"] == "interrupted"
+            with pytest.raises(RuntimeError, match="already owned"):
+                with TestClient(second):
+                    pass
+            assert owner_client.get(f"/api/jobs/{record['id']}").json()["state"] == "interrupted"
+    finally:
+        # A rejected lifespan never entered shutdown, so close its idle pool.
+        second.state.runner.executor.shutdown(wait=True)

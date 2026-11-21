@@ -6,6 +6,7 @@ Run with one uvicorn worker bound to 127.0.0.1.
 """
 from __future__ import annotations
 
+import fcntl
 import ipaddress
 import json
 import math
@@ -20,7 +21,7 @@ import threading
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -176,7 +177,29 @@ class JobRunner:
         self._lock = threading.Lock()
         self._processes: dict[str, subprocess.Popen] = {}
         self._cancelled: set[str] = set()
-        # Jobs are durable enough for a single-user tool. Interrupted jobs can be resubmitted.
+        # Creating an app/importing this module must never rewrite jobs owned by
+        # a running Studio instance. Reconciliation happens only after startup
+        # acquires the exclusive job-root owner lock.
+
+    @contextmanager
+    def owned_job_root(self):
+        """Prevent a second Studio process from adopting another live job queue."""
+        lock_file = self.config.job_root / ".studio-owner.lock"
+        with lock_file.open("a+b") as owner:
+            try:
+                fcntl.flock(owner.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError as exc:
+                raise RuntimeError(
+                    "Studio job directory is already owned by another running server."
+                ) from exc
+            try:
+                self._reconcile_previous_jobs()
+                yield
+            finally:
+                fcntl.flock(owner.fileno(), fcntl.LOCK_UN)
+
+    def _reconcile_previous_jobs(self) -> None:
+        """Only the admitted startup owner may classify previous incomplete jobs."""
         for path in self.config.job_root.glob("*/job.json"):
             try:
                 record = json.loads(path.read_text(encoding="utf-8"))
@@ -491,10 +514,11 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
-        try:
-            yield
-        finally:
-            runner.shutdown()
+        with runner.owned_job_root():
+            try:
+                yield
+            finally:
+                runner.shutdown()
 
     app = FastAPI(title="Nemovox Studio", version="0.1.0", lifespan=lifespan)
     app.state.runner = runner
