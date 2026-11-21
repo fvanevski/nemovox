@@ -1,0 +1,2688 @@
+{
+  "model": "nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4",
+  "base_url": "http://127.0.0.1:8190/v1",
+  "gpu_before": {
+    "gpu_name": "NVIDIA GeForce RTX 5090",
+    "memory_used_mib": 27857,
+    "memory_free_mib": 4270,
+    "memory_total_mib": 32607,
+    "utilization_gpu_pct": 2,
+    "temperature_c": 42.75,
+    "power_draw_w": 90.07
+  },
+  "warmup": {
+    "latency_s": 0.1893,
+    "audio_duration_s": 2.0,
+    "rtf": 0.0946,
+    "x_realtime": 10.57,
+    "finish_reason": "stop",
+    "usage": {
+      "prompt_tokens": 85,
+      "total_tokens": 93,
+      "completion_tokens": 8,
+      "prompt_tokens_details": null,
+      "completion_tokens_details": {
+        "reasoning_tokens": 0
+      }
+    },
+    "raw_text": "<spk:0> C'est même comme ça.",
+    "source_text": "C'est même comme ça.",
+    "english_translation": null,
+    "speaker_count_transcript": 1,
+    "speakers_transcript": [
+      "0"
+    ],
+    "speaker_mapping": {
+      "0": 1
+    },
+    "diarization_segments": 2,
+    "total_units": 4,
+    "valid_timed_units": 4,
+    "ctc_error": null,
+    "invalid_timing_count": 0
+  },
+  "french": {
+    "fr_0316_0355_child_voices": {
+      "target": "Similar child voices and speaker identity consistency",
+      "offset_s": 196.0,
+      "duration_s": 39.0,
+      "lid": "fr",
+      "speaker_ctc": {
+        "latency_s": 2.6355,
+        "audio_duration_s": 39.0,
+        "rtf": 0.0676,
+        "x_realtime": 14.8,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 548,
+          "total_tokens": 714,
+          "completion_tokens": 166,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "<spk:0> Si on n'avait pas perdu tout ce temps dans la cité d'or de Kùmàr à jouer avec les hologrammes comme comme des gamins, on aurait trouvé le double médaillon avant Ambrosius. Maintenant, il peut ouvrir les cités d'or sans nous. <spk:1> Mais c'est pas tout de pouvoir les ouvrir, il faut encore les trouver. Et à ce petit jeu, nous avons un solide avantage sur Ambrosius. <spk:0> Ah oui? Et on peut savoir lequel, Tao? <spk:1> Moi, bien sûr. Toi, parfaitement. Ambrosius n'a pas de Natkal comme moi pour le guider, pour le conseiller, pour traduire les inscriptions en langage mu avec précision, pour résoudre les énigmes. Oui, on peut le dire, nous avons de la chance.",
+        "source_text": "Si on n'avait pas perdu tout ce temps dans la cité d'or de Kùmàr à jouer avec les hologrammes comme comme des gamins, on aurait trouvé le double médaillon avant Ambrosius. Maintenant, il peut ouvrir les cités d'or sans nous. Mais c'est pas tout de pouvoir les ouvrir, il faut encore les trouver. Et à ce petit jeu, nous avons un solide avantage sur Ambrosius. Ah oui? Et on peut savoir lequel, Tao? Moi, bien sûr. Toi, parfaitement. Ambrosius n'a pas de Natkal comme moi pour le guider, pour le conseiller, pour traduire les inscriptions en langage mu avec précision, pour résoudre les énigmes. Oui, on peut le dire, nous avons de la chance.",
+        "english_translation": null,
+        "speaker_count_transcript": 2,
+        "speakers_transcript": [
+          "0",
+          "1"
+        ],
+        "speaker_mapping": {
+          "0": 0,
+          "1": 1
+        },
+        "diarization_segments": 7,
+        "total_units": 114,
+        "valid_timed_units": 114,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      },
+      "verbatim": {
+        "latency_s": 0.875,
+        "audio_duration_s": 39.0,
+        "rtf": 0.0224,
+        "x_realtime": 44.57,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 539,
+          "total_tokens": 698,
+          "completion_tokens": 159,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "Si on n'avait pas perdu tout ce temps dans la cité d'or de Kumla à jouer avec les hologrammes comme comme des gamins, on aurait trouvé le double médaillon avant Ambrosius. Maintenant, il peut ouvrir les cités d'or sans nous. Mais c'est pas tout de pouvoir les ouvrir, il faut encore les trouver. Et à ce petit jeu, nous avons un solide avantage sur Ambrosius. Ah oui ? Et on peut savoir lequel, Tao ? Moi, bien sûr ! Toi ? Parfaitement ! Ambrosius n'a pas de Natkall comme moi pour le guider, pour le conseiller, pour traduire les inscriptions en langage mu avec précision, pour résoudre les énigmes. Oui, on peut le dire, nous avons de la chance.",
+        "source_text": "Si on n'avait pas perdu tout ce temps dans la cité d'or de Kumla à jouer avec les hologrammes comme comme des gamins, on aurait trouvé le double médaillon avant Ambrosius. Maintenant, il peut ouvrir les cités d'or sans nous. Mais c'est pas tout de pouvoir les ouvrir, il faut encore les trouver. Et à ce petit jeu, nous avons un solide avantage sur Ambrosius. Ah oui ? Et on peut savoir lequel, Tao ? Moi, bien sûr ! Toi ? Parfaitement ! Ambrosius n'a pas de Natkall comme moi pour le guider, pour le conseiller, pour traduire les inscriptions en langage mu avec précision, pour résoudre les énigmes. Oui, on peut le dire, nous avons de la chance.",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "speaker_0"
+        ],
+        "speaker_mapping": {},
+        "diarization_segments": 0,
+        "total_units": 119,
+        "valid_timed_units": 0,
+        "ctc_error": "missing_ctc_metadata",
+        "invalid_timing_count": 0
+      },
+      "pyannote_baseline": {
+        "utterances": [
+          {
+            "start": 196.818,
+            "end": 205.365,
+            "speaker": "SPEAKER_04",
+            "text": "Si on n'avait pas perdu tout ce temps dans la cité d'or de Koumlar à jouer avec les hologrammes comme des gamins, on aurait trouvé le double médaillon avant Ambrosius.",
+            "word_count": 30
+          },
+          {
+            "start": 205.405,
+            "end": 207.627,
+            "speaker": "SPEAKER_04",
+            "text": "Maintenant, il peut ouvrir les cités d'or sans nous.",
+            "word_count": 9
+          },
+          {
+            "start": 207.647,
+            "end": 210.088,
+            "speaker": "SPEAKER_04",
+            "text": "Mais c'est pas tout de pouvoir les ouvrir.",
+            "word_count": 8
+          },
+          {
+            "start": 210.169,
+            "end": 212.09,
+            "speaker": "SPEAKER_04",
+            "text": "Il faut encore les trouver.",
+            "word_count": 5
+          },
+          {
+            "start": 212.15,
+            "end": 215.753,
+            "speaker": "SPEAKER_04",
+            "text": "Et à ce petit jeu, nous avons un solide avantage sur Ambrosius.",
+            "word_count": 12
+          },
+          {
+            "start": 215.813,
+            "end": 216.233,
+            "speaker": "SPEAKER_04",
+            "text": "Ah oui ?",
+            "word_count": 3
+          },
+          {
+            "start": 216.273,
+            "end": 217.935,
+            "speaker": "SPEAKER_04",
+            "text": "Et on peut savoir lequel, Tao ?",
+            "word_count": 7
+          },
+          {
+            "start": 218.495,
+            "end": 220.276,
+            "speaker": "SPEAKER_04",
+            "text": "Moi, bien sûr !",
+            "word_count": 4
+          },
+          {
+            "start": 220.296,
+            "end": 222.178,
+            "speaker": "SPEAKER_04",
+            "text": "Toi, parfaitement !",
+            "word_count": 3
+          },
+          {
+            "start": 222.218,
+            "end": 231.244,
+            "speaker": "SPEAKER_04",
+            "text": "Ambrosius n'a pas de natcal comme moi pour le guider, pour le conseiller, pour traduire les inscriptions en langage mu avec précision, pour résoudre les énigmes.",
+            "word_count": 26
+          },
+          {
+            "start": 231.284,
+            "end": 233.986,
+            "speaker": "SPEAKER_04",
+            "text": "Oui, on peut le dire.",
+            "word_count": 5
+          },
+          {
+            "start": 234.026,
+            "end": 235.908,
+            "speaker": "SPEAKER_04",
+            "text": "Nous avons de la chance de m'avoir !",
+            "word_count": 8
+          }
+        ],
+        "joined_text": "Si on n'avait pas perdu tout ce temps dans la cité d'or de Koumlar à jouer avec les hologrammes comme des gamins, on aurait trouvé le double médaillon avant Ambrosius. Maintenant, il peut ouvrir les cités d'or sans nous. Mais c'est pas tout de pouvoir les ouvrir. Il faut encore les trouver. Et à ce petit jeu, nous avons un solide avantage sur Ambrosius. Ah oui ? Et on peut savoir lequel, Tao ? Moi, bien sûr ! Toi, parfaitement ! Ambrosius n'a pas de natcal comme moi pour le guider, pour le conseiller, pour traduire les inscriptions en langage mu avec précision, pour résoudre les énigmes. Oui, on peut le dire. Nous avons de la chance de m'avoir !",
+        "speakers": [
+          "SPEAKER_04"
+        ]
+      },
+      "wer_vs_pyannote_verbatim": {
+        "wer": 0.0496,
+        "ref_words": 121,
+        "hyp_words": 119,
+        "edits": 6,
+        "substitutions": 2,
+        "deletions": 3,
+        "insertions": 1
+      },
+      "translate_en": {
+        "latency_s": 0.8014,
+        "audio_duration_s": 39.0,
+        "rtf": 0.0205,
+        "x_realtime": 48.66,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 513,
+          "total_tokens": 665,
+          "completion_tokens": 152,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "",
+        "source_text": "",
+        "english_translation": "If we hadn't wasted all that time in the City of Gold, Kumlar playing with holograms like children, we would have found the double medallion before Ambrosius. Now he can open the cities of gold without us. But it's not enough to be able to open them; we still have to find them. And in this little game, we have a solid advantage over Ambrosius. Oh really? And can you tell me which one, Tao? Me, of course! You? Perfectly! Ambrosius has no Natael like me to guide him, to advise him, to translate the inscriptions into the dead language with precision, to solve the riddles! Yes, we can say that. We're lucky.",
+        "speaker_count_transcript": 0,
+        "speakers_transcript": [],
+        "speaker_mapping": {},
+        "diarization_segments": 0,
+        "total_units": 0,
+        "valid_timed_units": 0,
+        "ctc_error": "missing_ctc_metadata",
+        "invalid_timing_count": 0
+      }
+    },
+    "fr_0422_0439_rapid_turns": {
+      "target": "Rapid speaker changes and attribution confusion",
+      "offset_s": 262.0,
+      "duration_s": 17.0,
+      "lid": "fr",
+      "speaker_ctc": {
+        "latency_s": 0.4389,
+        "audio_duration_s": 17.0,
+        "rtf": 0.0258,
+        "x_realtime": 38.73,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 273,
+          "total_tokens": 340,
+          "completion_tokens": 67,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "<spk:0> Nous l'équipage! Je suis sûr qu'Isabella s'en est sortie. Gaspard l'a emmenée avant que la cité ne se replie. Elle a sûrement eu le temps de rejoindre la nef. Tu sais, moi aussi je l'aime bien. C'est un beau pays. Tu es déjà venu en Afrique?",
+        "source_text": "Nous l'équipage! Je suis sûr qu'Isabella s'en est sortie. Gaspard l'a emmenée avant que la cité ne se replie. Elle a sûrement eu le temps de rejoindre la nef. Tu sais, moi aussi je l'aime bien. C'est un beau pays. Tu es déjà venu en Afrique?",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "0"
+        ],
+        "speaker_mapping": {
+          "0": 1
+        },
+        "diarization_segments": 5,
+        "total_units": 46,
+        "valid_timed_units": 46,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      },
+      "verbatim": {
+        "latency_s": 0.4656,
+        "audio_duration_s": 17.0,
+        "rtf": 0.0274,
+        "x_realtime": 36.51,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 264,
+          "total_tokens": 330,
+          "completion_tokens": 66,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "Nous l'équipage ! Je suis sûr qu'Isabella s'en est sortie. Gaspard l'a emmenée avant que la cité ne se replie. Elle a sûrement eu le temps de rejoindre la nef. Tu sais, moi aussi je l'aime bien. C'est un beau pays. Tu es déjà venu en Afrique ?",
+        "source_text": "Nous l'équipage ! Je suis sûr qu'Isabella s'en est sortie. Gaspard l'a emmenée avant que la cité ne se replie. Elle a sûrement eu le temps de rejoindre la nef. Tu sais, moi aussi je l'aime bien. C'est un beau pays. Tu es déjà venu en Afrique ?",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "speaker_0"
+        ],
+        "speaker_mapping": {},
+        "diarization_segments": 0,
+        "total_units": 48,
+        "valid_timed_units": 0,
+        "ctc_error": "missing_ctc_metadata",
+        "invalid_timing_count": 0
+      },
+      "pyannote_baseline": {
+        "utterances": [
+          {
+            "start": 261.843,
+            "end": 262.264,
+            "speaker": "SPEAKER_02",
+            "text": "C'est",
+            "word_count": 1
+          },
+          {
+            "start": 262.284,
+            "end": 263.425,
+            "speaker": "SPEAKER_06",
+            "text": "nous, l'équipage !",
+            "word_count": 3
+          },
+          {
+            "start": 265.492,
+            "end": 267.873,
+            "speaker": "SPEAKER_06",
+            "text": "Je suis sûre qu'Isabella s'en est sortie.",
+            "word_count": 7
+          },
+          {
+            "start": 267.893,
+            "end": 270.193,
+            "speaker": "SPEAKER_06",
+            "text": "Gaspard l'a emmenée avant que la cité ne se replie.",
+            "word_count": 10
+          },
+          {
+            "start": 270.233,
+            "end": 271.593,
+            "speaker": "SPEAKER_06",
+            "text": "Elle a sûrement eu le temps de rejoindre la",
+            "word_count": 9
+          },
+          {
+            "start": 271.633,
+            "end": 272.954,
+            "speaker": "SPEAKER_05",
+            "text": "Nef.",
+            "word_count": 1
+          },
+          {
+            "start": 272.994,
+            "end": 276.615,
+            "speaker": "SPEAKER_06",
+            "text": "Tu sais, moi aussi je l'aime bien.",
+            "word_count": 7
+          },
+          {
+            "start": 276.655,
+            "end": 277.995,
+            "speaker": "SPEAKER_06",
+            "text": "C'est un beau pays.",
+            "word_count": 4
+          },
+          {
+            "start": 278.015,
+            "end": 280.055,
+            "speaker": "SPEAKER_06",
+            "text": "Tu es déjà venu en Afrique, Mendoza ?",
+            "word_count": 8
+          }
+        ],
+        "joined_text": "C'est nous, l'équipage ! Je suis sûre qu'Isabella s'en est sortie. Gaspard l'a emmenée avant que la cité ne se replie. Elle a sûrement eu le temps de rejoindre la Nef. Tu sais, moi aussi je l'aime bien. C'est un beau pays. Tu es déjà venu en Afrique, Mendoza ?",
+        "speakers": [
+          "SPEAKER_02",
+          "SPEAKER_05",
+          "SPEAKER_06"
+        ]
+      },
+      "wer_vs_pyannote_verbatim": {
+        "wer": 0.0727,
+        "ref_words": 55,
+        "hyp_words": 52,
+        "edits": 4,
+        "substitutions": 1,
+        "deletions": 3,
+        "insertions": 0
+      },
+      "translate_en": {
+        "latency_s": 0.3674,
+        "audio_duration_s": 17.0,
+        "rtf": 0.0216,
+        "x_realtime": 46.27,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 238,
+          "total_tokens": 292,
+          "completion_tokens": 54,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "",
+        "source_text": "",
+        "english_translation": "We, the crew! I'm sure Isabella made it out. Gaspard took her away before the city withdrew. She surely had time to reach the nave. You know, I like her too. It's a beautiful country. Have you ever been to Africa?",
+        "speaker_count_transcript": 0,
+        "speakers_transcript": [],
+        "speaker_mapping": {},
+        "diarization_segments": 0,
+        "total_units": 0,
+        "valid_timed_units": 0,
+        "ctc_error": "missing_ctc_metadata",
+        "invalid_timing_count": 0
+      }
+    },
+    "fr_0539_0542_overlap_nonlex": {
+      "target": "Speech overlapping a nonlexical vocalization",
+      "offset_s": 339.0,
+      "duration_s": 3.0,
+      "lid": "da",
+      "speaker_ctc": {
+        "latency_s": 0.1659,
+        "audio_duration_s": 3.0,
+        "rtf": 0.0553,
+        "x_realtime": 18.08,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 98,
+          "total_tokens": 108,
+          "completion_tokens": 10,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "<spk:0> Oh, look at all those things.",
+        "source_text": "Oh, look at all those things.",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "0"
+        ],
+        "speaker_mapping": {
+          "0": 0
+        },
+        "diarization_segments": 1,
+        "total_units": 6,
+        "valid_timed_units": 6,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      },
+      "verbatim": {
+        "latency_s": 0.1442,
+        "audio_duration_s": 3.0,
+        "rtf": 0.0481,
+        "x_realtime": 20.8,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 89,
+          "total_tokens": 97,
+          "completion_tokens": 8,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "Oh, I don't think.",
+        "source_text": "Oh, I don't think.",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "speaker_0"
+        ],
+        "speaker_mapping": {},
+        "diarization_segments": 0,
+        "total_units": 4,
+        "valid_timed_units": 0,
+        "ctc_error": "missing_ctc_metadata",
+        "invalid_timing_count": 0
+      },
+      "pyannote_baseline": {
+        "utterances": [
+          {
+            "start": 337.362,
+            "end": 339.023,
+            "speaker": "SPEAKER_04",
+            "text": "De toute façon, on passera pas la",
+            "word_count": 7
+          },
+          {
+            "start": 339.043,
+            "end": 339.263,
+            "speaker": "SPEAKER_02",
+            "text": "nuit.",
+            "word_count": 1
+          },
+          {
+            "start": 339.343,
+            "end": 340.723,
+            "speaker": "SPEAKER_02",
+            "text": "On n'a rien à",
+            "word_count": 4
+          },
+          {
+            "start": 340.783,
+            "end": 342.244,
+            "speaker": "SPEAKER_06",
+            "text": "manger.",
+            "word_count": 1
+          }
+        ],
+        "joined_text": "De toute façon, on passera pas la nuit. On n'a rien à manger.",
+        "speakers": [
+          "SPEAKER_02",
+          "SPEAKER_04",
+          "SPEAKER_06"
+        ]
+      },
+      "wer_vs_pyannote_verbatim": {
+        "wer": 1.0,
+        "ref_words": 14,
+        "hyp_words": 5,
+        "edits": 14,
+        "substitutions": 5,
+        "deletions": 9,
+        "insertions": 0
+      },
+      "rich": {
+        "latency_s": 0.182,
+        "audio_duration_s": 3.0,
+        "rtf": 0.0607,
+        "x_realtime": 16.48,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 108,
+          "total_tokens": 120,
+          "completion_tokens": 12,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "<sty:stt:vocal_intensity_pitch> No! <sty:end:vocal_intensity_pitch> No lo creo. <ev:laughter>",
+        "source_text": "No! No lo creo.",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "0"
+        ],
+        "speaker_mapping": {
+          "0": 0
+        },
+        "diarization_segments": 1,
+        "total_units": 5,
+        "valid_timed_units": 5,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      }
+    },
+    "fr_0550_0552_transition": {
+      "target": "Conversational transition",
+      "offset_s": 350.0,
+      "duration_s": 2.0,
+      "lid": "fr",
+      "speaker_ctc": {
+        "latency_s": 0.1526,
+        "audio_duration_s": 2.0,
+        "rtf": 0.0763,
+        "x_realtime": 13.11,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 85,
+          "total_tokens": 93,
+          "completion_tokens": 8,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "<spk:0> C'est même comme ça.",
+        "source_text": "C'est même comme ça.",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "0"
+        ],
+        "speaker_mapping": {
+          "0": 1
+        },
+        "diarization_segments": 2,
+        "total_units": 4,
+        "valid_timed_units": 4,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      },
+      "verbatim": {
+        "latency_s": 0.1768,
+        "audio_duration_s": 2.0,
+        "rtf": 0.0884,
+        "x_realtime": 11.31,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 76,
+          "total_tokens": 89,
+          "completion_tokens": 13,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "Ouais, ouais, c'est même comme ça.",
+        "source_text": "Ouais, ouais, c'est même comme ça.",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "speaker_0"
+        ],
+        "speaker_mapping": {},
+        "diarization_segments": 0,
+        "total_units": 6,
+        "valid_timed_units": 0,
+        "ctc_error": "missing_ctc_metadata",
+        "invalid_timing_count": 0
+      },
+      "pyannote_baseline": {
+        "utterances": [
+          {
+            "start": 347.946,
+            "end": 350.487,
+            "speaker": "SPEAKER_06",
+            "text": "L'une d'elles indiquait justement ses points de ravitaillement.",
+            "word_count": 8
+          },
+          {
+            "start": 350.527,
+            "end": 350.687,
+            "speaker": "SPEAKER_06",
+            "text": "Mais",
+            "word_count": 1
+          },
+          {
+            "start": 350.987,
+            "end": 351.287,
+            "speaker": "SPEAKER_04",
+            "text": "oui !",
+            "word_count": 2
+          },
+          {
+            "start": 351.328,
+            "end": 352.368,
+            "speaker": "SPEAKER_06",
+            "text": "C'est même comme ça qu'on a",
+            "word_count": 6
+          }
+        ],
+        "joined_text": "L'une d'elles indiquait justement ses points de ravitaillement. Mais oui ! C'est même comme ça qu'on a",
+        "speakers": [
+          "SPEAKER_04",
+          "SPEAKER_06"
+        ]
+      },
+      "wer_vs_pyannote_verbatim": {
+        "wer": 0.75,
+        "ref_words": 20,
+        "hyp_words": 7,
+        "edits": 15,
+        "substitutions": 2,
+        "deletions": 13,
+        "insertions": 0
+      }
+    },
+    "fr_1031_1033_music_fp": {
+      "target": "Music-induced false-positive speaker activity",
+      "offset_s": 631.0,
+      "duration_s": 2.0,
+      "lid": "fr",
+      "speaker_ctc": {
+        "latency_s": 0.1519,
+        "audio_duration_s": 2.0,
+        "rtf": 0.076,
+        "x_realtime": 13.17,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 85,
+          "total_tokens": 92,
+          "completion_tokens": 7,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "<spk:0> Fera de moi le",
+        "source_text": "Fera de moi le",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "0"
+        ],
+        "speaker_mapping": {
+          "0": 0
+        },
+        "diarization_segments": 1,
+        "total_units": 4,
+        "valid_timed_units": 4,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      },
+      "verbatim": {
+        "latency_s": 0.1355,
+        "audio_duration_s": 2.0,
+        "rtf": 0.0678,
+        "x_realtime": 14.76,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 76,
+          "total_tokens": 82,
+          "completion_tokens": 6,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "Fera de moi le",
+        "source_text": "Fera de moi le",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "speaker_0"
+        ],
+        "speaker_mapping": {},
+        "diarization_segments": 0,
+        "total_units": 4,
+        "valid_timed_units": 0,
+        "ctc_error": "missing_ctc_metadata",
+        "invalid_timing_count": 0
+      },
+      "pyannote_baseline": {
+        "utterances": [
+          {
+            "start": 628.442,
+            "end": 635.704,
+            "speaker": "SPEAKER_03",
+            "text": "Le grand héritage de Mu et d'Atlantide fera de moi le maître du monde !",
+            "word_count": 15
+          }
+        ],
+        "joined_text": "Le grand héritage de Mu et d'Atlantide fera de moi le maître du monde !",
+        "speakers": [
+          "SPEAKER_03"
+        ]
+      },
+      "wer_vs_pyannote_verbatim": {
+        "wer": 0.7333,
+        "ref_words": 15,
+        "hyp_words": 4,
+        "edits": 11,
+        "substitutions": 0,
+        "deletions": 11,
+        "insertions": 0
+      },
+      "rich": {
+        "latency_s": 0.1784,
+        "audio_duration_s": 2.0,
+        "rtf": 0.0892,
+        "x_realtime": 11.21,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 95,
+          "total_tokens": 110,
+          "completion_tokens": 15,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "<sty:stt:vocal_texture_delivery> Fuis, fuis de moi, <sty:end:vocal_texture_delivery> le monstre!",
+        "source_text": "Fuis, fuis de moi, le monstre!",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "0"
+        ],
+        "speaker_mapping": {
+          "0": 0
+        },
+        "diarization_segments": 1,
+        "total_units": 6,
+        "valid_timed_units": 6,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      }
+    },
+    "fr_1731_1735_overlap_vox": {
+      "target": "Overlapping vocalization",
+      "offset_s": 1051.0,
+      "duration_s": 4.0,
+      "lid": "fr",
+      "speaker_ctc": {
+        "latency_s": 0.2103,
+        "audio_duration_s": 4.0,
+        "rtf": 0.0526,
+        "x_realtime": 19.02,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 110,
+          "total_tokens": 131,
+          "completion_tokens": 21,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "<spk:0> L'invention de tes glorieux ancêtres, muah ! Oh, ça se trouve.",
+        "source_text": "L'invention de tes glorieux ancêtres, muah ! Oh, ça se trouve.",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "0"
+        ],
+        "speaker_mapping": {
+          "0": 0
+        },
+        "diarization_segments": 1,
+        "total_units": 11,
+        "valid_timed_units": 11,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      },
+      "verbatim": {
+        "latency_s": 0.1817,
+        "audio_duration_s": 4.0,
+        "rtf": 0.0454,
+        "x_realtime": 22.01,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 101,
+          "total_tokens": 119,
+          "completion_tokens": 18,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "Une invention de tes glorieux ancêtres, muah ! Ouh ! Ça se",
+        "source_text": "Une invention de tes glorieux ancêtres, muah ! Ouh ! Ça se",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "speaker_0"
+        ],
+        "speaker_mapping": {},
+        "diarization_segments": 0,
+        "total_units": 12,
+        "valid_timed_units": 0,
+        "ctc_error": "missing_ctc_metadata",
+        "invalid_timing_count": 0
+      },
+      "pyannote_baseline": {
+        "utterances": [
+          {
+            "start": 1048.815,
+            "end": 1054.037,
+            "speaker": "SPEAKER_03",
+            "text": "Une interprétation toute personnelle d'une invention de tes glorieux ancêtres muins ?",
+            "word_count": 12
+          },
+          {
+            "start": 1054.577,
+            "end": 1055.998,
+            "speaker": "SPEAKER_03",
+            "text": "Ça secoue par un.",
+            "word_count": 4
+          }
+        ],
+        "joined_text": "Une interprétation toute personnelle d'une invention de tes glorieux ancêtres muins ? Ça secoue par un.",
+        "speakers": [
+          "SPEAKER_03"
+        ]
+      },
+      "wer_vs_pyannote_verbatim": {
+        "wer": 0.625,
+        "ref_words": 16,
+        "hyp_words": 10,
+        "edits": 10,
+        "substitutions": 4,
+        "deletions": 6,
+        "insertions": 0
+      },
+      "rich": {
+        "latency_s": 0.2103,
+        "audio_duration_s": 4.0,
+        "rtf": 0.0526,
+        "x_realtime": 19.02,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 120,
+          "total_tokens": 139,
+          "completion_tokens": 19,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "Une invention de tes glorieux ancêtres, muah! <ev:laughter> Ça se co--",
+        "source_text": "Une invention de tes glorieux ancêtres, muah! Ça se co--",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "0"
+        ],
+        "speaker_mapping": {
+          "0": 0
+        },
+        "diarization_segments": 1,
+        "total_units": 11,
+        "valid_timed_units": 11,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      }
+    },
+    "fr_2208_2211_high_pitch": {
+      "target": "High-pitched speech and missed vocalization",
+      "offset_s": 1328.0,
+      "duration_s": 3.0,
+      "lid": "fr",
+      "speaker_ctc": {
+        "latency_s": 0.1463,
+        "audio_duration_s": 3.0,
+        "rtf": 0.0488,
+        "x_realtime": 20.51,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 98,
+          "total_tokens": 106,
+          "completion_tokens": 8,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "<spk:0> Hier, c'est mieux.",
+        "source_text": "Hier, c'est mieux.",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "0"
+        ],
+        "speaker_mapping": {
+          "0": 0
+        },
+        "diarization_segments": 1,
+        "total_units": 3,
+        "valid_timed_units": 3,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      },
+      "verbatim": {
+        "latency_s": 0.1298,
+        "audio_duration_s": 3.0,
+        "rtf": 0.0433,
+        "x_realtime": 23.11,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 89,
+          "total_tokens": 96,
+          "completion_tokens": 7,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "Hier, c'est mieux.",
+        "source_text": "Hier, c'est mieux.",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "speaker_0"
+        ],
+        "speaker_mapping": {},
+        "diarization_segments": 0,
+        "total_units": 3,
+        "valid_timed_units": 0,
+        "ctc_error": "missing_ctc_metadata",
+        "invalid_timing_count": 0
+      },
+      "pyannote_baseline": {
+        "utterances": [
+          {
+            "start": 1326.671,
+            "end": 1328.713,
+            "speaker": "SPEAKER_00",
+            "text": "Et le dimanche, jour de prière, c'est mieux ?",
+            "word_count": 9
+          },
+          {
+            "start": 1328.813,
+            "end": 1328.893,
+            "speaker": "SPEAKER_05",
+            "text": "Oh !",
+            "word_count": 2
+          },
+          {
+            "start": 1328.913,
+            "end": 1329.213,
+            "speaker": "SPEAKER_05",
+            "text": "Alerte !",
+            "word_count": 2
+          },
+          {
+            "start": 1329.233,
+            "end": 1329.693,
+            "speaker": "SPEAKER_05",
+            "text": "Alerte !",
+            "word_count": 2
+          },
+          {
+            "start": 1329.973,
+            "end": 1332.495,
+            "speaker": "SPEAKER_05",
+            "text": "Comme à chaque fois !",
+            "word_count": 5
+          }
+        ],
+        "joined_text": "Et le dimanche, jour de prière, c'est mieux ? Oh ! Alerte ! Alerte ! Comme à chaque fois !",
+        "speakers": [
+          "SPEAKER_00",
+          "SPEAKER_05"
+        ]
+      },
+      "wer_vs_pyannote_verbatim": {
+        "wer": 0.8125,
+        "ref_words": 16,
+        "hyp_words": 4,
+        "edits": 13,
+        "substitutions": 1,
+        "deletions": 12,
+        "insertions": 0
+      },
+      "rich": {
+        "latency_s": 0.1947,
+        "audio_duration_s": 3.0,
+        "rtf": 0.0649,
+        "x_realtime": 15.41,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 108,
+          "total_tokens": 127,
+          "completion_tokens": 19,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "Hier, c'est mieux. <ev:breath> <sty:stt:vocal_intensity_pitch> Alerte! Alerte! <sty:end:vocal_intensity_pitch>",
+        "source_text": "Hier, c'est mieux. Alerte! Alerte!",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "0"
+        ],
+        "speaker_mapping": {
+          "0": 0
+        },
+        "diarization_segments": 1,
+        "total_units": 6,
+        "valid_timed_units": 6,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      }
+    },
+    "fr_0305_0445_cont_100s": {
+      "target": "Continuous 100-second segment",
+      "offset_s": 185.0,
+      "duration_s": 100.0,
+      "lid": "fr",
+      "speaker_ctc": {
+        "latency_s": 1.8577,
+        "audio_duration_s": 100.0,
+        "rtf": 0.0186,
+        "x_realtime": 53.83,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 1310,
+          "total_tokens": 1670,
+          "completion_tokens": 360,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "<spk:0> Si on n'avait pas perdu tout ce temps dans la cité d'or de Khoumla à jouer avec les hologrammes comme comme des gamins, on aurait trouvé le double médaillon avant Ambrosius. Maintenant, il peut ouvrir les cités d'or sans nous. <spk:1> Mais c'est pas tout de pouvoir les ouvrir, il faut encore les trouver. Et à ce petit jeu, nous avons un solide avantage sur Ambrosius. <spk:0> Ah oui? Et on peut savoir lequel, Tao? <spk:1> Moi, bien sûr. Toi, parfaitement. Ambrosius n'a pas de Natkal comme moi pour le guider, pour le conseiller, pour traduire les inscriptions en langage mu avec précision, pour résoudre les énigmes. Oui, on peut le dire, nous avons de la chance de m'avoir. <spk:2> Il doit pen- il doit penser à Isabella, Nadia. <spk:3> Parce que t'y crois toi à cette histoire de baiser? Mendoza, allez embrasser cette espionne. Les enfants se sont fichus de nous et toi bien sûr t'as tout gobé. Croisant mon expérience, un capitaine n'a que deux amours dans sa vie, son bateau et son équipage. <spk:2> Ben, ben, alors pou- pou- pour pourquoi il nous nourrit pas? C'est nous l'équipage. <spk:3> Je suis sûr qu'Isabella s'en est sortie. Gaspar l'a emmenée avant que la cité ne se replie. Elle a sûrement eu le temps de rejoindre la nef. Tu sais, moi aussi je l'aime bien. C'est un beau pays. Tu es déjà venue en Afrique, Mendoza? <spk:0> Il m'est arrivé de faire escale sur la côte occidentale. L'intérieur du continent est encore inexploré.",
+        "source_text": "Si on n'avait pas perdu tout ce temps dans la cité d'or de Khoumla à jouer avec les hologrammes comme comme des gamins, on aurait trouvé le double médaillon avant Ambrosius. Maintenant, il peut ouvrir les cités d'or sans nous. Mais c'est pas tout de pouvoir les ouvrir, il faut encore les trouver. Et à ce petit jeu, nous avons un solide avantage sur Ambrosius. Ah oui? Et on peut savoir lequel, Tao? Moi, bien sûr. Toi, parfaitement. Ambrosius n'a pas de Natkal comme moi pour le guider, pour le conseiller, pour traduire les inscriptions en langage mu avec précision, pour résoudre les énigmes. Oui, on peut le dire, nous avons de la chance de m'avoir. Il doit pen- il doit penser à Isabella, Nadia. Parce que t'y crois toi à cette histoire de baiser? Mendoza, allez embrasser cette espionne. Les enfants se sont fichus de nous et toi bien sûr t'as tout gobé. Croisant mon expérience, un capitaine n'a que deux amours dans sa vie, son bateau et son équipage. Ben, ben, alors pou- pou- pour pourquoi il nous nourrit pas? C'est nous l'équipage. Je suis sûr qu'Isabella s'en est sortie. Gaspar l'a emmenée avant que la cité ne se replie. Elle a sûrement eu le temps de rejoindre la nef. Tu sais, moi aussi je l'aime bien. C'est un beau pays. Tu es déjà venue en Afrique, Mendoza? Il m'est arrivé de faire escale sur la côte occidentale. L'intérieur du continent est encore inexploré.",
+        "english_translation": null,
+        "speaker_count_transcript": 4,
+        "speakers_transcript": [
+          "0",
+          "1",
+          "2",
+          "3"
+        ],
+        "speaker_mapping": {
+          "0": 0,
+          "1": 1,
+          "2": 2,
+          "3": 4
+        },
+        "diarization_segments": 16,
+        "total_units": 246,
+        "valid_timed_units": 246,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      },
+      "verbatim": {
+        "latency_s": 1.7932,
+        "audio_duration_s": 100.0,
+        "rtf": 0.0179,
+        "x_realtime": 55.77,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 1301,
+          "total_tokens": 1640,
+          "completion_tokens": 339,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "Si on n'avait pas perdu tout ce temps dans la cité d'or de Kumla à jouer avec les hologrammes comme comme des gamins, on aurait trouvé le double médaillon avant Ambrosius. Maintenant, il peut ouvrir les cités d'or sans nous. Mais c'est pas tout de pouvoir les ouvrir, il faut encore les trouver. Et à ce petit jeu, nous avons un solide avantage sur Ambrosius. Ah oui? Et on peut savoir lequel, Tao? Moi, bien sûr! Toi? Parfaitement! Ambrosius n'a pas de Natkal comme moi pour le guider, pour le conseiller, pour traduire les inscriptions en langage mu avec précision, pour résoudre les énigmes. Oui, on peut le dire. Nous avons de la chance de m'avoir. Il doit pen- il doit penser à Isabella, Nadia. Parce que t'y crois toi à cette histoire de baiser? Mendoza, allez embrasser cette espionne. Les enfants se sont fichus de nous. Et toi bien sûr, t'as tout gobé. Crois-en mon expérience. Un capitaine n'a que deux amours dans sa vie, son bateau et son équipage. Ben alors pourquoi il nous nourrit pas? C'est nous l'équipage! Je suis sûre qu'Isabella s'en est sortie. Gaspar l'a emmenée avant que la cité ne se replie. Elle a sûrement eu le temps de rejoindre la nef. Tu sais, moi aussi je l'aime bien. C'est un beau pays. Tu es déjà venu en Afrique, Mendoza? Il m'est arrivé de faire escale sur la côte occidentale. L'intérieur du continent est encore inexploré.",
+        "source_text": "Si on n'avait pas perdu tout ce temps dans la cité d'or de Kumla à jouer avec les hologrammes comme comme des gamins, on aurait trouvé le double médaillon avant Ambrosius. Maintenant, il peut ouvrir les cités d'or sans nous. Mais c'est pas tout de pouvoir les ouvrir, il faut encore les trouver. Et à ce petit jeu, nous avons un solide avantage sur Ambrosius. Ah oui? Et on peut savoir lequel, Tao? Moi, bien sûr! Toi? Parfaitement! Ambrosius n'a pas de Natkal comme moi pour le guider, pour le conseiller, pour traduire les inscriptions en langage mu avec précision, pour résoudre les énigmes. Oui, on peut le dire. Nous avons de la chance de m'avoir. Il doit pen- il doit penser à Isabella, Nadia. Parce que t'y crois toi à cette histoire de baiser? Mendoza, allez embrasser cette espionne. Les enfants se sont fichus de nous. Et toi bien sûr, t'as tout gobé. Crois-en mon expérience. Un capitaine n'a que deux amours dans sa vie, son bateau et son équipage. Ben alors pourquoi il nous nourrit pas? C'est nous l'équipage! Je suis sûre qu'Isabella s'en est sortie. Gaspar l'a emmenée avant que la cité ne se replie. Elle a sûrement eu le temps de rejoindre la nef. Tu sais, moi aussi je l'aime bien. C'est un beau pays. Tu es déjà venu en Afrique, Mendoza? Il m'est arrivé de faire escale sur la côte occidentale. L'intérieur du continent est encore inexploré.",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "speaker_0"
+        ],
+        "speaker_mapping": {},
+        "diarization_segments": 0,
+        "total_units": 242,
+        "valid_timed_units": 0,
+        "ctc_error": "missing_ctc_metadata",
+        "invalid_timing_count": 0
+      },
+      "pyannote_baseline": {
+        "utterances": [
+          {
+            "start": 196.818,
+            "end": 205.365,
+            "speaker": "SPEAKER_04",
+            "text": "Si on n'avait pas perdu tout ce temps dans la cité d'or de Koumlar à jouer avec les hologrammes comme des gamins, on aurait trouvé le double médaillon avant Ambrosius.",
+            "word_count": 30
+          },
+          {
+            "start": 205.405,
+            "end": 207.627,
+            "speaker": "SPEAKER_04",
+            "text": "Maintenant, il peut ouvrir les cités d'or sans nous.",
+            "word_count": 9
+          },
+          {
+            "start": 207.647,
+            "end": 210.088,
+            "speaker": "SPEAKER_04",
+            "text": "Mais c'est pas tout de pouvoir les ouvrir.",
+            "word_count": 8
+          },
+          {
+            "start": 210.169,
+            "end": 212.09,
+            "speaker": "SPEAKER_04",
+            "text": "Il faut encore les trouver.",
+            "word_count": 5
+          },
+          {
+            "start": 212.15,
+            "end": 215.753,
+            "speaker": "SPEAKER_04",
+            "text": "Et à ce petit jeu, nous avons un solide avantage sur Ambrosius.",
+            "word_count": 12
+          },
+          {
+            "start": 215.813,
+            "end": 216.233,
+            "speaker": "SPEAKER_04",
+            "text": "Ah oui ?",
+            "word_count": 3
+          },
+          {
+            "start": 216.273,
+            "end": 217.935,
+            "speaker": "SPEAKER_04",
+            "text": "Et on peut savoir lequel, Tao ?",
+            "word_count": 7
+          },
+          {
+            "start": 218.495,
+            "end": 220.276,
+            "speaker": "SPEAKER_04",
+            "text": "Moi, bien sûr !",
+            "word_count": 4
+          },
+          {
+            "start": 220.296,
+            "end": 222.178,
+            "speaker": "SPEAKER_04",
+            "text": "Toi, parfaitement !",
+            "word_count": 3
+          },
+          {
+            "start": 222.218,
+            "end": 231.244,
+            "speaker": "SPEAKER_04",
+            "text": "Ambrosius n'a pas de natcal comme moi pour le guider, pour le conseiller, pour traduire les inscriptions en langage mu avec précision, pour résoudre les énigmes.",
+            "word_count": 26
+          },
+          {
+            "start": 231.284,
+            "end": 233.986,
+            "speaker": "SPEAKER_04",
+            "text": "Oui, on peut le dire.",
+            "word_count": 5
+          },
+          {
+            "start": 234.026,
+            "end": 235.908,
+            "speaker": "SPEAKER_04",
+            "text": "Nous avons de la chance de m'avoir !",
+            "word_count": 8
+          },
+          {
+            "start": 240.103,
+            "end": 243.386,
+            "speaker": "SPEAKER_02",
+            "text": "Il doit penser à Isabella, là, il dira.",
+            "word_count": 8
+          },
+          {
+            "start": 243.406,
+            "end": 245.868,
+            "speaker": "SPEAKER_02",
+            "text": "Parce que t'y crois, toi, à cette histoire de baiser ?",
+            "word_count": 11
+          },
+          {
+            "start": 245.888,
+            "end": 248.391,
+            "speaker": "SPEAKER_02",
+            "text": "Mendoza, allez embrasser cette espionne.",
+            "word_count": 5
+          },
+          {
+            "start": 248.411,
+            "end": 250.252,
+            "speaker": "SPEAKER_02",
+            "text": "Les enfants se sont fichus de nous.",
+            "word_count": 7
+          },
+          {
+            "start": 250.312,
+            "end": 251.894,
+            "speaker": "SPEAKER_02",
+            "text": "Et toi, bien sûr, t'as tout gobé.",
+            "word_count": 7
+          },
+          {
+            "start": 251.934,
+            "end": 253.556,
+            "speaker": "SPEAKER_02",
+            "text": "Crois-en mon expérience.",
+            "word_count": 3
+          },
+          {
+            "start": 253.596,
+            "end": 256.438,
+            "speaker": "SPEAKER_02",
+            "text": "Un capitaine n'a que deux amours dans sa vie.",
+            "word_count": 9
+          },
+          {
+            "start": 256.458,
+            "end": 258.66,
+            "speaker": "SPEAKER_02",
+            "text": "Son bateau et son équipage.",
+            "word_count": 5
+          },
+          {
+            "start": 259.701,
+            "end": 261.723,
+            "speaker": "SPEAKER_02",
+            "text": "Alors pourquoi il ne nourrit pas ?",
+            "word_count": 7
+          },
+          {
+            "start": 261.843,
+            "end": 262.264,
+            "speaker": "SPEAKER_02",
+            "text": "C'est",
+            "word_count": 1
+          },
+          {
+            "start": 262.284,
+            "end": 263.425,
+            "speaker": "SPEAKER_06",
+            "text": "nous, l'équipage !",
+            "word_count": 3
+          },
+          {
+            "start": 265.492,
+            "end": 267.873,
+            "speaker": "SPEAKER_06",
+            "text": "Je suis sûre qu'Isabella s'en est sortie.",
+            "word_count": 7
+          },
+          {
+            "start": 267.893,
+            "end": 270.193,
+            "speaker": "SPEAKER_06",
+            "text": "Gaspard l'a emmenée avant que la cité ne se replie.",
+            "word_count": 10
+          },
+          {
+            "start": 270.233,
+            "end": 271.593,
+            "speaker": "SPEAKER_06",
+            "text": "Elle a sûrement eu le temps de rejoindre la",
+            "word_count": 9
+          },
+          {
+            "start": 271.633,
+            "end": 272.954,
+            "speaker": "SPEAKER_05",
+            "text": "Nef.",
+            "word_count": 1
+          },
+          {
+            "start": 272.994,
+            "end": 276.615,
+            "speaker": "SPEAKER_06",
+            "text": "Tu sais, moi aussi je l'aime bien.",
+            "word_count": 7
+          },
+          {
+            "start": 276.655,
+            "end": 277.995,
+            "speaker": "SPEAKER_06",
+            "text": "C'est un beau pays.",
+            "word_count": 4
+          },
+          {
+            "start": 278.015,
+            "end": 280.055,
+            "speaker": "SPEAKER_06",
+            "text": "Tu es déjà venu en Afrique, Mendoza ?",
+            "word_count": 8
+          },
+          {
+            "start": 280.095,
+            "end": 282.816,
+            "speaker": "SPEAKER_00",
+            "text": "Il m'est arrivé de faire escale sur la côte occidentale.",
+            "word_count": 10
+          },
+          {
+            "start": 282.856,
+            "end": 285.317,
+            "speaker": "SPEAKER_00",
+            "text": "L'intérieur du continent est encore inexploré.",
+            "word_count": 6
+          }
+        ],
+        "joined_text": "Si on n'avait pas perdu tout ce temps dans la cité d'or de Koumlar à jouer avec les hologrammes comme des gamins, on aurait trouvé le double médaillon avant Ambrosius. Maintenant, il peut ouvrir les cités d'or sans nous. Mais c'est pas tout de pouvoir les ouvrir. Il faut encore les trouver. Et à ce petit jeu, nous avons un solide avantage sur Ambrosius. Ah oui ? Et on peut savoir lequel, Tao ? Moi, bien sûr ! Toi, parfaitement ! Ambrosius n'a pas de natcal comme moi pour le guider, pour le conseiller, pour traduire les inscriptions en langage mu avec précision, pour résoudre les énigmes. Oui, on peut le dire. Nous avons de la chance de m'avoir ! Il doit penser à Isabella, là, il dira. Parce que t'y crois, toi, à cette histoire de baiser ? Mendoza, allez embrasser cette espionne. Les enfants se sont fichus de nous. Et toi, bien sûr, t'as tout gobé. Crois-en mon expérience. Un capitaine n'a que deux amours dans sa vie. Son bateau et son équipage. Alors pourquoi il ne nourrit pas ? C'est nous, l'équipage ! Je suis sûre qu'Isabella s'en est sortie. Gaspard l'a emmenée avant que la cité ne se replie. Elle a sûrement eu le temps de rejoindre la Nef. Tu sais, moi aussi je l'aime bien. C'est un beau pays. Tu es déjà venu en Afrique, Mendoza ? Il m'est arrivé de faire escale sur la côte occidentale. L'intérieur du continent est encore inexploré.",
+        "speakers": [
+          "SPEAKER_00",
+          "SPEAKER_02",
+          "SPEAKER_04",
+          "SPEAKER_05",
+          "SPEAKER_06"
+        ]
+      },
+      "wer_vs_pyannote_verbatim": {
+        "wer": 0.0465,
+        "ref_words": 258,
+        "hyp_words": 261,
+        "edits": 12,
+        "substitutions": 5,
+        "deletions": 2,
+        "insertions": 5
+      },
+      "translate_en": {
+        "latency_s": 1.6809,
+        "audio_duration_s": 100.0,
+        "rtf": 0.0168,
+        "x_realtime": 59.49,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 1275,
+          "total_tokens": 1581,
+          "completion_tokens": 306,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "",
+        "source_text": "",
+        "english_translation": "If we hadn't wasted all that time in the City of Gold, with Kumla playing with the holograms like children, we would have found the double medallion before Ambrosius. Now he can open the Cities of Gold without us. But that's not all: to open them, we still need to find them. And in this little game, we'll have a solid advantage over Ambrosius. Oh really? And can you tell me which one, Tao? Me, of course! You? Absolutely! Ambrosius doesn't have a natcal like me to guide him, advise him, translate the inscriptions into the dead language with precision, or solve the riddles! Yes, we can say that. We're lucky to have me. He must be thinking of Isabella, the giraffe. Because you believe that story about a kiss? Mendoza is going to kiss that spy. The children don't care about us. And you, of course, have swallowed everything. Based on my experience, a captain has only two loves in his life: his ship and his crew. So why isn't he feeding us? It's us, the crew! I'm sure Isabella made it out. Gaspar took her away before the city collapsed. She surely had time to reach the nave. You know, I like her too. It's a beautiful country. Have you ever been to Africa, Mendoza? I once made a stop on the western coast. The interior of the continent is still unexplored.",
+        "speaker_count_transcript": 0,
+        "speakers_transcript": [],
+        "speaker_mapping": {},
+        "diarization_segments": 0,
+        "total_units": 0,
+        "valid_timed_units": 0,
+        "ctc_error": "missing_ctc_metadata",
+        "invalid_timing_count": 0
+      }
+    }
+  },
+  "mandarin": {
+    "zh_fleurs_00_1906": {
+      "fleurs_id": 1906,
+      "gender": 0,
+      "duration_s": 10.38,
+      "reference": "“这并不是告别。这是一个篇章的结束，也是新篇章的开始。”",
+      "lid": "zh",
+      "auto_ctc": {
+        "latency_s": 0.2085,
+        "audio_duration_s": 10.38,
+        "rtf": 0.0201,
+        "x_realtime": 49.78,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 194,
+          "total_tokens": 215,
+          "completion_tokens": 21,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "这并不是告别，这是一个篇章的结束，也是新篇章的开始。",
+        "source_text": "这并不是告别，这是一个篇章的结束，也是新篇章的开始。",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "0"
+        ],
+        "speaker_mapping": {
+          "0": 0
+        },
+        "diarization_segments": 2,
+        "total_units": 23,
+        "valid_timed_units": 23,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      },
+      "explicit_ctc": {
+        "latency_s": 0.2158,
+        "audio_duration_s": 10.38,
+        "rtf": 0.0208,
+        "x_realtime": 48.1,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 201,
+          "total_tokens": 222,
+          "completion_tokens": 21,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "这并不是告别，这是一个篇章的结束，也是新篇章的开始。",
+        "source_text": "这并不是告别，这是一个篇章的结束，也是新篇章的开始。",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "0"
+        ],
+        "speaker_mapping": {
+          "0": 0
+        },
+        "diarization_segments": 2,
+        "total_units": 23,
+        "valid_timed_units": 23,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      },
+      "translate_en": {
+        "latency_s": 0.1905,
+        "audio_duration_s": 10.38,
+        "rtf": 0.0184,
+        "x_realtime": 54.49,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 155,
+          "total_tokens": 176,
+          "completion_tokens": 21,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "",
+        "source_text": "",
+        "english_translation": "This is not a farewell, but the end of one chapter and the beginning of a new one.",
+        "speaker_count_transcript": 0,
+        "speakers_transcript": [],
+        "speaker_mapping": {},
+        "diarization_segments": 0,
+        "total_units": 0,
+        "valid_timed_units": 0,
+        "ctc_error": "missing_ctc_metadata",
+        "invalid_timing_count": 0
+      },
+      "cer_auto": {
+        "cer": 0.0,
+        "ref_chars": 23,
+        "hyp_chars": 23,
+        "edits": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0
+      },
+      "cer_explicit": {
+        "cer": 0.0,
+        "ref_chars": 23,
+        "hyp_chars": 23,
+        "edits": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0
+      }
+    },
+    "zh_fleurs_01_2006": {
+      "fleurs_id": 2006,
+      "gender": 0,
+      "duration_s": 8.28,
+      "reference": "钙、钾等元素属于金属，银和金等元素当然也是金属。",
+      "lid": "zh",
+      "auto_ctc": {
+        "latency_s": 0.2194,
+        "audio_duration_s": 8.28,
+        "rtf": 0.0265,
+        "x_realtime": 37.74,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 168,
+          "total_tokens": 193,
+          "completion_tokens": 25,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "钙、钾等元素属于金属，银和金等元素当然也是金属。",
+        "source_text": "钙、钾等元素属于金属，银和金等元素当然也是金属。",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "speaker_0"
+        ],
+        "speaker_mapping": {},
+        "diarization_segments": 3,
+        "total_units": 24,
+        "valid_timed_units": 0,
+        "ctc_error": "alignment_failed",
+        "invalid_timing_count": 0
+      },
+      "explicit_ctc": {
+        "latency_s": 0.2214,
+        "audio_duration_s": 8.28,
+        "rtf": 0.0267,
+        "x_realtime": 37.4,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 175,
+          "total_tokens": 200,
+          "completion_tokens": 25,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "钙、钾等元素属于金属，银和金等元素当然也是金属。",
+        "source_text": "钙、钾等元素属于金属，银和金等元素当然也是金属。",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "speaker_0"
+        ],
+        "speaker_mapping": {},
+        "diarization_segments": 3,
+        "total_units": 24,
+        "valid_timed_units": 0,
+        "ctc_error": "alignment_failed",
+        "invalid_timing_count": 0
+      },
+      "translate_en": {
+        "latency_s": 0.1846,
+        "audio_duration_s": 8.28,
+        "rtf": 0.0223,
+        "x_realtime": 44.85,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 129,
+          "total_tokens": 149,
+          "completion_tokens": 20,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "",
+        "source_text": "",
+        "english_translation": "Elements such as potassium belong to metals, and elements such as silver and gold are also metals.",
+        "speaker_count_transcript": 0,
+        "speakers_transcript": [],
+        "speaker_mapping": {},
+        "diarization_segments": 0,
+        "total_units": 0,
+        "valid_timed_units": 0,
+        "ctc_error": "missing_ctc_metadata",
+        "invalid_timing_count": 0
+      },
+      "cer_auto": {
+        "cer": 0.0,
+        "ref_chars": 21,
+        "hyp_chars": 21,
+        "edits": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0
+      },
+      "cer_explicit": {
+        "cer": 0.0,
+        "ref_chars": 21,
+        "hyp_chars": 21,
+        "edits": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0
+      }
+    },
+    "zh_fleurs_02_1883": {
+      "fleurs_id": 1883,
+      "gender": 0,
+      "duration_s": 13.86,
+      "reference": "桥下垂直净空 15 米。该项目于 2011 年 8 月完工，但直到 2017 年 3 月才开始通车。",
+      "lid": "zh",
+      "auto_ctc": {
+        "latency_s": 0.2983,
+        "audio_duration_s": 13.86,
+        "rtf": 0.0215,
+        "x_realtime": 46.46,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 238,
+          "total_tokens": 278,
+          "completion_tokens": 40,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "桥下垂直近空15米，该项目于2011年8月完工，但直到2017年3月才开始通车。",
+        "source_text": "桥下垂直近空15米，该项目于2011年8月完工，但直到2017年3月才开始通车。",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "0"
+        ],
+        "speaker_mapping": {
+          "0": 0
+        },
+        "diarization_segments": 2,
+        "total_units": 37,
+        "valid_timed_units": 37,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      },
+      "explicit_ctc": {
+        "latency_s": 0.3008,
+        "audio_duration_s": 13.86,
+        "rtf": 0.0217,
+        "x_realtime": 46.08,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 245,
+          "total_tokens": 285,
+          "completion_tokens": 40,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "桥下垂直近空15米，该项目于2011年8月完工，但直到2017年3月才开始通车。",
+        "source_text": "桥下垂直近空15米，该项目于2011年8月完工，但直到2017年3月才开始通车。",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "0"
+        ],
+        "speaker_mapping": {
+          "0": 0
+        },
+        "diarization_segments": 2,
+        "total_units": 37,
+        "valid_timed_units": 37,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      },
+      "translate_en": {
+        "latency_s": 0.2774,
+        "audio_duration_s": 13.86,
+        "rtf": 0.02,
+        "x_realtime": 49.96,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 199,
+          "total_tokens": 239,
+          "completion_tokens": 40,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "",
+        "source_text": "",
+        "english_translation": "The vertical shaft at the bottom reached 15 meters in height. The project was completed in August 2011, but did not begin operations until March 2017.",
+        "speaker_count_transcript": 0,
+        "speakers_transcript": [],
+        "speaker_mapping": {},
+        "diarization_segments": 0,
+        "total_units": 0,
+        "valid_timed_units": 0,
+        "ctc_error": "missing_ctc_metadata",
+        "invalid_timing_count": 0
+      },
+      "cer_auto": {
+        "cer": 0.027,
+        "ref_chars": 37,
+        "hyp_chars": 37,
+        "edits": 1,
+        "substitutions": 1,
+        "deletions": 0,
+        "insertions": 0
+      },
+      "cer_explicit": {
+        "cer": 0.027,
+        "ref_chars": 37,
+        "hyp_chars": 37,
+        "edits": 1,
+        "substitutions": 1,
+        "deletions": 0,
+        "insertions": 0
+      }
+    },
+    "zh_fleurs_03_1734": {
+      "fleurs_id": 1734,
+      "gender": 0,
+      "duration_s": 12.9,
+      "reference": "科学家们可以得出结论，暗物质对其他暗物质的影响方式与普通物质相同。",
+      "lid": "zh",
+      "auto_ctc": {
+        "latency_s": 0.2538,
+        "audio_duration_s": 12.9,
+        "rtf": 0.0197,
+        "x_realtime": 50.83,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 226,
+          "total_tokens": 253,
+          "completion_tokens": 27,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "科学家们可以得出结论，暗物质对其他暗物质的影响方式与普通物质相同。",
+        "source_text": "科学家们可以得出结论，暗物质对其他暗物质的影响方式与普通物质相同。",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "0"
+        ],
+        "speaker_mapping": {
+          "0": 0
+        },
+        "diarization_segments": 2,
+        "total_units": 31,
+        "valid_timed_units": 31,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      },
+      "explicit_ctc": {
+        "latency_s": 0.233,
+        "audio_duration_s": 12.9,
+        "rtf": 0.0181,
+        "x_realtime": 55.36,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 233,
+          "total_tokens": 260,
+          "completion_tokens": 27,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "科学家们可以得出结论，暗物质对其他暗物质的影响方式与普通物质相同。",
+        "source_text": "科学家们可以得出结论，暗物质对其他暗物质的影响方式与普通物质相同。",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "0"
+        ],
+        "speaker_mapping": {
+          "0": 0
+        },
+        "diarization_segments": 2,
+        "total_units": 31,
+        "valid_timed_units": 31,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      },
+      "translate_en": {
+        "latency_s": 0.2057,
+        "audio_duration_s": 12.9,
+        "rtf": 0.0159,
+        "x_realtime": 62.71,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 187,
+          "total_tokens": 211,
+          "completion_tokens": 24,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "",
+        "source_text": "",
+        "english_translation": "Scientists can conclude that the way dark matter influences other dark matter is the same as that of ordinary matter.",
+        "speaker_count_transcript": 0,
+        "speakers_transcript": [],
+        "speaker_mapping": {},
+        "diarization_segments": 0,
+        "total_units": 0,
+        "valid_timed_units": 0,
+        "ctc_error": "missing_ctc_metadata",
+        "invalid_timing_count": 0
+      },
+      "cer_auto": {
+        "cer": 0.0,
+        "ref_chars": 31,
+        "hyp_chars": 31,
+        "edits": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0
+      },
+      "cer_explicit": {
+        "cer": 0.0,
+        "ref_chars": 31,
+        "hyp_chars": 31,
+        "edits": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0
+      }
+    },
+    "zh_fleurs_04_1890": {
+      "fleurs_id": 1890,
+      "gender": 0,
+      "duration_s": 13.74,
+      "reference": "大多数现代科研望远镜都是巨型设施，位于大气条件优良的偏远地区。",
+      "lid": "zh",
+      "auto_ctc": {
+        "latency_s": 0.2719,
+        "audio_duration_s": 13.74,
+        "rtf": 0.0198,
+        "x_realtime": 50.53,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 236,
+          "total_tokens": 270,
+          "completion_tokens": 34,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "大多数现代科研望远镜都是巨型设施，位于大气大气条件优良的偏远地区。",
+        "source_text": "大多数现代科研望远镜都是巨型设施，位于大气大气条件优良的偏远地区。",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "0"
+        ],
+        "speaker_mapping": {
+          "0": 0
+        },
+        "diarization_segments": 5,
+        "total_units": 31,
+        "valid_timed_units": 31,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      },
+      "explicit_ctc": {
+        "latency_s": 0.2766,
+        "audio_duration_s": 13.74,
+        "rtf": 0.0201,
+        "x_realtime": 49.67,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 243,
+          "total_tokens": 277,
+          "completion_tokens": 34,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "大多数现代科研望远镜都是巨型设施，位于大气大气条件优良的偏远地区。",
+        "source_text": "大多数现代科研望远镜都是巨型设施，位于大气大气条件优良的偏远地区。",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "0"
+        ],
+        "speaker_mapping": {
+          "0": 0
+        },
+        "diarization_segments": 5,
+        "total_units": 31,
+        "valid_timed_units": 31,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      },
+      "translate_en": {
+        "latency_s": 0.1908,
+        "audio_duration_s": 13.74,
+        "rtf": 0.0139,
+        "x_realtime": 72.01,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 197,
+          "total_tokens": 216,
+          "completion_tokens": 19,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "",
+        "source_text": "",
+        "english_translation": "Most modern research telescopes are giant facilities located in remote areas with excellent atmospheric seeing conditions.",
+        "speaker_count_transcript": 0,
+        "speakers_transcript": [],
+        "speaker_mapping": {},
+        "diarization_segments": 0,
+        "total_units": 0,
+        "valid_timed_units": 0,
+        "ctc_error": "missing_ctc_metadata",
+        "invalid_timing_count": 0
+      },
+      "cer_auto": {
+        "cer": 0.069,
+        "ref_chars": 29,
+        "hyp_chars": 31,
+        "edits": 2,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 2
+      },
+      "cer_explicit": {
+        "cer": 0.069,
+        "ref_chars": 29,
+        "hyp_chars": 31,
+        "edits": 2,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 2
+      }
+    },
+    "zh_fleurs_05_1805": {
+      "fleurs_id": 1805,
+      "gender": 1,
+      "duration_s": 7.62,
+      "reference": "Scotturb 403 路公共汽车定期发车前往辛特拉 (Sintra)，在罗卡角停靠。",
+      "lid": "zh",
+      "auto_ctc": {
+        "latency_s": 0.2619,
+        "audio_duration_s": 7.62,
+        "rtf": 0.0344,
+        "x_realtime": 29.1,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 160,
+          "total_tokens": 189,
+          "completion_tokens": 29,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "スコート儿四零三路公交汽车定期发车前往新特拉在罗卡角停靠",
+        "source_text": "スコート儿四零三路公交汽车定期发车前往新特拉在罗卡角停靠",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "0"
+        ],
+        "speaker_mapping": {
+          "0": 0
+        },
+        "diarization_segments": 3,
+        "total_units": 28,
+        "valid_timed_units": 28,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      },
+      "explicit_ctc": {
+        "latency_s": 0.2575,
+        "audio_duration_s": 7.62,
+        "rtf": 0.0338,
+        "x_realtime": 29.59,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 167,
+          "total_tokens": 196,
+          "completion_tokens": 29,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "スコートブ403路公交汽车定期发车前往新特拉在罗卡角停靠",
+        "source_text": "スコートブ403路公交汽车定期发车前往新特拉在罗卡角停靠",
+        "english_translation": null,
+        "speaker_count_transcript": 1,
+        "speakers_transcript": [
+          "0"
+        ],
+        "speaker_mapping": {
+          "0": 0
+        },
+        "diarization_segments": 3,
+        "total_units": 28,
+        "valid_timed_units": 28,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      },
+      "translate_en": {
+        "latency_s": 0.2314,
+        "audio_duration_s": 7.62,
+        "rtf": 0.0304,
+        "x_realtime": 32.93,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 121,
+          "total_tokens": 145,
+          "completion_tokens": 24,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "",
+        "source_text": "",
+        "english_translation": "Scoturb 403 bus service departs regularly for Sinterra, stopping at the Rockery.",
+        "speaker_count_transcript": 0,
+        "speakers_transcript": [],
+        "speaker_mapping": {},
+        "diarization_segments": 0,
+        "total_units": 0,
+        "valid_timed_units": 0,
+        "ctc_error": "missing_ctc_metadata",
+        "invalid_timing_count": 0
+      },
+      "cer_auto": {
+        "cer": 0.5135,
+        "ref_chars": 37,
+        "hyp_chars": 28,
+        "edits": 19,
+        "substitutions": 10,
+        "deletions": 9,
+        "insertions": 0
+      },
+      "cer_explicit": {
+        "cer": 0.4324,
+        "ref_chars": 37,
+        "hyp_chars": 28,
+        "edits": 16,
+        "substitutions": 7,
+        "deletions": 9,
+        "insertions": 0
+      }
+    }
+  },
+  "overlap": {
+    "zh_2spk_overlap": {
+      "fixture": {
+        "wav_path": "/workspace/nvidia-transcribe/outputs/audio/overlap/synthetic_zh_2spk_overlap.wav",
+        "total_duration_s": 10.38,
+        "overlap_start_s": 2.0,
+        "overlap_end_s": 9.62,
+        "speaker_a": {
+          "clip_id": "zh_fleurs_00_1906",
+          "gender": 0,
+          "start_s": 0.0,
+          "end_s": 10.38,
+          "text": "“这并不是告别。这是一个篇章的结束，也是新篇章的开始。”"
+        },
+        "speaker_b": {
+          "clip_id": "zh_fleurs_05_1805",
+          "gender": 1,
+          "start_s": 2.0,
+          "end_s": 9.62,
+          "text": "Scotturb 403 路公共汽车定期发车前往辛特拉 (Sintra)，在罗卡角停靠。"
+        }
+      },
+      "speaker_mode": {
+        "latency_s": 0.3112,
+        "audio_duration_s": 10.38,
+        "rtf": 0.03,
+        "x_realtime": 33.35,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 190,
+          "total_tokens": 233,
+          "completion_tokens": 43,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "<spk:0> 这并不是告铁， <spk:1> 斯科特四零三路公交车车，定期发车前往辛格拉，在罗卡角停靠。",
+        "source_text": "这并不是告铁， 斯科特四零三路公交车车，定期发车前往辛格拉，在罗卡角停靠。",
+        "english_translation": null,
+        "speaker_count_transcript": 2,
+        "speakers_transcript": [
+          "0",
+          "1"
+        ],
+        "speaker_mapping": {
+          "0": 0,
+          "1": 1
+        },
+        "diarization_segments": 5,
+        "total_units": 32,
+        "valid_timed_units": 32,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      },
+      "multispeaker_sot_mode": {
+        "latency_s": 0.3746,
+        "audio_duration_s": 10.38,
+        "rtf": 0.0361,
+        "x_realtime": 27.71,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 215,
+          "total_tokens": 272,
+          "completion_tokens": 57,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "<spk:0> 这并不是告别 <spk:1> 斯科特四零三路公交车车 <spk:0> 而是一个篇章的结束也是新篇章的开始 <spk:1> 停其发车前往新加兰在罗卡角停靠",
+        "source_text": "这并不是告别 斯科特四零三路公交车车 而是一个篇章的结束也是新篇章的开始 停其发车前往新加兰在罗卡角停靠",
+        "english_translation": null,
+        "speaker_count_transcript": 2,
+        "speakers_transcript": [
+          "0",
+          "1"
+        ],
+        "speaker_mapping": {
+          "0": 0,
+          "1": 1
+        },
+        "diarization_segments": 5,
+        "total_units": 49,
+        "valid_timed_units": 49,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      }
+    },
+    "fr_2spk_overlap": {
+      "fixture": {
+        "wav_path": "/workspace/nvidia-transcribe/outputs/audio/overlap/synthetic_fr_2spk_overlap.wav",
+        "total_duration_s": 12.2,
+        "overlap_start_s": 2.0,
+        "overlap_end_s": 8.28,
+        "speaker_a": {
+          "clip_id": "fr_fleurs_01_1857",
+          "gender": 0,
+          "start_s": 0.0,
+          "end_s": 8.28,
+          "text": "Il a ajouté qu’« on ne devrait cependant pas leur demander d’assumer des obligations qui dépassent leur stade de développement, leur responsabilité et leurs capacités. »"
+        },
+        "speaker_b": {
+          "clip_id": "fr_fleurs_00_1987",
+          "gender": 1,
+          "start_s": 2.0,
+          "end_s": 12.2,
+          "text": "L’accident a eu lieu en terrain montagneux, et il semblerait que cela ait été causé par un incendie malveillant."
+        }
+      },
+      "speaker_mode": {
+        "latency_s": 0.4484,
+        "audio_duration_s": 12.2,
+        "rtf": 0.0368,
+        "x_realtime": 27.21,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 213,
+          "total_tokens": 288,
+          "completion_tokens": 75,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "<spk:0> Il ajoutait qu'on ne devrait cependant pas leur demander d'assumer des obligations qui dépassent leurs <spk:1> L'accident <spk:0> capacités de développement, <spk:1> a eu lieu en terrain <spk:0> leurs responsabilités <spk:1> montagneux. <spk:0> et leurs capacités. <spk:1> Il semblerait que cela ait été causé par un incendie malveillant.",
+        "source_text": "Il ajoutait qu'on ne devrait cependant pas leur demander d'assumer des obligations qui dépassent leurs L'accident capacités de développement, a eu lieu en terrain leurs responsabilités montagneux. et leurs capacités. Il semblerait que cela ait été causé par un incendie malveillant.",
+        "english_translation": null,
+        "speaker_count_transcript": 2,
+        "speakers_transcript": [
+          "0",
+          "1"
+        ],
+        "speaker_mapping": {
+          "0": 0,
+          "1": 1
+        },
+        "diarization_segments": 4,
+        "total_units": 41,
+        "valid_timed_units": 41,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      },
+      "multispeaker_sot_mode": {
+        "latency_s": 0.463,
+        "audio_duration_s": 12.2,
+        "rtf": 0.038,
+        "x_realtime": 26.35,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 238,
+          "total_tokens": 318,
+          "completion_tokens": 80,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "<spk:0> il ajoutait qu'on ne devrait cependant pas leur demander d'assumer des obligations qui dépassent <spk:1> l'accident <spk:0> leurs <spk:1> a <spk:0> stade de développement <spk:1> eu lieu en <spk:0> leurs responsabilités <spk:1> terrain montagneux <spk:0> et leurs <spk:1> et il semblerait <spk:0> capacités <spk:1> que cela ait été causé par un incendie malveillant",
+        "source_text": "il ajoutait qu'on ne devrait cependant pas leur demander d'assumer des obligations qui dépassent l'accident leurs a stade de développement eu lieu en leurs responsabilités terrain montagneux et leurs et il semblerait capacités que cela ait été causé par un incendie malveillant",
+        "english_translation": null,
+        "speaker_count_transcript": 2,
+        "speakers_transcript": [
+          "0",
+          "1"
+        ],
+        "speaker_mapping": {
+          "0": 0,
+          "1": 1
+        },
+        "diarization_segments": 4,
+        "total_units": 42,
+        "valid_timed_units": 42,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      }
+    },
+    "zh_2spk_seq": {
+      "duration_s": 27.08,
+      "turns_expected": [
+        {
+          "speaker": "M0",
+          "start": 0.0,
+          "end": 10.38,
+          "text": "“这并不是告别。这是一个篇章的结束，也是新篇章的开始。”"
+        },
+        {
+          "speaker": "F0",
+          "start": 10.78,
+          "end": 18.4,
+          "text": "Scotturb 403 路公共汽车定期发车前往辛特拉 (Sintra)，在罗卡角停靠。"
+        },
+        {
+          "speaker": "M0",
+          "start": 18.8,
+          "end": 27.08,
+          "text": "钙、钾等元素属于金属，银和金等元素当然也是金属。"
+        }
+      ],
+      "raw_text": "<spk:0> 这并不是告别，这是一个篇章的结束，也是新篇章的开始。 <spk:1> Schoolchildren bus 403路公交汽车定期发车前往新特拉在罗卡角停靠。 <spk:0> 钙，钾等元素属于金属，银和金等元素当然也是金属。",
+      "speakers": [
+        "<spk:0>",
+        "<spk:1>"
+      ],
+      "speaker_mapping": {},
+      "diarization_intervals": [
+        {
+          "speaker": "0",
+          "start": 1.9,
+          "end": 3.25,
+          "valid_timing": true,
+          "raw_start": 1.9,
+          "raw_end": 3.25
+        },
+        {
+          "speaker": "0",
+          "start": 3.95,
+          "end": 7.32,
+          "valid_timing": true,
+          "raw_start": 3.95,
+          "raw_end": 7.32
+        },
+        {
+          "speaker": "1",
+          "start": 11.42,
+          "end": 14.17,
+          "valid_timing": true,
+          "raw_start": 11.42,
+          "raw_end": 14.17
+        },
+        {
+          "speaker": "1",
+          "start": 14.39,
+          "end": 16.06,
+          "valid_timing": true,
+          "raw_start": 14.39,
+          "raw_end": 16.06
+        },
+        {
+          "speaker": "1",
+          "start": 16.35,
+          "end": 17.55,
+          "valid_timing": true,
+          "raw_start": 16.35,
+          "raw_end": 17.55
+        },
+        {
+          "speaker": "0",
+          "start": 19.94,
+          "end": 22.08,
+          "valid_timing": true,
+          "raw_start": 19.94,
+          "raw_end": 22.08
+        },
+        {
+          "speaker": "0",
+          "start": 22.56,
+          "end": 23.83,
+          "valid_timing": true,
+          "raw_start": 22.56,
+          "raw_end": 23.83
+        },
+        {
+          "speaker": "0",
+          "start": 24.31,
+          "end": 25.41,
+          "valid_timing": true,
+          "raw_start": 24.31,
+          "raw_end": 25.41
+        }
+      ],
+      "utterances": [
+        {
+          "speaker": "<spk:0>",
+          "start": null,
+          "end": null,
+          "text": "这并不是告别，这是一个篇章的结束，也是新篇章的开始。"
+        },
+        {
+          "speaker": "<spk:1>",
+          "start": null,
+          "end": null,
+          "text": "Schoolchildren bus 403路公交汽车定期发车前往新特拉在罗卡角停靠。"
+        },
+        {
+          "speaker": "<spk:0>",
+          "start": null,
+          "end": null,
+          "text": "钙，钾等元素属于金属，银和金等元素当然也是金属。"
+        }
+      ],
+      "ctc_error": "alignment_failed",
+      "valid_timed_units": 0,
+      "total_units": 74
+    }
+  },
+  "longform": {
+    "fr_0000_0500_300s": {
+      "summary": {
+        "latency_s": 4.3467,
+        "audio_duration_s": 300.0,
+        "rtf": 0.0145,
+        "x_realtime": 69.02,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 3810,
+          "total_tokens": 4636,
+          "completion_tokens": 826,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "raw_text": "<spk:0> Enfant du soleil, tu parcours la terre, le ciel, tu cherches ton chemin. C'est ta vie, c'est ton destin. Et le jour, la nuit, avec tes deux meilleurs amis, à bord du Grand Condor, tu recherches les cités d'or. <spk:1> Esteban, Tincio, Carlos, Isidro, Mateo, Esteban, Tincio, <spk:0> Le seizième siècle. Esteban, Zia et Tao ont découvert trois nouvelles cités d'or, en Chine, au Japon et en Arabie. Ambrosius, qui n'est autre que le terrible Zarès, s'est emparé d'un double médaillon avec lequel il peut désormais ouvrir les cités. <spk:1> Saut à moi! Les pêcheurs non! <spk:0> Nos héros se lancent à sa poursuite. <spk:1> Les chèvres ont senti quelque chose. Je vais voir. Que se passe-t-il? Regardez, qui est de retour! <spk:0> Eh bien, Gaspard, où en sommes-nous? <spk:1> Parée en larguée, commandant! Y a pas à dire, ça a du! <spk:0> Ingénieux, n'est-ce pas? Une invention du jeune Tao, à l'époque où nous collaborions encore. C'est quoi, tout ça? <spk:1> Mes grenades du sommeil. Nous allons offrir à ces villageois une longue et une douce nuit, d'un profond sommeil. Ainsi, nous aurons les coudées franches pour faire ce que nous sommes venus faire. <spk:0> Un problème, très cher La Guéra? <spk:1> Aucun. <spk:0> Drôle! <spk:1> Et maintenant, dormez, braves gens! Ouh! <spk:0> Qu'est-ce que c'est? <spk:1> C'est moi le maître bubi! <spk:0> Ne respirez pas! Tous à l'intérieur! <spk:1> Qu'elle ferait vos vos vos portes? Diablement efficace, n'est-il pas? Pour sûr, c'est patent! Bien! Passons à la phase deux! Mettez vos masques! Nous descendons! <spk:0> Si on n'avait pas perdu tout ce temps dans la cité d'or de Koumla à jouer avec les hologrammes, comme comme des gamins, on aurait trouvé le double médaillon avant Ambrosius. Maintenant, il peut ouvrir les cités d'or sans nous. Mais c'est pas tout de pouvoir les ouvrir, il faut encore les trouver! Et à ce petit jeu, nous avons un solide avantage sur Ambrosius. Ah oui? Et on peut savoir lequel, Tao? Moi, bien sûr! Hein? Toi? Parfaitement! Ambrosius n'a pas de nat'cal comme moi pour le guider, pour le conseiller, pour traduire les inscriptions en langage mu avec précision, pour résoudre les énigmes! Oui, on peut le dire, nous avons de la chance de m'avoir! <spk:1> Il doit pen il doit penser à Isabella, la Gia. Parce que t'y crois toi à cette histoire de baiser? Mais de ça, à aller embrasser cette espionne! Les enfants, ce sont fichus de nous! Et toi bien sûr, t'as tout gommé! Crois-en mon expérience, un capitaine n'a que deux amours dans sa vie, son bateau et son équipage! <spk:0> Alors pou pou pou pourquoi il ne nourrit pas? C'est nous l'équipage! <spk:1> Je suis sûr qu'Isabella s'en est sortie. Gaspard l'a emmenée avant que la cité ne se replie. Elle a sûrement eu le temps de rejoindre la nef. Tu sais, moi aussi je l'aime bien. C'est un beau pays. Tu es déjà venu en Afrique, Mendoza? <spk:0> Il m'est arrivé de faire escale sur la côte occidentale. L'intérieur du continent est encore inexploré. On dit que c'est une terre de mystère et de magie. Hum, tu sens ce parfum, Zia? <spk:1> Le bois pourri? Hm. La forêt? La terre? <spk:0> Le parfum de l'aventure.",
+        "source_text": "Enfant du soleil, tu parcours la terre, le ciel, tu cherches ton chemin. C'est ta vie, c'est ton destin. Et le jour, la nuit, avec tes deux meilleurs amis, à bord du Grand Condor, tu recherches les cités d'or. Esteban, Tincio, Carlos, Isidro, Mateo, Esteban, Tincio, Le seizième siècle. Esteban, Zia et Tao ont découvert trois nouvelles cités d'or, en Chine, au Japon et en Arabie. Ambrosius, qui n'est autre que le terrible Zarès, s'est emparé d'un double médaillon avec lequel il peut désormais ouvrir les cités. Saut à moi! Les pêcheurs non! Nos héros se lancent à sa poursuite. Les chèvres ont senti quelque chose. Je vais voir. Que se passe-t-il? Regardez, qui est de retour! Eh bien, Gaspard, où en sommes-nous? Parée en larguée, commandant! Y a pas à dire, ça a du! Ingénieux, n'est-ce pas? Une invention du jeune Tao, à l'époque où nous collaborions encore. C'est quoi, tout ça? Mes grenades du sommeil. Nous allons offrir à ces villageois une longue et une douce nuit, d'un profond sommeil. Ainsi, nous aurons les coudées franches pour faire ce que nous sommes venus faire. Un problème, très cher La Guéra? Aucun. Drôle! Et maintenant, dormez, braves gens! Ouh! Qu'est-ce que c'est? C'est moi le maître bubi! Ne respirez pas! Tous à l'intérieur! Qu'elle ferait vos vos vos portes? Diablement efficace, n'est-il pas? Pour sûr, c'est patent! Bien! Passons à la phase deux! Mettez vos masques! Nous descendons! Si on n'avait pas perdu tout ce temps dans la cité d'or de Koumla à jouer avec les hologrammes, comme comme des gamins, on aurait trouvé le double médaillon avant Ambrosius. Maintenant, il peut ouvrir les cités d'or sans nous. Mais c'est pas tout de pouvoir les ouvrir, il faut encore les trouver! Et à ce petit jeu, nous avons un solide avantage sur Ambrosius. Ah oui? Et on peut savoir lequel, Tao? Moi, bien sûr! Hein? Toi? Parfaitement! Ambrosius n'a pas de nat'cal comme moi pour le guider, pour le conseiller, pour traduire les inscriptions en langage mu avec précision, pour résoudre les énigmes! Oui, on peut le dire, nous avons de la chance de m'avoir! Il doit pen il doit penser à Isabella, la Gia. Parce que t'y crois toi à cette histoire de baiser? Mais de ça, à aller embrasser cette espionne! Les enfants, ce sont fichus de nous! Et toi bien sûr, t'as tout gommé! Crois-en mon expérience, un capitaine n'a que deux amours dans sa vie, son bateau et son équipage! Alors pou pou pou pourquoi il ne nourrit pas? C'est nous l'équipage! Je suis sûr qu'Isabella s'en est sortie. Gaspard l'a emmenée avant que la cité ne se replie. Elle a sûrement eu le temps de rejoindre la nef. Tu sais, moi aussi je l'aime bien. C'est un beau pays. Tu es déjà venu en Afrique, Mendoza? Il m'est arrivé de faire escale sur la côte occidentale. L'intérieur du continent est encore inexploré. On dit que c'est une terre de mystère et de magie. Hum, tu sens ce parfum, Zia? Le bois pourri? Hm. La forêt? La terre? Le parfum de l'aventure.",
+        "english_translation": null,
+        "speaker_count_transcript": 2,
+        "speakers_transcript": [
+          "0",
+          "1"
+        ],
+        "speaker_mapping": {
+          "0": 4,
+          "1": 3
+        },
+        "diarization_segments": 43,
+        "total_units": 517,
+        "valid_timed_units": 517,
+        "ctc_error": null,
+        "invalid_timing_count": 0
+      },
+      "gpu_after": {
+        "gpu_name": "NVIDIA GeForce RTX 5090",
+        "memory_used_mib": 28196,
+        "memory_free_mib": 3931,
+        "memory_total_mib": 32607,
+        "utilization_gpu_pct": 12,
+        "temperature_c": 47.36,
+        "power_draw_w": 251.15
+      }
+    },
+    "fr_full_episode": {
+      "summary": {
+        "latency_s": 17.7537,
+        "audio_duration_s": 1379.901,
+        "rtf": 0.0129,
+        "x_realtime": 77.72,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 17309,
+          "total_tokens": 20590,
+          "completion_tokens": 3281,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "speaker_count_transcript": 7,
+        "speakers_transcript": [
+          "0",
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6"
+        ],
+        "speaker_mapping": {
+          "0": 0,
+          "1": 1,
+          "2": 2,
+          "3": 3,
+          "4": 4,
+          "6": 6,
+          "5": 5
+        },
+        "diarization_segments": 229,
+        "total_units": 1992,
+        "valid_timed_units": 1992,
+        "ctc_error": null,
+        "utterance_count": 482
+      }
+    }
+  },
+  "gpu_after_warmup": {
+    "gpu_name": "NVIDIA GeForce RTX 5090",
+    "memory_used_mib": 27857,
+    "memory_free_mib": 4270,
+    "memory_total_mib": 32607,
+    "utilization_gpu_pct": 8,
+    "temperature_c": 43.63,
+    "power_draw_w": 91.02
+  },
+  "mandarin_summary": {
+    "clips": 6,
+    "total_ref_chars": 178,
+    "corpus_cer_auto": 0.1236,
+    "corpus_cer_explicit": 0.1067
+  },
+  "french_fleurs": {
+    "clips": {
+      "fr_fleurs_00_1987": {
+        "duration_s": 10.2,
+        "reference": "L’accident a eu lieu en terrain montagneux, et il semblerait que cela ait été causé par un incendie malveillant.",
+        "result": {
+          "latency_s": 2.5071,
+          "audio_duration_s": 10.2,
+          "rtf": 0.2458,
+          "x_realtime": 4.07,
+          "finish_reason": "stop",
+          "usage": {
+            "prompt_tokens": 192,
+            "total_tokens": 222,
+            "completion_tokens": 30,
+            "prompt_tokens_details": null,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0
+            }
+          },
+          "raw_text": "L'accident a eu lieu en terrain montagneux, et il semblerait que cela ait été causé par un incendie malveillant.",
+          "source_text": "L'accident a eu lieu en terrain montagneux, et il semblerait que cela ait été causé par un incendie malveillant.",
+          "english_translation": null,
+          "speaker_count_transcript": 1,
+          "speakers_transcript": [
+            "0"
+          ],
+          "speaker_mapping": {
+            "0": 0
+          },
+          "diarization_segments": 2,
+          "total_units": 19,
+          "valid_timed_units": 19,
+          "ctc_error": null,
+          "invalid_timing_count": 0
+        },
+        "wer": {
+          "wer": 0.0,
+          "ref_words": 20,
+          "hyp_words": 20,
+          "edits": 0,
+          "substitutions": 0,
+          "deletions": 0,
+          "insertions": 0
+        }
+      },
+      "fr_fleurs_01_1857": {
+        "duration_s": 8.28,
+        "reference": "Il a ajouté qu’« on ne devrait cependant pas leur demander d’assumer des obligations qui dépassent leur stade de développement, leur responsabilité et leurs capacités. »",
+        "result": {
+          "latency_s": 0.2646,
+          "audio_duration_s": 8.28,
+          "rtf": 0.032,
+          "x_realtime": 31.29,
+          "finish_reason": "stop",
+          "usage": {
+            "prompt_tokens": 168,
+            "total_tokens": 200,
+            "completion_tokens": 32,
+            "prompt_tokens_details": null,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0
+            }
+          },
+          "raw_text": "Il ajoutait qu'on ne devrait cependant pas leur demander d'assumer des obligations qui dépassent leur stade de développement, leurs responsabilités et leurs capacités.",
+          "source_text": "Il ajoutait qu'on ne devrait cependant pas leur demander d'assumer des obligations qui dépassent leur stade de développement, leurs responsabilités et leurs capacités.",
+          "english_translation": null,
+          "speaker_count_transcript": 1,
+          "speakers_transcript": [
+            "0"
+          ],
+          "speaker_mapping": {
+            "0": 0
+          },
+          "diarization_segments": 2,
+          "total_units": 23,
+          "valid_timed_units": 23,
+          "ctc_error": null,
+          "invalid_timing_count": 0
+        },
+        "wer": {
+          "wer": 0.1538,
+          "ref_words": 26,
+          "hyp_words": 25,
+          "edits": 4,
+          "substitutions": 3,
+          "deletions": 1,
+          "insertions": 0
+        }
+      },
+      "fr_fleurs_02_1913": {
+        "duration_s": 10.2,
+        "reference": "Le rugissement du tigre ne ressemble pas au rugissement ample du lion, mais plutôt à une phrase dont les mots seraient des cris et des grondements.",
+        "result": {
+          "latency_s": 0.287,
+          "audio_duration_s": 10.2,
+          "rtf": 0.0281,
+          "x_realtime": 35.54,
+          "finish_reason": "stop",
+          "usage": {
+            "prompt_tokens": 192,
+            "total_tokens": 226,
+            "completion_tokens": 34,
+            "prompt_tokens_details": null,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0
+            }
+          },
+          "raw_text": "Le rugissement du tigre ne ressemble pas au rugissement en plus du lion, mais plutôt à une phrase dont les mots seraient des cris et des grondements.",
+          "source_text": "Le rugissement du tigre ne ressemble pas au rugissement en plus du lion, mais plutôt à une phrase dont les mots seraient des cris et des grondements.",
+          "english_translation": null,
+          "speaker_count_transcript": 1,
+          "speakers_transcript": [
+            "0"
+          ],
+          "speaker_mapping": {
+            "0": 0
+          },
+          "diarization_segments": 2,
+          "total_units": 27,
+          "valid_timed_units": 27,
+          "ctc_error": null,
+          "invalid_timing_count": 0
+        },
+        "wer": {
+          "wer": 0.0769,
+          "ref_words": 26,
+          "hyp_words": 27,
+          "edits": 2,
+          "substitutions": 1,
+          "deletions": 0,
+          "insertions": 1
+        }
+      },
+      "fr_fleurs_03_2004": {
+        "duration_s": 8.34,
+        "reference": "Le même mois, un autre avion de ligne a fait une sortie de piste à Mashhad et a heurté un mur, tuant ainsi dix-sept personnes.",
+        "result": {
+          "latency_s": 0.3223,
+          "audio_duration_s": 8.34,
+          "rtf": 0.0386,
+          "x_realtime": 25.88,
+          "finish_reason": "stop",
+          "usage": {
+            "prompt_tokens": 169,
+            "total_tokens": 203,
+            "completion_tokens": 34,
+            "prompt_tokens_details": null,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0
+            }
+          },
+          "raw_text": "Le même mois, un autre avion de ligne a fait une sortie de piste à Machad et heurté un mur, tuant ainsi 17 personnes.",
+          "source_text": "Le même mois, un autre avion de ligne a fait une sortie de piste à Machad et heurté un mur, tuant ainsi 17 personnes.",
+          "english_translation": null,
+          "speaker_count_transcript": 1,
+          "speakers_transcript": [
+            "0"
+          ],
+          "speaker_mapping": {
+            "0": 0
+          },
+          "diarization_segments": 5,
+          "total_units": 24,
+          "valid_timed_units": 24,
+          "ctc_error": null,
+          "invalid_timing_count": 0
+        },
+        "wer": {
+          "wer": 0.1538,
+          "ref_words": 26,
+          "hyp_words": 24,
+          "edits": 4,
+          "substitutions": 2,
+          "deletions": 2,
+          "insertions": 0
+        }
+      }
+    },
+    "corpus_wer": 0.102,
+    "total_ref_words": 98
+  },
+  "gpu_final": {
+    "gpu_name": "NVIDIA GeForce RTX 5090",
+    "memory_used_mib": 28196,
+    "memory_free_mib": 3931,
+    "memory_total_mib": 32607,
+    "utilization_gpu_pct": 12,
+    "temperature_c": 47.36,
+    "power_draw_w": 251.15
+  }
+}

@@ -1,0 +1,254 @@
+{
+  "archive": "/workspace/nvidia-transcribe/outputs/handbacks/chunked-core-evidence.tar.gz",
+  "base_head": "0fc70b1d5d15da616458f5f11915ecd4c31959af",
+  "current_head": "a4aad5213e19c1d8d575df320b3c1fdf4ca1919e",
+  "file_count": 49,
+  "total_staged_bytes": 1272704,
+  "files": [
+    {
+      "path": ".gitignore",
+      "bytes": 630,
+      "sha256": "7a46d1ca86a2b1e5ee0e2321848be09e25d206aec32bff9469a171ac16b47c84"
+    },
+    {
+      "path": "AGENTS.md",
+      "bytes": 2129,
+      "sha256": "d82cf957269ba31dd806eff1e64c8c578b90e962ec0e576f3bfff4e220a2e49d"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1170,
+      "sha256": "4bc5c1e11182a0b1117c9060d8f98bf4afd82691a28fd85303668b371748676b"
+    },
+    {
+      "path": "configs/vllm_rtx5090.env",
+      "bytes": 355,
+      "sha256": "40cfcd511081174c1e37ad43d89adb2a0030e456d09676a9c6ecc530dba8eea0"
+    },
+    {
+      "path": "evaluations/chunked-core/HANDback.md",
+      "bytes": 4512,
+      "sha256": "a911f5bed726db590e66505c3414efa5d0eb78296d6d1c3d50ed25bae46bea1c"
+    },
+    {
+      "path": "evaluations/chunked-core/alignment-diagnostics.md",
+      "bytes": 3981,
+      "sha256": "61bbcedaa69e0fedf2af9c016efc6cdf8c3005599ef1b87fddf647a3232e94ae"
+    },
+    {
+      "path": "evaluations/chunked-core/architecture.md",
+      "bytes": 8038,
+      "sha256": "7ce9a33f8abc5804dd22c8d1cfff69ba934e7c39c80c81b1972189c600c69e6c"
+    },
+    {
+      "path": "evaluations/chunked-core/benchmark.json",
+      "bytes": 18698,
+      "sha256": "299da462d322224b487b5a291c4a9f8bf9d1540b7c564cda3f90ff1bd48d83dd"
+    },
+    {
+      "path": "evaluations/chunked-core/contract.md",
+      "bytes": 5654,
+      "sha256": "3cabf1be0fb97aed24ed572a87622dab6693b8e5f722f9d6414ce5b163296774"
+    },
+    {
+      "path": "evaluations/chunked-core/git_diff_since_base.patch",
+      "bytes": 217577,
+      "sha256": "fd4a6e669ea0736b11a6a7c916d0b99ce3a75dfcbc8ea7d3f7e5077137ce6e5e"
+    },
+    {
+      "path": "evaluations/chunked-core/git_log_since_base.txt",
+      "bytes": 1917,
+      "sha256": "a0290551c18edcba12a3b28521a66e26ebead42b5a9f72ff5b292919546f1868"
+    },
+    {
+      "path": "evaluations/chunked-core/git_provenance.json",
+      "bytes": 196,
+      "sha256": "6f45db7692d02f4fff5b085ab1c9de482ad5a59a5570ece241c90c9281eb85a3"
+    },
+    {
+      "path": "evaluations/chunked-core/pytest_cpu.txt",
+      "bytes": 4053,
+      "sha256": "34886c47013be2d76e8f9247e2e29d03d178c0307f2ddd2d05883778ee8c6747"
+    },
+    {
+      "path": "evaluations/chunked-core/quality-review.md",
+      "bytes": 6977,
+      "sha256": "e81358e33db383d3a903f4f5e0dae33381acecce94c93dd718d477832cd40bc9"
+    },
+    {
+      "path": "evaluations/chunked-core/speaker-reconciliation.md",
+      "bytes": 4948,
+      "sha256": "a55c77f6f0c34d9ae77e29fe3039cc0d46c881f3cffd0aa3b708e2fcf3e276a3"
+    },
+    {
+      "path": "evaluations/chunked-core/supplemental.json",
+      "bytes": 3103,
+      "sha256": "1baceb9425b2a8085f13b471bf3d329a381e7c4c74d8940e19573390f72ce5b9"
+    },
+    {
+      "path": "evaluations/chunked-core/test-results.md",
+      "bytes": 4466,
+      "sha256": "d64ccc0db5e38ff6e1bd5c59c1f2d8ab01aa96b9f5834a97a6680805d487847c"
+    },
+    {
+      "path": "outputs/chunked_runs/cli_smoke_fr39s/recording.contract.json",
+      "bytes": 78120,
+      "sha256": "feaace8d91ffe4a1d032b9319ed4dd62ace708aac1b71fc459ca2c5ff2444edb"
+    },
+    {
+      "path": "outputs/chunked_runs/cli_smoke_fr39s/transcript.txt",
+      "bytes": 1040,
+      "sha256": "be407492d30873acf6a617dfb2d7265173c72e31ce3287cc8348922c58a860e5"
+    },
+    {
+      "path": "outputs/chunked_runs/fr_full_episode_90s/transcript.txt",
+      "bytes": 21018,
+      "sha256": "cefcfd790337fd5614549dfe8a39cbeecb7ac54afffa2fd01c07fcf2a4a7791b"
+    },
+    {
+      "path": "outputs/chunked_runs/zh_multichunk_synthetic/recording.contract.json",
+      "bytes": 132995,
+      "sha256": "9266d476aa4d2d155a4cce09854a33e4985e3159888b6e2a36c21eaad49b8fb9"
+    },
+    {
+      "path": "outputs/chunked_runs/zh_multichunk_synthetic/transcript.txt",
+      "bytes": 1069,
+      "sha256": "499c2f3c577c4e90ab56ff82f340b69394ee1fb39ab2988ce4307d4eab74f535"
+    },
+    {
+      "path": "outputs/samples/fr_full_episode_90s.contract.excerpt.json",
+      "bytes": 404733,
+      "sha256": "5269161ff00108bcd1adbac5fd44c7b5d230f25e1b5b25f719073f1ca707dc69"
+    },
+    {
+      "path": "outputs/samples/fr_full_episode_90s_temporal_only.contract.excerpt.json",
+      "bytes": 152865,
+      "sha256": "fe20a448f6252ac59bc4bd55105e3c8e6fd20c92cb19069a243b670aa9ecd9b0"
+    },
+    {
+      "path": "pyproject.toml",
+      "bytes": 623,
+      "sha256": "db21254ab189d10b12aae7f2f44bd8f157e255fb44f620807cc34a64105c157e"
+    },
+    {
+      "path": "scripts/package_chunked_evidence.py",
+      "bytes": 9130,
+      "sha256": "9f31346f56b5d654bf9af1f8cadb368fa24f085702b63cd1a124c1d5e4a057a3"
+    },
+    {
+      "path": "scripts/run_chunked_evaluation.py",
+      "bytes": 11156,
+      "sha256": "d9d2b77af7a9c10bcc7224c9e46acda2116552c7dc750b353a798fb4aff69a00"
+    },
+    {
+      "path": "scripts/start_vllm_server.sh",
+      "bytes": 1637,
+      "sha256": "23f2d77000a5a174698aa561e3090dc58062eb2ae0d1414572c0ddde0d120be3"
+    },
+    {
+      "path": "src/nvidia_transcribe/__init__.py",
+      "bytes": 2281,
+      "sha256": "8fbf518ba0578f6ea9365ba5417538258e9f6a4b2bd503a718e590d0d55765ee"
+    },
+    {
+      "path": "src/nvidia_transcribe/alignment.py",
+      "bytes": 12773,
+      "sha256": "c77dd95ff418fa33bdf1bf67edd7ae1c3927070e523419981468297a287642e0"
+    },
+    {
+      "path": "src/nvidia_transcribe/checkpoint.py",
+      "bytes": 7998,
+      "sha256": "c7b771c1de2008cc21376b00fc8dfba79cfc9d1b10c838ecccc23e7ef2befdf6"
+    },
+    {
+      "path": "src/nvidia_transcribe/chunking.py",
+      "bytes": 11979,
+      "sha256": "35f66398513d2a3423765ac9fc0e0cf0f01623c260826bf63087ef96a08531c0"
+    },
+    {
+      "path": "src/nvidia_transcribe/cli.py",
+      "bytes": 7606,
+      "sha256": "f11c117f28086745e3a6cbb9652010c4bf381ce083786d2b14fb33cb399fe29a"
+    },
+    {
+      "path": "src/nvidia_transcribe/client.py",
+      "bytes": 6482,
+      "sha256": "406525023e1a1edbb550c8cb7f4173c556c7c32789ab3b0da2b17bad3b30fdd8"
+    },
+    {
+      "path": "src/nvidia_transcribe/contract.py",
+      "bytes": 14052,
+      "sha256": "c468b57f8f6f9f36952f083def4d5dce64aaf36de3c7c6f4b0470c9a2449090b"
+    },
+    {
+      "path": "src/nvidia_transcribe/media.py",
+      "bytes": 5858,
+      "sha256": "5d92576b1d6ee745ddf71c215f16fe2da3b1e5debd61c273345fe65025276000"
+    },
+    {
+      "path": "src/nvidia_transcribe/metrics.py",
+      "bytes": 3273,
+      "sha256": "4ff4f0e5d8ba5b9e5ff5a81ca4238f839e6d9dac15769149e27b9f50ac8b3948"
+    },
+    {
+      "path": "src/nvidia_transcribe/parser.py",
+      "bytes": 10625,
+      "sha256": "10a3b028ed85a7d7d77c11f7b1f4056e2319e273d1593d473df9aed5dcde1418"
+    },
+    {
+      "path": "src/nvidia_transcribe/prompts.py",
+      "bytes": 4867,
+      "sha256": "2b62ac7e01d6d8dce2ed228cb97cabfc0a0fb718800eb11ce9f2a8f4f99e1df8"
+    },
+    {
+      "path": "src/nvidia_transcribe/recording.py",
+      "bytes": 16063,
+      "sha256": "7c2a23f60de7fd32cbfd32999d76fbf832304dcb1cc74dcfb9d7139b7a420247"
+    },
+    {
+      "path": "src/nvidia_transcribe/speakers.py",
+      "bytes": 22410,
+      "sha256": "ea3dd80e659fb1789a3d412ab440ae21139f32293d2291a8960e579aa99d63d1"
+    },
+    {
+      "path": "src/nvidia_transcribe/utterances.py",
+      "bytes": 8068,
+      "sha256": "2c407ab0793bf323e4d2b19eb57f532fed66e0470a863666d115977c61ab67d6"
+    },
+    {
+      "path": "tests/test_checkpoint.py",
+      "bytes": 3928,
+      "sha256": "dd5903c47be9d372f6ed5ac1a93204538eec802cd24192c1c811afd1a8ed1367"
+    },
+    {
+      "path": "tests/test_chunking_and_resume.py",
+      "bytes": 6477,
+      "sha256": "af16e36dcc1ea6df8d80bd3ec3058156677e5a92341946aca871a1cef6ffe934"
+    },
+    {
+      "path": "tests/test_client.py",
+      "bytes": 3480,
+      "sha256": "2fb590878fce74ee61afd8d2920ba0b6f479398628e63483230b0d5fd347611d"
+    },
+    {
+      "path": "tests/test_metrics.py",
+      "bytes": 720,
+      "sha256": "092f9a9a0ca044cb3425679fad766c3428e4d42c49a5aa4c965f628c129bbf14"
+    },
+    {
+      "path": "tests/test_parser_and_contract.py",
+      "bytes": 5446,
+      "sha256": "4239790b527b9263b507fe38422336d5af9c81784a9ed578ea8d33426c863d51"
+    },
+    {
+      "path": "tests/test_recording_and_normalization.py",
+      "bytes": 5973,
+      "sha256": "1349e80d06e2e84ccf396e679083fc5078cd037a69b46d099c28da95c57b6648"
+    },
+    {
+      "path": "tests/test_utterances_alignment_speakers.py",
+      "bytes": 9555,
+      "sha256": "148502eb1085696b8a9c3079025f960ece0dbbc2bc151c92ea3a620085bfcf25"
+    }
+  ]
+}

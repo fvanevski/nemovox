@@ -1,0 +1,306 @@
+{
+  "name": "zh_ep166_viewing_validation_v1",
+  "episode": "A Will Eternal Final Season EP166 [e4g3i65Kyf8]",
+  "utterances": [
+    {
+      "utterance_id": "utt-0006",
+      "original_utterance_id": "utt-0198",
+      "expected_source_substring": "凡事发生",
+      "proposed_start_s": 173.4,
+      "proposed_end_s": 177.8,
+      "translated_text": "My motto as Bai Xiaochun: whatever happens, it works in my favor.",
+      "evidence": ["zh_02_0250_0320_dense_recap.mp4 00:03-00:08", "chunk_001.raw.json"],
+      "reason": "recover_verified_spoken_dialogue_in_recap_gap"
+    },
+    {
+      "utterance_id": "utt-0007",
+      "original_utterance_id": "utt-0199",
+      "expected_source_substring": "青龙帮",
+      "suppressed_duplicate_of": "utt-0012",
+      "reason": "confirmed_overlap_duplicate_of_timed_utt-0012"
+    },
+    {
+      "utterance_id": "utt-0008",
+      "original_utterance_id": "utt-0200",
+      "expected_source_substring": "星空榜",
+      "suppressed_duplicate_of": "utt-0012",
+      "reason": "confirmed_overlap_duplicate_of_timed_utt-0012"
+    },
+    {
+      "utterance_id": "utt-0019",
+      "expected_source_substring": "败由不得我",
+      "translated_text": "—is not in my hands. Only Bai Xiaochun can still fight.",
+      "reason": "strip_8s_early_hidden_hand_forward_bleed_already_in_utt-0022"
+    },
+    {
+      "utterance_id": "utt-0023",
+      "original_utterance_id": "utt-0253",
+      "expected_source_substring": "兆告天下",
+      "proposed_start_s": 305.3,
+      "proposed_end_s": 310.0,
+      "translated_text": "Let it be proclaimed to all, that everyone may know.",
+      "evidence": ["chunk_003.raw.json", "304.27..311.80s silence gap"],
+      "reason": "recover_verified_tomb_keeper_proclamation_in_chunk_3_gap"
+    },
+    {
+      "utterance_id": "utt-0024",
+      "expected_source_substring": "为之偏张",
+      "translated_text": "I, and this world, will face an unknown chapter together.",
+      "reason": "correct_asr_garble_weizhi_pianzhang_to_unknown_chapter"
+    },
+    {
+      "utterance_id": "utt-0026",
+      "original_utterance_id": "utt-0254",
+      "expected_source_substring": "又有什么区别",
+      "proposed_start_s": 321.8,
+      "proposed_end_s": 327.2,
+      "translated_text": "What difference does the answer make to me or to you?",
+      "evidence": ["zh_03b_0518_0604_chunk3_gaps.mp4 00:03-00:09"],
+      "reason": "recover_missing_turn_and_fix_garbled_proper_noun"
+    },
+    {
+      "utterance_id": "utt-0029",
+      "original_utterance_id": "utt-0255",
+      "expected_source_substring": "不管继承人是谁",
+      "proposed_start_s": 335.2,
+      "proposed_end_s": 339.6,
+      "translated_text": "No matter who the successor is, you need only obey the decree.",
+      "evidence": ["zh_03b_0518_0604_chunk3_gaps.mp4 00:17-00:21"],
+      "reason": "recover_missing_duke_decree_line_overlapping_spk07"
+    },
+    {
+      "utterance_id": "utt-0102",
+      "original_utterance_id": "utt-0259",
+      "expected_source_substring": "新任冥皇登基",
+      "proposed_start_s": 633.1,
+      "proposed_end_s": 641.5,
+      "translated_text": "After tonight, as the new Underworld Emperor ascends, the Wildlands will unite as never before—ready for greater challenges.",
+      "evidence": ["zh_06_1028_1058_chunk7_missing.mp4 00:05-00:13"],
+      "reason": "recover_blocking_missing_dialogue_in_chunk_7_gap"
+    },
+    {
+      "utterance_id": "utt-0103",
+      "original_utterance_id": "utt-0257",
+      "expected_source_substring": "我家白浩",
+      "proposed_start_s": 641.8,
+      "proposed_end_s": 646.3,
+      "translated_text": "Could the rumors really be true—that the next Underworld Emperor is our Lord Bai Hao?",
+      "evidence": ["zh_06_1028_1058_chunk7_missing.mp4 00:13-00:18"],
+      "reason": "recover_blocking_missing_dialogue_in_chunk_7_gap"
+    },
+    {
+      "utterance_id": "utt-0107",
+      "original_utterance_id": "utt-0258",
+      "expected_source_substring": "真的是还好",
+      "proposed_start_s": 665.2,
+      "proposed_end_s": 667.2,
+      "translated_text": "Bai Hao! It really is Bai Hao!",
+      "evidence": ["zh_06b_1100_1132_chunk7_mid.mp4 00:04-00:06"],
+      "reason": "recover_verified_crowd_reaction_in_chunk_7"
+    },
+    {
+      "utterance_id": "utt-0112",
+      "original_utterance_id": "utt-0260",
+      "expected_source_substring": "皆有天命",
+      "proposed_start_s": 682.4,
+      "proposed_end_s": 685.1,
+      "translated_text": "All karmic bonds are ordained by fate.",
+      "evidence": ["zh_06b_1100_1132_chunk7_mid.mp4 00:22-00:25"],
+      "reason": "recover_tomb_keeper_on_camera_line_at_682s"
+    },
+    {
+      "utterance_id": "utt-0182",
+      "expected_source_substring": "远是无人",
+      "suppress": true,
+      "reason": "spurious_chunk_overlap_fragment_after_utt-0178_already_translated"
+    },
+    {
+      "utterance_id": "utt-0186",
+      "expected_source_substring": "这一字已经定了",
+      "translated_text": "This time, victory is mine!",
+      "reason": "fix_mistranslated_asr_in_zh_07a_0017"
+    },
+    {
+      "utterance_id": "utt-0189",
+      "expected_source_substring": "直乃名黄恭顺帝",
+      "proposed_start_s": 918.2,
+      "proposed_end_s": 920.0,
+      "timing_status": "relocated_reviewed",
+      "translated_text": "This is the sacred Underworld Emperor Palace.",
+      "evidence": ["zh_07a_1450_1520_chunk10_start.mp4 00:28-00:29"],
+      "reason": "fix_asr_garble_and_prevent_sub_0.3s_flash"
+    },
+    {
+      "utterance_id": "utt-0201",
+      "original_utterance_id": "utt-0265",
+      "expected_source_substring": "知错能改",
+      "proposed_start_s": 932.0,
+      "proposed_end_s": 935.1,
+      "translated_text": "As they say, knowing your faults and mending them is the greatest virtue.",
+      "evidence": ["zh_07_1525_1605_chunk10_dazhu.mp4 00:07-00:10"],
+      "reason": "recover_verified_spoken_line_before_door_reveal"
+    },
+    {
+      "utterance_id": "utt-0202",
+      "original_utterance_id": "utt-0266",
+      "expected_source_substring": "亲爱的",
+      "proposed_start_s": 937.2,
+      "proposed_end_s": 938.9,
+      "translated_text": "Hey, Que'er! Big Gorilla!",
+      "evidence": ["zh_07_1525_1605_chunk10_dazhu.mp4 00:12-00:13"],
+      "reason": "recover_bai_xiaochun_greeting_matching_audio"
+    },
+    {
+      "utterance_id": "utt-0203",
+      "original_utterance_id": "utt-0267",
+      "expected_source_substring": "白小纯",
+      "proposed_start_s": 939.0,
+      "proposed_end_s": 940.7,
+      "translated_text": "Bai Xiaochun!",
+      "evidence": ["zh_07_1525_1605_chunk10_dazhu.mp4 00:14-00:15"],
+      "reason": "recover_song_que_shout_matching_audio"
+    },
+    {
+      "utterance_id": "utt-0205",
+      "original_utterance_id": "utt-0269",
+      "expected_source_substring": "天呐",
+      "suppressed_duplicate_of": "utt-0223",
+      "reason": "chunk_10_overlap_duplicate_superseded_by_clean_chunk_11_utt-0223"
+    },
+    {
+      "utterance_id": "utt-0206",
+      "original_utterance_id": "utt-0270",
+      "expected_source_substring": "一针四星",
+      "suppressed_duplicate_of": "utt-0224",
+      "reason": "chunk_10_overlap_duplicate_superseded_by_clean_chunk_11_utt-0224"
+    },
+    {
+      "utterance_id": "utt-0207",
+      "original_utterance_id": "utt-0271",
+      "expected_source_substring": "完了完了完了",
+      "suppressed_duplicate_of": "utt-0225",
+      "reason": "chunk_10_overlap_duplicate_superseded_by_clean_chunk_11_utt-0225"
+    },
+    {
+      "utterance_id": "utt-0208",
+      "original_utterance_id": "utt-0272",
+      "expected_source_substring": "金金的气氛",
+      "suppressed_duplicate_of": "utt-0226",
+      "reason": "chunk_10_overlap_duplicate_superseded_by_clean_chunk_11_utt-0226"
+    },
+    {
+      "utterance_id": "utt-0223",
+      "original_utterance_id": "utt-0273",
+      "expected_source_substring": "天哪",
+      "proposed_start_s": 985.2,
+      "proposed_end_s": 986.3,
+      "translated_text": "Oh my god!",
+      "evidence": ["zh_08_1620_1655_chunk10_11_monologue.mp4 00:05"],
+      "reason": "recover_blocking_zhou_zimo_inner_monologue_start"
+    },
+    {
+      "utterance_id": "utt-0224",
+      "original_utterance_id": "utt-0274",
+      "expected_source_substring": "宿敌",
+      "proposed_start_s": 986.4,
+      "proposed_end_s": 990.2,
+      "translated_text": "The boss I've been loyally sucking up to is my sworn enemy!",
+      "evidence": ["zh_08_1620_1655_chunk10_11_monologue.mp4 00:06-00:10"],
+      "reason": "recover_blocking_zhou_zimo_inner_monologue"
+    },
+    {
+      "utterance_id": "utt-0225",
+      "original_utterance_id": "utt-0275",
+      "expected_source_substring": "完了完了完了",
+      "proposed_start_s": 990.5,
+      "proposed_end_s": 992.3,
+      "translated_text": "It's over—I can't beat him in a fight,",
+      "evidence": ["zh_08_1620_1655_chunk10_11_monologue.mp4 00:10-00:12"],
+      "reason": "recover_blocking_zhou_zimo_inner_monologue"
+    },
+    {
+      "utterance_id": "utt-0226",
+      "original_utterance_id": "utt-0276",
+      "expected_source_substring": "羁绊",
+      "proposed_start_s": 992.4,
+      "proposed_end_s": 994.8,
+      "translated_text": "and I can't let our years together go to waste!",
+      "evidence": ["zh_08_1620_1655_chunk10_11_monologue.mp4 00:12-00:14"],
+      "reason": "recover_blocking_zhou_zimo_inner_monologue_end"
+    },
+    {
+      "utterance_id": "utt-0234",
+      "original_utterance_id": "utt-0277",
+      "expected_source_substring": "凭什么",
+      "proposed_start_s": 1009.5,
+      "proposed_end_s": 1011.0,
+      "translated_text": "Why?",
+      "evidence": ["zh_08_1620_1655_chunk10_11_monologue.mp4 00:29"],
+      "reason": "recover_song_que_initial_why_turn"
+    },
+    {
+      "utterance_id": "utt-0244",
+      "original_utterance_id": "utt-0278",
+      "expected_source_substring": "我恨你",
+      "proposed_start_s": 1025.2,
+      "proposed_end_s": 1026.9,
+      "translated_text": "Bai Xiaochun, I hate you!",
+      "evidence": ["zh_09a_1704_1742_chunk11_early.mp4 00:01-00:02"],
+      "reason": "recover_verified_shout_in_song_que_confrontation"
+    },
+    {
+      "utterance_id": "utt-0245",
+      "original_utterance_id": "utt-0280",
+      "expected_source_substring": "不欠你的",
+      "proposed_start_s": 1054.0,
+      "proposed_end_s": 1060.2,
+      "translated_text": "When the main sect abandoned you, I buried the hatchet and helped you advance—I owe you nothing.",
+      "evidence": ["zh_09a_1704_1742_chunk11_early.mp4 00:30-00:36"],
+      "reason": "recover_blocking_missing_dialogue_in_1052..1061s_gap"
+    },
+    {
+      "utterance_id": "utt-0246",
+      "original_utterance_id": "utt-0281",
+      "expected_source_substring": "皇城满朝文武",
+      "proposed_start_s": 1066.0,
+      "proposed_end_s": 1071.5,
+      "translated_text": "The entire court despised me to the bone, yet I risked exposure to save you—I owe you even less.",
+      "evidence": ["zh_09_1740_1815_chunk11_rebuke.mp4 00:06-00:11"],
+      "reason": "recover_blocking_missing_dialogue_in_1065..1084s_gap"
+    },
+    {
+      "utterance_id": "utt-0243",
+      "expected_source_substring": "用命换来的",
+      "proposed_start_s": 1071.9,
+      "proposed_end_s": 1078.8,
+      "timing_status": "relocated_reviewed",
+      "translated_text": "In every single deed, my conscience is clear. Everything I have, I earned with my life!",
+      "evidence": ["zh_09_1740_1815_chunk11_rebuke.mp4 00:12-00:18"],
+      "reason": "relocate_7s_early_ctc_line_to_verified_speech_time_and_restore_full_clause"
+    },
+    {
+      "utterance_id": "utt-0251",
+      "expected_source_substring": "翻越高山",
+      "translated_text": "You want to climb that mountain? I, Bai Xiaochun, will wait—but you're not ready yet.",
+      "reason": "fix_dengzhe_vs_danzhe_asr_wording_matching_audio"
+    },
+    {
+      "utterance_id": "utt-0280",
+      "expected_source_substring": "仰望实则",
+      "translated_text": "Gazing toward you from afar, Master...",
+      "reason": "fix_yaowang_shizun_asr_mistranscription_in_zh_10"
+    },
+    {
+      "utterance_id": "utt-0282",
+      "expected_source_substring": "哎",
+      "suppress": true,
+      "reason": "spurious_0.215s_overlap_interruption_over_closing_monologue"
+    },
+    {
+      "utterance_id": "utt-0283",
+      "expected_source_substring": "谢谢",
+      "suppress": true,
+      "reason": "spurious_thank_you_artifact_splitting_closing_monologue_in_zh_10"
+    }
+  ]
+}

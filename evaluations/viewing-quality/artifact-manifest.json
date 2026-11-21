@@ -1,0 +1,505 @@
+{
+  "archive": "/workspace/nvidia-transcribe/outputs/handbacks/viewing-quality-evidence.tar.gz",
+  "starting_head": "e8cbc7c83dc88dd5dca3fe96c0e06d52e2081564",
+  "current_head": "af60560db7a30ca3c87257ca8333001bc872269f",
+  "pyannote_head": "2b40b1c0c17ce324178af765d8d2c79234870acd",
+  "file_count": 99,
+  "total_staged_bytes": 27482303,
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "bytes": 2129,
+      "sha256": "d82cf957269ba31dd806eff1e64c8c578b90e962ec0e576f3bfff4e220a2e49d"
+    },
+    {
+      "path": "configs/glossaries/a_will_eternal_zh.yaml",
+      "bytes": 1526,
+      "sha256": "48a868a41e2f8c0145b5e67d27682341907c79a5233290d42eef319b782eef6a"
+    },
+    {
+      "path": "evaluations/viewing-quality/HANDback.md",
+      "bytes": 4899,
+      "sha256": "e8f9b7dee3be7dc370cbfb0e232ecc276ee1a1f10dc544d94046a86d9c7293da"
+    },
+    {
+      "path": "evaluations/viewing-quality/benchmark.json",
+      "bytes": 14189,
+      "sha256": "c88e4af6a49c099131ccf8ee49efbff2576e334d9264717a529f4995447e4af3"
+    },
+    {
+      "path": "evaluations/viewing-quality/cache-regressions.md",
+      "bytes": 2622,
+      "sha256": "9725c0ced2454cd6c0823c7a357203eb07b153a9f76392b7587c70a79ade031e"
+    },
+    {
+      "path": "evaluations/viewing-quality/comparison_metrics.json",
+      "bytes": 69184,
+      "sha256": "dc6cb4bb8838fca1697b62c68c054ab987556a79c0a3a996b0cce1aeccd21ca8"
+    },
+    {
+      "path": "evaluations/viewing-quality/cpu_pytest.txt",
+      "bytes": 8260,
+      "sha256": "6458ebc8b27f34e09e197677ed11f242f713d2a4c063e440819525d52df92fb4"
+    },
+    {
+      "path": "evaluations/viewing-quality/ep166_untimed_audit.json",
+      "bytes": 21836,
+      "sha256": "fda8135c1dbad4d8ae1da8d8a0b50bd7c86e54801d815ef38be63a6f8ce87c6f"
+    },
+    {
+      "path": "evaluations/viewing-quality/git_diff_since_base.patch",
+      "bytes": 246488,
+      "sha256": "307ef14c79c31f88328c8954caaa65279267dd1e7861f67372af55eaebc8a6de"
+    },
+    {
+      "path": "evaluations/viewing-quality/git_log_since_base.txt",
+      "bytes": 1558,
+      "sha256": "4b26a61138d229f290377c1ff335fb2740bfbd71a5f2e985932cfd6f0d4fda01"
+    },
+    {
+      "path": "evaluations/viewing-quality/git_provenance.json",
+      "bytes": 191,
+      "sha256": "01f2bfd8d53dc290ced72dd9fa41ce0996f986ddb89825a6c00890265489f5df"
+    },
+    {
+      "path": "evaluations/viewing-quality/implementation-review.md",
+      "bytes": 8138,
+      "sha256": "8879eee67fd2df1973a2bb0782678b27b8561e05b6d06006eb3ed9143d61bf2d"
+    },
+    {
+      "path": "evaluations/viewing-quality/logs/ninfer_vq.log",
+      "bytes": 47862,
+      "sha256": "4e62b397801eded737004f9fb37bbfb9768d8caaab29388dbe2b8b8317acaebe"
+    },
+    {
+      "path": "evaluations/viewing-quality/logs/vq_pipeline.log",
+      "bytes": 2208,
+      "sha256": "63180ddfce41a0e4ff44932aef558504b34d6e933096a53ce430522a4d0a0381"
+    },
+    {
+      "path": "evaluations/viewing-quality/readability-comparison.md",
+      "bytes": 5220,
+      "sha256": "90592c3bfbf1a4f821460e1d414fc2acbd4f625802f408b6b5c27e0eb838524e"
+    },
+    {
+      "path": "evaluations/viewing-quality/test-results.md",
+      "bytes": 2765,
+      "sha256": "c27303c92ba949709001d987a95b5d0e420a8f473e3265fca8e5c312be8b2c8b"
+    },
+    {
+      "path": "evaluations/viewing-quality/untimed-dialogue-audit.md",
+      "bytes": 8118,
+      "sha256": "a975eb938583d29ae9d9c2259aa4dc16c5b43a787fb77ae767e2028a78e55c21"
+    },
+    {
+      "path": "evaluations/viewing-quality/visual-review.md",
+      "bytes": 3427,
+      "sha256": "7a23e37e798f023a5dc918ba75a1c17cc30ac4b58261ea6bd09e956f5d84a699"
+    },
+    {
+      "path": "experiments/subtitle/analyze_ep166_baseline.py",
+      "bytes": 21487,
+      "sha256": "1d3b7a456465286432dbda45795f575e8f17964eb474b9c90dc4c66565961f8b"
+    },
+    {
+      "path": "experiments/subtitle/package_viewing_quality_evidence.py",
+      "bytes": 7797,
+      "sha256": "1caa858216450fc75956b40f6458a6326e7959c794d9f6459b7680f7f128ccd1"
+    },
+    {
+      "path": "experiments/subtitle/run_viewing_quality.py",
+      "bytes": 12307,
+      "sha256": "c085c4a0c419df83e4733588a490ee9e4726d308f32a5b1e4e25502627a44271"
+    },
+    {
+      "path": "outputs/subtitle_runs/fr_full_episode/Les mystérieuses cités d'or Saison 4 Episode 1 [YlVGUDNbyXk].en.ass",
+      "bytes": 26441,
+      "sha256": "e428de6e6e0ac9d2f5aea58761089bc2c1083e2e2c7e05cf64f91830d1b39183"
+    },
+    {
+      "path": "outputs/subtitle_runs/fr_full_episode/Les mystérieuses cités d'or Saison 4 Episode 1 [YlVGUDNbyXk].en.srt",
+      "bytes": 20728,
+      "sha256": "d3459ab8024ee88c08f7d4e33b698134acb4aca117c56604979dfa0d279c2c08"
+    },
+    {
+      "path": "outputs/subtitle_runs/fr_full_episode/final_english_subtitles.txt",
+      "bytes": 19724,
+      "sha256": "c855dd8110cab497d6694177c269e93d57edca4aea88a4614f7597330efd6ebb"
+    },
+    {
+      "path": "outputs/subtitle_runs/fr_full_episode/raw_source_transcript.txt",
+      "bytes": 21059,
+      "sha256": "724895b18a53537c503d4f14bbb5f72b8a5eadd84304c07cc1f8255f82d25160"
+    },
+    {
+      "path": "outputs/subtitle_runs/fr_full_episode/refined_source_transcript.txt",
+      "bytes": 20998,
+      "sha256": "1c69920bf8b7ba4ad1f35f1cb6e6f66fab54f8d3aeed495a04f67d3b0b3e93c8"
+    },
+    {
+      "path": "outputs/subtitle_runs/fr_full_episode/subtitles.metadata.json",
+      "bytes": 18570,
+      "sha256": "3491996ff9f36097ebeb11636fe364aa0e8d2560728fa4c4d82d7620facf61a3"
+    },
+    {
+      "path": "outputs/subtitle_runs/fr_full_episode/translated.contract.json",
+      "bytes": 1838775,
+      "sha256": "e50ddb440d5794998b334e42aad6a72fefe2891f4cbf848b7e210555ff96dbed"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/fr_full_episode/Les mystérieuses cités d'or Saison 4 Episode 1 [YlVGUDNbyXk].en.ass",
+      "bytes": 26623,
+      "sha256": "76c2ad11ac11134886b8a43279b8776bee2eef153997a984574ad065eeb807a8"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/fr_full_episode/Les mystérieuses cités d'or Saison 4 Episode 1 [YlVGUDNbyXk].en.srt",
+      "bytes": 20427,
+      "sha256": "a383bb0fab9ef8bbbcc6b9431b4531eb770a15e6680847894fea62e578c5aa50"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/fr_full_episode/final_english_subtitles.txt",
+      "bytes": 19544,
+      "sha256": "03dd3aab65ba3046ee0b6fa299d82c937454bd97e2ea755f0d7a22468fde7d7e"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/fr_full_episode/raw_source_transcript.txt",
+      "bytes": 21059,
+      "sha256": "724895b18a53537c503d4f14bbb5f72b8a5eadd84304c07cc1f8255f82d25160"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/fr_full_episode/refined_source_transcript.txt",
+      "bytes": 20998,
+      "sha256": "1c69920bf8b7ba4ad1f35f1cb6e6f66fab54f8d3aeed495a04f67d3b0b3e93c8"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/fr_full_episode/screenshots/fr_01_48s_narrator_48s.png",
+      "bytes": 2693343,
+      "sha256": "430f495d3c145699987c8c165f64a9ce76aeda6540b6f597fcb87a3771e31fcd"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/fr_full_episode/screenshots/fr_02_175s_2spk_175s.png",
+      "bytes": 1797899,
+      "sha256": "5e10a66919962806fd02412c0f5af73c0973ac1ddf7839d63490f963797e7fd0"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/fr_full_episode/screenshots/fr_03_284s_dup_fix_284s.png",
+      "bytes": 1948678,
+      "sha256": "c2b8cadd37554319dc2ec8c4c048bd8397b1ca0f1b10d96fb5f192635cecb1c3"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/fr_full_episode/screenshots/fr_04_306s_3spk_topalt_306s.png",
+      "bytes": 1377446,
+      "sha256": "b05a013cf81fb05dcb3cd8304dc8abd3589d39a6b014d24584ac5628b9d622d4"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/fr_full_episode/subtitles.metadata.json",
+      "bytes": 14846,
+      "sha256": "cbf2c9e21504822a5fef87ee5ffabed45672f20ec15827d130e9a41d4582fba2"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/fr_full_episode/translated.contract.json",
+      "bytes": 1841272,
+      "sha256": "e4127e632271e55f4c32b4ebb0a535200d9758d923b19d48b830e97623d69026"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/A Will Eternal Final Season EP166 [e4g3i65Kyf8].en.ass",
+      "bytes": 26145,
+      "sha256": "93d27a4932568c8002ef4ad2c0a9afa4be6566b83d6dca979b70c541dbc14929"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/A Will Eternal Final Season EP166 [e4g3i65Kyf8].en.srt",
+      "bytes": 20062,
+      "sha256": "299aed93fa363db5844c7f2324aeef259db9b725a857f93e02292ce677014d6f"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/final_english_subtitles.txt",
+      "bytes": 23431,
+      "sha256": "583301fc5c32cfcadf8d3606f58b3e4ac8884a46259f51ec713d6e38afa9efa5"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/raw_source_transcript.txt",
+      "bytes": 21488,
+      "sha256": "7c0c737fa23c45612948c0c293798bbefb5980fb79611618974c62ea8032e994"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/refined_source_transcript.txt",
+      "bytes": 21499,
+      "sha256": "241fc0a8ad041e69930f10d7f4b3d7f14b452e3526dbbf06ec03876f294ab222"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/screenshots/zh_01_102s_opening_hardsub_102s.png",
+      "bytes": 1379871,
+      "sha256": "6119dd92731705491b504926a10512343507bf972b2f20d6d4c9119dd1862b00"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/screenshots/zh_02_181s_recap_hardsub_181s.png",
+      "bytes": 1129370,
+      "sha256": "f5a0f4a9b3645d5567036db115afa21eea5fa60caa411cff4f58f9b975be103a"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/screenshots/zh_03_270s_echo_fix_270s.png",
+      "bytes": 797314,
+      "sha256": "ddc2fae233e2db6d8cb62718b103ef1bb4a2be951a0cac5c60316b9973f0649b"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/screenshots/zh_04_368s_two_spk_368s.png",
+      "bytes": 910183,
+      "sha256": "ddbb27b60f563f6f8aa09ba744349711f958dbd8c7d38aaf1b72c737a4bf5494"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/screenshots/zh_05_411s_lore_two_spk_411s.png",
+      "bytes": 1214347,
+      "sha256": "f28c9aaeee533c0a1563ec533f27fbda245fb35c32650bbc5be1ec3bfa2fa98c"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/screenshots/zh_06_729s_emotional_729s.png",
+      "bytes": 603650,
+      "sha256": "ba745a2325bdff2c41ad9dac0f8974d26b5be58468a75c8e5842ea0a2803119e"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/screenshots/zh_07_942s_rapid_942s.png",
+      "bytes": 712587,
+      "sha256": "61d3df281b7ec8e6599a1dda2b67a0585fd70a8cfdc75db69f6a8cdf743661e1"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/screenshots/zh_08_1045s_confrontation_1045s.png",
+      "bytes": 685660,
+      "sha256": "378ac0b39e793db2148ab6c172082623be37edf7b1358857707f67db4a80fa95"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/screenshots/zh_09_1201s_final_1201s.png",
+      "bytes": 819216,
+      "sha256": "0461b7792bed7156a7d33fbacb03bb41b406b9ba8c4840a1074e5bb56fba75c2"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/screenshots/zh_10_topalt_3spk_563s.png",
+      "bytes": 774041,
+      "sha256": "c0b86ae51d4fba1c70d12f007c8c6168bbf1259920bf5c99141986700df8b7c2"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/subtitles.metadata.json",
+      "bytes": 54681,
+      "sha256": "4016e17076fa09b3a5144c83ae615246cc6fdc2d8dc0b39af977f92c5baf60ae"
+    },
+    {
+      "path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/translated.contract.json",
+      "bytes": 2730475,
+      "sha256": "8a648395023fcacd282ab495475a772a3ddd98b3066e9d7a882a8cc58a474c92"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/A Will Eternal Final Season EP166 [e4g3i65Kyf8].en.ass",
+      "bytes": 28710,
+      "sha256": "344a239ac9f19046ba798c5b93a566ba39c25ed22cef09fccffa6866497961c3"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/A Will Eternal Final Season EP166 [e4g3i65Kyf8].en.srt",
+      "bytes": 22486,
+      "sha256": "f2c48791add67e4bc5d1ae57a8ef6ae2a2c5a0fcfae43a1b18dfa8343f174bda"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/final_english_subtitles.txt",
+      "bytes": 24806,
+      "sha256": "7d03f434343491024ba5db40b17a1fe382f1b6e432e10faf3103babe39e2ca6b"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/raw_source_transcript.txt",
+      "bytes": 21488,
+      "sha256": "8792113dc2a88acbb5ab4b216bef9e785d759da1e8ee8dfb92734668d2062881"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/refined_source_transcript.txt",
+      "bytes": 21463,
+      "sha256": "cfc756eb0d8e3ce81ab04992c844991daece37b7953c9d1dcc2202c1634980a8"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/subtitles.metadata.json",
+      "bytes": 56951,
+      "sha256": "6dd4b6c04ffa93415e928e1fe61a39130b48ee127a79a8dec8d1ad12cef6d025"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/translated.contract.json",
+      "bytes": 2681695,
+      "sha256": "12d90eb69801f29e8ec82d870c51bba10ce7fba5e160137ecc32ffb1ee447f50"
+    },
+    {
+      "path": "src/nvidia_transcribe/__init__.py",
+      "bytes": 2847,
+      "sha256": "49e0d9b4730445434b00bd1c6117ce66fe5e0eabb2b956f2dac68be3c6b565b3"
+    },
+    {
+      "path": "src/nvidia_transcribe/_qwen_align_worker.py",
+      "bytes": 2339,
+      "sha256": "490d25e9047fe37aa2303454f06d2adb998d94136d621236e0814015ee733ffa"
+    },
+    {
+      "path": "src/nvidia_transcribe/_riva_translate_worker.py",
+      "bytes": 3377,
+      "sha256": "aced771c1b66b0e4b0996c25dde7a78eca785124211faf73a09f89a0952c2805"
+    },
+    {
+      "path": "src/nvidia_transcribe/alignment.py",
+      "bytes": 33205,
+      "sha256": "ed0a5e4a76886f4577ad85fcb8e691099f4d31e00298d8acc78fcfdcbb649ac0"
+    },
+    {
+      "path": "src/nvidia_transcribe/checkpoint.py",
+      "bytes": 7998,
+      "sha256": "c7b771c1de2008cc21376b00fc8dfba79cfc9d1b10c838ecccc23e7ef2befdf6"
+    },
+    {
+      "path": "src/nvidia_transcribe/chunking.py",
+      "bytes": 17845,
+      "sha256": "6dc0ff2bb1e366aaa692c0c94dd79239efdfff5d08eb3af0884e846cb92ae5c7"
+    },
+    {
+      "path": "src/nvidia_transcribe/cli.py",
+      "bytes": 14827,
+      "sha256": "36c85d948fec1666766ac747a4f82c13b77d599ab696f05e251bba4eb6050a17"
+    },
+    {
+      "path": "src/nvidia_transcribe/client.py",
+      "bytes": 6482,
+      "sha256": "406525023e1a1edbb550c8cb7f4173c556c7c32789ab3b0da2b17bad3b30fdd8"
+    },
+    {
+      "path": "src/nvidia_transcribe/contract.py",
+      "bytes": 14413,
+      "sha256": "8e6476c6042715fd4d9e74aa34b4db7c9b7ce0fbaa7083b8256bdff8d1d7a67c"
+    },
+    {
+      "path": "src/nvidia_transcribe/media.py",
+      "bytes": 7115,
+      "sha256": "23e39f2955fbf41a3857c22a2fef740ba278429b0dcadb0b123bd0e8ef4bb201"
+    },
+    {
+      "path": "src/nvidia_transcribe/metrics.py",
+      "bytes": 3273,
+      "sha256": "4ff4f0e5d8ba5b9e5ff5a81ca4238f839e6d9dac15769149e27b9f50ac8b3948"
+    },
+    {
+      "path": "src/nvidia_transcribe/parser.py",
+      "bytes": 10625,
+      "sha256": "10a3b028ed85a7d7d77c11f7b1f4056e2319e273d1593d473df9aed5dcde1418"
+    },
+    {
+      "path": "src/nvidia_transcribe/prompts.py",
+      "bytes": 4867,
+      "sha256": "2b62ac7e01d6d8dce2ed228cb97cabfc0a0fb718800eb11ce9f2a8f4f99e1df8"
+    },
+    {
+      "path": "src/nvidia_transcribe/qwen_aligner.py",
+      "bytes": 10245,
+      "sha256": "68e7dab6b6c9690015ff17ef9903871a18160849d60e230c865a7647198e81f5"
+    },
+    {
+      "path": "src/nvidia_transcribe/recording.py",
+      "bytes": 19600,
+      "sha256": "274e0c26e323b15009e0a1d2180822d194542c610f89ddca8b06020bb90f4cf2"
+    },
+    {
+      "path": "src/nvidia_transcribe/refinement.py",
+      "bytes": 34939,
+      "sha256": "0329a5ffa2bfc80626d5381b4313d45e9ffd137ba127ae8c95713f802c7d02e2"
+    },
+    {
+      "path": "src/nvidia_transcribe/scene_diarization.py",
+      "bytes": 10171,
+      "sha256": "f9715791ff2ea036587ad7be1cf6edfcfaa3cb7b504ebc61a8fbb68b9c4899b1"
+    },
+    {
+      "path": "src/nvidia_transcribe/speakers.py",
+      "bytes": 27709,
+      "sha256": "a483bb8f460f5e80df04ab6e981c929e1c80bc654ffd6f5772d320c7351647a2"
+    },
+    {
+      "path": "src/nvidia_transcribe/subtitle_pipeline.py",
+      "bytes": 12208,
+      "sha256": "6932118a3511b76f7bc18ffc51ed270e9745709be82152141938179101bbda24"
+    },
+    {
+      "path": "src/nvidia_transcribe/subtitles.py",
+      "bytes": 29725,
+      "sha256": "38520c89f7ec1447113095182f25bbede3c698b4a6587bac72522864fabad32b"
+    },
+    {
+      "path": "src/nvidia_transcribe/translation.py",
+      "bytes": 37361,
+      "sha256": "717e700592a279355bad2bf763181581725baaeae0944df4025abd57c9000114"
+    },
+    {
+      "path": "src/nvidia_transcribe/utterances.py",
+      "bytes": 29797,
+      "sha256": "8ee2863f8fc4edae5033484a4e576f5a32337174351dde2f8840157c67e44d5e"
+    },
+    {
+      "path": "tests/test_checkpoint.py",
+      "bytes": 3928,
+      "sha256": "dd5903c47be9d372f6ed5ac1a93204538eec802cd24192c1c811afd1a8ed1367"
+    },
+    {
+      "path": "tests/test_chunking_and_resume.py",
+      "bytes": 6477,
+      "sha256": "af16e36dcc1ea6df8d80bd3ec3058156677e5a92341946aca871a1cef6ffe934"
+    },
+    {
+      "path": "tests/test_client.py",
+      "bytes": 3480,
+      "sha256": "2fb590878fce74ee61afd8d2920ba0b6f479398628e63483230b0d5fd347611d"
+    },
+    {
+      "path": "tests/test_metrics.py",
+      "bytes": 720,
+      "sha256": "092f9a9a0ca044cb3425679fad766c3428e4d42c49a5aa4c965f628c129bbf14"
+    },
+    {
+      "path": "tests/test_parser_and_contract.py",
+      "bytes": 5446,
+      "sha256": "4239790b527b9263b507fe38422336d5af9c81784a9ed578ea8d33426c863d51"
+    },
+    {
+      "path": "tests/test_phase_a_regressions.py",
+      "bytes": 14706,
+      "sha256": "fbf8e5e3277e9fe123d18a95130d9d62bb64e5a8db2e071d25375f8bb43da9ac"
+    },
+    {
+      "path": "tests/test_qwen_fallback.py",
+      "bytes": 18789,
+      "sha256": "5cace2caa0a1c1088e20e6907afe0aff9d7cada4af168752f84db505d3665813"
+    },
+    {
+      "path": "tests/test_recording_and_normalization.py",
+      "bytes": 5973,
+      "sha256": "1349e80d06e2e84ccf396e679083fc5078cd037a69b46d099c28da95c57b6648"
+    },
+    {
+      "path": "tests/test_refinement.py",
+      "bytes": 10838,
+      "sha256": "9e124bdcfe21cd5d6ad098a6e42a43e5f46674acf41fa3c362c8dfb99cefb269"
+    },
+    {
+      "path": "tests/test_scene_diarization.py",
+      "bytes": 3579,
+      "sha256": "2ce138299cd16e1407693801e7c8a02ef438e18bfc610e6bf2d1348d31a29987"
+    },
+    {
+      "path": "tests/test_subtitles.py",
+      "bytes": 5563,
+      "sha256": "6bf5e4b22cc15b90b405af655510a8fe8ae6dbe9f70d474f4a0258bbbace13f6"
+    },
+    {
+      "path": "tests/test_translation.py",
+      "bytes": 11704,
+      "sha256": "21e164f0ec0c423e2c82ee831e5f0f81d7f82478fa5fd016de911d013955524d"
+    },
+    {
+      "path": "tests/test_utterances_alignment_speakers.py",
+      "bytes": 9554,
+      "sha256": "28221929a4b78de9bce04465bce0e18726fe73fceefaa3395de0b2a79fec529a"
+    },
+    {
+      "path": "tests/test_viewing_quality_regressions.py",
+      "bytes": 18318,
+      "sha256": "24d3bf92e9fab0d60f13031fe6e37531b91c1e80e69ef67bcce6c13dd869ce15"
+    }
+  ]
+}

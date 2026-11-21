@@ -1,0 +1,50 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.15, pytest-9.2.0, pluggy-1.7.0 -- /workspace/nvidia-transcribe/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace/nvidia-transcribe
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.13.0, hydra-core-1.3.8
+collecting ... collected 30 items
+
+tests/test_checkpoint.py::test_validate_checkpoint_accepts_valid_layout PASSED [  3%]
+tests/test_checkpoint.py::test_validate_checkpoint_rejects_bf16_non_nvfp4 PASSED [  6%]
+tests/test_checkpoint.py::test_validate_checkpoint_rejects_missing_shard PASSED [ 10%]
+tests/test_checkpoint.py::test_real_local_checkpoint_metadata_if_present PASSED [ 13%]
+tests/test_chunking_and_resume.py::test_plan_chunks_short_and_exact_coverage PASSED [ 16%]
+tests/test_chunking_and_resume.py::test_boundary_deduplication_and_simultaneous_repetition_preserved PASSED [ 20%]
+tests/test_chunking_and_resume.py::test_boundary_recovery_when_next_chunk_misses_initial_word PASSED [ 23%]
+tests/test_chunking_and_resume.py::test_resume_after_partial_run_and_invalid_media PASSED [ 26%]
+tests/test_client.py::test_build_instruction_does_not_default_to_french PASSED [ 30%]
+tests/test_client.py::test_cleanup_generation_loops PASSED               [ 33%]
+tests/test_client.py::test_build_chat_completion_payload PASSED          [ 36%]
+tests/test_client.py::test_client_fails_clearly_when_ctc_metadata_unavailable PASSED [ 40%]
+tests/test_metrics.py::test_compute_wer_french_normalization PASSED      [ 43%]
+tests/test_metrics.py::test_compute_cer_mandarin_chinese PASSED          [ 46%]
+tests/test_parser_and_contract.py::test_speaker_tag_extraction_and_events PASSED [ 50%]
+tests/test_parser_and_contract.py::test_french_unicode_and_source_offset_conversion PASSED [ 53%]
+tests/test_parser_and_contract.py::test_chinese_unicode_and_character_timing PASSED [ 56%]
+tests/test_parser_and_contract.py::test_missing_and_invalid_timestamps_never_fabricated PASSED [ 60%]
+tests/test_parser_and_contract.py::test_source_transcript_preserved_even_with_translation PASSED [ 63%]
+tests/test_recording_and_normalization.py::test_language_resolution_explicit_detected_and_ambiguous PASSED [ 66%]
+tests/test_recording_and_normalization.py::test_code_switching_and_event_isolation PASSED [ 70%]
+tests/test_recording_and_normalization.py::test_archived_french_overlap_and_child_voices_regressions PASSED [ 73%]
+tests/test_recording_and_normalization.py::test_partial_interrupted_run_resumes_remaining_chunk PASSED [ 76%]
+tests/test_utterances_alignment_speakers.py::test_mandarin_interleaved_overlap_reconstructs_concurrent_streams PASSED [ 80%]
+tests/test_utterances_alignment_speakers.py::test_french_overlap_and_pause_splitting PASSED [ 83%]
+tests/test_utterances_alignment_speakers.py::test_ctc_oov_chinese_failure_preserves_text_and_diarization_without_fabrication PASSED [ 86%]
+tests/test_utterances_alignment_speakers.py::test_partial_subinterval_recovery_recovers_non_oov_window PASSED [ 90%]
+tests/test_utterances_alignment_speakers.py::test_partial_subinterval_recovery_isolates_oov_window PASSED [ 93%]
+tests/test_utterances_alignment_speakers.py::test_cross_chunk_speaker_reconciliation_aba_and_collisions PASSED [ 96%]
+tests/test_utterances_alignment_speakers.py::test_unknown_speaker_not_collapsed_into_speaker_zero PASSED [100%]
+
+=============================== warnings summary ===============================
+.venv/lib/python3.13/site-packages/anyio/pytest_plugin.py:14
+  /workspace/nvidia-transcribe/.venv/lib/python3.13/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+  The CallSpec2 alias will be removed in pytest 10.
+  Update imports to use CallSpec instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
+    from _pytest.python import CallSpec2
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 30 passed, 1 warning in 0.54s =========================

@@ -1,0 +1,589 @@
+{
+  "archive": "/workspace/nvidia-transcribe/outputs/handbacks/subtitle-generation-evidence.tar.gz",
+  "base_head": "3c76089c955513268582c4fefe924c00e098eb12",
+  "current_head": "397e7399e023311aefe19be03203a3c465ce8566",
+  "file_count": 116,
+  "total_staged_bytes": 13747361,
+  "files": [
+    {
+      "path": ".gitignore",
+      "bytes": 701,
+      "sha256": "81eb0375787ad34dac72e21b735cd6b9e75ef3cc676f9772a15c4602a365f036"
+    },
+    {
+      "path": "AGENTS.md",
+      "bytes": 2129,
+      "sha256": "d82cf957269ba31dd806eff1e64c8c578b90e962ec0e576f3bfff4e220a2e49d"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1170,
+      "sha256": "4bc5c1e11182a0b1117c9060d8f98bf4afd82691a28fd85303668b371748676b"
+    },
+    {
+      "path": "configs/glossaries/mcog_fr.yaml",
+      "bytes": 480,
+      "sha256": "bd06cffd9050144cc464581ece812b55d99697a7d97312edb685578ec950dce4"
+    },
+    {
+      "path": "configs/vllm_rtx5090.env",
+      "bytes": 355,
+      "sha256": "40cfcd511081174c1e37ad43d89adb2a0030e456d09676a9c6ecc530dba8eea0"
+    },
+    {
+      "path": "evaluations/subtitle-generation/HANDback.md",
+      "bytes": 4844,
+      "sha256": "ef683943bb2429a1dfdbc277d818503feaa0318d688c433aa08139d5b9ff678b"
+    },
+    {
+      "path": "evaluations/subtitle-generation/architecture.md",
+      "bytes": 5816,
+      "sha256": "ef49a226687777fbdb9420fd3ac1a37d711bb88b01931d1a9808130c2108cc82"
+    },
+    {
+      "path": "evaluations/subtitle-generation/benchmark.json",
+      "bytes": 26349,
+      "sha256": "ca6915d2867a77e228b6eda3774eeec891873a54a2a936266a4758a0cc617e4a"
+    },
+    {
+      "path": "evaluations/subtitle-generation/git_diff_since_base.patch",
+      "bytes": 242997,
+      "sha256": "4185a646f6c93563d2a4c0f33b1f0c71a5c4c9da9ca91c1e6edfb304ac9ac81d"
+    },
+    {
+      "path": "evaluations/subtitle-generation/git_log_since_base.txt",
+      "bytes": 2309,
+      "sha256": "98b5eba34ebf9120cff7ed62f908f1c3f686b6e47465fe34cfd6c6f63edaa4e3"
+    },
+    {
+      "path": "evaluations/subtitle-generation/git_provenance.json",
+      "bytes": 196,
+      "sha256": "0d05774ced6902dd191d0523007984c4fbfacc46f389667327ec7fd08bfe5fb7"
+    },
+    {
+      "path": "evaluations/subtitle-generation/refinement-evaluation.md",
+      "bytes": 5458,
+      "sha256": "4165306baff7f7cb386a5f058feb286b1e824a16f7855615e59454a29cecb4ab"
+    },
+    {
+      "path": "evaluations/subtitle-generation/render-validation.md",
+      "bytes": 3521,
+      "sha256": "343d61a81cc1a0b5836dcd846e7960ad967f8bd786ff69abc952109f9f328572"
+    },
+    {
+      "path": "evaluations/subtitle-generation/subtitle-quality-review.md",
+      "bytes": 4026,
+      "sha256": "1e121403b8f33a8b03019ae108380f4e59082393abcfe91ea1e07f6225d50685"
+    },
+    {
+      "path": "evaluations/subtitle-generation/test-results.md",
+      "bytes": 3370,
+      "sha256": "fce835f3852c5842ff18cd4cd6eb3534375198ff779237d3706d84ad9b8c570b"
+    },
+    {
+      "path": "evaluations/subtitle-generation/translation-comparison.md",
+      "bytes": 4546,
+      "sha256": "87c7477c600c6e1db5dcef38a45e59bca55928b35731b3ea5a90d19b7af3d527"
+    },
+    {
+      "path": "experiments/modular/tests/test_modular_eval.py",
+      "bytes": 6565,
+      "sha256": "59634b8aa970febfa30fd32555825225804117d66918943b60c6a0e8456f6839"
+    },
+    {
+      "path": "experiments/subtitle/compare_translations.py",
+      "bytes": 13540,
+      "sha256": "860c711d99617de96f1888a2f2263fc401535957a343faebb7f6fe4fc97039dc"
+    },
+    {
+      "path": "experiments/subtitle/package_subtitle_evidence.py",
+      "bytes": 7568,
+      "sha256": "d3c39fad3b9449ea37efbb715a1fe1789a94d05551c71a5da285bab2883e4f3f"
+    },
+    {
+      "path": "experiments/subtitle/run_live_subtitles.py",
+      "bytes": 9884,
+      "sha256": "ca48b634a1768cd226ef7ded3cc6fe532c957849fcaf3b99af0102759a65e0f0"
+    },
+    {
+      "path": "experiments/subtitle/verify_qwen_fix_gpu.py",
+      "bytes": 3630,
+      "sha256": "96d7735d69a991df8431abe4f9a366bb93e70cfbe3960147def6959a81eb0693"
+    },
+    {
+      "path": "outputs/subtitle_runs/fr_full_episode/Les mystérieuses cités d'or Saison 4 Episode 1 [YlVGUDNbyXk].en.ass",
+      "bytes": 26441,
+      "sha256": "e428de6e6e0ac9d2f5aea58761089bc2c1083e2e2c7e05cf64f91830d1b39183"
+    },
+    {
+      "path": "outputs/subtitle_runs/fr_full_episode/Les mystérieuses cités d'or Saison 4 Episode 1 [YlVGUDNbyXk].en.srt",
+      "bytes": 20728,
+      "sha256": "d3459ab8024ee88c08f7d4e33b698134acb4aca117c56604979dfa0d279c2c08"
+    },
+    {
+      "path": "outputs/subtitle_runs/fr_full_episode/final_english_subtitles.txt",
+      "bytes": 19724,
+      "sha256": "c855dd8110cab497d6694177c269e93d57edca4aea88a4614f7597330efd6ebb"
+    },
+    {
+      "path": "outputs/subtitle_runs/fr_full_episode/raw_source_transcript.txt",
+      "bytes": 21059,
+      "sha256": "724895b18a53537c503d4f14bbb5f72b8a5eadd84304c07cc1f8255f82d25160"
+    },
+    {
+      "path": "outputs/subtitle_runs/fr_full_episode/refined_source_transcript.txt",
+      "bytes": 20998,
+      "sha256": "1c69920bf8b7ba4ad1f35f1cb6e6f66fab54f8d3aeed495a04f67d3b0b3e93c8"
+    },
+    {
+      "path": "outputs/subtitle_runs/fr_full_episode/subtitles.metadata.json",
+      "bytes": 18570,
+      "sha256": "3491996ff9f36097ebeb11636fe364aa0e8d2560728fa4c4d82d7620facf61a3"
+    },
+    {
+      "path": "outputs/subtitle_runs/fr_full_episode/translated.contract.excerpt.json",
+      "bytes": 717820,
+      "sha256": "ae6185b1167dcc564c07b3f072c015450d9f2032f804f500943c34b4759615a8"
+    },
+    {
+      "path": "outputs/subtitle_runs/profile_comparison/profile_comparison.json",
+      "bytes": 55064,
+      "sha256": "99e20d18e55475b8f2ec5f47ce9cb81569e68a5ac8172eb2a7525d1e302ef9c2"
+    },
+    {
+      "path": "outputs/subtitle_runs/translation_comparison.json",
+      "bytes": 17605,
+      "sha256": "d786e3fb225cd8d90f7e27850b83eafaf593f9e28e00a152e42d8111ddc4cc31"
+    },
+    {
+      "path": "outputs/subtitle_runs/visual_screenshots/shot_01_intro_theme_10s.png",
+      "bytes": 1996897,
+      "sha256": "876dbeabced9e4e6295b5bcc18907274ba777083eed42416fb68f8535799e1e3"
+    },
+    {
+      "path": "outputs/subtitle_runs/visual_screenshots/shot_02_narrator_48s.png",
+      "bytes": 2693343,
+      "sha256": "430f495d3c145699987c8c165f64a9ce76aeda6540b6f597fcb87a3771e31fcd"
+    },
+    {
+      "path": "outputs/subtitle_runs/visual_screenshots/shot_03_child_voices_f1_210s.png",
+      "bytes": 1833907,
+      "sha256": "77eed65a883807baa45c6be79b8c600d07c52055bf3ced473445511b0894bf6e"
+    },
+    {
+      "path": "outputs/subtitle_runs/visual_screenshots/shot_04_rapid_turns_f2_268s.png",
+      "bytes": 1185948,
+      "sha256": "417c808465f2a1f8d83a0b9b1709e58dea97d5b60513b6fae318ef68bf3160bd"
+    },
+    {
+      "path": "outputs/subtitle_runs/visual_screenshots/shot_05_simultaneous_overlap_1_175s.png",
+      "bytes": 1797899,
+      "sha256": "5e10a66919962806fd02412c0f5af73c0973ac1ddf7839d63490f963797e7fd0"
+    },
+    {
+      "path": "outputs/subtitle_runs/visual_screenshots/shot_06_simultaneous_overlap_2_284s.png",
+      "bytes": 2013313,
+      "sha256": "b60655dc98a32a37accd346055ddbd82581dd26a52b5dd11b9c21679d2fd84c2"
+    },
+    {
+      "path": "outputs/subtitle_runs/visual_screenshots/visual_manifest.json",
+      "bytes": 3226,
+      "sha256": "4bdaad7d6d85a8f829de484ee437126a5f15cd2454800ed7dbc5d94d0b5e0382"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_qwen_fix_verify/qwen_fix_summary.json",
+      "bytes": 21134,
+      "sha256": "9bf509427b6c36cc4475d968c83a7a6a7db1f572032250da326b24e61da5104f"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/mandarin_subtitles_summary.json",
+      "bytes": 8250,
+      "sha256": "77f27957bbdabd2e76a22f9815c10fa975d7b87b08e40a9137aac3d5e0b8241c"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_2spk_overlap/final_english_subtitles.txt",
+      "bytes": 238,
+      "sha256": "bd464dc2472e94cd924ab18b95d95318902b9bbbc26dc05f59f1a5f9f1b6eb4b"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_2spk_overlap/raw_source_transcript.txt",
+      "bytes": 248,
+      "sha256": "46e2ec337c16c658cb5b556f72c73b3b31d6e862f5535789c2f6284c9ffd3a6c"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_2spk_overlap/refined.contract.json",
+      "bytes": 42415,
+      "sha256": "5590bd4765db35f76485e268c4e423259a99745ec70dd257f4040be29e3ebf38"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_2spk_overlap/refined_source_transcript.txt",
+      "bytes": 246,
+      "sha256": "5a1241ccd5571425757b557aa5d225a3190ad912f84edd74f477a73c3ff64da4"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_2spk_overlap/refinement.checkpoint.json",
+      "bytes": 1177,
+      "sha256": "9f299e3940a54e1874dadb708d9b95a6c45316ad6254fc6340458140b3fc3c80"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_2spk_overlap/subtitles.metadata.json",
+      "bytes": 1893,
+      "sha256": "b8547f719ecc5fbe08454d33ca5db81680e1a0c6e00e649376eccdf944b7343f"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_2spk_overlap/translated.contract.json",
+      "bytes": 43230,
+      "sha256": "04cfe52389896b9c5ae299b7a33bd021afe24627c1de65f1345bee14dae434a7"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_2spk_overlap/translation.checkpoint.json",
+      "bytes": 545,
+      "sha256": "29bac0bc0b3249ca1f996cb93862c613fe8a57fd99550d74e58af7b3ef25201b"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_2spk_overlap/zh_2spk_overlap.en.ass",
+      "bytes": 963,
+      "sha256": "bbbe691fc9d252fea2a4560948c38ce7ab77389556ce7f6642e016595f1cbeda"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_2spk_overlap/zh_2spk_overlap.en.srt",
+      "bytes": 221,
+      "sha256": "ab8a03704816977031aee1cff672f55ffb88015347d164a2fd7f12bb81fc5793"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_fleurs_01_2006/final_english_subtitles.txt",
+      "bytes": 136,
+      "sha256": "cb1f6a35f637319a42bf6abe17978b8642402e390e1781c946b142faca215113"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_fleurs_01_2006/raw_source_transcript.txt",
+      "bytes": 114,
+      "sha256": "920c1296af50e924814086af47fd604624e06d8aaf498a2755eead6a8e45fc3f"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_fleurs_01_2006/refined.contract.json",
+      "bytes": 21487,
+      "sha256": "021fcdbbe0a76741f61c741ea8a89fd3ec58591d41d8c81bce0ebbd8aaeb0575"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_fleurs_01_2006/refined_source_transcript.txt",
+      "bytes": 114,
+      "sha256": "920c1296af50e924814086af47fd604624e06d8aaf498a2755eead6a8e45fc3f"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_fleurs_01_2006/refinement.checkpoint.json",
+      "bytes": 393,
+      "sha256": "1e6fd6df75e26630169d380b5bc80195e56ffe4d64c9c820d7f192aa9dbcf970"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_fleurs_01_2006/subtitles.metadata.json",
+      "bytes": 1914,
+      "sha256": "d7f3ba20d97cf188a20abb9e554e35f728b7b55a2eb70c4b252a38f2c60bd7eb"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_fleurs_01_2006/translated.contract.json",
+      "bytes": 22094,
+      "sha256": "25784e7e9b1e6283cf02d5429e6e307015cd5e815934a3a5d15a395ec3aece7f"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_fleurs_01_2006/translation.checkpoint.json",
+      "bytes": 352,
+      "sha256": "d35a0371dd67094cfd3cabf9cfffd6aecb177e9207eee6ac7e0d9f4ba91b57c1"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_fleurs_01_2006/zh_fleurs_01_2006.en.ass",
+      "bytes": 905,
+      "sha256": "351b87a9e8476da46d930df4787fe991ffba5d0890947074c525659a381bf83f"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_fleurs_01_2006/zh_fleurs_01_2006.en.srt",
+      "bytes": 160,
+      "sha256": "07732e170594e93332f2d77619eee7bc769f1df509962bf40e05aa5887046a11"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_fleurs_05_1805/final_english_subtitles.txt",
+      "bytes": 109,
+      "sha256": "48c82f1850a6fe893ebe45a67caab5cf78582b87defc06480c52564c5331f4da"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_fleurs_05_1805/raw_source_transcript.txt",
+      "bytes": 119,
+      "sha256": "6b7ae29889f7a1470a89cd9510f00bfb312ecbba8e8adc2ee15f187f2c749fb5"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_fleurs_05_1805/refined.contract.json",
+      "bytes": 26281,
+      "sha256": "f4144de7e80bc8203e37e49338ee47743dbb066ecd2f93d05f6f6422ad432044"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_fleurs_05_1805/refined_source_transcript.txt",
+      "bytes": 120,
+      "sha256": "967886a3c9a7138c8c271da1eb058457acc585ee9c518a4aeb0f8e1a91f1b940"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_fleurs_05_1805/refinement.checkpoint.json",
+      "bytes": 585,
+      "sha256": "bdeaec2b8bca2293816a9ee118ab8414115a56796be1ef5d146fcd7dbf136524"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_fleurs_05_1805/subtitles.metadata.json",
+      "bytes": 1914,
+      "sha256": "18e18940703bec5350477635bc676e2d2a3625c21d9e962e3519d4ea68823230"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_fleurs_05_1805/translated.contract.json",
+      "bytes": 26801,
+      "sha256": "fa0b65f52139bda05c1ab4a2926855c7c992aa441cc59d7577f488f295777c43"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_fleurs_05_1805/translation.checkpoint.json",
+      "bytes": 265,
+      "sha256": "66cb8ac1976d5dfb46222d3f93fafa16c6639d0cf02bdc586b5de63ce12c93c9"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_fleurs_05_1805/zh_fleurs_05_1805.en.ass",
+      "bytes": 824,
+      "sha256": "a8ead53160f886e193f25f0d4acb77a0582123d111c39d23cd9c6dc732e4ed29"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_fleurs_05_1805/zh_fleurs_05_1805.en.srt",
+      "bytes": 100,
+      "sha256": "c8755531eac09c190171b7e505c6db595c0b4546c9378b54db7024bcdd66d9ee"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_multichunk_synthetic_qwen/final_english_subtitles.txt",
+      "bytes": 876,
+      "sha256": "8b756a8bcf8d683540b4cc97805357dae88986d4ca875e6ca157e215684a7947"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_multichunk_synthetic_qwen/raw_source_transcript.txt",
+      "bytes": 831,
+      "sha256": "09e9f28b4bdf01229e15dbbcf0f59957c7717d201736f662fe66c43e98db43f3"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_multichunk_synthetic_qwen/refined.contract.json",
+      "bytes": 157199,
+      "sha256": "c442d0cbde1fb46fccbda810f8f7bae6a4e5498b80329837d88c3ceb13654453"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_multichunk_synthetic_qwen/refined_source_transcript.txt",
+      "bytes": 824,
+      "sha256": "319f000c8a10e5911c04aac3f97330454100eded08b4858c8ba989d1e40bd436"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_multichunk_synthetic_qwen/refinement.checkpoint.json",
+      "bytes": 2771,
+      "sha256": "83988fa42126d77b49bc78ad8ed9c3f14e6cfc349199032c02457f5298daf694"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_multichunk_synthetic_qwen/subtitles.metadata.json",
+      "bytes": 2026,
+      "sha256": "61775832505ea92564dc59990e06dbd2b5c0aafdc11c065fcfa57f4489e5f917"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_multichunk_synthetic_qwen/translated.contract.json",
+      "bytes": 159502,
+      "sha256": "1e9ef8e846afc46883833c9e45c0c7e802b283bc61503d86b73cab3daaaa223b"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_multichunk_synthetic_qwen/translation.checkpoint.json",
+      "bytes": 1904,
+      "sha256": "b5f1507e15952774fdd547f505558304bcb9bb210941906ce3d98a0b728189b5"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_multichunk_synthetic_qwen/zh_multichunk_synthetic_qwen.en.ass",
+      "bytes": 1987,
+      "sha256": "497c8eaf0aaca8abebb09cb52505b609e06256066c32b818964eb622e5427711"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_samples/zh_multichunk_synthetic_qwen/zh_multichunk_synthetic_qwen.en.srt",
+      "bytes": 1028,
+      "sha256": "8438190a7ae3dedb93f39619878c56095e52cbea6f144d379a0039212d4a7257"
+    },
+    {
+      "path": "pyproject.toml",
+      "bytes": 623,
+      "sha256": "db21254ab189d10b12aae7f2f44bd8f157e255fb44f620807cc34a64105c157e"
+    },
+    {
+      "path": "scripts/start_vllm_server.sh",
+      "bytes": 1755,
+      "sha256": "f32c09a28a2a659374ff011b5e526c2becf78a365048fa847dd5a4ae308223af"
+    },
+    {
+      "path": "src/nvidia_transcribe/__init__.py",
+      "bytes": 2847,
+      "sha256": "49e0d9b4730445434b00bd1c6117ce66fe5e0eabb2b956f2dac68be3c6b565b3"
+    },
+    {
+      "path": "src/nvidia_transcribe/_qwen_align_worker.py",
+      "bytes": 2339,
+      "sha256": "490d25e9047fe37aa2303454f06d2adb998d94136d621236e0814015ee733ffa"
+    },
+    {
+      "path": "src/nvidia_transcribe/_riva_translate_worker.py",
+      "bytes": 3377,
+      "sha256": "aced771c1b66b0e4b0996c25dde7a78eca785124211faf73a09f89a0952c2805"
+    },
+    {
+      "path": "src/nvidia_transcribe/alignment.py",
+      "bytes": 33205,
+      "sha256": "ed0a5e4a76886f4577ad85fcb8e691099f4d31e00298d8acc78fcfdcbb649ac0"
+    },
+    {
+      "path": "src/nvidia_transcribe/checkpoint.py",
+      "bytes": 7998,
+      "sha256": "c7b771c1de2008cc21376b00fc8dfba79cfc9d1b10c838ecccc23e7ef2befdf6"
+    },
+    {
+      "path": "src/nvidia_transcribe/chunking.py",
+      "bytes": 17845,
+      "sha256": "6dc0ff2bb1e366aaa692c0c94dd79239efdfff5d08eb3af0884e846cb92ae5c7"
+    },
+    {
+      "path": "src/nvidia_transcribe/cli.py",
+      "bytes": 13657,
+      "sha256": "31459ad329c5265349cbf91e14289825da848adb5e21bf45e90ba972e02a7351"
+    },
+    {
+      "path": "src/nvidia_transcribe/client.py",
+      "bytes": 6482,
+      "sha256": "406525023e1a1edbb550c8cb7f4173c556c7c32789ab3b0da2b17bad3b30fdd8"
+    },
+    {
+      "path": "src/nvidia_transcribe/contract.py",
+      "bytes": 14413,
+      "sha256": "8e6476c6042715fd4d9e74aa34b4db7c9b7ce0fbaa7083b8256bdff8d1d7a67c"
+    },
+    {
+      "path": "src/nvidia_transcribe/media.py",
+      "bytes": 7115,
+      "sha256": "23e39f2955fbf41a3857c22a2fef740ba278429b0dcadb0b123bd0e8ef4bb201"
+    },
+    {
+      "path": "src/nvidia_transcribe/metrics.py",
+      "bytes": 3273,
+      "sha256": "4ff4f0e5d8ba5b9e5ff5a81ca4238f839e6d9dac15769149e27b9f50ac8b3948"
+    },
+    {
+      "path": "src/nvidia_transcribe/parser.py",
+      "bytes": 10625,
+      "sha256": "10a3b028ed85a7d7d77c11f7b1f4056e2319e273d1593d473df9aed5dcde1418"
+    },
+    {
+      "path": "src/nvidia_transcribe/prompts.py",
+      "bytes": 4867,
+      "sha256": "2b62ac7e01d6d8dce2ed228cb97cabfc0a0fb718800eb11ce9f2a8f4f99e1df8"
+    },
+    {
+      "path": "src/nvidia_transcribe/qwen_aligner.py",
+      "bytes": 10245,
+      "sha256": "68e7dab6b6c9690015ff17ef9903871a18160849d60e230c865a7647198e81f5"
+    },
+    {
+      "path": "src/nvidia_transcribe/recording.py",
+      "bytes": 19424,
+      "sha256": "8b0b5cba0d591d9a4df2e0cab9f1680b1fdda014886102689d0bba680a73790a"
+    },
+    {
+      "path": "src/nvidia_transcribe/refinement.py",
+      "bytes": 32065,
+      "sha256": "0efbdfd4f32906eceb37610094f5c682beb15bfe7c6c5e96c39a1a110cda734b"
+    },
+    {
+      "path": "src/nvidia_transcribe/scene_diarization.py",
+      "bytes": 10171,
+      "sha256": "f9715791ff2ea036587ad7be1cf6edfcfaa3cb7b504ebc61a8fbb68b9c4899b1"
+    },
+    {
+      "path": "src/nvidia_transcribe/speakers.py",
+      "bytes": 27709,
+      "sha256": "a483bb8f460f5e80df04ab6e981c929e1c80bc654ffd6f5772d320c7351647a2"
+    },
+    {
+      "path": "src/nvidia_transcribe/subtitle_pipeline.py",
+      "bytes": 10212,
+      "sha256": "f6493760d2079e759d8ce99bc9a16c02645916bfdfa96f650f7414be4060f332"
+    },
+    {
+      "path": "src/nvidia_transcribe/subtitles.py",
+      "bytes": 23497,
+      "sha256": "5a1b4a61175752e5dccdc303c08deb319ee15cdb8e5bbd950baceab8b64d7ba7"
+    },
+    {
+      "path": "src/nvidia_transcribe/translation.py",
+      "bytes": 21795,
+      "sha256": "a86ffa362d8a444b12d62791739b0e6828cba11ceea4b8549bb2b89cbc270d31"
+    },
+    {
+      "path": "src/nvidia_transcribe/utterances.py",
+      "bytes": 14774,
+      "sha256": "3f1f713d5140942c0a351682ced69f6bfd6aa06f2b22c457df41b73ac7ed0149"
+    },
+    {
+      "path": "tests/test_checkpoint.py",
+      "bytes": 3928,
+      "sha256": "dd5903c47be9d372f6ed5ac1a93204538eec802cd24192c1c811afd1a8ed1367"
+    },
+    {
+      "path": "tests/test_chunking_and_resume.py",
+      "bytes": 6477,
+      "sha256": "af16e36dcc1ea6df8d80bd3ec3058156677e5a92341946aca871a1cef6ffe934"
+    },
+    {
+      "path": "tests/test_client.py",
+      "bytes": 3480,
+      "sha256": "2fb590878fce74ee61afd8d2920ba0b6f479398628e63483230b0d5fd347611d"
+    },
+    {
+      "path": "tests/test_metrics.py",
+      "bytes": 720,
+      "sha256": "092f9a9a0ca044cb3425679fad766c3428e4d42c49a5aa4c965f628c129bbf14"
+    },
+    {
+      "path": "tests/test_parser_and_contract.py",
+      "bytes": 5446,
+      "sha256": "4239790b527b9263b507fe38422336d5af9c81784a9ed578ea8d33426c863d51"
+    },
+    {
+      "path": "tests/test_phase_a_regressions.py",
+      "bytes": 14706,
+      "sha256": "fbf8e5e3277e9fe123d18a95130d9d62bb64e5a8db2e071d25375f8bb43da9ac"
+    },
+    {
+      "path": "tests/test_qwen_fallback.py",
+      "bytes": 18789,
+      "sha256": "5cace2caa0a1c1088e20e6907afe0aff9d7cada4af168752f84db505d3665813"
+    },
+    {
+      "path": "tests/test_recording_and_normalization.py",
+      "bytes": 5973,
+      "sha256": "1349e80d06e2e84ccf396e679083fc5078cd037a69b46d099c28da95c57b6648"
+    },
+    {
+      "path": "tests/test_refinement.py",
+      "bytes": 10838,
+      "sha256": "9e124bdcfe21cd5d6ad098a6e42a43e5f46674acf41fa3c362c8dfb99cefb269"
+    },
+    {
+      "path": "tests/test_scene_diarization.py",
+      "bytes": 3579,
+      "sha256": "2ce138299cd16e1407693801e7c8a02ef438e18bfc610e6bf2d1348d31a29987"
+    },
+    {
+      "path": "tests/test_subtitles.py",
+      "bytes": 5563,
+      "sha256": "6bf5e4b22cc15b90b405af655510a8fe8ae6dbe9f70d474f4a0258bbbace13f6"
+    },
+    {
+      "path": "tests/test_translation.py",
+      "bytes": 11704,
+      "sha256": "21e164f0ec0c423e2c82ee831e5f0f81d7f82478fa5fd016de911d013955524d"
+    },
+    {
+      "path": "tests/test_utterances_alignment_speakers.py",
+      "bytes": 9554,
+      "sha256": "28221929a4b78de9bce04465bce0e18726fe73fceefaa3395de0b2a79fec529a"
+    }
+  ]
+}

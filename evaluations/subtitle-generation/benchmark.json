@@ -1,0 +1,872 @@
+{
+  "campaign": "multilingual-subtitle-generation-and-contextual-localization",
+  "baseline_head": "3c76089c955513268582c4fefe924c00e098eb12",
+  "hardware": {
+    "gpu": "NVIDIA GeForce RTX 5090",
+    "vram_mib": 32607,
+    "arch": "sm_120"
+  },
+  "qwen_fallback_fix": {
+    "zh_multichunk_synthetic_qwen_wall_s": 24.182,
+    "zh_multichunk_synthetic_off_wall_s": 11.748,
+    "zh_fleurs_01_2006_wall_s": 11.86,
+    "zh_multichunk_synthetic_qwen_utt0_text": "这并不是告别，这是一个篇章的结束，也是新篇章的开始。",
+    "zh_multichunk_synthetic_qwen_utt0_span": [
+      1.83,
+      7.281
+    ],
+    "zh_multichunk_synthetic_qwen_utt1_text": "钙、钾等元素属于金属，银和金等元素当然也是金属。",
+    "zh_multichunk_synthetic_qwen_utt1_span": [
+      12.0,
+      17.44
+    ],
+    "zh_multichunk_synthetic_qwen_utt1_qwen_chars": 21,
+    "zh_multichunk_synthetic_qwen_utt2_qwen_chars": 2
+  },
+  "refinement_profile_comparison_fr_0_375s": {
+    "utterance_count": 68,
+    "profiles": {
+      "off": {
+        "changed_count": 0,
+        "rejected_count": null,
+        "batch_errors": null,
+        "api_calls": null,
+        "elapsed_s": null
+      },
+      "conservative": {
+        "changed_count": 13,
+        "rejected_count": 0,
+        "batch_errors": [],
+        "api_calls": 12,
+        "elapsed_s": 44.618
+      },
+      "balanced": {
+        "changed_count": 10,
+        "rejected_count": 0,
+        "batch_errors": [],
+        "api_calls": 12,
+        "elapsed_s": 46.195
+      },
+      "expressive": {
+        "changed_count": 29,
+        "rejected_count": 0,
+        "batch_errors": [],
+        "api_calls": 12,
+        "elapsed_s": 62.165
+      }
+    }
+  },
+  "translation_comparison": {
+    "case_count": 20,
+    "riva": {
+      "wall_time_s": 28.95,
+      "details": [
+        {
+          "lang": "fr",
+          "backend": "riva",
+          "lang_pair": "fr-en",
+          "total_utterances": 10,
+          "elapsed_s": 16.66,
+          "device_used": "cuda:0",
+          "dtype": "torch.bfloat16",
+          "load_s": 5.3079,
+          "infer_s": 6.059,
+          "peak_vram_mib": 8015.41
+        },
+        {
+          "lang": "zh",
+          "backend": "riva",
+          "lang_pair": "zh-en",
+          "total_utterances": 10,
+          "elapsed_s": 12.29,
+          "device_used": "cuda:0",
+          "dtype": "torch.bfloat16",
+          "load_s": 2.84,
+          "infer_s": 4.7733,
+          "peak_vram_mib": 8017.8
+        }
+      ]
+    },
+    "swiftu": {
+      "wall_time_s": 23.677,
+      "details": [
+        {
+          "lang": "fr",
+          "backend": "swiftu"
+        },
+        {
+          "lang": "zh",
+          "backend": "swiftu"
+        }
+      ],
+      "default_selected": true
+    },
+    "cases": {
+      "fr_01_ordinary": {
+        "case_id": "fr_01_ordinary",
+        "language": "fr",
+        "category": "french_ordinary",
+        "prev": [
+          {
+            "id": "ctx_p",
+            "speaker_id": "SPK_01",
+            "source_text": "Tu crois vraiment qu'on va y arriver ?"
+          }
+        ],
+        "target": {
+          "id": "utt-fr-01",
+          "speaker_id": "SPK_00",
+          "source_start": 10.0,
+          "source_end": 13.0,
+          "source_text": "Ne t'inquiète pas, on finira bien par trouver une solution avant la tombée de la nuit."
+        },
+        "next": [
+          {
+            "id": "ctx_n",
+            "speaker_id": "SPK_01",
+            "source_text": "J'espère que tu dis vrai."
+          }
+        ],
+        "riva": {
+          "translated_text": "Don't worry, we'll find a solution before nightfall."
+        },
+        "swiftu": {
+          "translated_text": "Don't worry, we'll find a way before nightfall.",
+          "latency_s": 1.1051
+        }
+      },
+      "fr_02_colloquial": {
+        "case_id": "fr_02_colloquial",
+        "language": "fr",
+        "category": "french_colloquialism",
+        "prev": [
+          {
+            "id": "ctx_p",
+            "speaker_id": "SPK_02",
+            "source_text": "Il a encore filé sans prévenir personne !"
+          }
+        ],
+        "target": {
+          "id": "utt-fr-02",
+          "speaker_id": "SPK_03",
+          "source_start": 20.0,
+          "source_end": 22.8,
+          "source_text": "Oh, laisse tomber, il n'en fait toujours qu'à sa tête celui-là !"
+        },
+        "next": [],
+        "riva": {
+          "translated_text": "Oh, forget it, he always does what he wants!"
+        },
+        "swiftu": {
+          "translated_text": "Oh, forget it, he's always doing what he wants!",
+          "latency_s": 1.2183
+        }
+      },
+      "fr_03_names_mcog": {
+        "case_id": "fr_03_names_mcog",
+        "language": "fr",
+        "category": "fictional_names",
+        "prev": [
+          {
+            "id": "ctx_p",
+            "speaker_id": "SPK_00",
+            "source_text": "Dépêchez-vous, les Olmèques approchent du temple."
+          }
+        ],
+        "target": {
+          "id": "utt-fr-03",
+          "speaker_id": "SPK_01",
+          "source_start": 30.0,
+          "source_end": 34.5,
+          "source_text": "Esteban, Zia et Tao doivent rejoindre Mendoza près du Grand Condor avant Zarès !"
+        },
+        "next": [
+          {
+            "id": "ctx_n",
+            "speaker_id": "SPK_00",
+            "source_text": "Pichu veille déjà depuis la colline."
+          }
+        ],
+        "riva": {
+          "translated_text": "Esteban, Zia, and Tao must reach Mendoza near the Grand Condor before Zarès!"
+        },
+        "swiftu": {
+          "translated_text": "Esteban, Zia, and Tao must join Mendoza near the Grand Condor before Zarès!",
+          "latency_s": 1.3418
+        }
+      },
+      "fr_04_idiom_surprise": {
+        "case_id": "fr_04_idiom_surprise",
+        "language": "fr",
+        "category": "french_idiom_expressive",
+        "prev": [
+          {
+            "id": "ctx_p",
+            "speaker_id": "SPK_01",
+            "source_text": "Regardez ce mécanisme caché derrière la statue."
+          }
+        ],
+        "target": {
+          "id": "utt-fr-04",
+          "speaker_id": "SPK_00",
+          "source_start": 40.0,
+          "source_end": 43.0,
+          "source_text": "Diablement efficace, n'est-il pas ? Pour sûr, c'est épatant !"
+        },
+        "next": [],
+        "riva": {
+          "translated_text": "It's devilishly effective, isn't it? It's certainly amazing!"
+        },
+        "swiftu": {
+          "translated_text": "Damn effective, isn't it? For sure, it's amazing!",
+          "latency_s": 1.6534
+        }
+      },
+      "fr_05_context_elliptical": {
+        "case_id": "fr_05_context_elliptical",
+        "language": "fr",
+        "category": "context_dependent",
+        "prev": [
+          {
+            "id": "ctx_p",
+            "speaker_id": "SPK_01",
+            "source_text": "Combien de médaillons faut-il pour ouvrir cette porte ?"
+          }
+        ],
+        "target": {
+          "id": "utt-fr-05",
+          "speaker_id": "SPK_00",
+          "source_start": 50.0,
+          "source_end": 52.0,
+          "source_text": "Il en faudrait deux, mais lui n'en a qu'un."
+        },
+        "next": [
+          {
+            "id": "ctx_n",
+            "speaker_id": "SPK_01",
+            "source_text": "Alors on a encore une chance !"
+          }
+        ],
+        "riva": {
+          "translated_text": "He needs two, but he only has one."
+        },
+        "swiftu": {
+          "translated_text": "It would take two, but he only has one.",
+          "latency_s": 1.388
+        }
+      },
+      "fr_06_rapid_exchange": {
+        "case_id": "fr_06_rapid_exchange",
+        "language": "fr",
+        "category": "rapid_exchange",
+        "prev": [
+          {
+            "id": "ctx_p",
+            "speaker_id": "SPK_00",
+            "source_text": "Baisse-toi !"
+          }
+        ],
+        "target": {
+          "id": "utt-fr-06",
+          "speaker_id": "SPK_01",
+          "source_start": 60.0,
+          "source_end": 61.8,
+          "source_text": "Quoi ? Qu'est-ce qui se passe encore ?"
+        },
+        "next": [
+          {
+            "id": "ctx_n",
+            "speaker_id": "SPK_00",
+            "source_text": "Ne respirez pas ! Tous à l'intérieur !"
+          }
+        ],
+        "riva": {
+          "translated_text": "What? What's going on again?"
+        },
+        "swiftu": {
+          "translated_text": "What? What's going on again?",
+          "latency_s": 0.9013
+        }
+      },
+      "fr_07_overlap_turn": {
+        "case_id": "fr_07_overlap_turn",
+        "language": "fr",
+        "category": "simultaneous_overlap",
+        "prev": [
+          {
+            "id": "ctx_p",
+            "speaker_id": "SPK_00",
+            "source_text": "On doit récupérer le double médaillon tout de suite !"
+          }
+        ],
+        "target": {
+          "id": "utt-fr-07",
+          "speaker_id": "SPK_01",
+          "source_start": 70.5,
+          "source_end": 73.0,
+          "source_text": "Pas question, c'est beaucoup trop dangereux sans plan !"
+        },
+        "next": [],
+        "riva": {
+          "translated_text": "No way, it's way too dangerous without a plan!"
+        },
+        "swiftu": {
+          "translated_text": "No way, it's far too dangerous without a plan!",
+          "latency_s": 0.8583
+        }
+      },
+      "fr_08_fleurs_00": {
+        "case_id": "fr_08_fleurs_00",
+        "language": "fr",
+        "category": "french_formal",
+        "prev": [],
+        "target": {
+          "id": "utt-fr-08",
+          "speaker_id": "SPK_00",
+          "source_start": 80.0,
+          "source_end": 86.0,
+          "source_text": "L’accident a eu lieu en terrain montagneux, et il semblerait que cela ait été causé par un incendie malveillant."
+        },
+        "next": [],
+        "riva": {
+          "translated_text": "The accident occurred in mountainous terrain, and it appears to have been caused by arson."
+        },
+        "swiftu": {
+          "translated_text": "The accident took place in mountainous terrain, and it seems to have been caused by arson.",
+          "latency_s": 0.8422
+        }
+      },
+      "fr_09_fleurs_03_mashhad": {
+        "case_id": "fr_09_fleurs_03_mashhad",
+        "language": "fr",
+        "category": "proper_noun",
+        "prev": [],
+        "target": {
+          "id": "utt-fr-09",
+          "speaker_id": "SPK_00",
+          "source_start": 90.0,
+          "source_end": 96.0,
+          "source_text": "Le même mois, un autre avion de ligne a fait une sortie de piste à Mashhad et a heurté un mur, tuant ainsi dix-sept personnes."
+        },
+        "next": [],
+        "riva": {
+          "translated_text": "The same month, another passenger jet skidded off the runway in Mashhad and crashed into a wall, killing seventeen people."
+        },
+        "swiftu": {
+          "translated_text": "That same month, another commercial plane overshot the runway in Mashhad and hit a wall, killing 17 people.",
+          "latency_s": 1.0166
+        }
+      },
+      "fr_10_colloquial_grumble": {
+        "case_id": "fr_10_colloquial_grumble",
+        "language": "fr",
+        "category": "french_colloquialism",
+        "prev": [
+          {
+            "id": "ctx_p",
+            "speaker_id": "SPK_00",
+            "source_text": "Pedro, arrête de râler et aide-moi à tirer cette caisse !"
+          }
+        ],
+        "target": {
+          "id": "utt-fr-10",
+          "speaker_id": "SPK_01",
+          "source_start": 100.0,
+          "source_end": 103.5,
+          "source_text": "Ça va, pas la peine de crier comme ça, j'ai pas quatre bras moi !"
+        },
+        "next": [],
+        "riva": {
+          "translated_text": "It's okay, no need to scream like that, I don't have four arms!"
+        },
+        "swiftu": {
+          "translated_text": "It's fine, no need to yell like that. I don't have four arms!",
+          "latency_s": 0.9473
+        }
+      },
+      "zh_01_ordinary": {
+        "case_id": "zh_01_ordinary",
+        "language": "zh",
+        "category": "mandarin_ordinary",
+        "prev": [
+          {
+            "id": "ctx_p",
+            "speaker_id": "SPK_00",
+            "source_text": "明天早上我们几点出发？"
+          }
+        ],
+        "target": {
+          "id": "utt-zh-01",
+          "speaker_id": "SPK_01",
+          "source_start": 110.0,
+          "source_end": 113.2,
+          "source_text": "大概七点半吧，记得把护照和车票都带上。"
+        },
+        "next": [],
+        "riva": {
+          "translated_text": "About seven thirty, remember to bring your passport and train ticket."
+        },
+        "swiftu": {
+          "translated_text": "Around 7:30. Remember to bring your passport and tickets.",
+          "latency_s": 0.4883
+        }
+      },
+      "zh_02_fleurs_01_potassium": {
+        "case_id": "zh_02_fleurs_01_potassium",
+        "language": "zh",
+        "category": "chemistry_oov_char",
+        "prev": [],
+        "target": {
+          "id": "utt-zh-02",
+          "speaker_id": "SPK_00",
+          "source_start": 120.0,
+          "source_end": 126.0,
+          "source_text": "钙、钾等元素属于金属，银和金等元素当然也是金属。"
+        },
+        "next": [],
+        "riva": {
+          "translated_text": "Elements such as calcium and potassium are metals, and elements such as silver and gold are also metals."
+        },
+        "swiftu": {
+          "translated_text": "Elements like calcium and potassium are metals, and of course, silver and gold are metals too.",
+          "latency_s": 0.7116
+        }
+      },
+      "zh_03_fleurs_02_clearance": {
+        "case_id": "zh_03_fleurs_02_clearance",
+        "language": "zh",
+        "category": "mandarin_technical_dates",
+        "prev": [],
+        "target": {
+          "id": "utt-zh-03",
+          "speaker_id": "SPK_00",
+          "source_start": 130.0,
+          "source_end": 136.5,
+          "source_text": "桥下垂直净空15米。该项目于2011年8月完工，但直到2017年3月才开始通车。"
+        },
+        "next": [],
+        "riva": {
+          "translated_text": "The bridge has a vertical clearance of 15 meters. The project was completed in August 2011, but it was not opened to traffic until March 2017."
+        },
+        "swiftu": {
+          "translated_text": "The vertical clearance under the bridge is 15 meters. The project was completed in August 2011, but traffic only began in March 2017.",
+          "latency_s": 1.2795
+        }
+      },
+      "zh_04_mixed_script": {
+        "case_id": "zh_04_mixed_script",
+        "language": "zh",
+        "category": "cjk_latin_mixed",
+        "prev": [],
+        "target": {
+          "id": "utt-zh-04",
+          "speaker_id": "SPK_00",
+          "source_start": 140.0,
+          "source_end": 145.5,
+          "source_text": "Scotturb 403 路公共汽车定期发车前往辛特拉 (Sintra)，在罗卡角停靠。"
+        },
+        "next": [],
+        "riva": {
+          "translated_text": "Bus 403 runs regularly to Sintra, stopping at Roca Point."
+        },
+        "swiftu": {
+          "translated_text": "Scotturb Route 403 buses run regularly to Sintra, stopping at Cape Roca.",
+          "latency_s": 1.1172
+        }
+      },
+      "zh_05_idiom_chengyu": {
+        "case_id": "zh_05_idiom_chengyu",
+        "language": "zh",
+        "category": "mandarin_idiom",
+        "prev": [
+          {
+            "id": "ctx_p",
+            "speaker_id": "SPK_00",
+            "source_text": "明明已经约定好了，他怎么临时反悔？"
+          }
+        ],
+        "target": {
+          "id": "utt-zh-05",
+          "speaker_id": "SPK_01",
+          "source_start": 150.0,
+          "source_end": 153.5,
+          "source_text": "真是画蛇添足，结果弄巧成拙，现在全乱套了。"
+        },
+        "next": [],
+        "riva": {
+          "translated_text": "It was really overkill, and the result was a mess. Now it's all messed up."
+        },
+        "swiftu": {
+          "translated_text": "We really overdid it, and now everything's a mess.",
+          "latency_s": 2.2377
+        }
+      },
+      "zh_06_expressive_colloquial": {
+        "case_id": "zh_06_expressive_colloquial",
+        "language": "zh",
+        "category": "mandarin_expressive",
+        "prev": [
+          {
+            "id": "ctx_p",
+            "speaker_id": "SPK_00",
+            "source_text": "你还站在这儿发什么呆？"
+          }
+        ],
+        "target": {
+          "id": "utt-zh-06",
+          "speaker_id": "SPK_01",
+          "source_start": 160.0,
+          "source_end": 163.0,
+          "source_text": "天哪，都火烧眉毛了，赶紧先走再说！"
+        },
+        "next": [],
+        "riva": {
+          "translated_text": "My goodness, everyone's eyebrows are on fire! Let's go now!"
+        },
+        "swiftu": {
+          "translated_text": "Oh my God, it's urgent! Let's just go!",
+          "latency_s": 1.7523
+        }
+      },
+      "zh_07_context_pronoun": {
+        "case_id": "zh_07_context_pronoun",
+        "language": "zh",
+        "category": "context_dependent",
+        "prev": [
+          {
+            "id": "ctx_p",
+            "speaker_id": "SPK_00",
+            "source_text": "那个黑衣人刚才是不是往港口那边跑了？"
+          }
+        ],
+        "target": {
+          "id": "utt-zh-07",
+          "speaker_id": "SPK_01",
+          "source_start": 170.0,
+          "source_end": 172.5,
+          "source_text": "没错，追上去，别让他溜了！"
+        },
+        "next": [],
+        "riva": {
+          "translated_text": "Yeah, catch up, don't let him get away!"
+        },
+        "swiftu": {
+          "translated_text": "That's right. Chase him! Don't let him get away!",
+          "latency_s": 0.8254
+        }
+      },
+      "zh_08_rapid_exchange": {
+        "case_id": "zh_08_rapid_exchange",
+        "language": "zh",
+        "category": "rapid_exchange",
+        "prev": [
+          {
+            "id": "ctx_p",
+            "speaker_id": "SPK_00",
+            "source_text": "钥匙呢？"
+          }
+        ],
+        "target": {
+          "id": "utt-zh-08",
+          "speaker_id": "SPK_01",
+          "source_start": 180.0,
+          "source_end": 181.5,
+          "source_text": "在我这儿，接住！"
+        },
+        "next": [
+          {
+            "id": "ctx_n",
+            "speaker_id": "SPK_00",
+            "source_text": "拿到了！"
+          }
+        ],
+        "riva": {
+          "translated_text": "Over here, catch!"
+        },
+        "swiftu": {
+          "translated_text": "I've got it, catch!",
+          "latency_s": 1.779
+        }
+      },
+      "zh_09_overlap": {
+        "case_id": "zh_09_overlap",
+        "language": "zh",
+        "category": "simultaneous_overlap",
+        "prev": [
+          {
+            "id": "ctx_p",
+            "speaker_id": "SPK_00",
+            "source_text": "这并不是告别，这是一个篇章的结束。"
+          }
+        ],
+        "target": {
+          "id": "utt-zh-09",
+          "speaker_id": "SPK_01",
+          "source_start": 185.0,
+          "source_end": 188.0,
+          "source_text": "也是新篇章的开始！"
+        },
+        "next": [],
+        "riva": {
+          "translated_text": "It's also the beginning of a new chapter!"
+        },
+        "swiftu": {
+          "translated_text": "It's also the beginning of a new chapter!",
+          "latency_s": 1.5429
+        }
+      },
+      "zh_10_science_fleurs": {
+        "case_id": "zh_10_science_fleurs",
+        "language": "zh",
+        "category": "mandarin_technical",
+        "prev": [],
+        "target": {
+          "id": "utt-zh-10",
+          "speaker_id": "SPK_00",
+          "source_start": 190.0,
+          "source_end": 195.0,
+          "source_text": "科学家们可以得出结论，暗物质对其他暗物质的影响方式与普通物质相同。"
+        },
+        "next": [],
+        "riva": {
+          "translated_text": "Scientists can conclude that dark matter interacts with other dark matter in the same way that ordinary matter does."
+        },
+        "swiftu": {
+          "translated_text": "Scientists can conclude that dark matter affects other dark matter the same way ordinary matter does.",
+          "latency_s": 0.6707
+        }
+      }
+    }
+  },
+  "fr_full_episode": {
+    "episode_stem": "Les mystérieuses cités d'or Saison 4 Episode 1 [YlVGUDNbyXk]",
+    "total_utterances": 221,
+    "refinement_applied_count": 48,
+    "refinement_rejected_count": 0,
+    "merged_utterances": [
+      {
+        "id": "utt-0049",
+        "merged_into": "utt-0048"
+      },
+      {
+        "id": "utt-0137",
+        "merged_into": "utt-0136"
+      },
+      {
+        "id": "utt-0140",
+        "merged_into": "utt-0139"
+      },
+      {
+        "id": "utt-0156",
+        "merged_into": "utt-0155"
+      }
+    ],
+    "subtitles_summary": {
+      "total_input_utterances": 221,
+      "renderable_cues": 286,
+      "ass_displayed_cues": 281,
+      "ass_lane_1_top_cues": 21,
+      "ass_overflow_cues": 5,
+      "unrenderable_cues": 0,
+      "conflict_cues": 61
+    },
+    "conflict_count": 61,
+    "visual_screenshots": [
+      {
+        "name": "shot_01_intro_theme",
+        "timestamp_s": 10.0,
+        "active_styles": [
+          "Main"
+        ]
+      },
+      {
+        "name": "shot_02_narrator",
+        "timestamp_s": 47.5,
+        "active_styles": [
+          "Main"
+        ]
+      },
+      {
+        "name": "shot_03_child_voices_f1",
+        "timestamp_s": 210.0,
+        "active_styles": [
+          "Main"
+        ]
+      },
+      {
+        "name": "shot_04_rapid_turns_f2",
+        "timestamp_s": 268.0,
+        "active_styles": [
+          "Main"
+        ]
+      },
+      {
+        "name": "shot_05_simultaneous_overlap_1",
+        "timestamp_s": 175.2,
+        "active_styles": [
+          "Main",
+          "Top"
+        ]
+      },
+      {
+        "name": "shot_06_simultaneous_overlap_2",
+        "timestamp_s": 283.58,
+        "active_styles": [
+          "Top",
+          "Main"
+        ]
+      }
+    ]
+  },
+  "zh_samples": {
+    "zh_fleurs_01_2006": {
+      "refinement": {
+        "backend": "swiftu",
+        "profile": "balanced",
+        "glossary_digest": "20b4224924bc",
+        "audio_verification": false,
+        "total_utterances": 1,
+        "changed_count": 0,
+        "rejected_count": 0,
+        "rejected_edits": [],
+        "batch_errors": [],
+        "api_calls": 1,
+        "elapsed_s": 1.019
+      },
+      "translation": {
+        "backend": "swiftu",
+        "style": "natural",
+        "target_language": "en",
+        "signature": "db4e78219730",
+        "total_utterances": 1,
+        "regrouped_adjacent_utterances": 0,
+        "api_calls": 1,
+        "errors": [],
+        "elapsed_s": 0.716
+      },
+      "subtitles": {
+        "total_input_utterances": 1,
+        "renderable_cues": 2,
+        "ass_displayed_cues": 2,
+        "ass_lane_1_top_cues": 0,
+        "ass_overflow_cues": 0,
+        "unrenderable_cues": 0,
+        "conflict_cues": 0
+      },
+      "total_wall_time_s": 1.737
+    },
+    "zh_fleurs_05_1805": {
+      "refinement": {
+        "backend": "swiftu",
+        "profile": "balanced",
+        "glossary_digest": "20b4224924bc",
+        "audio_verification": false,
+        "total_utterances": 1,
+        "changed_count": 1,
+        "rejected_count": 0,
+        "rejected_edits": [],
+        "batch_errors": [],
+        "api_calls": 1,
+        "elapsed_s": 1.701
+      },
+      "translation": {
+        "backend": "swiftu",
+        "style": "natural",
+        "target_language": "en",
+        "signature": "db4e78219730",
+        "total_utterances": 1,
+        "regrouped_adjacent_utterances": 0,
+        "api_calls": 1,
+        "errors": [],
+        "elapsed_s": 0.841
+      },
+      "subtitles": {
+        "total_input_utterances": 1,
+        "renderable_cues": 1,
+        "ass_displayed_cues": 1,
+        "ass_lane_1_top_cues": 0,
+        "ass_overflow_cues": 0,
+        "unrenderable_cues": 0,
+        "conflict_cues": 0
+      },
+      "total_wall_time_s": 2.544
+    },
+    "zh_2spk_overlap": {
+      "refinement": {
+        "backend": "swiftu",
+        "profile": "balanced",
+        "glossary_digest": "20b4224924bc",
+        "audio_verification": false,
+        "total_utterances": 2,
+        "changed_count": 2,
+        "rejected_count": 0,
+        "rejected_edits": [],
+        "batch_errors": [],
+        "api_calls": 1,
+        "elapsed_s": 5.735
+      },
+      "translation": {
+        "backend": "swiftu",
+        "style": "natural",
+        "target_language": "en",
+        "signature": "db4e78219730",
+        "total_utterances": 2,
+        "regrouped_adjacent_utterances": 0,
+        "api_calls": 1,
+        "errors": [],
+        "elapsed_s": 1.292
+      },
+      "subtitles": {
+        "total_input_utterances": 2,
+        "renderable_cues": 2,
+        "ass_displayed_cues": 2,
+        "ass_lane_1_top_cues": 1,
+        "ass_overflow_cues": 0,
+        "unrenderable_cues": 0,
+        "conflict_cues": 0
+      },
+      "total_wall_time_s": 7.03
+    },
+    "zh_multichunk_synthetic_qwen": {
+      "refinement": {
+        "backend": "swiftu",
+        "profile": "balanced",
+        "glossary_digest": "20b4224924bc",
+        "audio_verification": false,
+        "total_utterances": 7,
+        "changed_count": 3,
+        "rejected_count": 0,
+        "rejected_edits": [],
+        "batch_errors": [],
+        "api_calls": 2,
+        "elapsed_s": 4.949
+      },
+      "translation": {
+        "backend": "swiftu",
+        "style": "natural",
+        "target_language": "en",
+        "signature": "db4e78219730",
+        "total_utterances": 7,
+        "regrouped_adjacent_utterances": 1,
+        "api_calls": 2,
+        "errors": [],
+        "elapsed_s": 2.709
+      },
+      "subtitles": {
+        "total_input_utterances": 7,
+        "renderable_cues": 12,
+        "ass_displayed_cues": 12,
+        "ass_lane_1_top_cues": 0,
+        "ass_overflow_cues": 0,
+        "unrenderable_cues": 0,
+        "conflict_cues": 0
+      },
+      "total_wall_time_s": 7.664
+    }
+  },
+  "tests": {
+    "cpu_unit_passed": 63,
+    "cpu_unit_warnings": 1,
+    "modular_eval_passed": 8
+  }
+}

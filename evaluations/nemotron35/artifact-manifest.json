@@ -1,0 +1,329 @@
+{
+  "archive": "/workspace/nvidia-transcribe/outputs/handbacks/nemotron35-nvfp4-evaluation.tar.gz",
+  "nvidia_transcribe_head": "dbf658c6134c721c3df59b26016419761a5be434",
+  "nemo_speech_head": "99c252a77e7a1f57319618539882faa0d9c1abd2",
+  "file_count": 64,
+  "total_staged_bytes": 2306515,
+  "files": [
+    {
+      "path": ".gitignore",
+      "bytes": 584,
+      "sha256": "0ca6b44575510e73ae296af24214c7b9cdeab024633ce0cd8813234954d0670e"
+    },
+    {
+      "path": "AGENTS.md",
+      "bytes": 2129,
+      "sha256": "d82cf957269ba31dd806eff1e64c8c578b90e962ec0e576f3bfff4e220a2e49d"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1170,
+      "sha256": "4bc5c1e11182a0b1117c9060d8f98bf4afd82691a28fd85303668b371748676b"
+    },
+    {
+      "path": "configs/vllm_rtx5090.env",
+      "bytes": 355,
+      "sha256": "40cfcd511081174c1e37ad43d89adb2a0030e456d09676a9c6ecc530dba8eea0"
+    },
+    {
+      "path": "evaluations/nemotron35/HANDback.md",
+      "bytes": 2738,
+      "sha256": "5cbe6a17cd82e5d89b3312ff4f3d238119879b3ad79bcfaa3396a88a39d70678"
+    },
+    {
+      "path": "evaluations/nemotron35/architecture-assessment.md",
+      "bytes": 5940,
+      "sha256": "44f2cb2a2cc999bbe1bf21e07ee28b6e1eb9b6246209d5e936584347140fef58"
+    },
+    {
+      "path": "evaluations/nemotron35/benchmark.json",
+      "bytes": 101958,
+      "sha256": "32b837cc2436beec289d4fbb9ec26c4377dd109ea5f272760efb4cfeabbf077d"
+    },
+    {
+      "path": "evaluations/nemotron35/checkpoint_manifest.json",
+      "bytes": 1779,
+      "sha256": "ae17980362e8e6839c1aa9956b7b10b5c9cdcb53ed6cecb33d357e6ce4113dc1"
+    },
+    {
+      "path": "evaluations/nemotron35/environment.md",
+      "bytes": 4310,
+      "sha256": "fd4e0cc08b6232f5b3f336d8bdc71d4457ae75e6e5eadbfafd839cff38f216e8"
+    },
+    {
+      "path": "evaluations/nemotron35/git_log.txt",
+      "bytes": 2545,
+      "sha256": "cc23e0dce58a007b5885049e4322fdb9bcadea1146319bc65eca619edde01902"
+    },
+    {
+      "path": "evaluations/nemotron35/git_provenance.json",
+      "bytes": 213,
+      "sha256": "8f6ff4aea09ffe37a490e721ea74bb1787a7a64772b9aaa90f89dcc94b562a59"
+    },
+    {
+      "path": "evaluations/nemotron35/pip_list.txt",
+      "bytes": 13818,
+      "sha256": "c95055e7f66e641d64de466c2dd2414bdad27debb8cc14a666845d372ffd0f16"
+    },
+    {
+      "path": "evaluations/nemotron35/pytest_cpu.txt",
+      "bytes": 2383,
+      "sha256": "234f2f715c3a5120368f67ff6f51d0be655d2c616f97259953db9baf89d55cbe"
+    },
+    {
+      "path": "evaluations/nemotron35/quality-review.md",
+      "bytes": 7468,
+      "sha256": "1a1ae04371094331e0925eea9e3421ae3742a324d432863320621f2136e80811"
+    },
+    {
+      "path": "evaluations/nemotron35/runtime-contract.md",
+      "bytes": 3701,
+      "sha256": "66adb6db9a1fa01d8237aa59ea7aaab5408e9345e8c1591f7f9bb6e19406be09"
+    },
+    {
+      "path": "evaluations/nemotron35/test-results.md",
+      "bytes": 3176,
+      "sha256": "9741fda844e88c8142b7fd4563c12f3e58beb267a73d4661b5214fd9fc3eee79"
+    },
+    {
+      "path": "outputs/audio/fr/fr_0539_0542_overlap_nonlex.wav",
+      "bytes": 96078,
+      "sha256": "f5c2064320eaf4fbe27ecc7aaa381ce3594baf827e34558b468efd7e6a02ea46"
+    },
+    {
+      "path": "outputs/audio/fr/fr_0550_0552_transition.wav",
+      "bytes": 64078,
+      "sha256": "965c081988a9b9f907534828b6fd0bc2713bdc5fa8f841b62e59de1651ff2012"
+    },
+    {
+      "path": "outputs/audio/fr/fr_1031_1033_music_fp.wav",
+      "bytes": 64078,
+      "sha256": "5a4e63de08dd9ff1fe2f5ebd84999ecd2b395f79333deafa3693e999bb4df742"
+    },
+    {
+      "path": "outputs/audio/fr/fr_1731_1735_overlap_vox.wav",
+      "bytes": 128078,
+      "sha256": "f90617a6b7d516c13aeae805afcc878328c95114bbeb2d905f60dffbcbad9162"
+    },
+    {
+      "path": "outputs/audio/fr/fr_2208_2211_high_pitch.wav",
+      "bytes": 96078,
+      "sha256": "c7e22967f4d2f704cc2a08c8f459a2a4d01d78015d84d4dc1d87312c0ebe27a1"
+    },
+    {
+      "path": "outputs/audio/overlap/fr_fleurs_manifest.json",
+      "bytes": 2374,
+      "sha256": "f23ea5ff4f7f4a185e0120167ac621cfb6fb0bdb5a9c9c05a2fbc2b244890bbd"
+    },
+    {
+      "path": "outputs/audio/overlap/overlap_manifest.json",
+      "bytes": 1473,
+      "sha256": "d0d977411063ddf1cc457750c674df25cc4598a842dd93ce478ed054a07cc2cc"
+    },
+    {
+      "path": "outputs/audio/overlap/synthetic_fr_2spk_overlap.wav",
+      "bytes": 390444,
+      "sha256": "811bc2ff03e9e789250c0f1aa3df189fb161654cdfb55bdbf0ebcb046de0cdf4"
+    },
+    {
+      "path": "outputs/audio/overlap/synthetic_zh_2spk_overlap.wav",
+      "bytes": 332204,
+      "sha256": "fd85324e938be0d4827b86df048e2acc9482b9cbc6f9ff27f1063160bf818ae0"
+    },
+    {
+      "path": "outputs/audio/zh/zh_fleurs_00_1906.wav",
+      "bytes": 332204,
+      "sha256": "5214e16584b6498ddbd22f321738c0f62b19117ab1880b21e405fba983986b6a"
+    },
+    {
+      "path": "outputs/audio/zh/zh_fleurs_01_2006.wav",
+      "bytes": 265004,
+      "sha256": "d2ff70aa3a9b965bd2cab664852f2b5eb90d02dca4ed9066686d926152ade514"
+    },
+    {
+      "path": "outputs/audio/zh/zh_manifest.json",
+      "bytes": 3040,
+      "sha256": "8f32b11b0ef076516ef89277f576b53ec9df4aeb1fa936a4f9c9be197222aa56"
+    },
+    {
+      "path": "outputs/logs/vllm_server_excerpt.log",
+      "bytes": 38425,
+      "sha256": "fdead7a37c98b79d7fcc168e9d5e8ddcef3a6efac8fa63ae4bc2285dfa3457c7"
+    },
+    {
+      "path": "outputs/renders/compat_report.json",
+      "bytes": 1228,
+      "sha256": "181fc96f94d026d248e3ddbbcdc973b0d0baaec57e5ca80c25cd72f251d4702c"
+    },
+    {
+      "path": "outputs/renders/fr_0316_0355_nemotron.ass",
+      "bytes": 1821,
+      "sha256": "5b97c75b76323becfeb951a2e81f7ed69a694a7f4834deea865dddda5c3ebd7d"
+    },
+    {
+      "path": "outputs/renders/fr_0316_0355_nemotron.srt",
+      "bytes": 1018,
+      "sha256": "ce30cab49dea39962da743da4b2ddbb2aa72cd41de4e413213de58e4b8e16296"
+    },
+    {
+      "path": "outputs/renders/zh_sample_nemotron.ass",
+      "bytes": 759,
+      "sha256": "516c96b13a783a6a2701cbfc9b1bca24119a712f6df7382cff9e3160d81c26ef"
+    },
+    {
+      "path": "outputs/renders/zh_sample_nemotron.srt",
+      "bytes": 102,
+      "sha256": "fa13c3ff084c7fd5c0c95f341c33ffa438c0ef5ee15f138abc9f525afef40296"
+    },
+    {
+      "path": "outputs/responses/fr/fr_0305_0445_cont_100s_speaker.contract.json",
+      "bytes": 92524,
+      "sha256": "23fc2ac83fddd80ac7ed24d75acf6f56c18dacf5eb8f3d7a1e2728aa66c8a1eb"
+    },
+    {
+      "path": "outputs/responses/fr/fr_0316_0355_child_voices_speaker.contract.json",
+      "bytes": 37556,
+      "sha256": "89669b6d81d5dec550b2b4c6ce41d46c0bb9c1d614cc04abaac18e3f59575bbb"
+    },
+    {
+      "path": "outputs/responses/fr/fr_0539_0542_overlap_nonlex_rich.contract.json",
+      "bytes": 3081,
+      "sha256": "b7ece759e430b938a1794046b0e4e132c042846d0339cd57eec7cd12b6c5c7f7"
+    },
+    {
+      "path": "outputs/responses/fr/fr_2208_2211_high_pitch_rich.contract.json",
+      "bytes": 3425,
+      "sha256": "5bd0a2ee84dc494033700431456844c45788b8e9b6a632c4d64a2157f7b0960b"
+    },
+    {
+      "path": "outputs/responses/overlap/fr_2spk_overlap_sot.contract.json",
+      "bytes": 18231,
+      "sha256": "e6d2b0cd26ae87bf7d7cdd0ee2826b010f5e8a02a5fee7e67965c81a9a6e98c6"
+    },
+    {
+      "path": "outputs/responses/overlap/zh_2spk_overlap_sot.contract.json",
+      "bytes": 29149,
+      "sha256": "0dfb45233c45bf10b5c9d1f180b34c90e2d6a985377cb8d466962e9c921af4ea"
+    },
+    {
+      "path": "outputs/responses/overlap/zh_2spk_seq_speaker.contract.json",
+      "bytes": 26069,
+      "sha256": "88d3e028cb61d370edcc95dbec676d3f0c27f7390ea23d9c20f7a6ad2ea43220"
+    },
+    {
+      "path": "outputs/responses/smoke_fr_0550.contract.json",
+      "bytes": 2879,
+      "sha256": "8145ab6c13dd34d882fdd6afbb75af450878e937240ece0cd4961d2a1f87a4dc"
+    },
+    {
+      "path": "outputs/responses/smoke_fr_0550.raw.json",
+      "bytes": 1795,
+      "sha256": "6554b5fd05b2eda4876e4e1b645284c5e999f4486dcd2f96ed0185f3f66ea7a7"
+    },
+    {
+      "path": "outputs/responses/zh/zh_fleurs_00_1906_auto.contract.json",
+      "bytes": 8279,
+      "sha256": "0e8c0ddca5d63ffb2ceb91242a346da625ad2e4f85e36c216604d34ab659de02"
+    },
+    {
+      "path": "outputs/responses/zh/zh_fleurs_01_2006_auto.contract.json",
+      "bytes": 9196,
+      "sha256": "5fefc4df767e94394a1c4a7e8d507366e649ae5c7dd39dc695b615d62db706bf"
+    },
+    {
+      "path": "outputs/responses/zh/zh_fleurs_01_2006_auto.raw.json",
+      "bytes": 1479,
+      "sha256": "531e5a3d131ccdb994cbc9cfe8e814867e96dce6c820550d12bf64bbef045134"
+    },
+    {
+      "path": "outputs/responses/zh/zh_fleurs_05_1805_explicit.contract.json",
+      "bytes": 9819,
+      "sha256": "4ef34bb5a70998026e3b5beb7ba35958fa5424e0ffe8ad7ce7985e028fe882a1"
+    },
+    {
+      "path": "pyproject.toml",
+      "bytes": 623,
+      "sha256": "db21254ab189d10b12aae7f2f44bd8f157e255fb44f620807cc34a64105c157e"
+    },
+    {
+      "path": "scripts/package_evidence.py",
+      "bytes": 8338,
+      "sha256": "5fa39e1c7f40b0ea2ade47ac9d44e13897beb3c4231131653f9c9daa24fccb76"
+    },
+    {
+      "path": "scripts/run_evaluation.py",
+      "bytes": 15882,
+      "sha256": "10d16ca093df4cd27fdd3c43ebe90543bea68c8b062b965e5522661998930d75"
+    },
+    {
+      "path": "scripts/start_vllm_server.sh",
+      "bytes": 1637,
+      "sha256": "23f2d77000a5a174698aa561e3090dc58062eb2ae0d1414572c0ddde0d120be3"
+    },
+    {
+      "path": "scripts/test_pyannote_subtitle_compat.py",
+      "bytes": 3692,
+      "sha256": "e17261fa860b9224a9498639d04ff1028e2a8046aa140141845b853f62faa286"
+    },
+    {
+      "path": "src/nvidia_transcribe/__init__.py",
+      "bytes": 1000,
+      "sha256": "aee42a5956d7c2fd72f8d015563478b3875a23c0e2c60b474f11c8f0d74205ad"
+    },
+    {
+      "path": "src/nvidia_transcribe/checkpoint.py",
+      "bytes": 7998,
+      "sha256": "c7b771c1de2008cc21376b00fc8dfba79cfc9d1b10c838ecccc23e7ef2befdf6"
+    },
+    {
+      "path": "src/nvidia_transcribe/cli.py",
+      "bytes": 3977,
+      "sha256": "4d4561718231fa0c6eff5000f65a00b9c1860334ab519bccf2c45bfd55735c61"
+    },
+    {
+      "path": "src/nvidia_transcribe/client.py",
+      "bytes": 6482,
+      "sha256": "406525023e1a1edbb550c8cb7f4173c556c7c32789ab3b0da2b17bad3b30fdd8"
+    },
+    {
+      "path": "src/nvidia_transcribe/contract.py",
+      "bytes": 8312,
+      "sha256": "7ab3ddc07b1da0ad71abc0b74449abd2c11c14adbe460995ddd0d68d100e3d6c"
+    },
+    {
+      "path": "src/nvidia_transcribe/metrics.py",
+      "bytes": 3273,
+      "sha256": "4ff4f0e5d8ba5b9e5ff5a81ca4238f839e6d9dac15769149e27b9f50ac8b3948"
+    },
+    {
+      "path": "src/nvidia_transcribe/parser.py",
+      "bytes": 10625,
+      "sha256": "10a3b028ed85a7d7d77c11f7b1f4056e2319e273d1593d473df9aed5dcde1418"
+    },
+    {
+      "path": "src/nvidia_transcribe/prompts.py",
+      "bytes": 4867,
+      "sha256": "2b62ac7e01d6d8dce2ed228cb97cabfc0a0fb718800eb11ce9f2a8f4f99e1df8"
+    },
+    {
+      "path": "tests/test_checkpoint.py",
+      "bytes": 3928,
+      "sha256": "dd5903c47be9d372f6ed5ac1a93204538eec802cd24192c1c811afd1a8ed1367"
+    },
+    {
+      "path": "tests/test_client.py",
+      "bytes": 3480,
+      "sha256": "2fb590878fce74ee61afd8d2920ba0b6f479398628e63483230b0d5fd347611d"
+    },
+    {
+      "path": "tests/test_metrics.py",
+      "bytes": 720,
+      "sha256": "092f9a9a0ca044cb3425679fad766c3428e4d42c49a5aa4c965f628c129bbf14"
+    },
+    {
+      "path": "tests/test_parser_and_contract.py",
+      "bytes": 5446,
+      "sha256": "4239790b527b9263b507fe38422336d5af9c81784a9ed578ea8d33426c863d51"
+    }
+  ]
+}

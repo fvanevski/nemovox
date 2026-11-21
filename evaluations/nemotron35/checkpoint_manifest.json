@@ -1,0 +1,41 @@
+{
+  "model_path": "/workspace/models/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4",
+  "model_type": "nemo_speechlm",
+  "architectures": [
+    "Nemotron3_5TranscribeForConditionalGeneration"
+  ],
+  "quant_method": "modelopt",
+  "quant_algo": "MIXED_PRECISION",
+  "nvfp4_targets": 93,
+  "fp8_targets": 182,
+  "has_ctc_timestamps": true,
+  "ctc_shard": "model-ctc-bf16.safetensors",
+  "weight_shards": [
+    "model-00001-of-00002.safetensors",
+    "model-00002-of-00002.safetensors",
+    "model-ctc-bf16.safetensors",
+    "model-mtp-fp8.safetensors",
+    "perception.safetensors"
+  ],
+  "total_bytes": 21577427198,
+  "total_parameters": 20584095517,
+  "revision": "66c6adc4020179567074d0399cda2a4eeb2bb347",
+  "config_hashes": {
+    "config.json": "c6509c7a68ae4bd94fca06a39216029c233f8dc43428d6228fe425cfe4926313",
+    "hf_quant_config.json": "dff9458dd0e62f9c10551b152452a79bfe3e36b3d803a43a28dad27706894d4c",
+    "generation_config.json": "1ff3bfb8a60751cc1f68d756dc05b20910c3d124f38ef8ac5aed59e374aa7f09",
+    "tokenizer.json": "d071004cb4450d3aa31f87aab979cd09ffc99c4e709e6cf72c324346cd948d0d",
+    "tokenizer_config.json": "e11d0bb1b107a182a6db567822b605db852edcb01e87368bd8e28c62c2991d15",
+    "chat_template.jinja": "c439e20c5565d590915ff8777c519b3ebcd3da685e677893bee56f73036eb67c",
+    "model.safetensors.index.json": "841f8f120aca973398891436b32e5de7444ce784a61217ccbf46e26738a7bd92",
+    "llm_backbone/config.json": "8f11ffe191b8ade26ff9b43196a2cfcc356f6ee73cfb3c6a6336968f178611d0"
+  },
+  "shard_sizes": {
+    "model-00001-of-00002.safetensors": 9988250728,
+    "model-00002-of-00002.safetensors": 9192549192,
+    "model-ctc-bf16.safetensors": 201897998,
+    "model-mtp-fp8.safetensors": 1335778712,
+    "perception.safetensors": 838256800
+  },
+  "missing_files": []
+}

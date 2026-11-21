@@ -1,0 +1,2170 @@
+{
+  "french": {
+    "before": {
+      "language": "fr",
+      "duration_s": 1379.88,
+      "utterance_counts": {
+        "total": 221,
+        "merged_into_prev": 4,
+        "suppressed_fragments_count": 0,
+        "untimed_unrenderable": 0,
+        "partial_timing": 0
+      },
+      "cue_counts": {
+        "srt_cues": 286,
+        "ass_events": 281,
+        "ass_main_cues": 260,
+        "ass_top_cues": 21,
+        "ass_overflow_cues": 5,
+        "omitted_from_ass_count": 5,
+        "omitted_from_ass": [
+          {
+            "index": 67,
+            "start": 287.16,
+            "end": 288.846,
+            "duration": 1.686,
+            "lines": [
+              "And of magic."
+            ],
+            "text": "And of magic."
+          },
+          {
+            "index": 68,
+            "start": 289.24,
+            "end": 290.44,
+            "duration": 1.2,
+            "lines": [
+              "Can you smell"
+            ],
+            "text": "Can you smell"
+          },
+          {
+            "index": 72,
+            "start": 298.44,
+            "end": 299.64,
+            "duration": 1.2,
+            "lines": [
+              "adventure, you?"
+            ],
+            "text": "adventure, you?"
+          },
+          {
+            "index": 76,
+            "start": 305.48,
+            "end": 306.68,
+            "duration": 1.2,
+            "lines": [
+              "Zia, you're amazing!"
+            ],
+            "text": "Zia, you're amazing!"
+          },
+          {
+            "index": 90,
+            "start": 337.88,
+            "end": 340.825,
+            "duration": 2.945,
+            "lines": [
+              "That's not the kind of thing",
+              "our Nakall would have thought of!"
+            ],
+            "text": "That's not the kind of thing our Nakall would have thought of!"
+          }
+        ]
+      },
+      "timing_anomalies": {
+        "invalid_ordering_srt": 1,
+        "invalid_ordering_srt_examples": [
+          {
+            "index": 113,
+            "start": 504.21,
+            "end": 503.88,
+            "duration": -0.33,
+            "lines": [
+              "fine."
+            ],
+            "text": "fine."
+          }
+        ],
+        "invalid_ordering_ass": 1,
+        "zero_or_near_zero_lt_0_2s": 1,
+        "under_1_0s": 25,
+        "under_1_0s_examples": [
+          {
+            "index": 5,
+            "start": 43.711,
+            "end": 44.061,
+            "duration": 0.35,
+            "lines": [
+              "The"
+            ],
+            "text": "The"
+          },
+          {
+            "index": 23,
+            "start": 114.41,
+            "end": 115.4,
+            "duration": 0.99,
+            "lines": [
+              "That way, we'll have free rein",
+              "to do what we came here to do."
+            ],
+            "text": "That way, we'll have free rein to do what we came here to do."
+          },
+          {
+            "index": 24,
+            "start": 115.4,
+            "end": 115.65,
+            "duration": 0.25,
+            "lines": [
+              "None."
+            ],
+            "text": "None."
+          },
+          {
+            "index": 49,
+            "start": 243.32,
+            "end": 244.12,
+            "duration": 0.8,
+            "lines": [
+              "Because do you believe that kiss story?",
+              "Mendoza was kissing that spy."
+            ],
+            "text": "Because do you believe that kiss story? Mendoza was kissing that spy."
+          },
+          {
+            "index": 52,
+            "start": 248.36,
+            "end": 249.24,
+            "duration": 0.88,
+            "lines": [
+              "The kids made a fool of us.",
+              "And you, of course, swallowed every word."
+            ],
+            "text": "The kids made a fool of us. And you, of course, swallowed every word."
+          },
+          {
+            "index": 59,
+            "start": 280.04,
+            "end": 280.76,
+            "duration": 0.72,
+            "lines": [
+              "I've made port on the",
+              "western coast before."
+            ],
+            "text": "I've made port on the western coast before."
+          },
+          {
+            "index": 61,
+            "start": 282.07,
+            "end": 282.69,
+            "duration": 0.62,
+            "lines": [
+              "Mm. I'm sure Isabella"
+            ],
+            "text": "Mm. I'm sure Isabella"
+          },
+          {
+            "index": 113,
+            "start": 504.21,
+            "end": 503.88,
+            "duration": -0.33,
+            "lines": [
+              "fine."
+            ],
+            "text": "fine."
+          },
+          {
+            "index": 118,
+            "start": 599.49,
+            "end": 600.46,
+            "duration": 0.97,
+            "lines": [
+              "What is it?"
+            ],
+            "text": "What is it?"
+          },
+          {
+            "index": 164,
+            "start": 811.88,
+            "end": 812.23,
+            "duration": 0.35,
+            "lines": [
+              "It's"
+            ],
+            "text": "It's"
+          }
+        ],
+        "long_raw_utterances_gt_12s": [
+          {
+            "id": "utt-0000",
+            "start": 4.08,
+            "end": 18.974,
+            "duration": 14.894,
+            "timing_status": "full",
+            "source_chars": 167,
+            "text": "Child of the sun, you cross the earth, the sky. Find your path, it's your life, it's your destiny. And day and night, with your two best friends, aboard the great"
+          },
+          {
+            "id": "utt-0030",
+            "start": 205.88,
+            "end": 217.986,
+            "duration": 12.106,
+            "timing_status": "full",
+            "source_chars": 211,
+            "text": "can open the Golden Cities without us. But it's not just about being able to open them, you still have to find them. And in this little game, we have a solid advantage over Ambrosius. Oh really? And may I know which one, Tao?"
+          },
+          {
+            "id": "utt-0031",
+            "start": 218.67,
+            "end": 231.321,
+            "duration": 12.651,
+            "timing_status": "full",
+            "source_chars": 196,
+            "text": "Me, of course! You? Absolutely! Ambrosius doesn't have a nat'cal like me to guide him, advise him, translate the Mu inscriptions with precision, solve the riddles!"
+          },
+          {
+            "id": "utt-0059",
+            "start": 313.0,
+            "end": 326.019,
+            "duration": 13.019,
+            "timing_status": "full",
+            "source_chars": 247,
+            "text": "him, I mean, hoping he's found a trail. Of course he has a trail! After Kumla, he headed straight west. He must have found clues in the memory temple in India. So he knows where he's going, for sure. Deduction by Nakall!"
+          },
+          {
+            "id": "utt-0090",
+            "start": 609.4,
+            "end": 621.539,
+            "duration": 12.139,
+            "timing_status": "full",
+            "source_chars": 158,
+            "text": "To where the clue is that will reveal the location of the fifth City of Gold and its treasure — the most fabulous treasure imaginable."
+          },
+          {
+            "id": "utt-0108",
+            "start": 734.95,
+            "end": 750.924,
+            "duration": 15.974,
+            "timing_status": "full",
+            "source_chars": 194,
+            "text": "Oh! It's Mu language! It says... The message is for the one who will give me life. A message. It could be a lumino-projection like in Kagoshima. A clue that gives the location"
+          },
+          {
+            "id": "utt-0147",
+            "start": 876.12,
+            "end": 891.884,
+            "duration": 15.764,
+            "timing_status": "full",
+            "source_chars": 246,
+            "text": "pyramid of Mu! Yeah, except there's this extra part. Look! It's like a pedestal. What is it? A procession? Looks like a queen up front, or a princess. Maybe it's Rana'Ori. And what's this? A door? The entrance to the city"
+          },
+          {
+            "id": "utt-0171",
+            "start": 1045.75,
+            "end": 1061.662,
+            "duration": 15.912,
+            "timing_status": "full",
+            "source_chars": 251,
+            "text": "And what do you think of my little creation? Ah, a very personal interpretation of an invention by your glorious ancestors, isn't it? Oh! You can find them everywhere. I knew you couldn't resist the temptation to set it in motion. Just to"
+          },
+          {
+            "id": "utt-0218",
+            "start": 1354.26,
+            "end": 1367.465,
+            "duration": 13.205,
+            "timing_status": "full",
+            "source_chars": 262,
+            "text": "Yes, you move them from one square to the next. Look at those – they were dug centuries ago by the king's soldiers who guarded Lalibela. Even today, guards play in the same spot. The goal is to collect the most"
+          }
+        ],
+        "rapid_short_swaps_le_50ms": 25
+      },
+      "reading_speed_cps": {
+        "min": 1.67,
+        "p50": 14.31,
+        "p90": 27.68,
+        "p95": 40.24,
+        "max": 148.89,
+        "mean": 16.53,
+        "gt_20_cps": 51,
+        "gt_25_cps": 34,
+        "gt_30_cps": 23,
+        "top_high_cps_examples": [
+          {
+            "index": 168,
+            "start": 813.75,
+            "end": 814.2,
+            "duration": 0.45,
+            "cps": 148.89,
+            "text": "if this machine points to the location of the fifth City of Gold..."
+          },
+          {
+            "index": 49,
+            "start": 243.32,
+            "end": 244.12,
+            "duration": 0.8,
+            "cps": 86.25,
+            "text": "Because do you believe that kiss story? Mendoza was kissing that spy."
+          },
+          {
+            "index": 178,
+            "start": 827.78,
+            "end": 828.68,
+            "duration": 0.9,
+            "cps": 81.11,
+            "text": "He must be waiting somewhere for us to find the clue so he can follow us!"
+          },
+          {
+            "index": 52,
+            "start": 248.36,
+            "end": 249.24,
+            "duration": 0.88,
+            "cps": 78.41,
+            "text": "The kids made a fool of us. And you, of course, swallowed every word."
+          },
+          {
+            "index": 173,
+            "start": 821.64,
+            "end": 822.44,
+            "duration": 0.8,
+            "cps": 71.25,
+            "text": "Obviously! Ambrosius couldn't get it running! That's all!"
+          },
+          {
+            "index": 23,
+            "start": 114.41,
+            "end": 115.4,
+            "duration": 0.99,
+            "cps": 61.62,
+            "text": "That way, we'll have free rein to do what we came here to do."
+          },
+          {
+            "index": 171,
+            "start": 817.72,
+            "end": 818.91,
+            "duration": 1.19,
+            "cps": 61.34,
+            "text": "So why didn't Ambrosius destroy it? That would've put us out of the game."
+          },
+          {
+            "index": 59,
+            "start": 280.04,
+            "end": 280.76,
+            "duration": 0.72,
+            "cps": 59.72,
+            "text": "I've made port on the western coast before."
+          },
+          {
+            "index": 190,
+            "start": 876.12,
+            "end": 877.56,
+            "duration": 1.44,
+            "cps": 55.56,
+            "text": "pyramid of Mu! Yeah, except there's this extra part. Look! It's like a pedestal."
+          },
+          {
+            "index": 257,
+            "start": 1300.58,
+            "end": 1301.72,
+            "duration": 1.14,
+            "cps": 48.25,
+            "text": "The eleven churches were carved into the mountain rock."
+          }
+        ]
+      },
+      "line_wrapping": {
+        "multiline_cues": 124,
+        "over_2_lines": 0,
+        "line_gt_42_chars": 0,
+        "line_gt_42_examples": []
+      },
+      "overlaps_and_duplicates": {
+        "genuine_two_speaker_overlap_pairs": 21,
+        "concurrent_similar_or_duplicate_cues": 1,
+        "concurrent_duplicate_examples": [
+          {
+            "cue_a": 62,
+            "cue_b": 63,
+            "start": 282.69,
+            "end": 284.875,
+            "similarity": 1.0,
+            "text_a": "The interior of the continent is still unexplored.",
+            "text_b": "The interior of the continent is still unexplored."
+          }
+        ]
+      },
+      "translation_integrity": {
+        "source_leaks_or_omissions_count": 0,
+        "source_leaks_or_omissions": []
+      },
+      "raw_cues_sample": {
+        "srt_first_5": [
+          {
+            "index": 1,
+            "start": 4.08,
+            "end": 8.455,
+            "duration": 4.375,
+            "lines": [
+              "Child of the sun,",
+              "you cross the earth, the sky."
+            ],
+            "text": "Child of the sun, you cross the earth, the sky."
+          },
+          {
+            "index": 2,
+            "start": 8.455,
+            "end": 13.109,
+            "duration": 4.654,
+            "lines": [
+              "Find your path, it's your life,",
+              "it's your destiny."
+            ],
+            "text": "Find your path, it's your life, it's your destiny."
+          },
+          {
+            "index": 3,
+            "start": 13.109,
+            "end": 18.974,
+            "duration": 5.865,
+            "lines": [
+              "And day and night, with your two",
+              "best friends, aboard the great"
+            ],
+            "text": "And day and night, with your two best friends, aboard the great"
+          },
+          {
+            "index": 4,
+            "start": 19.08,
+            "end": 22.413,
+            "duration": 3.333,
+            "lines": [
+              "Condor, you search for the Cities of Gold."
+            ],
+            "text": "Condor, you search for the Cities of Gold."
+          },
+          {
+            "index": 5,
+            "start": 43.711,
+            "end": 44.061,
+            "duration": 0.35,
+            "lines": [
+              "The"
+            ],
+            "text": "The"
+          }
+        ],
+        "srt_last_5": [
+          {
+            "index": 282,
+            "start": 1357.258,
+            "end": 1361.469,
+            "duration": 4.211,
+            "lines": [
+              "Look at those – they were dug",
+              "centuries ago by the king's soldiers"
+            ],
+            "text": "Look at those – they were dug centuries ago by the king's soldiers"
+          },
+          {
+            "index": 283,
+            "start": 1361.469,
+            "end": 1365.487,
+            "duration": 4.018,
+            "lines": [
+              "who guarded Lalibela.",
+              "Even today, guards play in the same spot."
+            ],
+            "text": "who guarded Lalibela. Even today, guards play in the same spot."
+          },
+          {
+            "index": 284,
+            "start": 1365.487,
+            "end": 1367.465,
+            "duration": 1.978,
+            "lines": [
+              "The goal is to collect the most"
+            ],
+            "text": "The goal is to collect the most"
+          },
+          {
+            "index": 285,
+            "start": 1367.47,
+            "end": 1370.453,
+            "duration": 2.983,
+            "lines": [
+              "of stones by the end of the game.",
+              "Want to try with them, Pichu?"
+            ],
+            "text": "of stones by the end of the game. Want to try with them, Pichu?"
+          },
+          {
+            "index": 286,
+            "start": 1375.54,
+            "end": 1376.938,
+            "duration": 1.398,
+            "lines": [
+              "Goodbye, see you soon."
+            ],
+            "text": "Goodbye, see you soon."
+          }
+        ]
+      }
+    },
+    "after": {
+      "language": "fr",
+      "duration_s": 1379.88,
+      "utterance_counts": {
+        "total": 221,
+        "merged_into_prev": 4,
+        "suppressed_fragments_count": 0,
+        "untimed_unrenderable": 0,
+        "partial_timing": 0
+      },
+      "cue_counts": {
+        "srt_cues": 284,
+        "ass_events": 284,
+        "ass_main_cues": 259,
+        "ass_top_cues": 20,
+        "ass_overflow_cues": 0,
+        "omitted_from_ass_count": 0,
+        "omitted_from_ass": []
+      },
+      "timing_anomalies": {
+        "invalid_ordering_srt": 0,
+        "invalid_ordering_srt_examples": [],
+        "invalid_ordering_ass": 0,
+        "zero_or_near_zero_lt_0_2s": 1,
+        "under_1_0s": 25,
+        "under_1_0s_examples": [
+          {
+            "index": 5,
+            "start": 43.711,
+            "end": 44.061,
+            "duration": 0.35,
+            "lines": [
+              "The"
+            ],
+            "text": "The"
+          },
+          {
+            "index": 23,
+            "start": 114.41,
+            "end": 115.4,
+            "duration": 0.99,
+            "lines": [
+              "That way, we'll have free rein",
+              "to do what we came here to do."
+            ],
+            "text": "That way, we'll have free rein to do what we came here to do."
+          },
+          {
+            "index": 24,
+            "start": 115.4,
+            "end": 115.678,
+            "duration": 0.278,
+            "lines": [
+              "None."
+            ],
+            "text": "None."
+          },
+          {
+            "index": 48,
+            "start": 243.32,
+            "end": 244.12,
+            "duration": 0.8,
+            "lines": [
+              "Because do you believe that kiss story?",
+              "Mendoza was kissing that spy."
+            ],
+            "text": "Because do you believe that kiss story? Mendoza was kissing that spy."
+          },
+          {
+            "index": 51,
+            "start": 248.36,
+            "end": 249.24,
+            "duration": 0.88,
+            "lines": [
+              "The kids made a fool of us.",
+              "And you, of course, swallowed every word."
+            ],
+            "text": "The kids made a fool of us. And you, of course, swallowed every word."
+          },
+          {
+            "index": 58,
+            "start": 280.04,
+            "end": 280.76,
+            "duration": 0.72,
+            "lines": [
+              "I've made port on the",
+              "western coast before."
+            ],
+            "text": "I've made port on the western coast before."
+          },
+          {
+            "index": 110,
+            "start": 504.21,
+            "end": 504.36,
+            "duration": 0.15,
+            "lines": [
+              "fine."
+            ],
+            "text": "fine."
+          },
+          {
+            "index": 111,
+            "start": 504.36,
+            "end": 505.08,
+            "duration": 0.72,
+            "lines": [
+              "ogre."
+            ],
+            "text": "ogre."
+          },
+          {
+            "index": 116,
+            "start": 599.49,
+            "end": 600.46,
+            "duration": 0.97,
+            "lines": [
+              "What is it?"
+            ],
+            "text": "What is it?"
+          },
+          {
+            "index": 162,
+            "start": 811.88,
+            "end": 812.23,
+            "duration": 0.35,
+            "lines": [
+              "It's"
+            ],
+            "text": "It's"
+          }
+        ],
+        "long_raw_utterances_gt_12s": [
+          {
+            "id": "utt-0000",
+            "start": 4.08,
+            "end": 18.974,
+            "duration": 14.894,
+            "timing_status": "full",
+            "source_chars": 167,
+            "text": "Child of the sun, you cross the earth, the sky. Find your path, it's your life, it's your destiny. And day and night, with your two best friends, aboard the great"
+          },
+          {
+            "id": "utt-0030",
+            "start": 205.88,
+            "end": 217.986,
+            "duration": 12.106,
+            "timing_status": "full",
+            "source_chars": 211,
+            "text": "can open the Golden Cities without us. But it's not just about being able to open them, you still have to find them. And in this little game, we have a solid advantage over Ambrosius. Oh really? And may I know which one, Tao?"
+          },
+          {
+            "id": "utt-0031",
+            "start": 218.67,
+            "end": 231.321,
+            "duration": 12.651,
+            "timing_status": "full",
+            "source_chars": 196,
+            "text": "Me, of course! You? Absolutely! Ambrosius doesn't have a nat'cal like me to guide him, advise him, translate the Mu inscriptions with precision, solve the riddles!"
+          },
+          {
+            "id": "utt-0059",
+            "start": 313.0,
+            "end": 326.019,
+            "duration": 13.019,
+            "timing_status": "full",
+            "source_chars": 247,
+            "text": "him, I mean, hoping he's found a trail. Of course he has a trail! After Kumla, he headed straight west. He must have found clues in the memory temple in India. So he knows where he's going, for sure. Deduction by Nakall!"
+          },
+          {
+            "id": "utt-0090",
+            "start": 609.4,
+            "end": 621.539,
+            "duration": 12.139,
+            "timing_status": "full",
+            "source_chars": 158,
+            "text": "To where the clue is that will reveal the location of the fifth City of Gold and its treasure — the most fabulous treasure imaginable."
+          },
+          {
+            "id": "utt-0108",
+            "start": 734.95,
+            "end": 750.924,
+            "duration": 15.974,
+            "timing_status": "full",
+            "source_chars": 194,
+            "text": "Oh! It's Mu language! It says... The message is for the one who will give me life. A message. It could be a lumino-projection like in Kagoshima. A clue that gives the location"
+          },
+          {
+            "id": "utt-0147",
+            "start": 876.12,
+            "end": 891.884,
+            "duration": 15.764,
+            "timing_status": "full",
+            "source_chars": 246,
+            "text": "pyramid of Mu! Yeah, except there's this extra part. Look! It's like a pedestal. What is it? A procession? Looks like a queen up front, or a princess. Maybe it's Rana'Ori. And what's this? A door? The entrance to the city"
+          },
+          {
+            "id": "utt-0171",
+            "start": 1045.75,
+            "end": 1061.662,
+            "duration": 15.912,
+            "timing_status": "full",
+            "source_chars": 251,
+            "text": "And what do you think of my little creation? Ah, a very personal interpretation of an invention by your glorious ancestors, isn't it? Oh! You can find them everywhere. I knew you couldn't resist the temptation to set it in motion. Just to"
+          },
+          {
+            "id": "utt-0218",
+            "start": 1354.26,
+            "end": 1367.465,
+            "duration": 13.205,
+            "timing_status": "full",
+            "source_chars": 262,
+            "text": "Yes, you move them from one square to the next. Look at those – they were dug centuries ago by the king's soldiers who guarded Lalibela. Even today, guards play in the same spot. The goal is to collect the most"
+          }
+        ],
+        "rapid_short_swaps_le_50ms": 26
+      },
+      "reading_speed_cps": {
+        "min": 1.67,
+        "p50": 14.35,
+        "p90": 22.37,
+        "p95": 36.31,
+        "max": 148.89,
+        "mean": 15.9,
+        "gt_20_cps": 33,
+        "gt_25_cps": 26,
+        "gt_30_cps": 20,
+        "top_high_cps_examples": [
+          {
+            "index": 166,
+            "start": 813.75,
+            "end": 814.2,
+            "duration": 0.45,
+            "cps": 148.89,
+            "text": "if this machine points to the location of the fifth City of Gold..."
+          },
+          {
+            "index": 48,
+            "start": 243.32,
+            "end": 244.12,
+            "duration": 0.8,
+            "cps": 86.25,
+            "text": "Because do you believe that kiss story? Mendoza was kissing that spy."
+          },
+          {
+            "index": 176,
+            "start": 827.78,
+            "end": 828.68,
+            "duration": 0.9,
+            "cps": 81.11,
+            "text": "He must be waiting somewhere for us to find the clue so he can follow us!"
+          },
+          {
+            "index": 51,
+            "start": 248.36,
+            "end": 249.24,
+            "duration": 0.88,
+            "cps": 78.41,
+            "text": "The kids made a fool of us. And you, of course, swallowed every word."
+          },
+          {
+            "index": 171,
+            "start": 821.64,
+            "end": 822.44,
+            "duration": 0.8,
+            "cps": 71.25,
+            "text": "Obviously! Ambrosius couldn't get it running! That's all!"
+          },
+          {
+            "index": 23,
+            "start": 114.41,
+            "end": 115.4,
+            "duration": 0.99,
+            "cps": 61.62,
+            "text": "That way, we'll have free rein to do what we came here to do."
+          },
+          {
+            "index": 169,
+            "start": 817.72,
+            "end": 818.91,
+            "duration": 1.19,
+            "cps": 61.34,
+            "text": "So why didn't Ambrosius destroy it? That would've put us out of the game."
+          },
+          {
+            "index": 58,
+            "start": 280.04,
+            "end": 280.76,
+            "duration": 0.72,
+            "cps": 59.72,
+            "text": "I've made port on the western coast before."
+          },
+          {
+            "index": 188,
+            "start": 876.12,
+            "end": 877.56,
+            "duration": 1.44,
+            "cps": 55.56,
+            "text": "pyramid of Mu! Yeah, except there's this extra part. Look! It's like a pedestal."
+          },
+          {
+            "index": 255,
+            "start": 1300.58,
+            "end": 1301.72,
+            "duration": 1.14,
+            "cps": 48.25,
+            "text": "The eleven churches were carved into the mountain rock."
+          }
+        ]
+      },
+      "line_wrapping": {
+        "multiline_cues": 121,
+        "over_2_lines": 0,
+        "line_gt_42_chars": 0,
+        "line_gt_42_examples": []
+      },
+      "overlaps_and_duplicates": {
+        "genuine_two_speaker_overlap_pairs": 20,
+        "concurrent_similar_or_duplicate_cues": 0,
+        "concurrent_duplicate_examples": []
+      },
+      "translation_integrity": {
+        "source_leaks_or_omissions_count": 0,
+        "source_leaks_or_omissions": []
+      },
+      "raw_cues_sample": {
+        "srt_first_5": [
+          {
+            "index": 1,
+            "start": 4.08,
+            "end": 8.455,
+            "duration": 4.375,
+            "lines": [
+              "Child of the sun,",
+              "you cross the earth, the sky."
+            ],
+            "text": "Child of the sun, you cross the earth, the sky."
+          },
+          {
+            "index": 2,
+            "start": 8.455,
+            "end": 13.109,
+            "duration": 4.654,
+            "lines": [
+              "Find your path, it's your life,",
+              "it's your destiny."
+            ],
+            "text": "Find your path, it's your life, it's your destiny."
+          },
+          {
+            "index": 3,
+            "start": 13.109,
+            "end": 18.974,
+            "duration": 5.865,
+            "lines": [
+              "And day and night, with your two",
+              "best friends, aboard the great"
+            ],
+            "text": "And day and night, with your two best friends, aboard the great"
+          },
+          {
+            "index": 4,
+            "start": 19.08,
+            "end": 22.413,
+            "duration": 3.333,
+            "lines": [
+              "Condor, you search for the Cities of Gold."
+            ],
+            "text": "Condor, you search for the Cities of Gold."
+          },
+          {
+            "index": 5,
+            "start": 43.711,
+            "end": 44.061,
+            "duration": 0.35,
+            "lines": [
+              "The"
+            ],
+            "text": "The"
+          }
+        ],
+        "srt_last_5": [
+          {
+            "index": 280,
+            "start": 1357.258,
+            "end": 1361.469,
+            "duration": 4.211,
+            "lines": [
+              "Look at those – they were dug",
+              "centuries ago by the king's soldiers"
+            ],
+            "text": "Look at those – they were dug centuries ago by the king's soldiers"
+          },
+          {
+            "index": 281,
+            "start": 1361.469,
+            "end": 1365.487,
+            "duration": 4.018,
+            "lines": [
+              "who guarded Lalibela.",
+              "Even today, guards play in the same spot."
+            ],
+            "text": "who guarded Lalibela. Even today, guards play in the same spot."
+          },
+          {
+            "index": 282,
+            "start": 1365.487,
+            "end": 1367.465,
+            "duration": 1.978,
+            "lines": [
+              "The goal is to collect the most"
+            ],
+            "text": "The goal is to collect the most"
+          },
+          {
+            "index": 283,
+            "start": 1367.47,
+            "end": 1370.97,
+            "duration": 3.5,
+            "lines": [
+              "of stones by the end of the game.",
+              "Want to try with them, Pichu?"
+            ],
+            "text": "of stones by the end of the game. Want to try with them, Pichu?"
+          },
+          {
+            "index": 284,
+            "start": 1375.54,
+            "end": 1376.938,
+            "duration": 1.398,
+            "lines": [
+              "Goodbye, see you soon."
+            ],
+            "text": "Goodbye, see you soon."
+          }
+        ]
+      }
+    },
+    "condensation": {
+      "status": "ok",
+      "cps_threshold": 25.0,
+      "candidate_count": 7,
+      "condensed_count": 5,
+      "api_calls": 0,
+      "cache_hits": 7,
+      "errors": [],
+      "elapsed_s": 0.0
+    },
+    "screenshots": [
+      {
+        "name": "fr_01_48s_narrator",
+        "timestamp_s": 47.5,
+        "description": "Standard layout narrator",
+        "png_path": "outputs/subtitle_runs/viewing_quality/fr_full_episode/screenshots/fr_01_48s_narrator_48s.png",
+        "active_cues": [
+          {
+            "style": "Main",
+            "start": 46.01,
+            "end": 49.23,
+            "text": "and Tao have discovered three new Cities of Gold, in China, Japan, and Arabia."
+          }
+        ]
+      },
+      {
+        "name": "fr_02_175s_2spk",
+        "timestamp_s": 175.2,
+        "description": "Standard Main+Top 2-speaker overlap",
+        "png_path": "outputs/subtitle_runs/viewing_quality/fr_full_episode/screenshots/fr_02_175s_2spk_175s.png",
+        "active_cues": [
+          {
+            "style": "Main",
+            "start": 170.2,
+            "end": 176.48,
+            "text": "Devilishly effective, isn't it? Sure, it's amazing! Right, let's move to phase two."
+          },
+          {
+            "style": "Top",
+            "start": 174.6,
+            "end": 175.8,
+            "text": "Oh no!"
+          }
+        ]
+      },
+      {
+        "name": "fr_03_284s_dup_fix",
+        "timestamp_s": 283.58,
+        "description": "Formerly duplicate overlap at 282-291s",
+        "png_path": "outputs/subtitle_runs/viewing_quality/fr_full_episode/screenshots/fr_03_284s_dup_fix_284s.png",
+        "active_cues": [
+          {
+            "style": "Main",
+            "start": 282.28,
+            "end": 285.05,
+            "text": "The interior of the continent is still unexplored."
+          }
+        ]
+      },
+      {
+        "name": "fr_04_306s_3spk_topalt",
+        "timestamp_s": 306.0,
+        "description": "3-speaker scene preserved via TopAlt",
+        "png_path": "outputs/subtitle_runs/viewing_quality/fr_full_episode/screenshots/fr_04_306s_3spk_topalt_306s.png",
+        "active_cues": [
+          {
+            "style": "Main",
+            "start": 304.72,
+            "end": 307.31,
+            "text": "I like it. It's a beautiful country. Have you been to Africa before, Mendoza?"
+          },
+          {
+            "style": "Top",
+            "start": 304.8,
+            "end": 307.06,
+            "text": "No, I'm more sensing problems."
+          },
+          {
+            "style": "TopAlt",
+            "start": 305.48,
+            "end": 306.68,
+            "text": "Zia, you're amazing!"
+          }
+        ]
+      }
+    ]
+  },
+  "mandarin": {
+    "before": {
+      "language": "zh",
+      "duration_s": 1318.88,
+      "utterance_counts": {
+        "total": 285,
+        "merged_into_prev": 15,
+        "suppressed_fragments_count": 0,
+        "untimed_unrenderable": 41,
+        "partial_timing": 69
+      },
+      "cue_counts": {
+        "srt_cues": 307,
+        "ass_events": 304,
+        "ass_main_cues": 254,
+        "ass_top_cues": 50,
+        "ass_overflow_cues": 3,
+        "omitted_from_ass_count": 3,
+        "omitted_from_ass": [
+          {
+            "index": 114,
+            "start": 562.68,
+            "end": 563.88,
+            "duration": 1.2,
+            "lines": [
+              "Night's"
+            ],
+            "text": "Night's"
+          },
+          {
+            "index": 122,
+            "start": 570.68,
+            "end": 574.255,
+            "duration": 3.575,
+            "lines": [
+              "Emperor… the imperial city is empty…"
+            ],
+            "text": "Emperor… the imperial city is empty…"
+          },
+          {
+            "index": 129,
+            "start": 593.013,
+            "end": 594.213,
+            "duration": 1.2,
+            "lines": [
+              "All of it fake?"
+            ],
+            "text": "All of it fake?"
+          }
+        ]
+      },
+      "timing_anomalies": {
+        "invalid_ordering_srt": 0,
+        "invalid_ordering_srt_examples": [],
+        "invalid_ordering_ass": 0,
+        "zero_or_near_zero_lt_0_2s": 0,
+        "under_1_0s": 35,
+        "under_1_0s_examples": [
+          {
+            "index": 40,
+            "start": 268.541,
+            "end": 268.991,
+            "duration": 0.45,
+            "lines": [
+              "—failure is not up to me. Bai",
+              "Xiaochun can still make one last stand."
+            ],
+            "text": "—failure is not up to me. Bai Xiaochun can still make one last stand."
+          },
+          {
+            "index": 41,
+            "start": 268.991,
+            "end": 269.526,
+            "duration": 0.535,
+            "lines": [
+              "As the giant hand behind the scenes that",
+              "manipulates the fate of all finally rises"
+            ],
+            "text": "As the giant hand behind the scenes that manipulates the fate of all finally rises"
+          },
+          {
+            "index": 42,
+            "start": 269.526,
+            "end": 269.917,
+            "duration": 0.391,
+            "lines": [
+              "to the forefront— —and what I",
+              "can grasp, what I can reclaim."
+            ],
+            "text": "to the forefront— —and what I can grasp, what I can reclaim."
+          },
+          {
+            "index": 90,
+            "start": 489.32,
+            "end": 489.721,
+            "duration": 0.401,
+            "lines": [
+              "is"
+            ],
+            "text": "is"
+          },
+          {
+            "index": 91,
+            "start": 489.721,
+            "end": 490.52,
+            "duration": 0.799,
+            "lines": [
+              "Just..."
+            ],
+            "text": "Just..."
+          },
+          {
+            "index": 92,
+            "start": 490.92,
+            "end": 491.48,
+            "duration": 0.56,
+            "lines": [
+              "like Huangquan City"
+            ],
+            "text": "like Huangquan City"
+          },
+          {
+            "index": 94,
+            "start": 497.08,
+            "end": 497.842,
+            "duration": 0.762,
+            "lines": [
+              "Master, don't worry."
+            ],
+            "text": "Master, don't worry."
+          },
+          {
+            "index": 95,
+            "start": 497.842,
+            "end": 498.6,
+            "duration": 0.758,
+            "lines": [
+              "Underworld"
+            ],
+            "text": "Underworld"
+          },
+          {
+            "index": 96,
+            "start": 498.82,
+            "end": 499.297,
+            "duration": 0.477,
+            "lines": [
+              "Everything"
+            ],
+            "text": "Everything"
+          },
+          {
+            "index": 97,
+            "start": 499.297,
+            "end": 500.04,
+            "duration": 0.743,
+            "lines": [
+              "Emperor"
+            ],
+            "text": "Emperor"
+          }
+        ],
+        "long_raw_utterances_gt_12s": [
+          {
+            "id": "utt-0012",
+            "start": 202.58,
+            "end": 220.5,
+            "duration": 17.92,
+            "timing_status": "partial",
+            "source_chars": 58,
+            "text": "The past was sweet, but the road ahead is longer. Fine — it's time to let go and return to the original heart of cultivation. As they say, a true man's ambition spans a thousand miles. To display might at the Great Wall, to achieve great deeds. I, Bai Xiaochun, in the span of a finger snap, the Giant Ghost in the wilderness, flying flames extinguished, from—"
+          },
+          {
+            "id": "utt-0015",
+            "start": 237.41,
+            "end": 268.509,
+            "duration": 31.099,
+            "timing_status": "partial",
+            "source_chars": 116,
+            "text": "Fed up. To keep my life and safely return to the Great Wall, I had no choice but to disguise myself as a beast that died unjustly, and once again, on the eve of atonement, in the wilderness, amid waves of power rippling through the heavens, I frantically profited. Finally, as wished, I successfully ascended to Heavenly Dao Nascent Soul. I thought this journey was complete and I could happily return. Who would have thought a top-tier duel with the fate of the world as the stake seemed to change nothing — but this round's success or—"
+          },
+          {
+            "id": "utt-0021",
+            "start": 291.02,
+            "end": 304.273,
+            "duration": 13.253,
+            "timing_status": "partial",
+            "source_chars": 37,
+            "text": "The Tomb Keeper, who has stood guard for over ten thousand years, in fidelity to the Great Dao, has chosen the front lines of Xuanqing City. The Underworld Emperor succession ceremony will be held in one month."
+          },
+          {
+            "id": "utt-0028",
+            "start": 362.35,
+            "end": 407.75,
+            "duration": 45.4,
+            "timing_status": "partial",
+            "source_chars": 16,
+            "text": "Lives up to its reputation, indeed. Are you alright, sir? Come with me."
+          },
+          {
+            "id": "utt-0030",
+            "start": 374.81,
+            "end": 386.877,
+            "duration": 12.067,
+            "timing_status": "partial",
+            "source_chars": 32,
+            "text": "I was created by the Sovereign to guard His veil and the cycle of reincarnation, to watch over the Gate of the World. All that is not orthodox may not pass through."
+          },
+          {
+            "id": "utt-0031",
+            "start": 388.19,
+            "end": 404.128,
+            "duration": 15.938,
+            "timing_status": "partial",
+            "source_chars": 48,
+            "text": "As the Tomb Keeper, there are many things I should not interfere with. My hibernation is nearly over, and the time I can guard these two is running short. Now even this world is showing signs of—"
+          },
+          {
+            "id": "utt-0032",
+            "start": 404.181,
+            "end": 418.925,
+            "duration": 14.744,
+            "timing_status": "partial",
+            "source_chars": 28,
+            "text": "—breaking apart. Unlike the Tomb Keeper's duty, the Underworld Emperor, with the Chaotic Spirit River, eternally guards the Spirit Palace and protects reincarnation."
+          },
+          {
+            "id": "utt-0033",
+            "start": 408.032,
+            "end": 422.129,
+            "duration": 14.097,
+            "timing_status": "partial",
+            "source_chars": 17,
+            "text": "Grandpa, you're the one rushing to pick an heir to guard the Spirit Palace."
+          },
+          {
+            "id": "utt-0035",
+            "start": 430.95,
+            "end": 446.594,
+            "duration": 15.644,
+            "timing_status": "partial",
+            "source_chars": 38,
+            "text": "Lord, actually I'm not that... Lord, haven't you made a mistake? The Underworld Emperor's throne would be better suited to my master. Fate... could it be that you..."
+          },
+          {
+            "id": "utt-0037",
+            "start": 436.97,
+            "end": 452.872,
+            "duration": 15.902,
+            "timing_status": "partial",
+            "source_chars": 28,
+            "text": "to be the Underworld Emperor. I once altered the course of your life, placing you by his side."
+          }
+        ],
+        "rapid_short_swaps_le_50ms": 23
+      },
+      "reading_speed_cps": {
+        "min": 0.83,
+        "p50": 16.67,
+        "p90": 30.75,
+        "p95": 39.77,
+        "max": 153.45,
+        "mean": 19.51,
+        "gt_20_cps": 107,
+        "gt_25_cps": 69,
+        "gt_30_cps": 37,
+        "top_high_cps_examples": [
+          {
+            "index": 42,
+            "start": 269.526,
+            "end": 269.917,
+            "duration": 0.391,
+            "cps": 153.45,
+            "text": "to the forefront— —and what I can grasp, what I can reclaim."
+          },
+          {
+            "index": 40,
+            "start": 268.541,
+            "end": 268.991,
+            "duration": 0.45,
+            "cps": 153.33,
+            "text": "—failure is not up to me. Bai Xiaochun can still make one last stand."
+          },
+          {
+            "index": 41,
+            "start": 268.991,
+            "end": 269.526,
+            "duration": 0.535,
+            "cps": 153.27,
+            "text": "As the giant hand behind the scenes that manipulates the fate of all finally rises"
+          },
+          {
+            "index": 147,
+            "start": 710.95,
+            "end": 711.591,
+            "duration": 0.641,
+            "cps": 104.52,
+            "text": "I understand now. If becoming the Underworld Emperor is a necessity"
+          },
+          {
+            "index": 152,
+            "start": 719.8,
+            "end": 720.52,
+            "duration": 0.72,
+            "cps": 73.61,
+            "text": "It's to protect your master, unbroken for a lifetime."
+          },
+          {
+            "index": 268,
+            "start": 1064.88,
+            "end": 1066.08,
+            "duration": 1.2,
+            "cps": 69.17,
+            "text": "Through every trial, I've endured it all. Everything I have, I earned with my life."
+          },
+          {
+            "index": 177,
+            "start": 809.12,
+            "end": 810.11,
+            "duration": 0.99,
+            "cps": 62.63,
+            "text": "Master, this is the 24-colored Flame I refined using the power"
+          },
+          {
+            "index": 305,
+            "start": 1194.87,
+            "end": 1195.64,
+            "duration": 0.77,
+            "cps": 61.04,
+            "text": "Once I've passed all my divine arts to Bai Hao,"
+          },
+          {
+            "index": 224,
+            "start": 900.001,
+            "end": 901.201,
+            "duration": 1.2,
+            "cps": 55.83,
+            "text": "The Underworld Emperor Ranking—fetching water with a bamboo basket."
+          },
+          {
+            "index": 155,
+            "start": 723.476,
+            "end": 725.08,
+            "duration": 1.604,
+            "cps": 49.25,
+            "text": "Otherwise, the Underworld River and the mortal world will be utterly destroyed."
+          }
+        ]
+      },
+      "line_wrapping": {
+        "multiline_cues": 131,
+        "over_2_lines": 0,
+        "line_gt_42_chars": 0,
+        "line_gt_42_examples": []
+      },
+      "overlaps_and_duplicates": {
+        "genuine_two_speaker_overlap_pairs": 43,
+        "concurrent_similar_or_duplicate_cues": 0,
+        "concurrent_duplicate_examples": []
+      },
+      "translation_integrity": {
+        "source_leaks_or_omissions_count": 1,
+        "source_leaks_or_omissions": [
+          {
+            "id": "utt-0241",
+            "reason": "cjk_in_english",
+            "source": "的",
+            "translated": "的"
+          }
+        ]
+      },
+      "raw_cues_sample": {
+        "srt_first_5": [
+          {
+            "index": 1,
+            "start": 100.5,
+            "end": 103.641,
+            "duration": 3.141,
+            "lines": [
+              "I'm a Fang Shushi. Soldiers are truly",
+              "unreliable — that's just how it is."
+            ],
+            "text": "I'm a Fang Shushi. Soldiers are truly unreliable — that's just how it is."
+          },
+          {
+            "index": 2,
+            "start": 152.97,
+            "end": 155.474,
+            "duration": 2.504,
+            "lines": [
+              "As I mentioned before, the Xing Lake",
+              "bandits were called out by the powerful,"
+            ],
+            "text": "As I mentioned before, the Xing Lake bandits were called out by the powerful,"
+          },
+          {
+            "index": 3,
+            "start": 155.474,
+            "end": 157.457,
+            "duration": 1.983,
+            "lines": [
+              "the backbone of the group cooperated",
+              "with minimal resistance,"
+            ],
+            "text": "the backbone of the group cooperated with minimal resistance,"
+          },
+          {
+            "index": 4,
+            "start": 157.457,
+            "end": 158.657,
+            "duration": 1.2,
+            "lines": [
+              "and the child was sent to the court."
+            ],
+            "text": "and the child was sent to the court."
+          },
+          {
+            "index": 5,
+            "start": 159.1,
+            "end": 162.156,
+            "duration": 3.056,
+            "lines": [
+              "So I, Bai Xiaochun, once again",
+              "accepted a mission in a time of crisis"
+            ],
+            "text": "So I, Bai Xiaochun, once again accepted a mission in a time of crisis"
+          }
+        ],
+        "srt_last_5": [
+          {
+            "index": 303,
+            "start": 1191.06,
+            "end": 1192.26,
+            "duration": 1.2,
+            "lines": [
+              "Looking up, in fact..."
+            ],
+            "text": "Looking up, in fact..."
+          },
+          {
+            "index": 304,
+            "start": 1194.52,
+            "end": 1194.87,
+            "duration": 0.35,
+            "lines": [
+              "Ah."
+            ],
+            "text": "Ah."
+          },
+          {
+            "index": 305,
+            "start": 1194.87,
+            "end": 1195.64,
+            "duration": 0.77,
+            "lines": [
+              "Once I've passed all my",
+              "divine arts to Bai Hao,"
+            ],
+            "text": "Once I've passed all my divine arts to Bai Hao,"
+          },
+          {
+            "index": 306,
+            "start": 1195.64,
+            "end": 1196.84,
+            "duration": 1.2,
+            "lines": [
+              "Thank you."
+            ],
+            "text": "Thank you."
+          },
+          {
+            "index": 307,
+            "start": 1198.205,
+            "end": 1203.616,
+            "duration": 5.411,
+            "lines": [
+              "I should set off for Arch-Emperor City",
+              "to make my final preparations."
+            ],
+            "text": "I should set off for Arch-Emperor City to make my final preparations."
+          }
+        ]
+      }
+    },
+    "after": {
+      "language": "zh",
+      "duration_s": 1318.88,
+      "utterance_counts": {
+        "total": 285,
+        "merged_into_prev": 13,
+        "suppressed_fragments_count": 6,
+        "untimed_unrenderable": 41,
+        "partial_timing": 69
+      },
+      "cue_counts": {
+        "srt_cues": 281,
+        "ass_events": 281,
+        "ass_main_cues": 229,
+        "ass_top_cues": 50,
+        "ass_overflow_cues": 0,
+        "omitted_from_ass_count": 0,
+        "omitted_from_ass": []
+      },
+      "timing_anomalies": {
+        "invalid_ordering_srt": 0,
+        "invalid_ordering_srt_examples": [],
+        "invalid_ordering_ass": 0,
+        "zero_or_near_zero_lt_0_2s": 0,
+        "under_1_0s": 29,
+        "under_1_0s_examples": [
+          {
+            "index": 34,
+            "start": 268.541,
+            "end": 269.091,
+            "duration": 0.55,
+            "lines": [
+              "—is not in my hands. Only Bai",
+              "Xiaochun can still make one last stand."
+            ],
+            "text": "—is not in my hands. Only Bai Xiaochun can still make one last stand."
+          },
+          {
+            "index": 35,
+            "start": 269.091,
+            "end": 269.641,
+            "duration": 0.55,
+            "lines": [
+              "As the hidden hand that manipulates",
+              "the world finally rises to the front,"
+            ],
+            "text": "As the hidden hand that manipulates the world finally rises to the front,"
+          },
+          {
+            "index": 83,
+            "start": 489.32,
+            "end": 489.721,
+            "duration": 0.401,
+            "lines": [
+              "Yes."
+            ],
+            "text": "Yes."
+          },
+          {
+            "index": 84,
+            "start": 489.721,
+            "end": 490.52,
+            "duration": 0.799,
+            "lines": [
+              "Just..."
+            ],
+            "text": "Just..."
+          },
+          {
+            "index": 85,
+            "start": 490.92,
+            "end": 491.48,
+            "duration": 0.56,
+            "lines": [
+              "Enter the Yellow Spring City"
+            ],
+            "text": "Enter the Yellow Spring City"
+          },
+          {
+            "index": 87,
+            "start": 497.08,
+            "end": 497.842,
+            "duration": 0.762,
+            "lines": [
+              "Master, rest assured"
+            ],
+            "text": "Master, rest assured"
+          },
+          {
+            "index": 88,
+            "start": 497.842,
+            "end": 498.62,
+            "duration": 0.778,
+            "lines": [
+              "The Underworld"
+            ],
+            "text": "The Underworld"
+          },
+          {
+            "index": 89,
+            "start": 498.82,
+            "end": 499.297,
+            "duration": 0.477,
+            "lines": [
+              "Everything"
+            ],
+            "text": "Everything"
+          },
+          {
+            "index": 90,
+            "start": 499.297,
+            "end": 500.04,
+            "duration": 0.743,
+            "lines": [
+              "Emperor"
+            ],
+            "text": "Emperor"
+          },
+          {
+            "index": 94,
+            "start": 512.36,
+            "end": 512.71,
+            "duration": 0.35,
+            "lines": [
+              "Fate."
+            ],
+            "text": "Fate."
+          }
+        ],
+        "long_raw_utterances_gt_12s": [
+          {
+            "id": "utt-0015",
+            "start": 202.58,
+            "end": 220.5,
+            "duration": 17.92,
+            "timing_status": "partial",
+            "source_chars": 58,
+            "text": "The past may be sweet, but the road ahead is longer. Fine, it's time to let go and return to my original path. As they say, when the road is hard, ambition comes first. Make a name at the Great Wall, achieve great deeds. I, Bai Xiaochun, in a snap, faced the Giant Ghost in the wilderness, flying flames, all traces vanishing."
+          },
+          {
+            "id": "utt-0018",
+            "start": 237.41,
+            "end": 268.509,
+            "duration": 31.099,
+            "timing_status": "partial",
+            "source_chars": 116,
+            "text": "To survive and safely return to the Great Wall, I had no choice but to disguise myself as a beast that died with a grievance. On the eve of atonement, in the wilderness, amid turbulent power shifts, I frantically profited. Finally, I successfully ascended to Heavenly Dao Nascent Soul. I thought this journey was complete and I could happily return, but who knew a top-tier showdown with the world's fate as the stake was already in play. The outcome of this game—"
+          },
+          {
+            "id": "utt-0025",
+            "start": 291.02,
+            "end": 304.273,
+            "duration": 13.253,
+            "timing_status": "partial",
+            "source_chars": 37,
+            "text": "After guarding the tomb for over ten thousand years, I have upheld the heart of the Great Dao and chosen the front hall of Xuanqing City. The Underworld Emperor's succession ceremony will be held in one month."
+          },
+          {
+            "id": "utt-0036",
+            "start": 362.35,
+            "end": 407.75,
+            "duration": 45.4,
+            "timing_status": "partial",
+            "source_chars": 16,
+            "text": "Truly lives up to its reputation! Are you alright, sir? ..."
+          },
+          {
+            "id": "utt-0038",
+            "start": 374.81,
+            "end": 386.877,
+            "duration": 12.067,
+            "timing_status": "partial",
+            "source_chars": 32,
+            "text": "I was created by the Sovereign to guard the Sovereign's great veil, to oversee reincarnation, and to guard the Gate of Worlds. No unorthodox entity may pass through."
+          },
+          {
+            "id": "utt-0039",
+            "start": 388.19,
+            "end": 404.128,
+            "duration": 15.938,
+            "timing_status": "partial",
+            "source_chars": 48,
+            "text": "As the Tomb Keeper, there are many things I cannot interfere with. My time is nearly up and I am about to depart. The time I have left to guard these two existences is running short. Now even this world is showing signs of..."
+          },
+          {
+            "id": "utt-0041",
+            "start": 404.181,
+            "end": 418.925,
+            "duration": 14.744,
+            "timing_status": "partial",
+            "source_chars": 28,
+            "text": "...signs of breaking. Unlike the Tomb Keeper's mission, the Underworld Emperor, Chaos, and the Underworld River eternally guard the Spirit Palace, protecting reincarnation."
+          },
+          {
+            "id": "utt-0042",
+            "start": 408.032,
+            "end": 422.129,
+            "duration": 14.097,
+            "timing_status": "partial",
+            "source_chars": 17,
+            "text": "Grandpa, you're the one in a rush to pick an heir for the Eternal Spirit Palace."
+          },
+          {
+            "id": "utt-0044",
+            "start": 430.95,
+            "end": 446.594,
+            "duration": 15.644,
+            "timing_status": "partial",
+            "source_chars": 38,
+            "text": "Sir, actually I'm not that— Sir, aren't you mistaken? The Underworld Emperor's seat would be better suited to my master. Fate… could it be that you—"
+          },
+          {
+            "id": "utt-0046",
+            "start": 436.97,
+            "end": 452.872,
+            "duration": 15.902,
+            "timing_status": "partial",
+            "source_chars": 28,
+            "text": "to become the Underworld Emperor. I once altered the course of your life, placing you by his side."
+          }
+        ],
+        "rapid_short_swaps_le_50ms": 18
+      },
+      "reading_speed_cps": {
+        "min": 2.5,
+        "p50": 15.1,
+        "p90": 19.73,
+        "p95": 29.86,
+        "max": 132.73,
+        "mean": 16.4,
+        "gt_20_cps": 28,
+        "gt_25_cps": 21,
+        "gt_30_cps": 14,
+        "top_high_cps_examples": [
+          {
+            "index": 35,
+            "start": 269.091,
+            "end": 269.641,
+            "duration": 0.55,
+            "cps": 132.73,
+            "text": "As the hidden hand that manipulates the world finally rises to the front,"
+          },
+          {
+            "index": 137,
+            "start": 710.95,
+            "end": 711.486,
+            "duration": 0.536,
+            "cps": 132.46,
+            "text": "I see. If becoming the Underworld Emperor is essential to the position,"
+          },
+          {
+            "index": 34,
+            "start": 268.541,
+            "end": 269.091,
+            "duration": 0.55,
+            "cps": 125.45,
+            "text": "—is not in my hands. Only Bai Xiaochun can still make one last stand."
+          },
+          {
+            "index": 140,
+            "start": 719.8,
+            "end": 720.52,
+            "duration": 0.72,
+            "cps": 81.94,
+            "text": "It's to protect your master. His body must never be broken,"
+          },
+          {
+            "index": 164,
+            "start": 809.12,
+            "end": 810.11,
+            "duration": 0.99,
+            "cps": 62.63,
+            "text": "Master, this is the 24-colored Flame I refined using the power"
+          },
+          {
+            "index": 279,
+            "start": 1194.87,
+            "end": 1195.64,
+            "duration": 0.77,
+            "cps": 61.04,
+            "text": "Once I've passed all my divine arts to Bai Hao,"
+          },
+          {
+            "index": 85,
+            "start": 490.92,
+            "end": 491.48,
+            "duration": 0.56,
+            "cps": 50.0,
+            "text": "Enter the Yellow Spring City"
+          },
+          {
+            "index": 121,
+            "start": 595.59,
+            "end": 597.16,
+            "duration": 1.57,
+            "cps": 44.59,
+            "text": "How could I end up here, repeatedly questioning whether this man truly"
+          },
+          {
+            "index": 104,
+            "start": 559.56,
+            "end": 560.12,
+            "duration": 0.56,
+            "cps": 41.07,
+            "text": "will never waver again."
+          },
+          {
+            "index": 169,
+            "start": 815.93,
+            "end": 816.52,
+            "duration": 0.59,
+            "cps": 38.98,
+            "text": "I hope it can help you."
+          }
+        ]
+      },
+      "line_wrapping": {
+        "multiline_cues": 112,
+        "over_2_lines": 0,
+        "line_gt_42_chars": 0,
+        "line_gt_42_examples": []
+      },
+      "overlaps_and_duplicates": {
+        "genuine_two_speaker_overlap_pairs": 39,
+        "concurrent_similar_or_duplicate_cues": 0,
+        "concurrent_duplicate_examples": []
+      },
+      "translation_integrity": {
+        "source_leaks_or_omissions_count": 0,
+        "source_leaks_or_omissions": []
+      },
+      "raw_cues_sample": {
+        "srt_first_5": [
+          {
+            "index": 1,
+            "start": 100.5,
+            "end": 103.833,
+            "duration": 3.333,
+            "lines": [
+              "Finance office. Soldiers can't be trusted.",
+              "That's how it is."
+            ],
+            "text": "Finance office. Soldiers can't be trusted. That's how it is."
+          },
+          {
+            "index": 2,
+            "start": 152.97,
+            "end": 155.309,
+            "duration": 2.339,
+            "lines": [
+              "Xing Lake bandits were",
+              "named by the strong."
+            ],
+            "text": "Xing Lake bandits were named by the strong."
+          },
+          {
+            "index": 3,
+            "start": 155.309,
+            "end": 158.698,
+            "duration": 3.389,
+            "lines": [
+              "The pillar cooperated little,",
+              "blocking the prince from court."
+            ],
+            "text": "The pillar cooperated little, blocking the prince from court."
+          },
+          {
+            "index": 4,
+            "start": 159.1,
+            "end": 162.132,
+            "duration": 3.032,
+            "lines": [
+              "So I, Bai Xiaochun, once again took",
+              "on a mission in a time of crisis"
+            ],
+            "text": "So I, Bai Xiaochun, once again took on a mission in a time of crisis"
+          },
+          {
+            "index": 5,
+            "start": 162.132,
+            "end": 164.049,
+            "duration": 1.917,
+            "lines": [
+              "and plunged headfirst",
+              "into the murky waters"
+            ],
+            "text": "and plunged headfirst into the murky waters"
+          }
+        ],
+        "srt_last_5": [
+          {
+            "index": 277,
+            "start": 1191.06,
+            "end": 1192.393,
+            "duration": 1.333,
+            "lines": [
+              "Gazing up, in reality..."
+            ],
+            "text": "Gazing up, in reality..."
+          },
+          {
+            "index": 278,
+            "start": 1194.52,
+            "end": 1194.87,
+            "duration": 0.35,
+            "lines": [
+              "Ah"
+            ],
+            "text": "Ah"
+          },
+          {
+            "index": 279,
+            "start": 1194.87,
+            "end": 1195.64,
+            "duration": 0.77,
+            "lines": [
+              "Once I've passed all my",
+              "divine arts to Bai Hao,"
+            ],
+            "text": "Once I've passed all my divine arts to Bai Hao,"
+          },
+          {
+            "index": 280,
+            "start": 1195.64,
+            "end": 1196.84,
+            "duration": 1.2,
+            "lines": [
+              "Thank you."
+            ],
+            "text": "Thank you."
+          },
+          {
+            "index": 281,
+            "start": 1198.478,
+            "end": 1203.616,
+            "duration": 5.138,
+            "lines": [
+              "I should set off to Arch-Emperor City",
+              "for final preparations."
+            ],
+            "text": "I should set off to Arch-Emperor City for final preparations."
+          }
+        ]
+      }
+    },
+    "refinement": {
+      "backend": "swiftu",
+      "profile": "balanced",
+      "glossary_digest": "62bc5c358cc2",
+      "audio_verification": false,
+      "total_utterances": 285,
+      "changed_count": 89,
+      "rejected_count": 0,
+      "rejected_edits": [],
+      "batch_errors": [],
+      "api_calls": 3,
+      "cache_hits": 279,
+      "elapsed_s": 32.928
+    },
+    "translation": {
+      "backend": "swiftu",
+      "style": "natural",
+      "target_language": "en",
+      "signature": "016b6d51b411",
+      "total_utterances": 285,
+      "regrouped_adjacent_utterances": 13,
+      "fragment_suppressed_count": 6,
+      "api_calls": 3,
+      "cache_hits": 285,
+      "errors": [],
+      "elapsed_s": 13.938
+    },
+    "condensation": {
+      "status": "ok",
+      "cps_threshold": 25.0,
+      "candidate_count": 32,
+      "condensed_count": 29,
+      "api_calls": 2,
+      "cache_hits": 30,
+      "errors": [],
+      "elapsed_s": 16.145
+    },
+    "screenshots": [
+      {
+        "name": "zh_01_102s_opening_hardsub",
+        "timestamp_s": 102.0,
+        "description": "Opening scene raised Main above Chinese hardsub",
+        "png_path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/screenshots/zh_01_102s_opening_hardsub_102s.png",
+        "active_cues": [
+          {
+            "style": "Main",
+            "start": 100.5,
+            "end": 103.83,
+            "text": "Finance office. Soldiers can't be trusted. That's how it is."
+          }
+        ]
+      },
+      {
+        "name": "zh_02_181s_recap_hardsub",
+        "timestamp_s": 181.2,
+        "description": "Recap caption raised cleanly above Chinese hardsub",
+        "png_path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/screenshots/zh_02_181s_recap_hardsub_181s.png",
+        "active_cues": [
+          {
+            "style": "Main",
+            "start": 180.02,
+            "end": 183.53,
+            "text": "Crushed the Blue Dragon Gang, stomped the Heavenly Palace Society,"
+          }
+        ]
+      },
+      {
+        "name": "zh_03_270s_echo_fix",
+        "timestamp_s": 270.0,
+        "description": "Formerly 153-CPS echo cue utt-0016/0017 region",
+        "png_path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/screenshots/zh_03_270s_echo_fix_270s.png",
+        "active_cues": [
+          {
+            "style": "Main",
+            "start": 269.64,
+            "end": 271.77,
+            "text": "and seizes control, reclaims what's due."
+          }
+        ]
+      },
+      {
+        "name": "zh_04_368s_two_spk",
+        "timestamp_s": 368.0,
+        "description": "Two-speaker Main + Top overlap",
+        "png_path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/screenshots/zh_04_368s_two_spk_368s.png",
+        "active_cues": [
+          {
+            "style": "Main",
+            "start": 362.35,
+            "end": 368.85,
+            "text": "Truly lives up to its reputation! Are you alright, sir? ..."
+          },
+          {
+            "style": "Top",
+            "start": 367.01,
+            "end": 370.74,
+            "text": "The failed execution was within my expectations."
+          }
+        ]
+      },
+      {
+        "name": "zh_05_411s_lore_two_spk",
+        "timestamp_s": 411.0,
+        "description": "Cultivation lore 2-line + Top separation",
+        "png_path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/screenshots/zh_05_411s_lore_two_spk_411s.png",
+        "active_cues": [
+          {
+            "style": "Main",
+            "start": 408.03,
+            "end": 414.53,
+            "text": "Grandpa, you're the one in a rush to pick an heir for the Eternal Spirit Palace."
+          }
+        ]
+      },
+      {
+        "name": "zh_06_729s_emotional",
+        "timestamp_s": 729.0,
+        "description": "Emotional confrontation",
+        "png_path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/screenshots/zh_06_729s_emotional_729s.png",
+        "active_cues": [
+          {
+            "style": "Top",
+            "start": 728.12,
+            "end": 729.77,
+            "text": "sovereign king"
+          },
+          {
+            "style": "Main",
+            "start": 728.93,
+            "end": 730.76,
+            "text": "He's not just my master..."
+          }
+        ]
+      },
+      {
+        "name": "zh_07_942s_rapid",
+        "timestamp_s": 942.0,
+        "description": "Rapid exchange",
+        "png_path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/screenshots/zh_07_942s_rapid_942s.png",
+        "active_cues": [
+          {
+            "style": "Main",
+            "start": 941.5,
+            "end": 942.7,
+            "text": "How come it's you?"
+          }
+        ]
+      },
+      {
+        "name": "zh_08_1045s_confrontation",
+        "timestamp_s": 1045.0,
+        "description": "Bai Xiaochun confrontation raised above hardsub",
+        "png_path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/screenshots/zh_08_1045s_confrontation_1045s.png",
+        "active_cues": [
+          {
+            "style": "Main",
+            "start": 1043.55,
+            "end": 1046.77,
+            "text": "but did I just come by these achievements out of thin air?"
+          }
+        ]
+      },
+      {
+        "name": "zh_09_1201s_final",
+        "timestamp_s": 1201.0,
+        "description": "Final dialogue above hardsub",
+        "png_path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/screenshots/zh_09_1201s_final_1201s.png",
+        "active_cues": [
+          {
+            "style": "Main",
+            "start": 1198.48,
+            "end": 1203.62,
+            "text": "I should set off to Arch-Emperor City for final preparations."
+          }
+        ]
+      },
+      {
+        "name": "zh_10_topalt_3spk",
+        "timestamp_s": 563.28,
+        "description": "3-speaker Main+Top+TopAlt check",
+        "png_path": "outputs/subtitle_runs/viewing_quality/zh_full_episode_ep166/screenshots/zh_10_topalt_3spk_563s.png",
+        "active_cues": [
+          {
+            "style": "Main",
+            "start": 562.37,
+            "end": 564.09,
+            "text": "like the things already decided"
+          },
+          {
+            "style": "Top",
+            "start": 562.68,
+            "end": 563.88,
+            "text": "those things"
+          },
+          {
+            "style": "TopAlt",
+            "start": 562.68,
+            "end": 563.88,
+            "text": "Night of..."
+          }
+        ]
+      }
+    ]
+  }
+}

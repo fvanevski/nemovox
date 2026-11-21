@@ -1,0 +1,234 @@
+{
+  "archive": "/workspace/nvidia-transcribe/outputs/handbacks/mandarin-ep166-evidence.tar.gz",
+  "starting_head": "e63a68b2ac45a120c36d79967279eae17faf33e4",
+  "current_head": "a81bdd0238616f0e87a9cd2dd08507e0af13737f",
+  "file_count": 45,
+  "total_staged_bytes": 17528340,
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "bytes": 2129,
+      "sha256": "d82cf957269ba31dd806eff1e64c8c578b90e962ec0e576f3bfff4e220a2e49d"
+    },
+    {
+      "path": "configs/glossaries/a_will_eternal_zh.yaml",
+      "bytes": 1526,
+      "sha256": "48a868a41e2f8c0145b5e67d27682341907c79a5233290d42eef319b782eef6a"
+    },
+    {
+      "path": "configs/vllm_rtx5090.env",
+      "bytes": 355,
+      "sha256": "40cfcd511081174c1e37ad43d89adb2a0030e456d09676a9c6ecc530dba8eea0"
+    },
+    {
+      "path": "evaluations/mandarin-ep166/HANDback.md",
+      "bytes": 4553,
+      "sha256": "448193fc80b8efda557c976c63942db0d72428c1abb9b4526c727a1129b7f815"
+    },
+    {
+      "path": "evaluations/mandarin-ep166/benchmark.json",
+      "bytes": 40050,
+      "sha256": "1d49d2686dd3ab5a3fb9d8f139e9a0ae63b26f958e7b7be43233f169ae8f6f65"
+    },
+    {
+      "path": "evaluations/mandarin-ep166/cpu_pytest.txt",
+      "bytes": 7540,
+      "sha256": "52606ef2f5ff5752e8c249d8d0412c3bebb32a74b12a86e29262cb0cadc9050e"
+    },
+    {
+      "path": "evaluations/mandarin-ep166/french-mandarin-comparison.md",
+      "bytes": 3661,
+      "sha256": "8110ec76e754527b853c74866633bf2a4cb28171354a2b079d992b09739d49c6"
+    },
+    {
+      "path": "evaluations/mandarin-ep166/git_diff_since_base.patch",
+      "bytes": 129886,
+      "sha256": "391bcac2a4e38f2f2855d3885e3c47508b72c835c283658cd6eddc9cb79b071d"
+    },
+    {
+      "path": "evaluations/mandarin-ep166/git_log_since_base.txt",
+      "bytes": 931,
+      "sha256": "4152c6e0414e32a8cb3bbd1bab3b5fedc3a0eb7c37979e89b07324d2e30df287"
+    },
+    {
+      "path": "evaluations/mandarin-ep166/git_provenance.json",
+      "bytes": 190,
+      "sha256": "5668e0bd3ce4589a84b8521d0caba924df5b09dd2289c2466218fbf297a30d3a"
+    },
+    {
+      "path": "evaluations/mandarin-ep166/logs/asr_ep166_off.log",
+      "bytes": 6193,
+      "sha256": "ce826c679d652a748d37fc11a0a4dd8a736f4bf75de6fce5949336be6c31128b"
+    },
+    {
+      "path": "evaluations/mandarin-ep166/logs/ninfer_ep166.log",
+      "bytes": 48113,
+      "sha256": "6e325d4c6024ab6017c51d94486f6a03bf5c9a82c9fb7a180df754aeb18ccdeb"
+    },
+    {
+      "path": "evaluations/mandarin-ep166/logs/subtitles_ep166.log",
+      "bytes": 7187,
+      "sha256": "fa3c143fa4602208ec4bcc5e4a86ca97092af8c025d2e4d9efb85bc4feb34f08"
+    },
+    {
+      "path": "evaluations/mandarin-ep166/logs/vllm_ep166.log",
+      "bytes": 28585,
+      "sha256": "8dc1dfb6b0bd479eedff3dbb0e7fc862f2b21cea5b5867f57f800eecf32f3838"
+    },
+    {
+      "path": "evaluations/mandarin-ep166/quality-review.md",
+      "bytes": 3710,
+      "sha256": "a3b46c0b07a895bdbf6f0c4b80d7295f1fd1932a4a262d3cc169a3667c4a2c26"
+    },
+    {
+      "path": "evaluations/mandarin-ep166/run-configuration.md",
+      "bytes": 4233,
+      "sha256": "95a74c04c6772294ffcea20e60e2640d6f3accf748c18dbf02af56950a1e7d47"
+    },
+    {
+      "path": "evaluations/mandarin-ep166/source-media.md",
+      "bytes": 2268,
+      "sha256": "4a88950e2b56689bf714d034143c162d17e3438af67455e8c689425fc23fffa1"
+    },
+    {
+      "path": "evaluations/mandarin-ep166/timing-analysis.json",
+      "bytes": 35600,
+      "sha256": "7620a97d9c206bb9ec5aa8e216ae674cf3f5a589b4632a8ed9c27029354524a9"
+    },
+    {
+      "path": "experiments/subtitle/analyze_ep166_baseline.py",
+      "bytes": 21359,
+      "sha256": "d8e7fd94267396c1e34ea6d1997c714cef0624d306a7bec49c13bc30c234b385"
+    },
+    {
+      "path": "experiments/subtitle/package_mandarin_ep166_evidence.py",
+      "bytes": 7273,
+      "sha256": "a7e11a367028f43b29aa05523fd87e78880043eb3117cda3414ffa4d335649ee"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/A Will Eternal Final Season EP166 [e4g3i65Kyf8].en.ass",
+      "bytes": 28710,
+      "sha256": "344a239ac9f19046ba798c5b93a566ba39c25ed22cef09fccffa6866497961c3"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/A Will Eternal Final Season EP166 [e4g3i65Kyf8].en.srt",
+      "bytes": 22486,
+      "sha256": "f2c48791add67e4bc5d1ae57a8ef6ae2a2c5a0fcfae43a1b18dfa8343f174bda"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/asr/manifest.json",
+      "bytes": 18907,
+      "sha256": "6a0e513740c0f417643131fd4f23817486e6da85b181b19be8a2978d0ea55fa0"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/asr/recording.contract.json",
+      "bytes": 2492127,
+      "sha256": "7943c8322b2cb1981e2e7e9ade5a86e17bd5aaaa8da9aba62b4786c76520ceb6"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/asr/transcript.txt",
+      "bytes": 23443,
+      "sha256": "e7a661ae3a75eb4505715a9584d4b1ea15241dea1702fae593dc47a40d3d94f2"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/final_english_subtitles.txt",
+      "bytes": 24806,
+      "sha256": "7d03f434343491024ba5db40b17a1fe382f1b6e432e10faf3103babe39e2ca6b"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/raw_source_transcript.txt",
+      "bytes": 21488,
+      "sha256": "8792113dc2a88acbb5ab4b216bef9e785d759da1e8ee8dfb92734668d2062881"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/refined.contract.json",
+      "bytes": 2608512,
+      "sha256": "fd5e88c6cdab5d30d9d48748a5e01d0a422c48d6d703aa48f2710495fa9ee034"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/refined_source_transcript.txt",
+      "bytes": 21463,
+      "sha256": "cfc756eb0d8e3ce81ab04992c844991daece37b7953c9d1dcc2202c1634980a8"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/review/quality-summary.json",
+      "bytes": 35600,
+      "sha256": "7620a97d9c206bb9ec5aa8e216ae674cf3f5a589b4632a8ed9c27029354524a9"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/review/screenshots/shot_01_opening_first_cue_102s.png",
+      "bytes": 1335605,
+      "sha256": "35734fe0e1e8710f4c0199f8aeee6df32797f932b259d83fffc05c5aaaf3692f"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/review/screenshots/shot_02_recap_hardsub_collision_181s.png",
+      "bytes": 1064190,
+      "sha256": "8674721e3d9994edb5438053aa70b4cb38c39f474868be74220ee52a6d77d744"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/review/screenshots/shot_03_high_cps_cue_270s.png",
+      "bytes": 778473,
+      "sha256": "b8543a903ea4f2b0c879ce1a74f0e65638d6ccf78887b55d2fd5a6caefe865c5"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/review/screenshots/shot_04_cultivation_lore_2line_411s.png",
+      "bytes": 1221937,
+      "sha256": "fe68b37ca69c69ecc7e3e1cd8686af2a1854c4f80ccd277748a447a00019e0f5"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/review/screenshots/shot_06_two_speaker_overlap_1_368s.png",
+      "bytes": 920971,
+      "sha256": "abfe55a8d471d188d5edb469f8950838f1d210a89f668e95318251e68f1a6121"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/review/screenshots/shot_07_rapid_exchange_942s.png",
+      "bytes": 686978,
+      "sha256": "d8e7c34859ce2ab227f0e568f3fd0ee08f4e9241694a56d4fb510468092a6eba"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/review/screenshots/shot_08_emotional_2spk_overlap_729s.png",
+      "bytes": 631567,
+      "sha256": "51e52cec7c2cd21ed38f235c6c412ee4c235ceea6690df2b5700faf3c01e9798"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/review/screenshots/shot_09_bai_xiaochun_confrontation_1045s.png",
+      "bytes": 670120,
+      "sha256": "00d8b5370fbad19d2593799dd1b1272e4973bb32f7a5ac1034bb61efe7dc4e1e"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/review/screenshots/shot_10_final_timed_cue_1201s.png",
+      "bytes": 817769,
+      "sha256": "53ac981bec31c85c3a1ad6de9032c7b628b4bd779ef01c48cea95ed5f68692ae"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/review/screenshots/shot_11_untimed_chunk14_gap_1212s.png",
+      "bytes": 992702,
+      "sha256": "a4ab976cbb4e9510e2a3b4604484e394977a70ec44c97e6071ce2f14a46fc43b"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/review/source-metadata.json",
+      "bytes": 1068,
+      "sha256": "faae46291249ff7aa5bfa43a447be503751bbd75f8c1ba40ee2e6708610b2d99"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/review/timing-analysis.json",
+      "bytes": 13675,
+      "sha256": "acfef9f0b6796935160d751f1b0900b0192824fa7af7afe1b23742efff686dff"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/subtitles.metadata.json",
+      "bytes": 56951,
+      "sha256": "6dd4b6c04ffa93415e928e1fe61a39130b48ee127a79a8dec8d1ad12cef6d025"
+    },
+    {
+      "path": "outputs/subtitle_runs/zh_full_episode_ep166/translated.contract.json",
+      "bytes": 2681695,
+      "sha256": "12d90eb69801f29e8ec82d870c51bba10ce7fba5e160137ecc32ffb1ee447f50"
+    },
+    {
+      "path": "scripts/start_vllm_server.sh",
+      "bytes": 1755,
+      "sha256": "f32c09a28a2a659374ff011b5e526c2becf78a365048fa847dd5a4ae308223af"
+    }
+  ]
+}

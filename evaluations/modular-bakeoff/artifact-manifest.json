@@ -1,0 +1,309 @@
+{
+  "archive": "/workspace/nvidia-transcribe/outputs/handbacks/modular-bakeoff-evidence.tar.gz",
+  "base_head": "721e73789ed2f575bc7c776665a9b04e9a6a097b",
+  "current_head": "63b6f79aa7c18769b1f7e22a0f4e906ba2e87b72",
+  "file_count": 60,
+  "total_staged_bytes": 4965752,
+  "files": [
+    {
+      "path": ".gitignore",
+      "bytes": 652,
+      "sha256": "6e8cd3e767158ef8f55481b2af0cd227101831914c0c8437a0392c69036cdc6f"
+    },
+    {
+      "path": "AGENTS.md",
+      "bytes": 2129,
+      "sha256": "d82cf957269ba31dd806eff1e64c8c578b90e962ec0e576f3bfff4e220a2e49d"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1170,
+      "sha256": "4bc5c1e11182a0b1117c9060d8f98bf4afd82691a28fd85303668b371748676b"
+    },
+    {
+      "path": "evaluations/modular-bakeoff/HANDback.md",
+      "bytes": 3816,
+      "sha256": "68777c47dd8cab8cf054bace28338ca0beab3e99acfe57d663f6f599b82987ba"
+    },
+    {
+      "path": "evaluations/modular-bakeoff/alignment-comparison.md",
+      "bytes": 5100,
+      "sha256": "42d4a17cb2a1a1a4e60221d5402893c61bfebe2420917f8d345690fd8d2e2671"
+    },
+    {
+      "path": "evaluations/modular-bakeoff/architecture-decision.md",
+      "bytes": 4425,
+      "sha256": "a00737de419bb432b975bc2934778f05cc930cf58599367a54685f1148475449"
+    },
+    {
+      "path": "evaluations/modular-bakeoff/benchmark.json",
+      "bytes": 294477,
+      "sha256": "535f17fa56394f786fc8bd4c44b66404e2a78599555237be51f9b1398fa77a8b"
+    },
+    {
+      "path": "evaluations/modular-bakeoff/diarization-comparison.md",
+      "bytes": 5989,
+      "sha256": "cab67f9f40e97aaf906081a3e9e07daf78682719108cc9bb71063a25905ca873"
+    },
+    {
+      "path": "evaluations/modular-bakeoff/environment.md",
+      "bytes": 2763,
+      "sha256": "d4b00f77251320ae8d559b79bca1e3dd28a8232c36f2b4569efdad500dea3154"
+    },
+    {
+      "path": "evaluations/modular-bakeoff/git_diff_since_base.patch",
+      "bytes": 461116,
+      "sha256": "9b0dc5284ba75a71c6fb3ada3ee53c8fcf87d3fda5b65108ed7513dccc69ea7a"
+    },
+    {
+      "path": "evaluations/modular-bakeoff/git_log_since_base.txt",
+      "bytes": 1504,
+      "sha256": "b4341ab247727d02cf201c6247e1c7cdcc6895d69aa10338b2aea703e88f74ff"
+    },
+    {
+      "path": "evaluations/modular-bakeoff/git_provenance.json",
+      "bytes": 396,
+      "sha256": "473af4b0191d2ae2298d37c7cc68cd802c906884b4282a44becf8f4f6069e7da"
+    },
+    {
+      "path": "evaluations/modular-bakeoff/integration-assessment.md",
+      "bytes": 3982,
+      "sha256": "390e71986d77b0674d20d1e5f557772964afd7ea4c9c4b1ec9f324e31293f05e"
+    },
+    {
+      "path": "evaluations/modular-bakeoff/model-inventory.md",
+      "bytes": 2759,
+      "sha256": "08842699fc47fc6d00dda06954492f94338854990be728cca12e84659749a3c7"
+    },
+    {
+      "path": "evaluations/modular-bakeoff/recognition-comparison.md",
+      "bytes": 5373,
+      "sha256": "f3573eadaa3979887c65606212f51340cb16c53e3b9d443389f962770efa701a"
+    },
+    {
+      "path": "evaluations/modular-bakeoff/test-results.md",
+      "bytes": 3487,
+      "sha256": "ac4e7ebc2325db94138a3573dba1915c1decdbd63358e821b5414c6b89613e4a"
+    },
+    {
+      "path": "experiments/modular/__init__.py",
+      "bytes": 71,
+      "sha256": "a9979194b041af3d1d2842115a43d19ddecd473158b0ae6e2a19a2301797bb41"
+    },
+    {
+      "path": "experiments/modular/alignment/run_alignment_eval.py",
+      "bytes": 18203,
+      "sha256": "162bf83c0167d8a80fda99cf79a07a928028edd668f50e9c3eb0e00fd599bca0"
+    },
+    {
+      "path": "experiments/modular/asr/run_asr_eval.py",
+      "bytes": 10331,
+      "sha256": "fe419c5e9be2b499ad28d7de046a215d353b10a13320e8c8081d4820bd117576"
+    },
+    {
+      "path": "experiments/modular/build_benchmark.py",
+      "bytes": 13477,
+      "sha256": "d85defa536575f89e826c96c08db783bbc8cafb552f6b7e51d8713728b74d223"
+    },
+    {
+      "path": "experiments/modular/common.py",
+      "bytes": 24033,
+      "sha256": "fa27478b741d57f4e4d5dd2b904a77ba39d634a7fe726ea25085325ac8c88d79"
+    },
+    {
+      "path": "experiments/modular/diarization/run_diarization_eval.py",
+      "bytes": 20514,
+      "sha256": "d35549d78bebcf00e6fd91911f07ecca4d0eb160838738055ab3319b2cd0d6f6"
+    },
+    {
+      "path": "experiments/modular/integration/run_integration_probe.py",
+      "bytes": 10142,
+      "sha256": "1e09b54c0ea94e81050f545073547b0721690a9a3313bb34bd2c913be0b59d43"
+    },
+    {
+      "path": "experiments/modular/package_evidence.py",
+      "bytes": 8307,
+      "sha256": "8f62e831a0779ed593ab2f91e2f33ad582a18e25a7fa6bab50f35072ea807f8a"
+    },
+    {
+      "path": "experiments/modular/tests/test_modular_eval.py",
+      "bytes": 6565,
+      "sha256": "59634b8aa970febfa30fd32555825225804117d66918943b60c6a0e8456f6839"
+    },
+    {
+      "path": "fixtures/pyannote_overlap/S1_balanced.wav",
+      "bytes": 153644,
+      "sha256": "d98f59f0cebc639b18dcdadc43c07a35e988d6907618b15b141945dd2dab180b"
+    },
+    {
+      "path": "fixtures/pyannote_overlap/S2_quiet_secondary.wav",
+      "bytes": 165804,
+      "sha256": "46769ee579d9276a43bac0fdd34facce1a0cb34b48b66601bf96739fcda56ebf"
+    },
+    {
+      "path": "fixtures/pyannote_overlap/S3_interrupted_0_9s.wav",
+      "bytes": 237484,
+      "sha256": "bd45ba960d6d541ee366f565dd3c6179288a134daa6ce799ed2275998716dbf2"
+    },
+    {
+      "path": "fixtures/pyannote_overlap/baseline_synthetic.json",
+      "bytes": 3510,
+      "sha256": "d81ebd54a15bf60bcd973b80c8296a6ec0a357eb39be9bceeee982529cbd1372"
+    },
+    {
+      "path": "outputs/audio/fr/fr_0539_0542_overlap_nonlex.wav",
+      "bytes": 96078,
+      "sha256": "f5c2064320eaf4fbe27ecc7aaa381ce3594baf827e34558b468efd7e6a02ea46"
+    },
+    {
+      "path": "outputs/audio/fr/fr_0550_0552_transition.wav",
+      "bytes": 64078,
+      "sha256": "965c081988a9b9f907534828b6fd0bc2713bdc5fa8f841b62e59de1651ff2012"
+    },
+    {
+      "path": "outputs/audio/fr/fr_1031_1033_music_fp.wav",
+      "bytes": 64078,
+      "sha256": "5a4e63de08dd9ff1fe2f5ebd84999ecd2b395f79333deafa3693e999bb4df742"
+    },
+    {
+      "path": "outputs/audio/fr/fr_1731_1735_overlap_vox.wav",
+      "bytes": 128078,
+      "sha256": "f90617a6b7d516c13aeae805afcc878328c95114bbeb2d905f60dffbcbad9162"
+    },
+    {
+      "path": "outputs/audio/fr/fr_2208_2211_high_pitch.wav",
+      "bytes": 96078,
+      "sha256": "c7e22967f4d2f704cc2a08c8f459a2a4d01d78015d84d4dc1d87312c0ebe27a1"
+    },
+    {
+      "path": "outputs/audio/overlap/fr_fleurs_manifest.json",
+      "bytes": 2374,
+      "sha256": "f23ea5ff4f7f4a185e0120167ac621cfb6fb0bdb5a9c9c05a2fbc2b244890bbd"
+    },
+    {
+      "path": "outputs/audio/overlap/overlap_manifest.json",
+      "bytes": 1473,
+      "sha256": "d0d977411063ddf1cc457750c674df25cc4598a842dd93ce478ed054a07cc2cc"
+    },
+    {
+      "path": "outputs/audio/overlap/synthetic_fr_2spk_overlap.wav",
+      "bytes": 390444,
+      "sha256": "811bc2ff03e9e789250c0f1aa3df189fb161654cdfb55bdbf0ebcb046de0cdf4"
+    },
+    {
+      "path": "outputs/audio/overlap/synthetic_zh_2spk_overlap.wav",
+      "bytes": 332204,
+      "sha256": "fd85324e938be0d4827b86df048e2acc9482b9cbc6f9ff27f1063160bf818ae0"
+    },
+    {
+      "path": "outputs/audio/zh/zh_fleurs_00_1906.wav",
+      "bytes": 332204,
+      "sha256": "5214e16584b6498ddbd22f321738c0f62b19117ab1880b21e405fba983986b6a"
+    },
+    {
+      "path": "outputs/audio/zh/zh_fleurs_01_2006.wav",
+      "bytes": 265004,
+      "sha256": "d2ff70aa3a9b965bd2cab664852f2b5eb90d02dca4ed9066686d926152ade514"
+    },
+    {
+      "path": "outputs/audio/zh/zh_fleurs_05_1805.wav",
+      "bytes": 243884,
+      "sha256": "5a61b505a5e00041724676529bb876a149ad10af288804f39c1c70252d900bff"
+    },
+    {
+      "path": "outputs/audio/zh/zh_manifest.json",
+      "bytes": 3040,
+      "sha256": "8f32b11b0ef076516ef89277f576b53ec9df4aeb1fa936a4f9c9be197222aa56"
+    },
+    {
+      "path": "outputs/modular-eval/logs/model_inventory_raw.json",
+      "bytes": 21423,
+      "sha256": "158189c630b9d9c6f28db1aaac5042efb90238bd85d802d58457092aeeb11fdc"
+    },
+    {
+      "path": "outputs/modular-eval/logs/pip_freeze_asr.txt",
+      "bytes": 2126,
+      "sha256": "d71929a8193d10080d363cacd3b938cdce6fc6661e264e83183a87c59a160adf"
+    },
+    {
+      "path": "outputs/modular-eval/logs/pip_freeze_diar.txt",
+      "bytes": 1590,
+      "sha256": "4f35c8475383e1dd4204efa0a2f092a49194d0c893851f484c03cab101696b92"
+    },
+    {
+      "path": "outputs/modular-eval/logs/pytest_modular.txt",
+      "bytes": 1394,
+      "sha256": "5b571192bb3a062faf6c8bf500415c64dfdd43ea8e5e566412d796a4d0d707f6"
+    },
+    {
+      "path": "outputs/modular-eval/logs/pytest_prod.txt",
+      "bytes": 4053,
+      "sha256": "63f0c3b555eac50f70e8e6d72bd9e328ae39eaa14351785666ee7178c48e6a42"
+    },
+    {
+      "path": "outputs/modular-eval/logs/run_alignment_eval.log",
+      "bytes": 845,
+      "sha256": "3c2f37ae7b0d9eb528566ccce6b9507feede4a2503e15f48666f96c6faca4912"
+    },
+    {
+      "path": "outputs/modular-eval/logs/run_asr_eval.log",
+      "bytes": 6612,
+      "sha256": "15cbbf73f0a6f4270c74f6a5858f08afcf21223e84000a8d2c455512aa6a77e3"
+    },
+    {
+      "path": "outputs/modular-eval/logs/run_diarization_eval.log",
+      "bytes": 396,
+      "sha256": "a71ebda69943c7d4b5868281b27fea2c7ed7e3474938036a2d8d1d7e75b24489"
+    },
+    {
+      "path": "outputs/modular-eval/metrics/benchmark_summary.json",
+      "bytes": 2158,
+      "sha256": "7f5b4dd9c261e93560d894e0ca9624ad3dd28d87c7905f4200ddab30f1a7044c"
+    },
+    {
+      "path": "outputs/modular-eval/raw/integration_probe.json",
+      "bytes": 64766,
+      "sha256": "5689d91c057d55a760c6ccc095dfee638f573eda489ecab617dd743ee183b1f3"
+    },
+    {
+      "path": "outputs/modular-eval/raw/nemotron_diar_eval.json",
+      "bytes": 115901,
+      "sha256": "614cdd93750bf909f4e337f91450e8c1e58bd1de9fb609310ac3171ed1bcacae"
+    },
+    {
+      "path": "outputs/modular-eval/raw/nemotron_diar_full_offline_segments.json",
+      "bytes": 10714,
+      "sha256": "b0f3ab6ffa9722ad5c120b29cf1d11db0fde600d962620ef764e3c29abe29455"
+    },
+    {
+      "path": "outputs/modular-eval/raw/nemotron_diar_full_probs_100ms.json",
+      "bytes": 413774,
+      "sha256": "1cb3c839e312a5d65c02e4d79550d900f57c3d6d9ef1de3aa2a494d6625cb402"
+    },
+    {
+      "path": "outputs/modular-eval/raw/nemotron_diar_full_streaming_segments.json",
+      "bytes": 16531,
+      "sha256": "02a47ed7790d72edc99535f2403fee3d815fba796b74a92f406cf3f3135ffc93"
+    },
+    {
+      "path": "outputs/modular-eval/raw/qwen_aligner_eval.json",
+      "bytes": 512401,
+      "sha256": "f88e230e0995f1f08873f4815f31bb4fe7385b82a63ae195e1afb90336d0353e"
+    },
+    {
+      "path": "outputs/modular-eval/raw/qwen_aligner_f300_chunked.json",
+      "bytes": 239898,
+      "sha256": "0ff323b2b9a489c27added717b85ab794382964fead05df0ae7fede7de3174fe"
+    },
+    {
+      "path": "outputs/modular-eval/raw/qwen_asr_eval.json",
+      "bytes": 60307,
+      "sha256": "ba23488ed9bbed9c61983c99f8b09e3763702d7c3af43a0585484b882f0fe896"
+    },
+    {
+      "path": "pyproject.toml",
+      "bytes": 623,
+      "sha256": "db21254ab189d10b12aae7f2f44bd8f157e255fb44f620807cc34a64105c157e"
+    }
+  ]
+}

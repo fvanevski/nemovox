@@ -1,0 +1,255 @@
+"""CPU tests for batched translation, CLI subtitle generation, and resume without ASR (Work Packages C & E)."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+from nvidia_transcribe.cli import build_parser
+from nvidia_transcribe.refinement import GlossaryConfig
+from nvidia_transcribe.subtitle_pipeline import SubtitlePipelineConfig, generate_subtitles
+from nvidia_transcribe.translation import TranslationConfig, map_language_for_riva, translate_utterances
+
+
+class _StubTranslationClient:
+    def __init__(self, responses: list[dict[str, Any]]) -> None:
+        self.responses = list(responses)
+        self.calls: list[dict[str, Any]] = []
+
+    def complete(self, *, messages: list[dict[str, str]], **kwargs: Any) -> dict[str, Any]:
+        self.calls.append({"messages": messages, **kwargs})
+        resp = self.responses.pop(0)
+        if isinstance(resp, Exception):
+            raise resp
+        return resp
+
+
+def test_map_language_for_riva() -> None:
+    assert map_language_for_riva("fr") == "fr-en"
+    assert map_language_for_riva("zh") == "zh-en"
+    assert map_language_for_riva("zh-TW") == "zh-tw-en"
+    assert map_language_for_riva("ja") == "ja-en"
+    assert map_language_for_riva("unknown-lang") is None
+
+
+def test_translate_utterances_preserves_ids_glossary_and_never_merges_distinct_speakers() -> None:
+    utts = [
+        {"id": "utt-0000", "speaker_id": "SPK_00", "source_start": 1.0, "source_end": 2.5, "source_text": "Esteban, viens voir !", "refined_text": "Esteban, viens voir !"},
+        {"id": "utt-0001", "speaker_id": "SPK_00", "source_start": 2.7, "source_end": 4.2, "source_text": "On a trouvé le double médaillon.", "refined_text": "On a trouvé le double médaillon."},
+        {"id": "utt-0002", "speaker_id": "SPK_01", "source_start": 4.4, "source_end": 6.0, "source_text": "Vraiment ? Montre-moi !", "refined_text": "Vraiment ? Montre-moi !"},
+    ]
+    stub = _StubTranslationClient(
+        [
+            {
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "translations": [
+                                        {"utterance_id": "utt-0000", "translated_text": "Esteban, come look!", "grouped_with_prev": False, "notes": ""},
+                                        {"utterance_id": "utt-0001", "translated_text": "We found the double medallion.", "grouped_with_prev": True, "notes": "same speaker continuation"},
+                                        # Deliberately attempt unsafe grouped_with_prev=True across DIFFERENT speaker SPK_01!
+                                        {"utterance_id": "utt-0002", "translated_text": "Really? Show me!", "grouped_with_prev": True, "notes": "bad cross-speaker group attempt"},
+                                    ]
+                                }
+                            )
+                        }
+                    }
+                ]
+            }
+        ]
+    )
+    out, summary = translate_utterances(
+        utts,
+        source_language="fr",
+        config=TranslationConfig(backend="swiftu", style="natural", batch_size=6),
+        glossary=GlossaryConfig(characters=("Esteban", "Zia"), terms=("double medallion",)),
+        text_client=stub,
+    )
+    assert len(stub.calls) == 1
+    assert "Esteban" in stub.calls[0]["messages"][1]["content"]
+    # Same-speaker SPK_00 utt-0001 allowed to group cleanly into utt-0000
+    assert out[0]["grouped_utterance_ids"] == ["utt-0000", "utt-0001"]
+    assert "Esteban, come look! We found the double medallion." == out[0]["translated_text"]
+    assert out[0]["source_end"] == 4.2
+    assert out[1]["merged_into"] == "utt-0000"
+    # Different speaker SPK_01 MUST NOT be merged into SPK_00!
+    assert "merged_into" not in out[2]
+    assert out[2]["translated_text"] == "Really? Show me!"
+    assert out[2]["source_text"] == "Vraiment ? Montre-moi !"
+    assert summary["regrouped_adjacent_utterances"] == 1
+
+
+def test_translate_utterances_missing_id_and_malformed_retry_fallback() -> None:
+    utts = [
+        {"id": "utt-0000", "speaker_id": "SPK_00", "source_start": 0.0, "source_end": 1.0, "source_text": "钙、钾等元素"},
+        {"id": "utt-0001", "speaker_id": "SPK_01", "source_start": 2.0, "source_end": 3.0, "source_text": "这是金属。"},
+    ]
+    stub = _StubTranslationClient(
+        [
+            {"choices": [{"message": {"content": "NOT JSON"}}]},  # batch fails -> halves to 1+1
+            {"choices": [{"message": {"content": json.dumps({"translations": [{"utterance_id": "utt-0000", "translated_text": "Elements such as calcium and potassium", "grouped_with_prev": False, "notes": ""}]})}}]},
+            {"choices": [{"message": {"content": json.dumps({"translations": [{"utterance_id": "WRONG_ID", "translated_text": "bad", "grouped_with_prev": False, "notes": ""}]})}}]},
+        ]
+    )
+    out, summary = translate_utterances(utts, source_language="zh", config=TranslationConfig(batch_size=2), text_client=stub)
+    assert out[0]["translated_text"] == "Elements such as calcium and potassium"
+    # Missing/wrong ID gracefully falls back to source text without crashing or losing the cue!
+    assert out[1]["translated_text"] == "这是金属。"
+    assert out[1]["translation_status"] == "fallback_missing_id"
+    assert "missing_translation_id:utt-0001" in summary["errors"]
+
+
+def test_translate_vetoed_regrouping_never_leaves_untranslated_source_orphan() -> None:
+    utts = [
+        {"id": "utt-0000", "speaker_id": "SPK_00", "source_start": 100.0, "source_end": 101.2, "source_text": "C'est la"},
+        {"id": "utt-0001", "speaker_id": "SPK_00", "source_start": 107.0, "source_end": 110.5, "source_text": "pyramide de Mu !"},
+    ]
+    stub = _StubTranslationClient(
+        [
+            {
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "translations": [
+                                        {"utterance_id": "utt-0000", "translated_text": "It's the pyramid of Mu!", "grouped_with_prev": False, "notes": ""},
+                                        {"utterance_id": "utt-0001", "translated_text": "", "grouped_with_prev": True, "notes": ""},
+                                    ]
+                                }
+                            )
+                        }
+                    }
+                ]
+            },
+            {
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "translations": [
+                                        {"utterance_id": "utt-0000", "translated_text": "It's the", "grouped_with_prev": False, "notes": ""},
+                                        {"utterance_id": "utt-0001", "translated_text": "pyramid of Mu!", "grouped_with_prev": False, "notes": ""},
+                                    ]
+                                }
+                            )
+                        }
+                    }
+                ]
+            },
+        ]
+    )
+    out, summary = translate_utterances(utts, source_language="fr", config=TranslationConfig(batch_size=4), text_client=stub)
+    assert len(stub.calls) == 2
+    assert summary["regrouped_adjacent_utterances"] == 0
+    assert out[0]["translated_text"] == "It's the"
+    assert out[1]["translated_text"] == "pyramid of Mu!"
+    assert "merged_into" not in out[1]
+
+
+def test_end_to_end_generate_subtitles_from_contract_and_rerender_without_asr(tmp_path: Path) -> None:
+    parser = build_parser()
+    args = parser.parse_args(
+        [
+            "generate-subtitles",
+            "--recording-contract",
+            "rec.json",
+            "--output-dir",
+            str(tmp_path / "subs"),
+            "--refinement",
+            "balanced",
+            "--translator",
+            "swiftu",
+            "--style",
+            "natural",
+            "--formats",
+            "srt,ass",
+        ]
+    )
+    assert args.refinement == "balanced"
+    assert args.translator == "swiftu"
+
+    contract = {
+        "schema_version": "nemotron-recording-contract/v1",
+        "source": {"path": "/tmp/Episode_01.mkv", "duration_s": 10.0},
+        "source_language": "zh",
+        "utterances": [
+            {"id": "utt-0000", "speaker_id": "SPK_00", "source_start": 1.0, "source_end": 4.0, "source_text": "钙、钾等元素属于金属。"}
+        ],
+    }
+    rc_path = tmp_path / "recording.contract.json"
+    rc_path.write_text(json.dumps(contract, ensure_ascii=False), encoding="utf-8")
+
+    stub = _StubTranslationClient(
+        [
+            {
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "corrections": [
+                                        {
+                                            "utterance_id": "utt-0000",
+                                            "original_text": "钙、钾等元素属于金属。",
+                                            "refined_text": "钙、钾等元素属于金属。",
+                                            "changed": False,
+                                            "edit_type": "none",
+                                            "rationale": "ok",
+                                            "confidence": 0.99,
+                                        }
+                                    ]
+                                }
+                            )
+                        }
+                    }
+                ]
+            },
+            {
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "translations": [
+                                        {
+                                            "utterance_id": "utt-0000",
+                                            "translated_text": "Elements like calcium and potassium are metals.",
+                                            "grouped_with_prev": False,
+                                            "notes": "",
+                                        }
+                                    ]
+                                }
+                            )
+                        }
+                    }
+                ]
+            },
+        ]
+    )
+    out_dir = tmp_path / "out_subs"
+    meta = generate_subtitles(
+        recording_contract_path=rc_path,
+        output_dir=out_dir,
+        config=SubtitlePipelineConfig(),
+        text_client=stub,
+    )
+    assert len(stub.calls) == 2
+    assert Path(meta["files"]["srt"]).name == "Episode_01.en.srt"
+    assert Path(meta["files"]["ass"]).name == "Episode_01.en.ass"
+    srt_text = Path(meta["files"]["srt"]).read_text(encoding="utf-8")
+    assert "Elements like calcium\nand potassium are metals." in srt_text
+    assert "calcium and potassium" in Path(meta["files"]["final_english_subtitles"]).read_text(encoding="utf-8")
+
+    # Now re-render with narrower max_chars completely offline with ZERO model calls!
+    meta_re = generate_subtitles(
+        output_dir=out_dir,
+        config=SubtitlePipelineConfig(re_render_only=True),
+        text_client=None,
+    )
+    assert meta_re["refinement"]["status"] == "reused_translated_contract"
+    assert len(stub.calls) == 2
