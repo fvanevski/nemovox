@@ -11,6 +11,8 @@ import json
 import os
 import re
 import subprocess
+import signal
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -220,7 +222,22 @@ def managed_asr_handoff(cfg: ManagedASRConfig) -> Iterator[dict[str, Any]]:
     lease = _check_lease(cfg.lease_path)
     stopped = False
     original: dict[str, str] | None = None
+    previous_sigterm: Any = None
+    sigterm_installed = False
     try:
+        # Unlike SIGKILL, SIGTERM can execute Python finally blocks. Treat
+        # Studio/CLI cancellation as an exception so the owned ASR instance
+        # is restored before the CLI exits. Non-main threads cannot install
+        # signal handlers; their cancellation still requires normal context
+        # unwinding or explicit interrupted-journal recovery.
+        if threading.current_thread() is threading.main_thread():
+            previous_sigterm = signal.getsignal(signal.SIGTERM)
+
+            def _cancel_managed_handoff(_signum: int, _frame: Any) -> None:
+                raise KeyboardInterrupt("Managed ASR handoff interrupted by SIGTERM")
+
+            signal.signal(signal.SIGTERM, _cancel_managed_handoff)
+            sigterm_installed = True
         original = _verified_owner(cfg)
         telemetry["owner_invocation_id"] = original.get("InvocationID")
         _write_journal(cfg.journal_path, {
@@ -274,8 +291,12 @@ def managed_asr_handoff(cfg: ManagedASRConfig) -> Iterator[dict[str, Any]]:
                     "restored_invocation_id": current.get("InvocationID"),
                 })
         finally:
-            fcntl.flock(lease.fileno(), fcntl.LOCK_UN)
-            lease.close()
+            try:
+                if sigterm_installed:
+                    signal.signal(signal.SIGTERM, previous_sigterm)
+            finally:
+                fcntl.flock(lease.fileno(), fcntl.LOCK_UN)
+                lease.close()
 
 
 def recover_pending_managed_asr(cfg: ManagedASRConfig) -> dict[str, Any]:
