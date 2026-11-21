@@ -378,3 +378,35 @@ def test_app_creation_does_not_reconcile_another_running_server(tmp_path: Path):
     finally:
         # A rejected lifespan never entered shutdown, so close its idle pool.
         second.state.runner.executor.shutdown(wait=True)
+
+
+
+def test_cancel_and_completion_have_serialized_terminal_state(client):
+    c, media, _secret, settings = client
+    runner = c.app.state.runner
+
+    def new_running_job():
+        response = c.post("/api/jobs", json={
+            "source": {"kind": "contract", "value": str(media / "recording.contract.json")},
+            "task": "transcription",
+        })
+        assert response.status_code == 202
+        job_id = response.json()["id"]
+        runner.update(job_id, state="running", stage="Preparing media")
+        return job_id
+
+    cancelled = new_running_job()
+    response = c.post(f"/api/jobs/{cancelled}/cancel")
+    assert response.status_code == 200
+    with pytest.raises(InterruptedError, match="Cancelled"):
+        runner._complete_if_not_cancelled(cancelled)
+    assert runner.get(cancelled)["state"] == "running"
+    assert runner.get(cancelled)["stage"] == "Cancelling"
+
+    completed = new_running_job()
+    runner._complete_if_not_cancelled(completed)
+    after = c.post(f"/api/jobs/{completed}/cancel")
+    assert after.status_code == 200
+    assert after.json()["state"] == "complete"
+    assert after.json()["stage"] == "Complete"
+    assert runner.get(completed)["state"] == "complete"

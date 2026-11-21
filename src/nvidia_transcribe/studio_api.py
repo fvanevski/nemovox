@@ -317,19 +317,38 @@ class JobRunner:
                 continue
 
     def cancel(self, job_id: str) -> dict:
-        value = self.get(job_id)
-        if value["state"] in {"complete", "failed", "cancelled", "interrupted"}:
-            return value
+        # Cancellation and successful finalization must observe one serialized
+        # terminal-state boundary. Otherwise a late cancel can be overwritten
+        # by _run's unconditional complete update.
         with self._lock:
+            path = self.path(job_id) / "job.json"
+            value = json.loads(path.read_text(encoding="utf-8"))
+            if value["state"] in {"complete", "failed", "cancelled", "interrupted"}:
+                return value
             self._cancelled.add(job_id)
             process = self._processes.get(job_id)
+            value.update(stage="Cancelling", updated_at=time.time())
+            _atomic_json(path, value)
         if process is not None and self._group_has_live_members(process.pid):
             try:
                 os.killpg(process.pid, signal.SIGTERM)
             except ProcessLookupError:
                 pass
-        self.update(job_id, stage="Cancelling")
         return self.get(job_id)
+
+    def _complete_if_not_cancelled(self, job_id: str) -> None:
+        with self._lock:
+            if job_id in self._cancelled:
+                raise InterruptedError("Cancelled")
+            path = self.path(job_id) / "job.json"
+            value = json.loads(path.read_text(encoding="utf-8"))
+            if value["state"] != "running":
+                raise RuntimeError(f"Cannot complete Studio job from state {value['state']!r}.")
+            value.update(
+                state="complete", stage="Complete", progress=100,
+                finished_at=time.time(), updated_at=time.time(),
+            )
+            _atomic_json(path, value)
 
     def _command(self, job_id: str, args: list[str], stage: str, progress: int) -> None:
         if job_id in self._cancelled:
@@ -479,7 +498,7 @@ class JobRunner:
                 if swiftu_model:
                     args.extend(["--swiftu-model", swiftu_model])
                 self._command(job_id, args, "Refining, translating and rendering", 60)
-            self.update(job_id, state="complete", stage="Complete", progress=100, finished_at=time.time())
+            self._complete_if_not_cancelled(job_id)
         except InterruptedError:
             self.update(job_id, state="cancelled", stage="Cancelled", finished_at=time.time())
         except Exception as exc:
