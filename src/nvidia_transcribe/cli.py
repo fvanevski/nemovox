@@ -105,6 +105,18 @@ def build_parser() -> argparse.ArgumentParser:
     gs.add_argument("--fresh-translation", action="store_true", help="Ignore translation checkpoint cache.")
     gs.add_argument("--re-render", action="store_true", help="Re-render SRT/ASS directly from translated.contract.json without model calls.")
     gs.add_argument("--validation-overlay", default=None, help="Optional viewing-validation JSON overlay for coarse timing & polish.")
+    for parser in (pm, gs):
+        parser.add_argument("--qwen-policy", default="subtitle", choices=["subtitle", "fine"],
+                            help="Admit useful untimed subtitle windows by default; fine admits smaller gaps.")
+        parser.add_argument("--qwen-device", default="cuda:0", choices=["cuda:0", "cpu"],
+                            help="CUDA BF16 required unless CPU is explicitly selected.")
+        parser.add_argument("--qwen-gpu-mode", default="available", choices=["available", "managed"],
+                            help="Default never alters other services; managed requires a cooperative ASR lease.")
+        parser.add_argument("--qwen-owned-asr-unit", default=None,
+                            help="Explicit Nemovox-owned ASR systemd user unit, managed mode only.")
+        parser.add_argument("--qwen-asr-lease-path", default=None,
+                            help="Cooperative ASR ownership lease file, managed mode only.")
+
     return p
 
 
@@ -161,6 +173,11 @@ def main(argv: list[str] | None = None) -> int:
             embedding_threshold=args.embedding_threshold,
             enable_subinterval_recovery=not args.no_subinterval_recovery,
             alignment_fallback=args.alignment_fallback,
+            qwen_policy=args.qwen_policy,
+            qwen_device=args.qwen_device,
+            qwen_gpu_mode=args.qwen_gpu_mode,
+            qwen_owned_asr_unit=args.qwen_owned_asr_unit,
+            qwen_asr_lease_path=args.qwen_asr_lease_path,
             resume=not args.fresh,
             model_path=args.model_path,
         )
@@ -223,6 +240,11 @@ def main(argv: list[str] | None = None) -> int:
             context_seconds=args.context_seconds,
             min_tail_seconds=args.min_tail_seconds,
             alignment_fallback=args.alignment_fallback,
+            qwen_policy=args.qwen_policy,
+            qwen_device=args.qwen_device,
+            qwen_gpu_mode=args.qwen_gpu_mode,
+            qwen_owned_asr_unit=args.qwen_owned_asr_unit,
+            qwen_asr_lease_path=args.qwen_asr_lease_path,
             asr_base_url=args.base_url,
             asr_model=args.model,
             refinement=ref_cfg,
