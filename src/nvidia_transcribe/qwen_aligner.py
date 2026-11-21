@@ -294,6 +294,7 @@ class QwenAlignerSession:
                 [str(py_path), str(WORKER_SCRIPT), "--jsonl"],
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                 stderr=self._stderr, bufsize=0, start_new_session=True,
+                env={**os.environ, "NEMOVOX_QWEN_PARENT_PID": str(os.getpid())},
             )
             ready = self._request("init", {
                 "model_path": str(model_dir),

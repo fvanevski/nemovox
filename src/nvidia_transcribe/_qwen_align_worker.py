@@ -33,6 +33,27 @@ def main(argv: list[str] | None = None) -> int:
     os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
     os.environ.setdefault("HF_HUB_OFFLINE", "1")
 
+    # On Linux the separate worker process group is not reached by the
+    # Studio/CLI parent's process-group cancellation. Kernel parent-death SIGKILL
+    # prevents a stale CUDA worker surviving abrupt parent termination.
+    if sys.platform.startswith("linux"):
+        import ctypes
+        import signal
+
+        parent_raw = os.environ.get("NEMOVOX_QWEN_PARENT_PID")
+        try:
+            original_parent = int(parent_raw or "")
+        except ValueError:
+            print("Missing isolated worker parent identity", file=sys.stderr)
+            return 3
+        libc = ctypes.CDLL(None, use_errno=True)
+        if libc.prctl(1, signal.SIGKILL, 0, 0, 0) != 0:
+            print("Cannot arm worker parent-death cleanup", file=sys.stderr)
+            return 3
+        # Resolve the parent-death-before-prctl race by rechecking PPID.
+        if os.getppid() != original_parent:
+            return 3
+
     aligner: Any = None
     torch: Any = None
     device: str | None = None
