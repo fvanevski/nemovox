@@ -201,9 +201,28 @@ def plan_selective_recovery(
             decision["status"] = "skipped_unanchored_or_ambiguous"
             continue
         start, end = interval
+        # A single diarization interval can contain multiple utterances, even
+        # when only one of them is untimed. Do not align that untimed sentence
+        # against already-timed adjacent speech. The closest timed unit in
+        # canonical reading order constrains the window regardless of speaker;
+        # a later same-speaker unit must not supersede an intervening speaker.
+        prior_timed = next(
+            (v for u in reversed(units[:lo]) if u.get("valid_timing")
+             if (v := _finite_interval(u.get("start"), u.get("end"))) is not None),
+            None,
+        )
+        following_timed = next(
+            (v for u in units[hi:] if u.get("valid_timing")
+             if (v := _finite_interval(u.get("start"), u.get("end"))) is not None),
+            None,
+        )
+        if prior_timed is not None:
+            start = max(start, prior_timed[1] - 0.05)
+        if following_timed is not None:
+            end = min(end, following_timed[0] + 0.05)
         if not (math.isfinite(start) and math.isfinite(end) and 0 <= start < end
                 and 0.25 <= end - start <= policy.max_window_s):
-            decision["status"] = "skipped_invalid_or_long_window"
+            decision["status"] = "skipped_conflicting_or_long_window"
             continue
         if _has_mixed_speaker_overlap(diar, raw_text, window=(start, end)):
             decision["status"] = "skipped_mixed_speaker_overlap"

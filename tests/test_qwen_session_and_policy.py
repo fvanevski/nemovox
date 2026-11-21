@@ -697,3 +697,45 @@ def test_managed_config_and_owner_rejects_studio_unmarked_and_live_clients(
         gpu_handoff._verified_owner(cfg)
     assert err2.value.status == "asr_has_live_connections"
 
+
+
+def test_unique_diar_window_respects_adjacent_native_timed_speech() -> None:
+    """The sole untimed sentence must not consume an already-timed neighbor."""
+    units = [
+        {"text": "你", "speaker": "0", "start": 0.5, "end": 0.9, "valid_timing": True},
+        {"text": "好。", "speaker": "0", "start": 1.0, "end": 1.7, "valid_timing": True},
+        {"text": "世", "speaker": "0", "start": None, "end": None, "valid_timing": False},
+        {"text": "界", "speaker": "0", "start": None, "end": None, "valid_timing": False},
+        {"text": "啊。", "speaker": "0", "start": None, "end": None, "valid_timing": False},
+        {"text": "再", "speaker": "0", "start": 6.5, "end": 6.8, "valid_timing": True},
+        {"text": "见。", "speaker": "0", "start": 6.9, "end": 7.2, "valid_timing": True},
+    ]
+    # A single, continuous same-speaker diarization interval covers three
+    # sentences; native CTC provides trustworthy bounds for the outer two.
+    native = {"units": units, "diarization": [_diar(0.2, 8.0, speaker="0")]}
+    cands, decisions = plan_selective_recovery(
+        native=native, raw_text="<spk:0>你好。世界啊。再见。",
+        chunk_start_s=0.0, chunk_end_s=9.0, policy=AdmissionPolicy(),
+    )
+    assert len(cands) == 1
+    assert decisions[0]["status"] == "admitted"
+    assert cands[0].lo == 2 and cands[0].hi == 5
+    assert cands[0].start_s >= 1.65
+    assert cands[0].end_s <= 6.55
+    assert cands[0].text == "世界啊。"
+
+
+def test_neighbor_bounds_fail_closed_if_candidate_overlaps_native_timing() -> None:
+    units = [
+        {"text": "你。", "speaker": "0", "start": 1.0, "end": 3.8, "valid_timing": True},
+        {"text": "你好朋友。", "speaker": "0", "start": None, "end": None, "valid_timing": False},
+        {"text": "再见。", "speaker": "1", "start": 3.9, "end": 5.0, "valid_timing": True},
+    ]
+    native = {"units": units, "diarization": [_diar(0.5, 3.85, speaker="0"),
+                                               _diar(3.9, 5.0, speaker="1")]}
+    cands, decisions = plan_selective_recovery(
+        native=native, raw_text="<spk:0>你。你好朋友。<spk:1>再见。",
+        chunk_start_s=0.0, chunk_end_s=6.0, policy=AdmissionPolicy(),
+    )
+    assert not cands
+    assert decisions[0]["status"] == "skipped_conflicting_or_long_window"
