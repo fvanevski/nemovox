@@ -1,0 +1,46 @@
+{
+  "campaign": "issue-2-studio-final",
+  "issue": "https://github.com/fvanevski/nemovox/issues/2",
+  "repository": "https://github.com/fvanevski/nemovox",
+  "origin_main_sha": "9b4c8b539c67f2f6266fef135a259e92f5477b19",
+  "prior_integration_sha": "2f0b16e890b2877ec0779818d09d837c79b83086",
+  "prior_evidence_branch": "evidence/issue-2-studio-20261121",
+  "prior_evidence_sha": "e97e5dc0cf644bb9b614a933154ab559aabea466",
+  "final_implementation_branch": "integration/gui-foundation-20261121",
+  "final_implementation_sha": "49fac0f4ae9c607078cbc71e34bc448c5aab318f",
+  "review_correction_commits": [
+    "fb0c02b",
+    "49fac0f4ae9c607078cbc71e34bc448c5aab318f"
+  ],
+  "unchanged_web_tree_sha": "b36450e7a5b0970a1af609bde38a6330846d3e1f",
+  "evidence_branch": "evidence/issue-2-studio-final-20261121",
+  "archive": {
+    "path": "staging/agent-evidence/issue-2-studio-final/issue-2-studio-final-evidence.tar.gz",
+    "local_staging_path": "outputs/handbacks/issue-2-studio-final-evidence.tar.gz",
+    "size_bytes": 18647,
+    "sha256": "a7853414a55a2b110f86fe1bdc94cd5361ff48d4d446397b399fecc38f206b43"
+  },
+  "payload_sha256": {
+    "changed_files/src/nvidia_transcribe/studio_api.py": "b79dd04c59f3e683ab1584a3d54de82a3c75d257cfbac3f8a3f4980e282cda0a",
+    "changed_files/tests/test_studio_api.py": "1ecfcca8584a28b4f2870041427a1012e49cf2c9aad9ad68bc8c87e2462f27ab",
+    "commit_49fac0f.diff": "fd7457c39057186c23a377d6d055ff32db3735f55069604361e131c4790acc00",
+    "commit_fb0c02b.diff": "47b24da51393d37e3a8bbb7e4eb7ff964ea7cf248abf195bc09f16b416fe65ea",
+    "git_shas_and_stat.txt": "dea9820efda0a083fc7da7e208f2efe757e0d0c5fbe2db9eaeeade684b84ebcf",
+    "logs/host_lifecycle_http_smoke.log": "ee650de3f2f160124e1483e668d7c768dad84db0b73e60614718db520ae0806b",
+    "logs/pytest_cli_cpu.log": "cd3554ded54ca98959b0b59f829732baca9f6d9a737fa382155f4bb41efe075b",
+    "logs/pytest_studio_cpu.log": "1fc8ac970d8016101c05e2fa53ac97edada98e3b8f0e16337c7ed684cb28786d",
+    "logs/pytest_studio_focused.log": "d3cb6d0943def55b63c4da04f8c157ba137feabb75efd153ab4fec7ced4d6868",
+    "logs/web_test_build.log": "91dd9869bf67e79362a8b3336679be7a10496dd8100f5a9565d5acf0915853c5",
+    "review_corrections.diff": "925b3db708a3473d3a9cd210dddc12ba45d658bda2554bd0d397f4eb6bb7e845",
+    "web_tree_identity.txt": "1eb05c611de9f2bb8918468bda2c2c7202e8b28135dedca949a21964bfce052"
+  },
+  "checks": {
+    "pytest_studio_focused": "12 passed in 3.12s (exit 0)",
+    "pytest_studio_cpu": "83 passed in 3.95s (exit 0)",
+    "pytest_cli_cpu": "83 passed in 4.01s (exit 0)",
+    "vitest": "2 files passed, 4 tests passed (exit 0)",
+    "vite_tsc_build": "tsc --noEmit && vite build succeeded (2036 modules, 586ms, exit 0)",
+    "host_lifecycle_http_smoke": "PASS (authorized startup reconcile, read-only secondary import/create_app, secondary Uvicorn lock rejection exit=3, cancel-precedes-completion=cancelled & descendant dead, complete-precedes-cancel=complete, graceful SIGTERM shutdown=cancelled & descendant dead)",
+    "live_gpu_inference": "UNVERIFIED (no live Nemotron vLLM/SwiftU daemon running on ports 8190/8001)"
+  }
+}
