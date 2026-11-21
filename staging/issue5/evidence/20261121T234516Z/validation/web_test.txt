@@ -1,0 +1,18 @@
+COMMAND: cd web && npm test
+EXIT_CODE: 0
+
+
+ RUN  v4.1.12 /workspace/nemovox-issue5/web
+
+ ✓ src/api.test.ts (2 tests) 3ms
+ ✓ src/source-selection.test.ts (2 tests) 3ms
+ ✓ src/job-display.test.ts (4 tests) 6ms
+
+ Test Files  3 passed (3)
+      Tests  8 passed (8)
+   Start at  15:45:30
+   Duration  166ms (transform 83ms, setup 0ms, import 134ms, tests 11ms, environment 0ms)
+
+
+npm notice run nemovox-studio@0.1.0 test
+npm notice run vitest run

@@ -1,0 +1,56 @@
+{
+  "gpu_service_mutation": false,
+  "gpu_status_csv": "0, NVIDIA GeForce RTX 5090, 3110 MiB, 32607 MiB",
+  "gpu_compute_apps_csv": [
+    "11480, /usr/bin/kwin_wayland, 391 MiB",
+    "1216176, /usr/local/bin/text-embeddings-router, 1726 MiB"
+  ],
+  "endpoints": {
+    "asr_local_default": {
+      "url": "http://127.0.0.1:8190/v1/models",
+      "reachable": false,
+      "error": "[Errno 111] Connection refused"
+    },
+    "text_local_default": {
+      "url": "http://127.0.0.1:8001/v1/models",
+      "reachable": false,
+      "error": "[Errno 111] Connection refused"
+    },
+    "litellm_8002_readonly_models_only": {
+      "url": "http://127.0.0.1:8002/v1/models",
+      "reachable": true,
+      "status_code": 200,
+      "models": [
+        "chat",
+        "chat-fast",
+        "chat-review",
+        "chat-audit",
+        "graphiti-extract"
+      ],
+      "completion_sent": false,
+      "note": "Not configured text_local; completion omitted to avoid unintended cloud/external routing."
+    }
+  },
+  "text_live_smoke": "UNVERIFIED",
+  "asr_live_smoke": "UNVERIFIED",
+  "host_local_path_checks": {
+    "asr": {
+      "status": "OK",
+      "resource": "asr_local",
+      "adapter": "nemotron_ctc",
+      "fingerprint": "4952e76413ea"
+    },
+    "forced_alignment": {
+      "status": "OK",
+      "resource": "qwen_local",
+      "adapter": "qwen_forced_aligner",
+      "fingerprint": "72b18920eecb"
+    },
+    "riva_translation": {
+      "status": "OK",
+      "resource": "riva_local",
+      "adapter": "riva_worker",
+      "fingerprint": "3adab2a2aa3b"
+    }
+  }
+}
