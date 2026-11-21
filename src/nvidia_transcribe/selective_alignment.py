@@ -144,11 +144,35 @@ def plan_selective_recovery(
         )
         interval: tuple[float, float] | None = None
         if valid_in_span:
-            # A partly timed utterance is itself a reliable localization anchor.
-            interval = (
-                max(chunk_start_s, min(s for s, _ in valid_in_span) - 1.2),
-                min(chunk_end_s, max(e for _, e in valid_in_span) + 1.2),
-            )
+            native_start = min(s for s, _ in valid_in_span)
+            native_end = max(e for _, e in valid_in_span)
+            untimed_prefix = not span[0].get("valid_timing")
+            untimed_suffix = not span[-1].get("valid_timing")
+            if untimed_prefix or untimed_suffix:
+                # The submitted text includes the entire utterance: a fixed
+                # pad near its native-timed words could omit a long untimed
+                # lead-in/tail. Require one uniquely grouped same-speaker
+                # diarization interval overlapping native timing.
+                if len(grouped_diar) != 1 or untimed_spans_by_speaker.get(speaker, 0) != 1:
+                    decision["status"] = "skipped_partial_span_unanchored_edge"
+                    continue
+                diar_start, diar_end = grouped_diar[0]
+                if diar_end < native_start - 0.35 or diar_start > native_end + 0.35:
+                    decision["status"] = "skipped_partial_span_unanchored_edge"
+                    continue
+                interval = (
+                    max(chunk_start_s, min(diar_start, native_start) - 0.35)
+                    if untimed_prefix else max(chunk_start_s, native_start - 0.35),
+                    min(chunk_end_s, max(diar_end, native_end) + 0.35)
+                    if untimed_suffix else min(chunk_end_s, native_end + 0.35),
+                )
+            else:
+                # Both boundaries have native timing, so small local pads
+                # retain the complete utterance without guessing edge audio.
+                interval = (
+                    max(chunk_start_s, native_start - 1.2),
+                    min(chunk_end_s, native_end + 1.2),
+                )
         elif len(grouped_diar) == 1 and untimed_spans_by_speaker.get(speaker, 0) == 1:
             # Intra-utterance pauses (<=0.6s) merge into one speech window for a sole untimed span;
             # multiple separated same-speaker windows remain ambiguous.
