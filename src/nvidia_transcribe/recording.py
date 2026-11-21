@@ -467,7 +467,10 @@ def process_media(
                             qwen_metrics["status"] = (
                                 "executed" if adapter.metrics["align_count"] else "deferred_no_successful_worker_requests"
                             )
-                        qwen_metrics["resource_handoff"] = dict(lease_report)
+                    # Snapshot the handoff report *after* context exit so
+                    # restored=True reflects verified ASR health, not a
+                    # premature pre-restoration observation.
+                    qwen_metrics["resource_handoff"] = dict(lease_report)
                 except ManagedASRBlocked as exc:
                     # Admission failures occur *before* changing a non-owned
                     # service. Restoration failures are fatal, not a mere skip.
