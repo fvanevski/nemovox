@@ -1,0 +1,12 @@
+POST /api/jobs -> 202
+GET /api/jobs/c46f34300e0f4e1c8334edaf96334344 -> 200
+GET /api/jobs/c46f34300e0f4e1c8334edaf96334344 -> 200
+GET /api/jobs/c46f34300e0f4e1c8334edaf96334344/preview -> 200
+GET /api/jobs/c46f34300e0f4e1c8334edaf96334344/artifacts -> 200
+GET /api/jobs/c46f34300e0f4e1c8334edaf96334344/artifact/asr/recording.contract.json -> 200 (773 bytes match)
+GET /api/jobs/c46f34300e0f4e1c8334edaf96334344/artifact/asr/transcript.txt -> 200 (278 bytes match)
+GET /api/media?path=/tmp/nemovox-postmerge-scratch-20261121/outside -> 403
+POST /api/jobs -> 403
+POST /api/jobs -> 422
+POST /api/jobs -> 422
+GET /api/jobs/c46f34300e0f4e1c8334edaf96334344/artifacts -> 200

@@ -1,0 +1,209 @@
+{
+  "job_id": "c46f34300e0f4e1c8334edaf96334344",
+  "states_seen": [
+    "queued",
+    "running",
+    "complete"
+  ],
+  "job_final": {
+    "id": "c46f34300e0f4e1c8334edaf96334344",
+    "state": "complete",
+    "stage": "Complete",
+    "progress": 100,
+    "request": {
+      "source": {
+        "kind": "contract",
+        "value": "/tmp/nemovox-postmerge-scratch-20261121/media/recording.contract.json"
+      },
+      "task": "transcription",
+      "options": {
+        "source_language": "auto",
+        "target_language": "en",
+        "asr_mode": "speaker",
+        "audio_stream": 0,
+        "chunk_seconds": 90,
+        "context_seconds": 10,
+        "speaker_embeddings": "titanet",
+        "alignment_fallback": "off",
+        "refinement": "balanced",
+        "translator": "swiftu",
+        "style": "natural",
+        "glossary": null,
+        "ass_layout": "standard",
+        "ass_max_lanes": 3,
+        "condense_high_cps": true,
+        "formats": [
+          "srt",
+          "ass"
+        ]
+      }
+    },
+    "source_path": "/tmp/nemovox-postmerge-scratch-20261121/media/recording.contract.json",
+    "created_at": 1795289599.601718,
+    "updated_at": 1795289599.6035237,
+    "error": null,
+    "finished_at": 1795289599.6035235
+  },
+  "imported_contract": {
+    "schema_version": "1.0",
+    "source": {
+      "path": "/tmp/nemovox-postmerge-scratch-20261121/media/synthetic_demo.webm",
+      "duration_s": 4.0,
+      "media_type": "video"
+    },
+    "source_language": "zh",
+    "language_provenance": "explicit",
+    "speakers": [
+      "SPK_00",
+      "SPK_01"
+    ],
+    "utterances": [
+      {
+        "utterance_id": "utt-0000",
+        "speaker_id": "SPK_00",
+        "source_start": 0.4,
+        "source_end": 2.0,
+        "source_text": "合并后的验证测试准备完成。",
+        "alignment_status": "exact"
+      },
+      {
+        "utterance_id": "utt-0001",
+        "speaker_id": "SPK_01",
+        "source_start": null,
+        "source_end": null,
+        "source_text": "Réplique sans horodatage — préservée.",
+        "alignment_status": "untimed"
+      }
+    ]
+  },
+  "imported_transcript": "# Source: /tmp/nemovox-postmerge-scratch-20261121/media/synthetic_demo.webm | Language: zh (explicit) | Utterances: 2\n\n[0000.40 -> 0002.00] SPK_00 (exact): 合并后的验证测试准备完成。\n[untimed -> untimed] SPK_01 (untimed): Réplique sans horodatage — préservée.\n",
+  "preview_before_injected": {
+    "kind": "transcript",
+    "cues": [
+      {
+        "start": 0.4,
+        "end": 2.0,
+        "text": "合并后的验证测试准备完成。",
+        "speaker": "SPK_00",
+        "utterance_id": "utt-0000"
+      },
+      {
+        "start": null,
+        "end": null,
+        "text": "Réplique sans horodatage — préservée.",
+        "speaker": "SPK_01",
+        "utterance_id": "utt-0001"
+      }
+    ]
+  },
+  "artifacts_before_injected": [
+    {
+      "name": "recording.contract.json",
+      "path": "asr/recording.contract.json",
+      "url": "/api/jobs/c46f34300e0f4e1c8334edaf96334344/artifact/asr/recording.contract.json"
+    },
+    {
+      "name": "transcript.txt",
+      "path": "asr/transcript.txt",
+      "url": "/api/jobs/c46f34300e0f4e1c8334edaf96334344/artifact/asr/transcript.txt"
+    }
+  ],
+  "injected_fixtures": {
+    "Episode #1? 50% 日本語.en.srt": {
+      "url": "/api/jobs/c46f34300e0f4e1c8334edaf96334344/artifact/output/Episode%20%231%3F%2050%25%20%E6%97%A5%E6%9C%AC%E8%AA%9E.en.srt",
+      "bytes": 57,
+      "sha256": "7536e480827528f690b58e0d1abb9cbd8e5f66267578ed85fb3fb4fe080f9b81"
+    },
+    "Episode #1? 50% 日本語.en.ass": {
+      "url": "/api/jobs/c46f34300e0f4e1c8334edaf96334344/artifact/output/Episode%20%231%3F%2050%25%20%E6%97%A5%E6%9C%AC%E8%AA%9E.en.ass",
+      "bytes": 598,
+      "sha256": "de4741e6c11d464238ed8ba661ac1f9b862602c1c692ef242fcbd9c0c5b8dff9"
+    }
+  },
+  "artifacts_after_injected": [
+    {
+      "name": "recording.contract.json",
+      "path": "asr/recording.contract.json",
+      "url": "/api/jobs/c46f34300e0f4e1c8334edaf96334344/artifact/asr/recording.contract.json"
+    },
+    {
+      "name": "transcript.txt",
+      "path": "asr/transcript.txt",
+      "url": "/api/jobs/c46f34300e0f4e1c8334edaf96334344/artifact/asr/transcript.txt"
+    },
+    {
+      "name": "Episode #1? 50% 日本語.en.srt",
+      "path": "output/Episode #1? 50% 日本語.en.srt",
+      "url": "/api/jobs/c46f34300e0f4e1c8334edaf96334344/artifact/output/Episode%20%231%3F%2050%25%20%E6%97%A5%E6%9C%AC%E8%AA%9E.en.srt"
+    },
+    {
+      "name": "Episode #1? 50% 日本語.en.ass",
+      "path": "output/Episode #1? 50% 日本語.en.ass",
+      "url": "/api/jobs/c46f34300e0f4e1c8334edaf96334344/artifact/output/Episode%20%231%3F%2050%25%20%E6%97%A5%E6%9C%AC%E8%AA%9E.en.ass"
+    }
+  ],
+  "negatives": {
+    "outside_browse": 403,
+    "outside_job": 403,
+    "invalid_contract": 422,
+    "bad_url": 422
+  },
+  "browser_jassub_ok": true,
+  "browser_http": [
+    [
+      200,
+      "/api/jobs/c46f34300e0f4e1c8334edaf96334344"
+    ],
+    [
+      200,
+      "/api/jobs"
+    ],
+    [
+      200,
+      "/api/media"
+    ],
+    [
+      200,
+      "/api/glossaries"
+    ],
+    [
+      200,
+      "/api/jobs/c46f34300e0f4e1c8334edaf96334344/preview"
+    ],
+    [
+      200,
+      "/api/jobs/c46f34300e0f4e1c8334edaf96334344/logs"
+    ],
+    [
+      200,
+      "/api/jobs/c46f34300e0f4e1c8334edaf96334344/artifacts"
+    ],
+    [
+      200,
+      "/api/health"
+    ],
+    [
+      200,
+      "/api/jobs/c46f34300e0f4e1c8334edaf96334344/preview"
+    ],
+    [
+      200,
+      "/api/jobs/c46f34300e0f4e1c8334edaf96334344/artifacts"
+    ],
+    [
+      206,
+      "/api/jobs/c46f34300e0f4e1c8334edaf96334344/media"
+    ],
+    [
+      200,
+      "/api/jobs/c46f34300e0f4e1c8334edaf96334344/artifact/output/Episode%20%231%3F%2050%25%20%E6%97%A5%E6%9C%AC%E8%AA%9E.en.ass"
+    ]
+  ],
+  "console_errors": [],
+  "post_restart": {
+    "job_state": "complete",
+    "artifacts_count": 4,
+    "orphan_state": "interrupted",
+    "owned_remaining": 0
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "campaign": "issue-2-postmerge",
+  "issue": "https://github.com/fvanevski/nemovox/issues/2",
+  "merged_pr": "https://github.com/fvanevski/nemovox/pull/3",
+  "repository": "https://github.com/fvanevski/nemovox",
+  "required_main_sha": "242c418f55cd2afb796ee2c4fa742a10ff04f7a3",
+  "required_main_tree": "122f8466db22098ba9427373af7e87ceb8421076",
+  "pre_squash_approved_sha": "bc5f067340d8bc84b7129bbdea7589ea401222c8",
+  "evidence_branch": "evidence/issue-2-postmerge-20261121",
+  "handoff_parent_commit": "8955bbb20999d6fd4f50320bf8cd0f755c628a1a",
+  "required_artifacts": [
+    "source-identity.txt",
+    "fresh-process.json",
+    "startup.log",
+    "api-job.json",
+    "api-requests.txt",
+    "browser-review.md",
+    "postmerge_preview.png",
+    "restart-cleanup.md",
+    "test-results.md",
+    "HANDback.md",
+    "logs/pytest_studio_focused.log",
+    "logs/pytest_studio_cpu.log",
+    "logs/pytest_cli_cpu.log",
+    "logs/web_test_build.log"
+  ],
+  "included_members": {
+    "HANDback.md": {
+      "size_bytes": 4077,
+      "sha256": "9b51865f43227df6cca1e4ccd9d9ffa87d06fe93361e02931347a3bf410e04f1"
+    },
+    "api-job.json": {
+      "size_bytes": 6031,
+      "sha256": "6fcb72fb69fd3260710fc04d1466be24c4ad8a79ab9ccb3a71b03e4c40f4af71"
+    },
+    "api-requests.txt": {
+      "size_bytes": 670,
+      "sha256": "5086ac510b8c1c71b549cb2f0d961dbafea5b6cd28a537cc297f4395fda75cd6"
+    },
+    "browser-review.md": {
+      "size_bytes": 2026,
+      "sha256": "39bb35964ac67c03725f5a3cd83e974b04aa0921ab89e13ab034ff25fed2128d"
+    },
+    "fresh-process.json": {
+      "size_bytes": 3263,
+      "sha256": "4b5909982b4110363db3f6b4e23057f0e8d5545d6167b5315e47328593cd9af5"
+    },
+    "logs/pytest_cli_cpu.log": {
+      "size_bytes": 836,
+      "sha256": "11382799316594e6e5c63d6b7671f34270c6cf48a9eb76e4d5a3e61d74a256e7"
+    },
+    "logs/pytest_studio_cpu.log": {
+      "size_bytes": 191,
+      "sha256": "ae28eadd9f5cb379b188bb818e2d4c4cbc185e44805f065bf477ccbc779bede3"
+    },
+    "logs/pytest_studio_focused.log": {
+      "size_bytes": 1704,
+      "sha256": "460e34219c575919926cd0bf811642ccb31cad978b69736e6c4b6c23ae5abefe"
+    },
+    "logs/web_test_build.log": {
+      "size_bytes": 1397,
+      "sha256": "eaab075c83dad7259669c14f13faf1e5542c12a4e26dd4aac33eff10271b05a9"
+    },
+    "postmerge_preview.png": {
+      "size_bytes": 354292,
+      "sha256": "10d0dd7e161edef56fd6a739d41721b54da9da2d276d1c95e9aa2e2208d90332"
+    },
+    "restart-cleanup.md": {
+      "size_bytes": 2159,
+      "sha256": "043b85d5aa6912429f09e2b0aa7c985d8f83e8294f3c026a629d10a4738d54bb"
+    },
+    "source-identity.txt": {
+      "size_bytes": 1639,
+      "sha256": "7be23c0b7f52a66ab53eeb4f5c014ef01be0689be26b117b5ecd43da92cbc978"
+    },
+    "startup.log": {
+      "size_bytes": 3778,
+      "sha256": "bff89968982ec923b022bfa01384b2f84faf92a14fa7360a7b80c4459b9c7360"
+    },
+    "test-results.md": {
+      "size_bytes": 1606,
+      "sha256": "c30b0a9ecb558cf39370dce355b2842a5e19bf12d1b989951964648d510ffdc0"
+    }
+  },
+  "privacy_check": "ZERO_HOME_PATH_MATCHES; synthetic fixtures only",
+  "omissions": [
+    "Live GPU ASR (127.0.0.1:8190) and SwiftU (127.0.0.1:8001) inference UNVERIFIED",
+    "Full multi-scenario polling-order/late-upload campaign reused from equal-tree approved SHA bc5f067340d8bc84b7129bbdea7589ea401222c8 (evidence/issue-2-codex-ui-20261121)"
+  ]
+}

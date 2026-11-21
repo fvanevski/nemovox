@@ -1,0 +1,49 @@
+{
+  "pid1": {
+    "pid": 4003808,
+    "ps_line": "4003808 4003787 Sat Nov 21 11:33:18 2026 /workspace/nvidia-transcribe/.venv-studio/bin/python -m uvicorn nvidia_transcribe.studio_api:app --host 127.0.0.1 --port 18765 --workers 1",
+    "exe": "<USER_HOME>/.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/bin/python3.13",
+    "cwd": "/tmp/nemovox-postmerge-wt-20261121"
+  },
+  "pid1_exit": -15,
+  "root_html_status": 200,
+  "root_html_title_ok": true,
+  "health1": {
+    "status": "ok",
+    "backend": "local",
+    "ffmpeg": true,
+    "ytdlp": true,
+    "media_roots": [
+      "/tmp/nemovox-postmerge-wt-20261121/outputs",
+      "<USER_HOME>/Videos",
+      "/opt/mcog",
+      "/workspace/pyannote/outputs/sources",
+      "/tmp/nemovox-postmerge-scratch-20261121/media"
+    ]
+  },
+  "pid2_rejected": {
+    "pid": 4003880,
+    "exit": 3,
+    "log": "INFO:     Started server process [4003880]\nINFO:     Waiting for application startup.\nERROR:    Traceback (most recent call last):\n  File \"/tmp/nemovox-postmerge-wt-20261121/src/nvidia_transcribe/studio_api.py\", line 190, in owned_job_root\n    fcntl.flock(owner.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)\n    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nBlockingIOError: [Errno 11] Resource temporarily unavailable\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/workspace/nvidia-transcribe/.venv-studio/lib/python3.13/site-packages/starlette/routing.py\", line 661, in lifespan\n    async with self.lifespan_context(app) as maybe_state:\n               ~~~~~~~~~~~~~~~~~~~~~^^^^^\n  File \"<USER_HOME>/.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py\", line 214, in __aenter__\n    return await anext(self.gen)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/nemovox-postmerge-wt-20261121/src/nvidia_transcribe/studio_api.py\", line 536, in lifespan\n    with runner.owned_job_root():\n         ~~~~~~~~~~~~~~~~~~~~~^^\n  File \"<USER_HOME>/.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py\", line 141, in __enter__\n    return next(self.gen)\n  File \"/tmp/nemovox-postmerge-wt-20261121/src/nvidia_transcribe/studio_api.py\", line 192, in owned_job_root\n    raise RuntimeError(\n        \"Studio job directory is already owned by another running server.\"\n    ) from exc\nRuntimeError: Studio job directory is already owned by another running server.\n\nERROR:    Application startup failed. Exiting.\n"
+  },
+  "pid3": {
+    "pid": 4004565,
+    "ps_line": "4004565 4003787 Sat Nov 21 11:33:23 2026 /workspace/nvidia-transcribe/.venv-studio/bin/python -m uvicorn nvidia_transcribe.studio_api:app --host 127.0.0.1 --port 18765 --workers 1",
+    "exe": "<USER_HOME>/.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/bin/python3.13",
+    "cwd": "/tmp/nemovox-postmerge-wt-20261121"
+  },
+  "pid3_exit": -15,
+  "health3": {
+    "status": "ok",
+    "backend": "local",
+    "ffmpeg": true,
+    "ytdlp": true,
+    "media_roots": [
+      "/tmp/nemovox-postmerge-wt-20261121/outputs",
+      "<USER_HOME>/Videos",
+      "/opt/mcog",
+      "/workspace/pyannote/outputs/sources",
+      "/tmp/nemovox-postmerge-scratch-20261121/media"
+    ]
+  }
+}

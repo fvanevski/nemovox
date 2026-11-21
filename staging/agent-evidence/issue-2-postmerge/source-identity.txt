@@ -1,0 +1,17 @@
+origin/main: 242c418f55cd2afb796ee2c4fa742a10ff04f7a3
+origin/main tree: 122f8466db22098ba9427373af7e87ceb8421076
+pre-squash approved head (bc5f0673) tree: 122f8466db22098ba9427373af7e87ceb8421076
+worktree head: 242c418f55cd2afb796ee2c4fa742a10ff04f7a3
+worktree tree: 122f8466db22098ba9427373af7e87ceb8421076
+runtime import: {"python": "/workspace/nvidia-transcribe/.venv-studio/bin/python", "cwd": "/tmp/nemovox-postmerge-wt-20261121", "studio_api_file": "/tmp/nemovox-postmerge-wt-20261121/src/nvidia_transcribe/studio_api.py", "PROJECT": "/tmp/nemovox-postmerge-wt-20261121"}
+web/dist sha256:
+886929903707c5bb28b07cd2eed69921b3d5ef5c49c73a0dd1e187ebf6546a4c  web/dist/assets/default-jVcJgvWm.woff2
+4641218b4e9cb941bf966ac55b17563c2cf5626e43e03872acc2ecdf4dbce542  web/dist/assets/index-Bwa8rYL-.js
+672d90392d396d79943ed5dababd3d9934e342ca65a8c9bde2983c68792407d1  web/dist/assets/index-DJ2GBhMf.css
+29e5c2900d151e5daca8402b251cae417181a5ec4d48aa255a92430cb4047b5a  web/dist/assets/jassub-BuJmHi6V.js
+ef9e38e7b4cdd7eb13eb6be40319048bef00c8225c263525c47d0f93962c0a21  web/dist/assets/jassub-worker-BSmmQch0.js
+314197e1d0ea9baca8b8605247f02a61789fd835c700c2d426de2d872829d3ab  web/dist/assets/jassub-worker-C9aQ8Z6U.wasm
+46707ef34e97e49282c80bd079206514b7cb1700ba90340d9817767e259f8059  web/dist/assets/jassub-worker-modern-BUW0J9we.js
+8707827c9063ba67742a3d85e6b6062e55aee9ac01395831b5c94d1b12d0f612  web/dist/assets/jassub-worker-modern-D8ggd1vm.wasm
+d70d7e0e82e8e128295702de97c6eda7a18d8726c9f8778eeb59e4f2e807184b  web/dist/assets/worker-BWunBCmv.js
+dbf4db0820bc42a9ebd711d8a4321c6e89ca0eb81714186ff2656bd0c83f96b3  web/dist/index.html
