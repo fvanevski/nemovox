@@ -234,6 +234,8 @@ def test_condensation_rejects_specialized_riva_adapter():
 
 
 def test_single_clip_asr_role_default_and_legacy_explicit_endpoint(monkeypatch, capsys):
+    for key in ("ASR_BASE_URL", "ASR_MODEL", "NEMOVOX_MODEL_RESOURCES"):
+        monkeypatch.delenv(key, raising=False)
     constructed = []
 
     class FakeASR:
