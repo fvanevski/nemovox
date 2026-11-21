@@ -8,6 +8,9 @@ Recommended GUI handback layout:
 staging/agent-evidence/gui-foundation-20261121/
     gui-foundation-evidence.tar.gz
     manifest.json
+    HANDback.md
+    test-results.md
+    browser-review.md
 ~~~
 
 This repository is PUBLIC. Publish synthetic-only screenshots/fixtures, source diffs and sanitized test evidence. Never publish copyrighted media, derived TV/anime transcripts, credentials, model weights or private host logs. Keep individual archives small, ideally below 20-25 MiB. Force-add only the approved tar.gz with git add -f because the root .gitignore excludes archives.
