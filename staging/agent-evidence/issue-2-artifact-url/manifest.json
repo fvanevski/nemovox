@@ -1,0 +1,43 @@
+{
+  "campaign": "issue-2-artifact-url",
+  "pr": "https://github.com/fvanevski/nemovox/pull/3",
+  "issue": "https://github.com/fvanevski/nemovox/issues/2",
+  "codex_finding": "https://github.com/fvanevski/nemovox/pull/3#discussion_r4654453576",
+  "repository": "https://github.com/fvanevski/nemovox",
+  "origin_main_sha": "9b4c8b539c67f2f6266fef135a259e92f5477b19",
+  "prior_integration_sha": "9ee4757ea24bbd68cb190f606b75a7f1af360ea1",
+  "prior_evidence_branches": {
+    "codex_ui": "936ded2dd2ff280292795c74cc052c94c992a3d7",
+    "studio_final": "0f0a87097b781d8cddfc8b5469490cb7eab5cf53",
+    "issue2_studio": "e97e5dc0cf644bb9b614a933154ab559aabea466"
+  },
+  "final_implementation_branch": "integration/gui-foundation-20261121",
+  "final_implementation_sha": "bc5f067340d8bc84b7129bbdea7589ea401222c8",
+  "unchanged_web_tree_sha": "d571b1080aa9ce8f45468d6f5ee40deeb16c46ab",
+  "evidence_branch": "evidence/issue-2-artifact-url-20261121",
+  "archive": {
+    "path": "staging/agent-evidence/issue-2-artifact-url/issue-2-artifact-url-evidence.tar.gz",
+    "local_staging_path": "outputs/handbacks/issue-2-artifact-url-evidence.tar.gz",
+    "size_bytes": 19484,
+    "sha256": "4262f575c48914462cd9038469b2424a2b84da111a59768b62bda282681a3868"
+  },
+  "payload_sha256": {
+    "artifact_url_fix.diff": "72969c5bac0bf6d3cf9530e5404c790c4a492193a5de4edf5cbdd4c8d4e83536",
+    "changed_files/docs/gui/ISSUE2_CODEX_ARTIFACT_URL_REMEDIATION.md": "f297c9e86973f5abaa2245ca13ed331995251999189bc02faa89e03890602479",
+    "changed_files/src/nvidia_transcribe/studio_api.py": "fe1ad1c205278d29ad253085b82c09788e0b659f89d1c932d2fec3832aff53c3",
+    "changed_files/tests/test_studio_api.py": "470e7dad91cd452b0050dd6679e228142178097782e9397997a5a64cbe413089",
+    "git_shas_and_stat.txt": "81411596fc2aba5abcc386b2f6e6f3aff33e765a44ae796a661fe6417f52e3fb",
+    "logs/http_browser_artifact_url.log": "e885b9d275648618ed55e950a57690112ed1dd20b76b93caa77ea31c46e4c48b",
+    "logs/pytest_artifact_url_focused.log": "d7e8b1e7306d2eaf57d1a6ec09aa717d10d4ba8a8dcaf1f4822620541d951d18",
+    "logs/pytest_cli_cpu.log": "bd34d5e4667f19949c19755df67349fa8b06ca82113496fdd7c6bb41abf79c64",
+    "logs/pytest_studio_cpu.log": "6e4d92e8e3b0737a2b29fb918a2b468666fb2a87e2761e81e8cdcd9679718d43",
+    "web_tree_identity.txt": "6c84d3ed5ea75421498267e9057cb24b63e4b07b7f20de95da4a5752d9e3e841"
+  },
+  "checks": {
+    "pytest_artifact_url_focused": "2 passed in 0.21s (exit 0)",
+    "pytest_studio_cpu": "85 passed in 3.99s (exit 0)",
+    "pytest_cli_cpu": "85 passed in 4.02s (exit 0)",
+    "http_and_browser_reserved_filenames": "PASS (percent-encoded SRT/ASS URLs preserve '/', download exact bytes via HTTP and Playwright clicks, JASSUB fetches encoded .ass with 200 OK and activates ASS · libass; 0 console errors)",
+    "live_gpu_inference": "UNVERIFIED (not required; external GPU services not running)"
+  }
+}
