@@ -741,3 +741,227 @@ def test_neighbor_bounds_fail_closed_if_candidate_overlaps_native_timing() -> No
     )
     assert not cands
     assert decisions[0]["status"] == "skipped_conflicting_or_long_window"
+
+
+@pytest.mark.parametrize("marker", [
+    "NEMOVOX_MANAGED_ASR=1 NEMOVOX_ASR_LEASE_PATH={lease}.other",
+    "NEMOVOX_MANAGED_ASR=10 NEMOVOX_ASR_LEASE_PATH={lease}",
+    "NEMOVOX_MANAGED_ASR=1 NEMOVOX_ASR_LEASE_PATH={lease} "
+    "NEMOVOX_ASR_LEASE_PATH={lease}.other",
+    "NEMOVOX_MANAGED_ASR=1 NEMOVOX_ASR_LEASE_PATH={lease}.other "
+    "NEMOVOX_ASR_LEASE_PATH={lease}",
+])
+def test_managed_owner_rejects_nonexact_or_duplicate_lease_markers(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, marker: str,
+) -> None:
+    cfg = _managed_cfg(tmp_path)
+    monkeypatch.setattr(gpu_handoff, "_unit_properties", lambda u: {
+        "LoadState": "loaded", "ActiveState": "active",
+        "FragmentPath": "/synthetic/nemovox-asr.service",
+        "InvocationID": "abc", "MainPID": str(os.getpid()),
+        "Environment": marker.format(lease=cfg.lease_path),
+        "ExecStart": "vllm serve nemotron --port 8190",
+    })
+    monkeypatch.setattr(Path, "read_bytes", lambda self: (
+        _ for _ in ()
+    ).throw(AssertionError("reject ownership before inspecting process")))
+    with pytest.raises(gpu_handoff.ManagedASRBlocked) as error:
+        gpu_handoff._verified_owner(cfg)
+    assert error.value.status == "asr_not_cooperatively_owned"
+
+
+def test_cooperative_marker_parser_accepts_exact_quoted_assignment(tmp_path: Path) -> None:
+    lease = tmp_path / "space in name.lock"
+    assert gpu_handoff._has_exact_cooperative_markers(
+        f'NEMOVOX_MANAGED_ASR=1 "NEMOVOX_ASR_LEASE_PATH={lease}"', lease,
+    )
+    assert not gpu_handoff._has_exact_cooperative_markers(
+        f'NEMOVOX_MANAGED_ASR=1 "NEMOVOX_ASR_LEASE_PATH={lease}.suffix"', lease,
+    )
+    assert not gpu_handoff._has_exact_cooperative_markers(
+        'NEMOVOX_MANAGED_ASR=1 "NEMOVOX_ASR_LEASE_PATH=unterminated', lease,
+    )
+
+
+def test_managed_crash_recovery_rejects_prefix_lease_before_start(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import hashlib
+    cfg = _managed_cfg(tmp_path)
+    cfg.lease_path.write_text("", encoding="utf-8")
+    cfg.lease_path.chmod(0o600)
+    command = "vllm serve nemotron --port 8190"
+    fragment = "/synthetic/nemovox-asr.service"
+    cfg.journal_path.write_text(json.dumps({
+        "phase": "pending_restore", "unit": cfg.unit,
+        "served_model": cfg.served_model, "base_url": cfg.base_url,
+        "originally_active": True,
+        "unit_exec_sha256": hashlib.sha256(command.encode()).hexdigest(),
+        "unit_fragment_path": fragment,
+    }), encoding="utf-8")
+    monkeypatch.setattr(gpu_handoff, "_unit_properties", lambda u: {
+        "LoadState": "loaded", "ActiveState": "inactive",
+        "Environment": f"NEMOVOX_MANAGED_ASR=1 NEMOVOX_ASR_LEASE_PATH={cfg.lease_path}.other",
+        "FragmentPath": fragment, "ExecStart": command,
+    })
+    monkeypatch.setattr(gpu_handoff, "_run_systemctl", lambda *args: (
+        _ for _ in ()
+    ).throw(AssertionError("must not start mismatched ASR")))
+    with pytest.raises(gpu_handoff.ManagedASRBlocked) as error:
+        gpu_handoff.recover_pending_managed_asr(cfg)
+    assert error.value.status == "asr_not_cooperatively_owned"
+    assert json.loads(cfg.journal_path.read_text())["phase"] == "pending_restore"
+
+
+@pytest.mark.parametrize("leading", [True, False])
+def test_partly_timed_span_covers_diarized_untimed_edge(leading: bool) -> None:
+    untimed = [
+        {"text": word, "speaker": "spk_0", "start": None, "end": None,
+         "valid_timing": False}
+        for word in ("好", "久", "啊")
+    ]
+    timed = {"text": "回来了", "speaker": "spk_0", "start": 7.0, "end": 8.0,
+             "valid_timing": True}
+    if leading:
+        units = untimed + [timed]
+        diar = [_diar(0.5, 8.0)]
+    else:
+        timed = {**timed, "start": 2.0, "end": 3.0}
+        units = [timed] + untimed
+        diar = [_diar(2.0, 11.0)]
+    candidates, decisions = plan_selective_recovery(
+        native={"units": units, "diarization": diar},
+        raw_text="<spk:0>好久啊回来了",
+        chunk_start_s=0.0, chunk_end_s=12.0, policy=AdmissionPolicy(),
+    )
+    assert len(candidates) == 1
+    assert decisions[0]["status"] == "admitted"
+    if leading:
+        assert candidates[0].start_s <= 0.5
+        assert candidates[0].end_s >= 8.0
+    else:
+        assert candidates[0].start_s <= 2.0
+        assert candidates[0].end_s >= 11.0
+
+
+def test_partly_timed_untimed_edge_without_unique_diarization_is_skipped() -> None:
+    units = [
+        {"text": "好", "speaker": "spk_0", "start": None, "end": None,
+         "valid_timing": False},
+        {"text": "久", "speaker": "spk_0", "start": None, "end": None,
+         "valid_timing": False},
+        {"text": "回来了", "speaker": "spk_0", "start": 7.0, "end": 8.0,
+         "valid_timing": True},
+    ]
+    for diar in ([], [_diar(0.2, 2.0), _diar(6.5, 8.2)]):
+        candidates, decisions = plan_selective_recovery(
+            native={"units": units, "diarization": diar},
+            raw_text="<spk:0>好久回来了", chunk_start_s=0.0,
+            chunk_end_s=10.0, policy=AdmissionPolicy(),
+        )
+        assert not candidates
+        assert decisions[0]["status"] == "skipped_partial_span_unanchored_edge"
+
+
+def test_restoration_systemctl_transport_error_is_fatal_and_journal_stays_pending(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cfg = _managed_cfg(tmp_path)
+    cfg.lease_path.write_text("", encoding="utf-8")
+    cfg.lease_path.chmod(0o600)
+    state = {"active": True, "free": 100}
+    def control(*args: str) -> str:
+        if args[0] == "stop":
+            state.update(active=False, free=8000)
+            return ""
+        if args[0] == "start":
+            raise gpu_handoff.ManagedASRBlocked("systemctl_unavailable", "TimeoutExpired")
+        raise AssertionError(args)
+
+    monkeypatch.setattr(gpu_handoff, "_free_vram_mb", lambda: state["free"])
+    monkeypatch.setattr(gpu_handoff, "_verified_owner", lambda config: {
+        "ActiveState": "active", "InvocationID": "original",
+        "ExecStart": "vllm serve nemotron --port 8190",
+        "FragmentPath": "/synthetic/nemovox-asr.service",
+    })
+    monkeypatch.setattr(gpu_handoff, "_run_systemctl", control)
+    monkeypatch.setattr(gpu_handoff, "_unit_properties", lambda unit: {
+        "ActiveState": "active" if state["active"] else "inactive",
+        "InvocationID": "original",
+    })
+    monkeypatch.setattr(gpu_handoff, "_wait_unit",
+                        lambda unit, active, deadline: {
+                            "ActiveState": "active" if state["active"] else "inactive",
+                        })
+    with pytest.raises(gpu_handoff.ManagedASRLifecycleError) as error:
+        with gpu_handoff.managed_asr_handoff(cfg) as telemetry:
+            assert telemetry["released"]
+    assert error.value.status == "asr_restore_unverified"
+    assert isinstance(error.value.__cause__, gpu_handoff.ManagedASRBlocked)
+    assert error.value.__cause__.status == "systemctl_unavailable"
+    assert state["active"] is False
+    assert json.loads(cfg.journal_path.read_text())["phase"] == "pending_restore"
+
+
+def test_recording_propagates_typed_post_stop_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from contextlib import contextmanager
+    import wave
+    from nvidia_transcribe import recording
+    from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
+
+    source = tmp_path / "clip.wav"
+    with wave.open(str(source), "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(16000)
+        wf.writeframes(b"\x00\x00" * 16000 * 5)
+
+    class Client:
+        model = "test-nemotron"
+        base_url = "http://127.0.0.1:8190/v1"
+        def transcribe(self, path: Path, request: object) -> dict:
+            raw = {
+                "choices": [{"message": {"content": "<spk:0>你好朋友。"}}],
+                "ctc_timestamps": {
+                    "words": [], "error": "alignment_failed",
+                    "diarization": [{"speaker": 0, "start": 0.4, "end": 3.0}],
+                    "speaker_tag_to_diarization_speaker": {"0": 0},
+                },
+            }
+            return {
+                "raw_response": raw,
+                "contract": {"raw_text": "<spk:0>你好朋友。"},
+                "latency_s": 0.01,
+            }
+
+    class Aligner:
+        metrics = {"model_load_count": 1, "align_count": 0}
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            pass
+        def __enter__(self) -> "Aligner":
+            return self
+        def __exit__(self, *args: object) -> None:
+            return None
+        def align(self, **kwargs: object) -> dict:
+            self.metrics["align_count"] += 1
+            return {"units": [], "diagnostic": {"status": "no_valid_units"}}
+
+    @contextmanager
+    def interrupted_restore(config: object):
+        yield {"released": True, "restored": False}
+        raise gpu_handoff.ManagedASRLifecycleError("systemctl_unavailable")
+
+    monkeypatch.setattr(recording, "managed_asr_handoff", interrupted_restore)
+    monkeypatch.setattr(recording, "QwenForcedAlignerAdapter", Aligner)
+    with pytest.raises(RuntimeError, match="Managed ASR lifecycle could not be verified"):
+        process_media(
+            source, output_dir=tmp_path / "out", client=Client(),
+            config=RecordingPipelineConfig(
+                source_language="zh", speaker_embeddings="none",
+                enable_subinterval_recovery=False, alignment_fallback="qwen",
+                qwen_gpu_mode="managed", qwen_owned_asr_unit="nemovox-asr.service",
+                qwen_asr_lease_path=str(tmp_path / "lease"),
+            ),
+        )
