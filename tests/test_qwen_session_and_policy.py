@@ -266,3 +266,89 @@ def test_interrupted_managed_journal_blocks_reentrant_takeover(tmp_path: Path, m
         with gpu_handoff.managed_asr_handoff(cfg):
             pass
     assert err.value.status == "prior_handoff_requires_recovery"
+
+
+def test_qwen_pipeline_finishes_all_native_chunks_before_worker(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Integration regression: optional GPU aligner must not run before ASR completes."""
+    import wave
+    from nvidia_transcribe import recording
+    from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
+
+    source = tmp_path / "two_chunks.wav"
+    with wave.open(str(source), "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(16000)
+        wf.writeframes(b"\x00\x00" * 16000 * 25)
+
+    events: list[str] = []
+
+    class Client:
+        model = "test-nemotron"
+        base_url = "http://127.0.0.1:8190/v1"
+
+        def transcribe(self, path: Path, _request: object) -> dict:
+            events.append("native")
+            raw = {
+                "choices": [{"message": {"content": "<spk:0>你好朋友。"}}],
+                "ctc_timestamps": {
+                    "words": [], "error": "alignment_failed",
+                    "diarization": [
+                        {"speaker": 0, "start": 0.4, "end": 3.0},
+                    ],
+                    "speaker_tag_to_diarization_speaker": {"0": 0},
+                },
+            }
+            return {"raw_response": raw, "contract": {"raw_text": "<spk:0>你好朋友。"},
+                    "latency_s": 0.01}
+
+    class Aligner:
+        def __init__(self, *_args: object, **_kwargs: object) -> None:
+            self.metrics = {"model_load_count": 1, "align_count": 0}
+        def __enter__(self) -> "Aligner":
+            return self
+        def __exit__(self, *_args: object) -> None:
+            return None
+        def align(self, **_kwargs: object) -> dict:
+            events.append("qwen")
+            self.metrics["align_count"] += 1
+            return {"units": [], "diagnostic": {"status": "no_valid_units"}}
+
+    monkeypatch.setattr(recording, "QwenForcedAlignerAdapter", Aligner)
+    res = process_media(
+        source, output_dir=tmp_path / "out", client=Client(),
+        config=RecordingPipelineConfig(
+            source_language="zh", speaker_embeddings="none",
+            enable_subinterval_recovery=False, alignment_fallback="qwen",
+            chunk_seconds=12, min_tail_seconds=5,
+        ),
+    )
+    assert events.count("native") >= 2
+    assert events.count("qwen") >= 1
+    first_qwen = events.index("qwen")
+    assert events[:first_qwen] == ["native"] * first_qwen
+    assert (tmp_path / "out" / "native-alignment.checkpoint.json").is_file()
+    assert res["contract"]["model_provenance"]["qwen_recovery"]["eligible_candidates"] >= 1
+
+
+def test_qwen_cli_policy_defaults_and_explicit_managed_options() -> None:
+    from nvidia_transcribe.cli import build_parser
+    parser = build_parser()
+    off = parser.parse_args(["process-media", "dummy.wav", "--output-dir", "out"])
+    assert off.alignment_fallback == "off"
+    assert off.qwen_device == "cuda:0"
+    assert off.qwen_policy == "subtitle"
+    assert off.qwen_gpu_mode == "available"
+    controlled = parser.parse_args([
+        "generate-subtitles", "dummy.wav", "--output-dir", "out",
+        "--alignment-fallback", "qwen", "--qwen-policy", "fine",
+        "--qwen-gpu-mode", "managed", "--qwen-owned-asr-unit", "nemovox-asr.service",
+        "--qwen-asr-lease-path", "/run/user/1000/nemovox-asr.lock",
+    ])
+    assert controlled.qwen_policy == "fine"
+    assert controlled.qwen_owned_asr_unit == "nemovox-asr.service"
+    assert parser.parse_args([
+        "recover-qwen-asr", "--asr-unit", "nemovox-asr.service",
+        "--base-url", "http://127.0.0.1:8190/v1", "--model", "m",
+        "--lease-path", "/tmp/lease", "--journal", "/tmp/journal",
+    ]).command == "recover-qwen-asr"
