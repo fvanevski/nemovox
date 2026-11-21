@@ -8,6 +8,7 @@ import signal
 import subprocess
 import sys
 import time
+from urllib.parse import unquote, urlsplit
 
 import pytest
 
@@ -72,6 +73,36 @@ def test_job_submission_and_preview(client):
     assert any(x["name"] == "demo.en.srt" for x in artifacts)
     assert c.get("/api/jobs/" + job["id"] + "/artifact/output/demo.en.srt").status_code == 200
     assert c.get("/api/jobs/" + job["id"] + "/artifact/../../outside/private.webm").status_code in (403, 404)
+
+
+@pytest.mark.parametrize("extension", [".srt", ".ass"])
+def test_artifact_links_url_encode_reserved_and_unicode_filenames(client, extension):
+    """Export and ASS URLs must survive URL delimiters in original media stems."""
+    c, media, _secret, settings = client
+    response = c.post("/api/jobs", json={
+        "source": {"kind": "contract", "value": str(media / "recording.contract.json")},
+        "task": "subtitles",
+    })
+    assert response.status_code == 202, response.text
+    job_id = response.json()["id"]
+    output = settings.job_root / job_id / "output"
+    output.mkdir()
+    filename = "Episode #1? 50% 日本語.en" + extension
+    payload = b"1\n00:00:00,000 --> 00:00:02,000\nSynthetic cue\n"
+    (output / filename).write_bytes(payload)
+
+    items = c.get(f"/api/jobs/{job_id}/artifacts").json()
+    artifact = next(a for a in items if a["name"] == filename)
+    assert artifact["path"] == "output/" + filename  # display/path metadata stays unescaped
+    url = artifact["url"]
+    parsed = urlsplit(url)
+    assert not parsed.query and not parsed.fragment
+    assert unquote(parsed.path).endswith("/artifact/output/" + filename)
+    for token in ("%20", "%23", "%3F", "%25", "%E6%97%A5"):
+        assert token in url
+    downloaded = c.get(url)
+    assert downloaded.status_code == 200, downloaded.text
+    assert downloaded.content == payload
 
 
 def test_invalid_options_and_bad_url(client):

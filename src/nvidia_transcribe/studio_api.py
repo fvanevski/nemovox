@@ -25,7 +25,7 @@ from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -701,7 +701,7 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
         ]
         return [{
             "name": p.name, "path": str(p.relative_to(root)),
-            "url": "/api/jobs/" + job_id + "/artifact/" + p.relative_to(root).as_posix(),
+            "url": "/api/jobs/" + job_id + "/artifact/" + quote(p.relative_to(root).as_posix(), safe="/"),
         } for p in paths if p.is_file()]
 
     @app.get("/api/jobs/{job_id}/artifact/{path:path}")
