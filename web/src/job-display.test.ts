@@ -16,7 +16,7 @@ describe("final job results", () => {
   });
 
   it("fetches a fresh result rather than reusing the intermediate response", async () => {
-    const cache = new QueryClient({defaultOptions: {queries: {retry: false}}});
+    const cache = new QueryClient({defaultOptions: {queries: {retry: false, staleTime: Infinity}}});
     for (const resource of ["preview", "artifacts"] as const) {
       let requests = 0;
       const read = () => ++requests;
