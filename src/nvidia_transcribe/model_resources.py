@@ -216,8 +216,8 @@ def load_model_resources(
     # Environment overrides are scoped to *default resource identities* only.
     for resource_name, settings in {
         "asr_local": {"endpoint": env.get("ASR_BASE_URL"), "model": env.get("ASR_MODEL")},
-        "text_local": {"endpoint": env.get("TEXT_BASE_URL") or env.get("SWIFTU_BASE_URL"),
-                       "model": env.get("TEXT_MODEL") or env.get("SWIFTU_MODEL")},
+        "text_local": {"endpoint": env.get("TEXT_BASE_URL") if "TEXT_BASE_URL" in env else env.get("SWIFTU_BASE_URL"),
+                       "model": env.get("TEXT_MODEL") if "TEXT_MODEL" in env else env.get("SWIFTU_MODEL")},
     }.items():
         for field_name, value in settings.items():
             if value is not None:

@@ -97,3 +97,16 @@ def test_overrides_do_not_mutate_registry():
     changed = reg.resolve("source_refinement", endpoint="http://localhost:8444/v1")
     assert changed.endpoint != orig.endpoint
     assert reg.resolve("source_refinement") == orig
+
+
+def test_explicit_empty_new_env_does_not_silently_fall_back_to_legacy():
+    with pytest.raises(ResourceConfigError, match="Empty environment override"):
+        load_model_resources(environ={
+            "SWIFTU_BASE_URL": "http://127.0.0.1:8001/v1",
+            "TEXT_BASE_URL": "",
+        })
+    with pytest.raises(ResourceConfigError, match="Empty environment override"):
+        load_model_resources(environ={
+            "SWIFTU_MODEL": "chat",
+            "TEXT_MODEL": " ",
+        })
