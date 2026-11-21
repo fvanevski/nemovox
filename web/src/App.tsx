@@ -91,6 +91,7 @@ export default function App() {
   const [advanced, setAdvanced] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [cueSearch, setCueSearch] = useState("");
+  const [assPreviewReady, setAssPreviewReady] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const selectedJob = useQuery({queryKey: ["job", jobId], queryFn: () => studio.job(jobId!), enabled: !!jobId,
     refetchInterval: (query) => ["running", "queued"].includes(query.state.data?.state || "") ? 1500 : false});
@@ -102,6 +103,7 @@ export default function App() {
     refetchInterval: selectedJob.data?.state === "complete" ? false : 4000});
   const artifacts = useQuery({queryKey: ["artifacts", jobId], queryFn: () => studio.artifacts(jobId!), enabled: !!jobId,
     refetchInterval: selectedJob.data?.state === "complete" ? false : 5000});
+  const assUrl = artifacts.data?.find(item => item.name.endsWith(".ass"))?.url;
   const logs = useQuery({queryKey: ["logs", jobId], queryFn: () => studio.logs(jobId!), enabled: !!jobId,
     refetchInterval: selectedJob.data?.state === "running" ? 3000 : false});
 
@@ -134,6 +136,20 @@ export default function App() {
   const active = cues.filter(c => c.start !== null && c.end !== null && currentTime >= c.start && currentTime < c.end).slice(0, 3);
   const filteredCues = useMemo(() => cues.filter(c => c.text.toLowerCase().includes(cueSearch.toLowerCase())), [cues, cueSearch]);
   useEffect(() => {setCurrentTime(0);}, [jobId]);
+  useEffect(() => {
+    setAssPreviewReady(false);
+    if (!assUrl || !videoRef.current || step !== "preview") return;
+    let disposed = false;
+    let renderer: { destroy?: () => void } | undefined;
+    void import("jassub").then(async ({default: JASSUB}) => {
+      if (disposed || !videoRef.current) return;
+      const instance = new JASSUB({video: videoRef.current, subUrl: assUrl});
+      renderer = instance;
+      await instance.ready;
+      if (!disposed) setAssPreviewReady(true);
+    }).catch(() => {if (!disposed) setAssPreviewReady(false);});
+    return () => {disposed = true; renderer?.destroy?.();};
+  }, [jobId, assUrl, step]);
 
   return <div className="min-h-screen">
     <header className="border-b border-[#273648] bg-[#0b121b]/90">
@@ -403,14 +419,14 @@ export default function App() {
               <section className="panel min-w-0 overflow-hidden">
                 <div className="flex items-center justify-between border-b border-[#2b3c4c] px-5 py-4">
                   <span className="text-sm font-semibold">Media preview</span>
-                  <Pill><Clock3 size={12}/>{secondsLabel(currentTime)}</Pill>
+                  <div className="flex items-center gap-2"><Pill>{assPreviewReady ? "ASS · libass" : "Text preview"}</Pill><Pill><Clock3 size={12}/>{secondsLabel(currentTime)}</Pill></div>
                 </div>
                 <div className="preview-pane relative aspect-video w-full overflow-hidden">
                   <video ref={videoRef} controls playsInline preload="metadata"
                     src={"/api/jobs/" + jobId + "/media"} className="h-full w-full object-contain"
                     onTimeUpdate={e => setCurrentTime(e.currentTarget.currentTime)}
                     aria-label="Media preview with synchronized subtitle text"/>
-                  {active.length > 0 && <div className="pointer-events-none absolute inset-x-3 bottom-14 flex flex-col items-center gap-1 text-center">
+                  {!assPreviewReady && active.length > 0 && <div className="pointer-events-none absolute inset-x-3 bottom-14 flex flex-col items-center gap-1 text-center">
                     {active.map((cue, i) => <div key={String(cue.utterance_id || cue.start) + "-" + i} className="max-w-[90%] rounded-md bg-black/80 px-3 py-1.5 text-sm font-semibold text-white shadow-xl md:text-base"
                       style={{textShadow: "0 1px 3px black"}}>{cue.text}</div>)}
                   </div>}
