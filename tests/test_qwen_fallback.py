@@ -102,37 +102,33 @@ def test_qwen_adapter_unavailable_and_unsupported_language(tmp_path: Path) -> No
     assert res_unavail["diagnostic"]["status"] == "unavailable"
 
 
-def test_qwen_adapter_subprocess_zero_duration_filtered(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_qwen_adapter_session_zero_duration_filtered(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The adapter retains strict validation with the reusable session protocol."""
     wav = tmp_path / "seg.wav"
     _write_silence_wav(wav, duration_s=3.0)
     fake_py = tmp_path / "python"
     fake_py.write_text("#!/bin/sh\n", encoding="utf-8")
     fake_model = tmp_path / "model"
     fake_model.mkdir()
+    adapter = QwenForcedAlignerAdapter(QwenAlignerConfig(
+        model_path=str(fake_model), worker_python=str(fake_py), device="cpu",
+    ))
+    calls: list[dict[str, Any]] = []
 
-    def _fake_run(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
-        return subprocess.CompletedProcess(
-            args=args[0],
-            returncode=0,
-            stdout=json.dumps(
-                {
-                    "status": "ok",
-                    "device_used": "cpu",
-                    "dtype": "float32",
-                    "items": [
-                        {"text": "钙", "start": 0.2, "end": 0.44},
-                        {"text": "钾", "start": 0.56, "end": 0.56},
-                        {"text": "金属", "start": 0.64, "end": 1.04},
-                    ],
-                },
-                ensure_ascii=False,
-            ),
-            stderr="",
-        )
+    def fake_session_align(**kwargs: Any) -> dict[str, Any]:
+        calls.append(kwargs)
+        return {
+            "status": "ok", "device_used": "cpu", "dtype": "torch.float32",
+            "items": [
+                {"text": "钙", "start": 0.2, "end": 0.44},
+                {"text": "钾", "start": 0.56, "end": 0.56},
+                {"text": "金属", "start": 0.64, "end": 1.04},
+            ],
+        }
 
-    monkeypatch.setattr(subprocess, "run", _fake_run)
-    adapter = QwenForcedAlignerAdapter(QwenAlignerConfig(model_path=str(fake_model), worker_python=str(fake_py)))
+    monkeypatch.setattr(adapter.session, "align", fake_session_align)
     res = adapter.align(audio_path=wav, text="钙钾金属", language="zh", source_offset_s=5.0)
+    assert len(calls) == 1
     assert res["diagnostic"]["status"] == "ok"
     assert res["diagnostic"]["device_used"] == "cpu"
     assert res["diagnostic"]["zero_duration_count"] == 1
