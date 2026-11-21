@@ -335,6 +335,7 @@ def main(argv: list[str] | None = None) -> int:
             qwen_asr_lease_path=args.qwen_asr_lease_path,
             asr_base_url=asr_resource.endpoint,
             asr_model=asr_resource.model,
+            asr_api_key=asr_key,
             asr_model_path=asr_resource.checkpoint_path,
             asr_resource_fingerprint=asr_resource.fingerprint(),
             speaker_embedding_model=speaker_resource.model or "titanet_small",

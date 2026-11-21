@@ -17,7 +17,7 @@ const INITIAL_OPTIONS: JobOptions = {
   source_language: "auto", target_language: "en", asr_mode: "speaker",
   audio_stream: 0, chunk_seconds: 90, context_seconds: 10,
   speaker_embeddings: "titanet", alignment_fallback: "off",
-  refinement: "balanced", translator: "swiftu", style: "natural",
+  refinement: "balanced", translator: "openai_chat", style: "natural",
   glossary: null, ass_layout: "standard", ass_max_lanes: 3,
   condense_high_cps: true, formats: ["srt", "ass"],
 };
@@ -249,7 +249,7 @@ export default function App() {
           </div>
         </div>
         <div className="px-2 text-xs leading-6 text-slate-500">
-          Runs use the existing Nemotron ASR and SwiftU localization pipeline. No cloud inference or subscriptions are required.
+          Default resources use local ASR and configurable text models. Model endpoints are defined on the processing host.
         </div>
       </aside>
 
@@ -367,7 +367,8 @@ export default function App() {
                   <option value="balanced">Balanced (recommended)</option><option value="expressive">Expressive</option>
                 </Select></Field>
                 <Field title="Translation engine"><Select value={options.translator} onChange={v => option("translator", v as JobOptions["translator"])}>
-                  <option value="swiftu">SwiftU · contextual</option><option value="riva">Riva Translate · direct</option>
+                  <option value="openai_chat">Configured text model · contextual</option><option value="riva">Riva Translate · direct</option>
+                   <option value="swiftu">Legacy SwiftU setting · contextual</option>
                 </Select></Field>
                 <Field title="Localization style"><Select value={options.style} onChange={v => option("style", v as JobOptions["style"])}>
                   <option value="natural">Natural dialogue</option><option value="literal">Closer to literal</option>
@@ -391,7 +392,7 @@ export default function App() {
                 <div className="text-sm font-bold">{title}</div><div className="mt-1 text-xs leading-5 muted">{desc}</div>
               </button>)}
             </div>
-            <div className="mt-5"><Toggle title="Condense hard-to-read English cues" detail="SwiftU rewrites unusually dense lines without requiring another ASR pass."
+            <div className="mt-5"><Toggle title="Condense hard-to-read English cues" detail="The configured text-inference model tightens dense lines without another ASR pass."
               value={options.condense_high_cps} onChange={v => option("condense_high_cps", v)}/></div>
           </section>}
           <section className="panel p-6">

@@ -47,6 +47,7 @@ class SubtitlePipelineConfig:
     speaker_embedding_model: str = "titanet_small"
     asr_base_url: str = "http://127.0.0.1:8190/v1"
     asr_model: str = "nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4"
+    asr_api_key: str | None = None
     asr_resource_fingerprint: str = ""
     asr_model_path: str | None = None
     refinement: RefinementConfig = RefinementConfig()
@@ -163,7 +164,8 @@ def generate_subtitles(
             if not m_path.is_file():
                 raise FileNotFoundError(f"Media file not found: {m_path}")
             _log(f"Stage 1/4: Transcribing media via Nemotron chunked core: {m_path.name}")
-            client = asr_client or NemotronVLLMClient(base_url=cfg.asr_base_url, model=cfg.asr_model, timeout_s=900.0)
+            client = asr_client or NemotronVLLMClient(base_url=cfg.asr_base_url, model=cfg.asr_model,
+                                                   api_key=cfg.asr_api_key, timeout_s=900.0)
             asr_res = process_media(
                 m_path,
                 output_dir=out_dir / "asr",

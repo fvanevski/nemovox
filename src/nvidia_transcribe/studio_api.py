@@ -127,7 +127,7 @@ class Options(BaseModel):
     speaker_embeddings: Literal["titanet", "none"] = "titanet"
     alignment_fallback: Literal["off", "qwen"] = "off"
     refinement: Literal["off", "conservative", "balanced", "expressive"] = "balanced"
-    translator: Literal["swiftu", "riva", "none"] = "swiftu"
+    translator: Literal["openai_chat", "swiftu", "riva", "none"] = "openai_chat"
     style: Literal["natural", "literal", "expressive"] = "natural"
     glossary: str | None = Field(default=None, max_length=512)
     ass_layout: Literal["standard", "raised_main"] = "standard"
@@ -440,10 +440,8 @@ class JobRunner:
                 source = Path(value["source_path"])
             self.update(job_id, source_path=str(source))
 
-            asr_base_url = os.environ.get("ASR_BASE_URL", "").strip()
-            asr_model = os.environ.get("ASR_MODEL", "").strip()
-            swiftu_base_url = os.environ.get("SWIFTU_BASE_URL", "").strip()
-            swiftu_model = os.environ.get("SWIFTU_MODEL", "").strip()
+            # The CLI resolves NEMOVOX_MODEL_RESOURCES and text/ASR env in its
+            # child environment. Studio must not elevate env to CLI overrides.
 
             if spec.source.kind == "contract":
                 contract = source
@@ -467,10 +465,6 @@ class JobRunner:
                 ]
                 if opt.source_language != "auto":
                     args.extend(["--source-language", opt.source_language])
-                if asr_base_url:
-                    args.extend(["--base-url", asr_base_url])
-                if asr_model:
-                    args.extend(["--model", asr_model])
                 self._command(job_id, args, "Transcribing audio and speakers", 8)
                 contract = root / "asr" / "recording.contract.json"
             if spec.task != "transcription":
@@ -489,14 +483,6 @@ class JobRunner:
                     args.append("--condense-high-cps")
                 if opt.glossary:
                     args.extend(["--glossary", opt.glossary])
-                if asr_base_url:
-                    args.extend(["--base-url", asr_base_url])
-                if asr_model:
-                    args.extend(["--model", asr_model])
-                if swiftu_base_url:
-                    args.extend(["--swiftu-url", swiftu_base_url])
-                if swiftu_model:
-                    args.extend(["--swiftu-model", swiftu_model])
                 self._command(job_id, args, "Refining, translating and rendering", 60)
             self._complete_if_not_cancelled(job_id)
         except InterruptedError:

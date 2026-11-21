@@ -26,7 +26,7 @@ export interface JobOptions {
   speaker_embeddings: "titanet" | "none";
   alignment_fallback: "off" | "qwen";
   refinement: "off" | "conservative" | "balanced" | "expressive";
-  translator: "swiftu" | "riva" | "none";
+  translator: "openai_chat" | "swiftu" | "riva" | "none";
   style: "natural" | "literal" | "expressive";
   glossary: string | null;
   ass_layout: "standard" | "raised_main";
