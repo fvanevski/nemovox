@@ -3,13 +3,18 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import os
+import signal
+import subprocess
+import sys
+import time
 
 import pytest
 
 fastapi = pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
-from nvidia_transcribe.studio_api import StudioConfig, _remote_url, _srt_cues, create_app
+from nvidia_transcribe.studio_api import JobRunner, StudioConfig, _remote_url, _srt_cues, create_app
 
 
 @pytest.fixture
@@ -243,3 +248,97 @@ def test_cancel_process_group_and_env_forwarding(tmp_path: Path, monkeypatch: py
             assert any("STAGE: Transcribing audio and speakers" in line for line in log_lines)
     finally:
         app.state.runner.executor.shutdown(wait=False, cancel_futures=True)
+
+
+def test_contract_transcription_import_and_empty_contract(client):
+    c, media, _secret, settings = client
+    contract = media / "recording.contract.json"
+    original = {
+        "source": {"path": str(media / "sample.webm")},
+        "source_language": "zh",
+        "language_provenance": "explicit",
+        "utterances": [
+            {"id": "utt-1", "source_text": "你好", "speaker_id": "SPK_0",
+             "source_start": 1.0, "source_end": 2.5},
+            {"id": "utt-2", "source_text": "没有时间", "speaker_id": "SPK_1",
+             "source_start": None, "source_end": None},
+        ],
+    }
+    contract.write_text(json.dumps(original, ensure_ascii=False), encoding="utf-8")
+    response = c.post("/api/jobs", json={
+        "source": {"kind": "contract", "value": str(contract)}, "task": "transcription"
+    })
+    assert response.status_code == 202, response.text
+    job_id = response.json()["id"]
+    c.app.state.runner._run(job_id)
+    assert c.get(f"/api/jobs/{job_id}").json()["state"] == "complete"
+    imported = settings.job_root / job_id / "asr" / "recording.contract.json"
+    assert json.loads(imported.read_text(encoding="utf-8")) == original
+    transcript = (settings.job_root / job_id / "asr" / "transcript.txt").read_text(encoding="utf-8")
+    assert "你好" in transcript and "没有时间" in transcript and "[untimed -> untimed]" in transcript
+    preview = c.get(f"/api/jobs/{job_id}/preview").json()
+    assert preview["kind"] == "transcript"
+    assert [(x["utterance_id"], x["text"]) for x in preview["cues"]] == [
+        ("utt-1", "你好"), ("utt-2", "没有时间")
+    ]
+    artifacts = c.get(f"/api/jobs/{job_id}/artifacts").json()
+    assert {x["name"] for x in artifacts} >= {"recording.contract.json", "transcript.txt"}
+    for item in artifacts:
+        assert c.get(item["url"]).status_code == 200
+    assert json.loads(contract.read_text(encoding="utf-8")) == original
+
+    contract.write_text('{"utterances": []}', encoding="utf-8")
+    empty_response = c.post("/api/jobs", json={
+        "source": {"kind": "contract", "value": str(contract)}, "task": "transcription"
+    })
+    assert empty_response.status_code == 202
+    empty_job = empty_response.json()["id"]
+    c.app.state.runner._run(empty_job)
+    assert c.get(f"/api/jobs/{empty_job}").json()["state"] == "complete"
+    assert c.get(f"/api/jobs/{empty_job}/preview").json() == {"kind": "transcript", "cues": []}
+    assert "No utterances in source contract" in (
+        settings.job_root / empty_job / "asr" / "transcript.txt"
+    ).read_text(encoding="utf-8")
+
+    contract.write_text('{"utterances": [{"id":"broken"}]}', encoding="utf-8")
+    invalid = c.post("/api/jobs", json={
+        "source": {"kind": "contract", "value": str(contract)}, "task": "transcription"
+    })
+    assert invalid.status_code == 422
+
+
+@pytest.mark.skipif(not Path("/proc").is_dir(), reason="Linux process-group inspection required")
+def test_cancel_cleans_descendant_after_group_leader_exits(tmp_path: Path):
+    """A reaped Popen leader is not proof that its SIGTERM-resistant child exited."""
+    ready = tmp_path / "ready.pid"
+    child_script = (
+        "import os, pathlib, signal, time\n"
+        "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+        f"pathlib.Path({str(ready)!r}).write_text(str(os.getpid()))\n"
+        "time.sleep(30)\n"
+    )
+    leader_script = (
+        "import subprocess, sys\n"
+        f"subprocess.Popen([sys.executable, '-c', {child_script!r}],"
+        " stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,"
+        " stderr=subprocess.DEVNULL)\n"
+    )
+    process = subprocess.Popen(
+        [sys.executable, "-c", leader_script],
+        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL, start_new_session=True,
+    )
+    try:
+        deadline = time.monotonic() + 5
+        while not ready.is_file() and time.monotonic() < deadline:
+            time.sleep(0.025)
+        assert ready.is_file()
+        process.wait(timeout=3)
+        assert process.poll() is not None  # Regression: the old code returned early.
+        assert JobRunner._group_has_live_members(process.pid)
+        JobRunner._terminate_process_group(process)
+        assert not JobRunner._group_has_live_members(process.pid)
+    finally:
+        if JobRunner._group_has_live_members(process.pid):
+            os.killpg(process.pid, signal.SIGKILL)
+        process.wait(timeout=3)

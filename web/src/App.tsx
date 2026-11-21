@@ -10,6 +10,7 @@ import {
   Square, UploadCloud, Waves, X
 } from "lucide-react";
 import { studio, secondsLabel, type Cue, type Glossary, type Job, type JobOptions, type JobRequest, type MediaKind, type Step, type TaskKind } from "./api";
+import { emptySource, sourceForSubmission, uploadResponseIsCurrent, type SourceMethod } from "./source-selection";
 
 const INITIAL_OPTIONS: JobOptions = {
   source_language: "auto", target_language: "en", asr_mode: "speaker",
@@ -93,8 +94,10 @@ export default function App() {
   const queryClient = useQueryClient();
   const initialLocation = useMemo(readInitialLocation, []);
   const [step, setStep] = useState<Step>(initialLocation.step);
-  const [sourceMethod, setSourceMethod] = useState<"browse" | "upload" | "url">("browse");
-  const [source, setSource] = useState<{kind: MediaKind; value: string}>({kind: "path", value: ""});
+  const [sourceMethod, setSourceMethod] = useState<SourceMethod>("browse");
+  const sourceMethodRef = useRef<SourceMethod>("browse");
+  const uploadEpoch = useRef(0);
+  const [source, setSource] = useState<{kind: MediaKind; value: string}>(emptySource("browse"));
   const [browserDir, setBrowserDir] = useState<string | null>(null);
   const [task, setTask] = useState<TaskKind>("subtitles");
   const [options, setOptions] = useState<JobOptions>(INITIAL_OPTIONS);
@@ -135,9 +138,15 @@ export default function App() {
     onError: (e: Error) => setError(e.message),
   });
   const upload = useMutation({
-    mutationFn: studio.upload,
-    onSuccess: (result) => {setSource({kind: "upload", value: result.path}); setError("");},
-    onError: (e: Error) => setError(e.message),
+    mutationFn: ({file}: {file: File; epoch: number}) => studio.upload(file),
+    onSuccess: (result, submitted) => {
+      if (uploadResponseIsCurrent(sourceMethodRef.current, submitted.epoch, uploadEpoch.current)) {
+        setSource({kind: "upload", value: result.path}); setError("");
+      }
+    },
+    onError: (e: Error, submitted) => {
+      if (uploadResponseIsCurrent(sourceMethodRef.current, submitted.epoch, uploadEpoch.current)) setError(e.message);
+    },
   });
   const cancel = useMutation({mutationFn: studio.cancel, onSuccess: () => {
     queryClient.invalidateQueries({queryKey: ["job", jobId]});
@@ -146,13 +155,21 @@ export default function App() {
   function option<K extends keyof JobOptions>(key: K, value: JobOptions[K]) {
     setOptions(prev => ({...prev, [key]: value}));
   }
+  function chooseSourceMethod(next: SourceMethod) {
+    sourceMethodRef.current = next;
+    uploadEpoch.current += 1; // Invalidate an upload started in another mode.
+    setSourceMethod(next);
+    setSource(emptySource(next));
+    setError("");
+  }
+  const selectedSource = sourceForSubmission(sourceMethod, source);
   function start() {
-    if (!source.value.trim()) {setError("Select a media file, upload a file, or enter a URL."); setStep("media"); return;}
-    const req: JobRequest = {source, task, options: {...options, formats: task === "subtitles" ? ["srt", "ass"] : ["srt"]}};
+    if (!selectedSource) {setError("Select a media file, upload a file, or enter a URL."); setStep("media"); return;}
+    const req: JobRequest = {source: selectedSource, task, options: {...options, formats: task === "subtitles" ? ["srt", "ass"] : ["srt"]}};
     setError("");
     submit.mutate(req);
   }
-  const ready = source.value.trim().length > 0;
+  const ready = selectedSource !== null;
   const currentJob = selectedJob.data;
   const cues = preview.data?.cues || [];
   const active = cues.filter(c => c.start !== null && c.end !== null && currentTime >= c.start && currentTime < c.end).slice(0, 3);
@@ -250,7 +267,7 @@ export default function App() {
                 ["upload", UploadCloud, "Upload"],
                 ["url", Globe2, "Remote URL"],
               ] as const).map(([key, Icon, label]) =>
-                <button key={key} onClick={() => {setSourceMethod(key); setError("");}}
+                <button key={key} onClick={() => chooseSourceMethod(key)}
                   className={"flex items-center justify-center gap-2 rounded-lg border px-3 py-3 text-xs font-semibold " +
                     (sourceMethod === key ? "border-teal-500/70 bg-[#15383c] text-teal-200" : "border-[#304052] bg-[#111a26] text-slate-400 hover:bg-[#1d2c3a]")}>
                   <Icon size={16}/>{label}
@@ -286,7 +303,7 @@ export default function App() {
               <span className="text-sm font-semibold">Choose audio or video</span>
               <span className="text-xs muted">The file is copied to the local processing host.</span>
               <input type="file" className="sr-only" accept="audio/*,video/*,.mkv,.webm" disabled={upload.isPending}
-                onChange={e => {const file = e.target.files?.[0]; if (file) upload.mutate(file);}}/>
+                onChange={e => {const file = e.target.files?.[0]; if (file) upload.mutate({file, epoch: ++uploadEpoch.current});}}/>
               {upload.isPending && <span className="flex items-center gap-2 text-xs text-teal-300"><LoaderCircle size={14} className="animate-spin"/> Uploading…</span>}
             </label>}
             {sourceMethod === "url" && <Field title="Media URL" hint="YouTube and other public URLs supported by the installed yt-dlp downloader. No playlists.">
@@ -294,10 +311,10 @@ export default function App() {
                 value={source.kind === "url" ? source.value : ""}
                 onChange={e => setSource({kind: "url", value: e.target.value})}/>
             </Field>}
-            {source.value && <div className="mt-4 flex items-center gap-3 rounded-lg border border-teal-800/50 bg-teal-950/20 p-3">
+            {selectedSource && <div className="mt-4 flex items-center gap-3 rounded-lg border border-teal-800/50 bg-teal-950/20 p-3">
               <CheckCircle2 size={18} className="shrink-0 text-teal-300"/>
               <div className="min-w-0"><div className="text-[11px] font-semibold uppercase tracking-wide text-teal-300">Selected source</div>
-                <div className="truncate text-xs text-slate-200">{source.value}</div></div>
+                <div className="truncate text-xs text-slate-200">{selectedSource.value}</div></div>
             </div>}
           </section>
 

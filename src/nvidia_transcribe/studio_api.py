@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import math
 import os
 import re
 import signal
@@ -19,6 +20,7 @@ import threading
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -70,6 +72,43 @@ def _remote_url(url: str) -> str:
     except socket.gaierror as exc:
         raise ValueError("Could not resolve media host.") from exc
     return url
+
+
+def _read_transcription_contract(path: Path) -> dict:
+    """Validate source utterances before importing a prior recording transcription."""
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError("Recording contract is not readable JSON.") from exc
+    if not isinstance(value, dict) or not isinstance(value.get("utterances"), list):
+        raise ValueError("Recording contract must contain an utterances array.")
+    if any(not isinstance(item, dict) or not isinstance(item.get("source_text"), str)
+           for item in value["utterances"]):
+        raise ValueError("Every contract utterance must contain source_text.")
+    return value
+
+
+def _format_existing_transcript(value: dict) -> str:
+    """Format existing source-language content without changing text or inventing times."""
+    source = value.get("source")
+    source_path = source.get("path", "existing contract") if isinstance(source, dict) else "existing contract"
+    language = value.get("source_language") or "und"
+    provenance = value.get("language_provenance") or "unspecified"
+    utterances = value["utterances"]
+    lines = [f"# Source: {source_path} | Language: {language} ({provenance}) | Utterances: {len(utterances)}", ""]
+    if not utterances:
+        lines.append("[No utterances in source contract]")
+    for item in utterances:
+        start, end = item.get("source_start"), item.get("source_end")
+        if all(isinstance(t, (int, float)) and not isinstance(t, bool) and math.isfinite(t)
+               for t in (start, end)):
+            span = f"[{start:07.2f} -> {end:07.2f}]"
+        else:
+            span = "[untimed -> untimed]"
+        speaker = item.get("speaker_id") or "unknown"
+        status = item.get("alignment_status") or "unknown"
+        lines.append(f"{span} {speaker} ({status}): {item['source_text']}")
+    return "\n".join(lines) + "\n"
 
 
 class Source(BaseModel):
@@ -142,7 +181,11 @@ class JobRunner:
             try:
                 record = json.loads(path.read_text(encoding="utf-8"))
                 if record.get("state") in {"queued", "running"}:
-                    record.update(state="interrupted", stage="Process stopped", updated_at=time.time())
+                    record.update(
+                        state="interrupted", stage="Previous Studio process stopped",
+                        error="Prior subprocess cleanup cannot be verified after an unclean restart.",
+                        updated_at=time.time(),
+                    )
                     _atomic_json(path, record)
             except (OSError, ValueError):
                 continue
@@ -185,21 +228,70 @@ class JobRunner:
         return record
 
     @staticmethod
-    def _terminate_process_group(process: subprocess.Popen) -> None:
-        if process.poll() is not None:
-            return
+    def _group_has_live_members(pgid: int) -> bool:
+        """Inspect the owned session even after its Popen group leader has exited.
+
+        Linux /proc distinguishes live descendants from unreaped zombies.
+        """
+        proc = Path("/proc")
+        if proc.is_dir():
+            for entry in proc.iterdir():
+                if not entry.name.isdecimal():
+                    continue
+                try:
+                    # /proc/PID/stat after comm: state, ppid, pgrp, session, ...
+                    fields = (entry / "stat").read_text(encoding="utf-8").rsplit(") ", 1)[1].split()
+                    if (fields[0] not in {"Z", "X"} and int(fields[2]) == pgid
+                            and int(fields[3]) == pgid):
+                        return True
+                except (OSError, ValueError, IndexError):
+                    continue
+            return False
         try:
-            os.killpg(process.pid, signal.SIGTERM)
+            os.killpg(pgid, 0)
         except ProcessLookupError:
-            return
-        try:
-            process.wait(timeout=8)
-        except subprocess.TimeoutExpired:
+            return False
+        return True
+
+    @classmethod
+    def _terminate_process_group(cls, process: subprocess.Popen) -> None:
+        """Bounded TERM/KILL of owned session members, regardless of leader status."""
+        pgid = process.pid  # start_new_session=True => PGID == SID == PID.
+        for sig, grace_seconds in ((signal.SIGTERM, 2.0), (signal.SIGKILL, 2.0)):
+            if not cls._group_has_live_members(pgid):
+                break
             try:
-                os.killpg(process.pid, signal.SIGKILL)
+                os.killpg(pgid, sig)
             except ProcessLookupError:
-                pass
+                break
+            deadline = time.monotonic() + grace_seconds
+            while cls._group_has_live_members(pgid) and time.monotonic() < deadline:
+                time.sleep(0.05)
+        try:
             process.wait(timeout=2)
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError("Owned subprocess leader did not terminate.") from exc
+        if cls._group_has_live_members(pgid):
+            raise RuntimeError("Owned subprocess descendants remain after SIGKILL.")
+
+    def shutdown(self) -> None:
+        """Stop active jobs on graceful Studio shutdown; do not claim crash cleanup."""
+        for path in self.config.job_root.glob("*/job.json"):
+            try:
+                if self.get(path.parent.name)["state"] in {"queued", "running"}:
+                    self.cancel(path.parent.name)
+            except (OSError, ValueError, HTTPException):
+                continue
+        self.executor.shutdown(wait=True, cancel_futures=False)
+        for path in self.config.job_root.glob("*/job.json"):
+            try:
+                if self.get(path.parent.name)["state"] in {"queued", "running"}:
+                    self.update(
+                        path.parent.name, state="interrupted", stage="Service stopped",
+                        error="Job stopped before completion.", finished_at=time.time(),
+                    )
+            except (OSError, ValueError, HTTPException):
+                continue
 
     def cancel(self, job_id: str) -> dict:
         value = self.get(job_id)
@@ -208,7 +300,7 @@ class JobRunner:
         with self._lock:
             self._cancelled.add(job_id)
             process = self._processes.get(job_id)
-        if process is not None and process.poll() is None:
+        if process is not None and self._group_has_live_members(process.pid):
             try:
                 os.killpg(process.pid, signal.SIGTERM)
             except ProcessLookupError:
@@ -237,7 +329,6 @@ class JobRunner:
             try:
                 while process.poll() is None:
                     if job_id in self._cancelled:
-                        self._terminate_process_group(process)
                         raise InterruptedError("Cancelled")
                     time.sleep(0.4)
                 if job_id in self._cancelled:
@@ -245,8 +336,11 @@ class JobRunner:
                 if process.returncode != 0:
                     raise RuntimeError(stage + " failed (exit " + str(process.returncode) + "); see execution.log")
             finally:
-                with self._lock:
-                    self._processes.pop(job_id, None)
+                try:
+                    self._terminate_process_group(process)
+                finally:
+                    with self._lock:
+                        self._processes.pop(job_id, None)
 
     def _download(self, job_id: str, url: str) -> Path:
         if job_id in self._cancelled:
@@ -272,7 +366,6 @@ class JobRunner:
             try:
                 while process.poll() is None:
                     if job_id in self._cancelled:
-                        self._terminate_process_group(process)
                         raise InterruptedError("Cancelled")
                     time.sleep(0.4)
                 if job_id in self._cancelled:
@@ -280,8 +373,11 @@ class JobRunner:
                 if process.returncode:
                     raise RuntimeError("Remote download failed; see execution.log")
             finally:
-                with self._lock:
-                    self._processes.pop(job_id, None)
+                try:
+                    self._terminate_process_group(process)
+                finally:
+                    with self._lock:
+                        self._processes.pop(job_id, None)
         candidates = [p for p in root.iterdir() if p.is_file() and p.suffix.lower() in MEDIA_EXTENSIONS]
         if not candidates:
             raise RuntimeError("Downloader completed without a supported media file.")
@@ -309,6 +405,15 @@ class JobRunner:
 
             if spec.source.kind == "contract":
                 contract = source
+                if spec.task == "transcription":
+                    value = _read_transcription_contract(source)
+                    imported = root / "asr"
+                    imported.mkdir(parents=True, exist_ok=True)
+                    _atomic_json(imported / "recording.contract.json", value)
+                    (imported / "transcript.txt").write_text(
+                        _format_existing_transcript(value), encoding="utf-8"
+                    )
+                    contract = imported / "recording.contract.json"
             else:
                 args = [
                     "process-media", str(source), "--output-dir", str(root / "asr"),
@@ -383,7 +488,15 @@ def _srt_cues(text: str) -> list[dict]:
 def create_app(config: StudioConfig | None = None) -> FastAPI:
     settings = config or StudioConfig.from_env()
     runner = JobRunner(settings)
-    app = FastAPI(title="Nemovox Studio", version="0.1.0")
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        try:
+            yield
+        finally:
+            runner.shutdown()
+
+    app = FastAPI(title="Nemovox Studio", version="0.1.0", lifespan=lifespan)
     app.state.runner = runner
     app.add_middleware(
         CORSMiddleware, allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
@@ -470,6 +583,11 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
             if request.source.kind == "contract":
                 if source.name != "recording.contract.json":
                     raise HTTPException(422, "Select a recording.contract.json.")
+                if request.task == "transcription":
+                    try:
+                        _read_transcription_contract(source)
+                    except ValueError as exc:
+                        raise HTTPException(422, str(exc)) from exc
             elif source.suffix.lower() not in MEDIA_EXTENSIONS:
                 raise HTTPException(422, "Unsupported media format.")
         return runner.submit(request, source)
@@ -519,7 +637,7 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
             "start": u.get("source_start"), "end": u.get("source_end"),
             "text": u.get("translated_text") or u.get("refined_text") or u.get("source_text") or "",
             "speaker": u.get("speaker_id") or u.get("global_speaker_id"),
-            "utterance_id": u.get("utterance_id"),
+            "utterance_id": u.get("utterance_id") or u.get("id"),
         } for u in value.get("utterances", [])]
         return {"kind": "transcript", "cues": cues}
 
