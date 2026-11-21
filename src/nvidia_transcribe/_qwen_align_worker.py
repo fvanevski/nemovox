@@ -7,6 +7,7 @@ service and cannot silently fall back to CPU for a CUDA request.
 from __future__ import annotations
 
 import json
+import contextlib
 import os
 import sys
 import time
@@ -78,11 +79,14 @@ def main(argv: list[str] | None = None) -> int:
                 device = requested
                 use_dtype = torch.bfloat16 if device.startswith("cuda") else torch.float32
                 t0 = time.monotonic()
-                from qwen_asr import Qwen3ForcedAligner
-                aligner = Qwen3ForcedAligner.from_pretrained(
-                    str(model_path), dtype=use_dtype,
-                    device_map=device, local_files_only=True,
-                )
+                # Third-party progress/log writes must never corrupt the
+                # machine-readable stdout protocol.
+                with contextlib.redirect_stdout(sys.stderr):
+                    from qwen_asr import Qwen3ForcedAligner
+                    aligner = Qwen3ForcedAligner.from_pretrained(
+                        str(model_path), dtype=use_dtype,
+                        device_map=device, local_files_only=True,
+                    )
                 dtype = str(use_dtype)
                 observed_dtype = None
                 for candidate in (aligner, *(getattr(aligner, name, None)
@@ -126,7 +130,8 @@ def main(argv: list[str] | None = None) -> int:
                 _reply(req_id, "invalid_request", error="Invalid audio or text")
                 continue
             t0 = time.monotonic()
-            output = aligner.align(audio=str(audio_path), text=text, language=language)[0]
+            with contextlib.redirect_stdout(sys.stderr):
+                output = aligner.align(audio=str(audio_path), text=text, language=language)[0]
             items = [
                 {"text": str(item.text),
                  "start": float(item.start_time), "end": float(item.end_time)}
