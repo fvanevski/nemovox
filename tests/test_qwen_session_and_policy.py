@@ -403,3 +403,56 @@ def test_managed_sigterm_restores_original_asr_and_handler(
     assert state["active"]
     assert signal.getsignal(signal.SIGTERM) is prior_handler
     assert json.loads(cfg.journal_path.read_text())["phase"] == "restored"
+
+
+def test_available_gpu_never_stops_asr(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    cfg = _managed_cfg(tmp_path)
+    monkeypatch.setattr(gpu_handoff, "_free_vram_mb", lambda: 6000)
+    monkeypatch.setattr(gpu_handoff, "_check_lease",
+                        lambda path: (_ for _ in ()).throw(AssertionError("no lease needed")))
+    monkeypatch.setattr(gpu_handoff, "_run_systemctl",
+                        lambda *args: (_ for _ in ()).throw(AssertionError("never control ASR")))
+    with gpu_handoff.managed_asr_handoff(cfg) as report:
+        assert report["status"] == "cuda_already_available"
+        assert not report["released"]
+
+
+def test_pending_journal_blocks_even_when_gpu_has_capacity(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    cfg = _managed_cfg(tmp_path)
+    cfg.journal_path.write_text('{"phase":"pending_restore"}', encoding="utf-8")
+    monkeypatch.setattr(gpu_handoff, "_free_vram_mb", lambda: 9000)
+    monkeypatch.setattr(gpu_handoff, "_run_systemctl",
+                        lambda *args: (_ for _ in ()).throw(AssertionError("no takeover")))
+    with pytest.raises(gpu_handoff.ManagedASRBlocked) as error:
+        with gpu_handoff.managed_asr_handoff(cfg):
+            pass
+    assert error.value.status == "prior_handoff_requires_recovery"
+
+
+def test_recovery_refuses_changed_asr_unit_without_start(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from nvidia_transcribe.gpu_handoff import recover_pending_managed_asr
+    cfg = _managed_cfg(tmp_path)
+    cfg.lease_path.write_text("", encoding="utf-8")
+    cfg.lease_path.chmod(0o600)
+    cfg.journal_path.write_text(json.dumps({
+        "phase": "pending_restore",
+        "unit": cfg.unit,
+        "served_model": cfg.served_model,
+        "base_url": cfg.base_url,
+        "originally_active": True,
+        "unit_exec_sha256": "f" * 64,
+        "unit_fragment_path": "/synthetic/old-asr.service",
+    }), encoding="utf-8")
+    monkeypatch.setattr(gpu_handoff, "_unit_properties", lambda u: {
+        "LoadState": "loaded", "ActiveState": "inactive",
+        "Environment": "NEMOVOX_MANAGED_ASR=1 NEMOVOX_ASR_LEASE_PATH=" + str(cfg.lease_path),
+        "FragmentPath": "/synthetic/new-asr.service",
+        "ExecStart": "changed",
+    })
+    monkeypatch.setattr(gpu_handoff, "_run_systemctl",
+                        lambda *a: (_ for _ in ()).throw(AssertionError("must not restart changed unit")))
+    with pytest.raises(gpu_handoff.ManagedASRBlocked) as err:
+        recover_pending_managed_asr(cfg)
+    assert err.value.status == "asr_unit_changed_since_handoff"
