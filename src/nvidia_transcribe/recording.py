@@ -49,11 +49,15 @@ class RecordingPipelineConfig:
     alignment_fallback: str = "off"  # "off" | "qwen"
     qwen_policy: str = "subtitle"     # "subtitle" | "fine"
     qwen_device: str = "cuda:0"      # "cuda:0" | "cpu" (explicit only)
+    qwen_model_path: str | None = None
+    qwen_worker_python: str | None = None
     qwen_gpu_mode: str = "available"  # "available" | "managed"
     qwen_owned_asr_unit: str | None = None
     qwen_asr_lease_path: str | None = None
     resume: bool = True
     model_path: str = str(DEFAULT_MODEL_PATH)
+    asr_resource_fingerprint: str = ""
+    speaker_embedding_model: str = "titanet_small"
 
 
 def _sha256_text(text: str) -> str:
@@ -97,6 +101,7 @@ def _config_signature(
         "media_duration_s": media.duration_s,
         "audio_stream": media.selected_audio_stream,
         "model_name": model_name,
+        "asr_resource_fingerprint": cfg.asr_resource_fingerprint,
         "mode": cfg.mode,
         "source_language": normalize_language_code(cfg.source_language) or "auto",
         "chunk_seconds": cfg.chunk_seconds,
@@ -450,7 +455,11 @@ def process_media(
                 try:
                     with managed_scope as lease_report:
                         with QwenForcedAlignerAdapter(
-                            QwenAlignerConfig(device=cfg.qwen_device)
+                            QwenAlignerConfig(**{
+                                "device": cfg.qwen_device,
+                                **({"model_path": cfg.qwen_model_path} if cfg.qwen_model_path else {}),
+                                **({"worker_python": cfg.qwen_worker_python} if cfg.qwen_worker_python else {}),
+                            })
                         ) as adapter:
                             for idx, (spec, rec) in enumerate(zip(chunks, native_records)):
                                 if not plans[idx][0]:
@@ -537,7 +546,7 @@ def process_media(
     # Cross-chunk speaker reconciliation.
     chosen_embedder = embedder
     if chosen_embedder is None and cfg.speaker_embeddings == "titanet":
-        chosen_embedder = TitaNetSpeakerEmbedder()
+        chosen_embedder = TitaNetSpeakerEmbedder(model_name=cfg.speaker_embedding_model)
 
     spk_res = reconcile_speakers(
         chunks=chunks,

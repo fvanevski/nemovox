@@ -348,7 +348,7 @@ def load_glossary(path_or_terms: str | Path | Sequence[str] | None) -> GlossaryC
 
 @dataclass(frozen=True)
 class RefinementConfig:
-    backend: str = "swiftu"  # "off" | "swiftu"
+    backend: str = "openai_chat"  # "off" | "openai_chat" | legacy "swiftu"
     profile: str = "balanced"  # "off" | "conservative" | "balanced" | "expressive"
     context_utterances_before: int = 6
     context_utterances_after: int = 4
@@ -356,6 +356,7 @@ class RefinementConfig:
     audio_verification: bool = False
     base_url: str = "http://127.0.0.1:8001/v1"
     model: str = "chat"
+    resource_fingerprint: str = ""  # effective identity, no credentials
     api_key: str | None = None
     timeout_s: float = 180.0
     max_tokens: int = 8192
@@ -533,7 +534,7 @@ def screen_refinement_edit(
 
 
 class OpenAIChatTextClient:
-    """Lightweight OpenAI-compatible text client for NInfer/SwiftU with schema fallback."""
+    """Lightweight OpenAI-compatible text client with schema fallback."""
 
     def __init__(
         self,
@@ -633,7 +634,7 @@ def _batch_cache_key(
     return hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()[:24]
 
 
-def refine_utterances_with_swiftu(
+def refine_utterances_with_text_model(
     utterances: list[dict[str, Any]],
     *,
     source_language: str | None,
@@ -643,7 +644,7 @@ def refine_utterances_with_swiftu(
     checkpoint_path: str | Path | None = None,
     resume: bool = True,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    """Refine recording utterances in overlapping context-rich batches via SwiftU/NInfer.
+    """Refine recording utterances using a compatible text-inference model.
 
     Preserves ``raw_source_text`` / ``source_text`` untouched, attaches ``refined_text``,
     keeps source acoustic timing intact, and uses exact input+context cache keys so
@@ -664,6 +665,8 @@ def refine_utterances_with_swiftu(
         "prompt_version": "ref_v2",
         "backend": cfg.backend,
         "model": cfg.model,
+        "endpoint": cfg.base_url,
+        "resource_fingerprint": cfg.resource_fingerprint,
         "profile": cfg.profile,
         "source_language": source_language or "",
         "glossary_digest": gl_digest,
@@ -841,3 +844,6 @@ def refine_utterances_with_swiftu(
         "elapsed_s": elapsed_s,
     }
     return out_utts, summary
+
+# Legacy API name retained for existing callers.
+refine_utterances_with_swiftu = refine_utterances_with_text_model

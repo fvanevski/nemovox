@@ -13,7 +13,7 @@ from typing import Any
 
 from nvidia_transcribe.refinement import GlossaryConfig, OpenAIChatTextClient
 
-VALID_TRANSLATION_BACKENDS = ("swiftu", "riva", "none")
+VALID_TRANSLATION_BACKENDS = ("openai_chat", "swiftu", "riva", "none")
 VALID_TRANSLATION_STYLES = ("natural", "literal", "expressive")
 
 DEFAULT_RIVA_MODEL_PATH = Path("/workspace/models/Riva-Translate-4B-Instruct-v2")
@@ -71,7 +71,7 @@ def map_language_for_riva(source_language: str | None) -> str | None:
 
 @dataclass(frozen=True)
 class TranslationConfig:
-    backend: str = "swiftu"  # "swiftu" | "riva" | "none"
+    backend: str = "openai_chat"  # "openai_chat" | legacy "swiftu" | "riva" | "none"
     style: str = "natural"  # "natural" | "literal" | "expressive"
     target_language: str = "en"
     context_utterances_before: int = 6
@@ -80,6 +80,7 @@ class TranslationConfig:
     allow_adjacent_regrouping: bool = True
     base_url: str = "http://127.0.0.1:8001/v1"
     model: str = "chat"
+    resource_fingerprint: str = ""  # selected resource identity, no credentials
     api_key: str | None = None
     riva_model_path: str = str(DEFAULT_RIVA_MODEL_PATH)
     riva_python: str = str(DEFAULT_RIVA_PYTHON)
@@ -444,6 +445,11 @@ def translate_utterances(
         "prompt_version": _TRANSLATION_PROMPT_VERSION,
         "backend": cfg.backend,
         "model": cfg.model,
+        "endpoint": cfg.base_url,
+        "resource_fingerprint": cfg.resource_fingerprint,
+        "riva_model_path": cfg.riva_model_path if cfg.backend == "riva" else None,
+        "riva_python": cfg.riva_python if cfg.backend == "riva" else None,
+        "riva_device": cfg.riva_device if cfg.backend == "riva" else None,
         "style": cfg.style,
         "source_language": source_language or "",
         "target_language": cfg.target_language,
@@ -483,7 +489,7 @@ def translate_utterances(
             uid = str(u.get("utterance_id") or u.get("id") or f"utt-{i:04d}")
             src_txt = _src_text(u)
             rkey = hashlib.sha256(
-                json.dumps({"backend": "riva", "lang_pair": lang_pair, "uid": uid, "text": src_txt}, ensure_ascii=False, sort_keys=True).encode("utf-8")
+                json.dumps({"backend": "riva", "resource": cfg.resource_fingerprint, "checkpoint": cfg.riva_model_path, "worker": cfg.riva_python, "device": cfg.riva_device, "lang_pair": lang_pair, "uid": uid, "text": src_txt}, ensure_ascii=False, sort_keys=True).encode("utf-8")
             ).hexdigest()[:24]
             ekey = f"{uid}:{rkey}"
             riva_keys[uid] = ekey
@@ -530,7 +536,7 @@ def translate_utterances(
             **riva_meta,
         }
 
-    # SwiftU contextual batch translator
+    # OpenAI-compatible contextual batch translator
     client = text_client or OpenAIChatTextClient(
         base_url=cfg.base_url,
         model=cfg.model,
@@ -722,7 +728,7 @@ _CONDENSE_JSON_SCHEMA: dict[str, Any] = {
 }
 
 
-def condense_high_cps_cues_with_swiftu(
+def condense_high_cps_cues_with_text_model(
     utterances: list[dict[str, Any]],
     *,
     source_language: str | None,
@@ -793,6 +799,10 @@ def condense_high_cps_cues_with_swiftu(
             "next": next_ctx,
             "budget": budget,
             "style": cfg.style,
+            "model": cfg.model,
+            "endpoint": cfg.base_url,
+            "resource_fingerprint": cfg.resource_fingerprint,
+            "temperature": cfg.temperature,
         }
         ckey = f"{uid}:{hashlib.sha256(json.dumps(ckey_payload, ensure_ascii=False, sort_keys=True).encode('utf-8')).hexdigest()[:24]}"
 
@@ -861,3 +871,6 @@ def condense_high_cps_cues_with_swiftu(
         "errors": errors,
         "elapsed_s": round(time.perf_counter() - t0, 3),
     }
+
+# Legacy API name retained for existing callers.
+condense_high_cps_cues_with_swiftu = condense_high_cps_cues_with_text_model
