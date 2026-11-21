@@ -9,6 +9,7 @@ from pathlib import Path
 
 from nvidia_transcribe.checkpoint import DEFAULT_MODEL_PATH, CheckpointValidationError, validate_checkpoint
 from nvidia_transcribe.client import InferenceRequestConfig, NemotronVLLMClient
+from nvidia_transcribe.gpu_handoff import ManagedASRBlocked, ManagedASRConfig, recover_pending_managed_asr
 from nvidia_transcribe.media import MediaInspectionError
 from nvidia_transcribe.parser import CTCMetadataError
 from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
@@ -105,12 +106,46 @@ def build_parser() -> argparse.ArgumentParser:
     gs.add_argument("--fresh-translation", action="store_true", help="Ignore translation checkpoint cache.")
     gs.add_argument("--re-render", action="store_true", help="Re-render SRT/ASS directly from translated.contract.json without model calls.")
     gs.add_argument("--validation-overlay", default=None, help="Optional viewing-validation JSON overlay for coarse timing & polish.")
+    for parser in (pm, gs):
+        parser.add_argument("--qwen-policy", default="subtitle", choices=["subtitle", "fine"],
+                            help="Admit useful untimed subtitle windows by default; fine admits smaller gaps.")
+        parser.add_argument("--qwen-device", default="cuda:0", choices=["cuda:0", "cpu"],
+                            help="CUDA BF16 required unless CPU is explicitly selected.")
+        parser.add_argument("--qwen-gpu-mode", default="available", choices=["available", "managed"],
+                            help="Default never alters other services; managed requires a cooperative ASR lease.")
+        parser.add_argument("--qwen-owned-asr-unit", default=None,
+                            help="Explicit Nemovox-owned ASR systemd user unit, managed mode only.")
+        parser.add_argument("--qwen-asr-lease-path", default=None,
+                            help="Cooperative ASR ownership lease file, managed mode only.")
+
+    recover = sub.add_parser(
+        "recover-qwen-asr", help="Explicitly verify and restore a previously owned interrupted ASR handoff."
+    )
+    recover.add_argument("--asr-unit", required=True)
+    recover.add_argument("--base-url", required=True)
+    recover.add_argument("--model", required=True)
+    recover.add_argument("--lease-path", required=True)
+    recover.add_argument("--journal", required=True)
     return p
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    if args.command == "recover-qwen-asr":
+        try:
+            report = recover_pending_managed_asr(ManagedASRConfig(
+                unit=args.asr_unit, lease_path=Path(args.lease_path),
+                base_url=args.base_url, served_model=args.model,
+                journal_path=Path(args.journal),
+            ))
+        except (ManagedASRBlocked, ValueError, RuntimeError) as exc:
+            print(json.dumps({"status": "BLOCKED", "reason": getattr(exc, "status", type(exc).__name__)}),
+                  file=sys.stderr)
+            return 2
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return 0
 
     if args.command == "validate-checkpoint":
         try:
@@ -161,6 +196,11 @@ def main(argv: list[str] | None = None) -> int:
             embedding_threshold=args.embedding_threshold,
             enable_subinterval_recovery=not args.no_subinterval_recovery,
             alignment_fallback=args.alignment_fallback,
+            qwen_policy=args.qwen_policy,
+            qwen_device=args.qwen_device,
+            qwen_gpu_mode=args.qwen_gpu_mode,
+            qwen_owned_asr_unit=args.qwen_owned_asr_unit,
+            qwen_asr_lease_path=args.qwen_asr_lease_path,
             resume=not args.fresh,
             model_path=args.model_path,
         )
@@ -223,6 +263,11 @@ def main(argv: list[str] | None = None) -> int:
             context_seconds=args.context_seconds,
             min_tail_seconds=args.min_tail_seconds,
             alignment_fallback=args.alignment_fallback,
+            qwen_policy=args.qwen_policy,
+            qwen_device=args.qwen_device,
+            qwen_gpu_mode=args.qwen_gpu_mode,
+            qwen_owned_asr_unit=args.qwen_owned_asr_unit,
+            qwen_asr_lease_path=args.qwen_asr_lease_path,
             asr_base_url=args.base_url,
             asr_model=args.model,
             refinement=ref_cfg,

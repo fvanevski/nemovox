@@ -23,7 +23,9 @@ from nvidia_transcribe.contract import (
 )
 from nvidia_transcribe.media import MediaInfo, compute_file_sha256, extract_wav_segment, probe_media, validate_wav_file
 from nvidia_transcribe.prompts import cleanup_generation_loops
-from nvidia_transcribe.qwen_aligner import QwenForcedAlignerAdapter
+from nvidia_transcribe.qwen_aligner import (QwenAlignerConfig, QwenForcedAlignerAdapter, map_language_for_qwen_aligner)
+from nvidia_transcribe.selective_alignment import AdmissionPolicy, apply_selective_recovery, plan_selective_recovery
+from nvidia_transcribe.gpu_handoff import (ManagedASRBlocked, ManagedASRLifecycleError, ManagedASRConfig, managed_asr_handoff)
 from nvidia_transcribe.speakers import (
     SpeakerEmbedder,
     TitaNetSpeakerEmbedder,
@@ -45,6 +47,11 @@ class RecordingPipelineConfig:
     embedding_threshold: float = 0.65
     enable_subinterval_recovery: bool = True
     alignment_fallback: str = "off"  # "off" | "qwen"
+    qwen_policy: str = "subtitle"     # "subtitle" | "fine"
+    qwen_device: str = "cuda:0"      # "cuda:0" | "cpu" (explicit only)
+    qwen_gpu_mode: str = "available"  # "available" | "managed"
+    qwen_owned_asr_unit: str | None = None
+    qwen_asr_lease_path: str | None = None
     resume: bool = True
     model_path: str = str(DEFAULT_MODEL_PATH)
 
@@ -181,6 +188,12 @@ def process_media(
     cfg = config or RecordingPipelineConfig()
     if cfg.alignment_fallback not in ("off", "qwen"):
         raise ValueError(f"Unsupported alignment_fallback {cfg.alignment_fallback!r}; expected 'off' or 'qwen'.")
+    if cfg.qwen_policy not in ("subtitle", "fine"):
+        raise ValueError("qwen_policy must be subtitle or fine")
+    if cfg.qwen_device not in ("cuda:0", "cpu") or cfg.qwen_gpu_mode not in ("available", "managed"):
+        raise ValueError("Unsupported Qwen device/GPU resource mode")
+    if cfg.qwen_gpu_mode == "managed" and cfg.qwen_device != "cuda:0":
+        raise ValueError("Managed GPU mode requires CUDA and is not a CPU selection")
     out_dir = Path(output_dir)
     chunks_dir = out_dir / "chunks"
     chunks_dir.mkdir(parents=True, exist_ok=True)
@@ -332,34 +345,32 @@ def process_media(
     if lang_prov == "ambiguous":
         warnings.append(f"Source language detection was ambiguous: {lang_details}")
 
-    chosen_external_aligner = external_aligner
-    if chosen_external_aligner is None and cfg.alignment_fallback == "qwen":
-        chosen_external_aligner = QwenForcedAlignerAdapter()
+    # Phase 1: finish *every* ASR/LID and native CTC/subinterval request
+    # before considering CUDA Qwen or a managed ASR vLLM release.
+    native_records: list[dict[str, Any]] = []
+
+    def _extract_sub_wav(index: int, sub_start: float, sub_end: float) -> Path:
+        duration = max(0.2, sub_end - sub_start)
+        path = chunks_dir / (
+            f"chunk_{index:03d}_sub_{int(round(sub_start * 100))}_{int(round(sub_end * 100))}.wav"
+        )
+        extract_wav_segment(
+            media.path, start_s=sub_start, duration_s=duration, out_wav=path,
+            audio_stream_index=cfg.audio_stream_index,
+        )
+        return path
 
     for idx, (spec, raw_resp, raw_text, wav_path) in enumerate(zip(chunks, chunk_raws, raw_texts, chunk_wavs)):
-        ctc_payload = raw_resp.get("ctc_timestamps")
-
         def _sub_wav_extract(sub_start: float, sub_end: float, _idx: int = idx) -> Path:
-            dur = max(0.2, sub_end - sub_start)
-            sub_wav = chunks_dir / f"chunk_{_idx:03d}_sub_{int(round(sub_start * 100))}_{int(round(sub_end * 100))}.wav"
-            extract_wav_segment(
-                media.path,
-                start_s=sub_start,
-                duration_s=dur,
-                out_wav=sub_wav,
-                audio_stream_index=cfg.audio_stream_index,
-            )
-            return sub_wav
+            return _extract_sub_wav(_idx, sub_start, sub_end)
 
         def _subinterval_runner(sub_start: float, sub_end: float, _idx: int = idx) -> tuple[str, Any]:
-            sub_wav = _sub_wav_extract(sub_start, sub_end)
+            sub_wav = _extract_sub_wav(_idx, sub_start, sub_end)
             sub_res = client.transcribe(
                 sub_wav,
                 InferenceRequestConfig(
-                    mode=cfg.mode,
-                    source_language=lang_hint_for_prompt,
-                    capture_ctc_timestamps=True,
-                    require_ctc_timestamps=False,
+                    mode=cfg.mode, source_language=lang_hint_for_prompt,
+                    capture_ctc_timestamps=True, require_ctc_timestamps=False,
                     source_offset_s=sub_start,
                 ),
             )
@@ -367,16 +378,142 @@ def process_media(
 
         rec = recover_chunk_alignment(
             raw_text=raw_text,
-            ctc_payload=ctc_payload,
+            ctc_payload=raw_resp.get("ctc_timestamps"),
             source_offset_s=spec.infer_start_s,
             chunk_index=idx,
             model_path=cfg.model_path,
             subinterval_runner=_subinterval_runner if cfg.enable_subinterval_recovery else None,
-            external_aligner=chosen_external_aligner,
+            # Caller-injected test aligners retain their existing API. Production
+            # Qwen no longer runs in this native-ASR phase.
+            external_aligner=external_aligner,
             chunk_wav_path=wav_path,
             source_language=resolved_lang,
             subinterval_wav_extractor=_sub_wav_extract,
         )
+        native_records.append(rec)
+        raw_events.extend(
+            extract_events_from_raw_text(
+                raw_text, chunk_index=idx, chunk_start_s=spec.infer_start_s,
+                chunk_end_s=spec.infer_end_s,
+            )
+        )
+
+    # Keep an inspectable native timing checkpoint before any managed GPU
+    # transition. A failed/blocked optional aligner never discards native work.
+    qwen_metrics: dict[str, Any] = {"status": "disabled"}
+    if cfg.alignment_fallback == "qwen" and external_aligner is None:
+        _atomic_write_text(
+            out_dir / "native-alignment.checkpoint.json",
+            json.dumps({
+                "config_signature": sig,
+                "chunk_raw_sha256": [e.get("raw_response_sha256") for e in chunk_manifest_entries],
+                "native_records": native_records,
+            }, ensure_ascii=False, indent=2),
+        )
+        policy = AdmissionPolicy(mode=cfg.qwen_policy)
+        plans = [
+            plan_selective_recovery(
+                native=rec, raw_text=raw_texts[idx],
+                chunk_start_s=spec.infer_start_s,
+                chunk_end_s=spec.infer_end_s, policy=policy,
+            )
+            for idx, (rec, spec) in enumerate(zip(native_records, chunks))
+        ]
+        admitted = sum(len(cands) for cands, _ in plans)
+        qwen_metrics = {
+            "status": "no_eligible_spans", "policy": cfg.qwen_policy,
+            "eligible_candidates": admitted,
+            "skipped_candidates": sum(
+                sum(str(d.get("status") or "").startswith("skipped") for d in decisions)
+                for _, decisions in plans
+            ),
+            "mode": cfg.qwen_gpu_mode,
+        }
+        if not map_language_for_qwen_aligner(resolved_lang):
+            qwen_metrics["status"] = "unsupported_language"
+        elif admitted:
+            from contextlib import nullcontext
+            managed_scope: Any = nullcontext({"mode": "available", "released": False})
+            if cfg.qwen_gpu_mode == "managed":
+                if not cfg.qwen_owned_asr_unit or not cfg.qwen_asr_lease_path:
+                    qwen_metrics["status"] = "blocked_missing_owned_asr_configuration"
+                    managed_scope = None
+                else:
+                    managed_scope = managed_asr_handoff(ManagedASRConfig(
+                        unit=cfg.qwen_owned_asr_unit,
+                        lease_path=Path(cfg.qwen_asr_lease_path),
+                        base_url=getattr(client, "base_url", "http://127.0.0.1:8190/v1"),
+                        served_model=client.model,
+                        journal_path=out_dir / "qwen-asr-handoff.journal.json",
+                    ))
+            if managed_scope is not None:
+                try:
+                    with managed_scope as lease_report:
+                        with QwenForcedAlignerAdapter(
+                            QwenAlignerConfig(device=cfg.qwen_device)
+                        ) as adapter:
+                            for idx, (spec, rec) in enumerate(zip(chunks, native_records)):
+                                if not plans[idx][0]:
+                                    continue
+                                apply_selective_recovery(
+                                    native=rec, raw_text=raw_texts[idx],
+                                    chunk_start_s=spec.infer_start_s,
+                                    chunk_end_s=spec.infer_end_s,
+                                    chunk_index=idx, source_language=resolved_lang,
+                                    aligner=adapter, policy=policy,
+                                    extract_wav=lambda start, end, _idx=idx: _extract_sub_wav(_idx, start, end),
+                                )
+                            qwen_metrics.update(adapter.metrics)
+                            attempted_statuses = [
+                                d.get("aligner_status") for rec in native_records
+                                for d in (rec.get("diagnostic", {}).get("external_aligner") or {}).get("localized_spans", [])
+                                if d.get("aligner_status")
+                            ]
+                            blocked = next(
+                                (v for v in attempted_statuses
+                                 if v.startswith("blocked_") or v in {
+                                     "worker_timeout", "worker_exited", "worker_failed",
+                                     "unavailable", "device_mismatch", "worker_error",
+                                 }), None,
+                            )
+                            qwen_metrics["status"] = (
+                                blocked or ("executed" if adapter.metrics["align_count"]
+                                else "deferred_no_successful_worker_requests")
+                            )
+                    # Snapshot the handoff report *after* context exit so
+                    # restored=True reflects verified ASR health, not a
+                    # premature pre-restoration observation.
+                    qwen_metrics["resource_handoff"] = dict(lease_report)
+                except ManagedASRLifecycleError as exc:
+                    # A stop was attempted or restoration could not be proved:
+                    # never convert this into a successful optional deferral.
+                    raise RuntimeError(
+                        f"Managed ASR lifecycle could not be verified: {exc.status}"
+                    ) from exc
+                except ManagedASRBlocked as exc:
+                    # Only failures before a stop attempt may defer alignment.
+                    qwen_metrics["status"] = exc.status
+                    warnings.append(f"Optional managed Qwen deferred: {exc.status}")
+                except Exception:
+                    # Do not mask an unexpected lifecycle or processing error.
+                    raise
+        else:
+            # Explicitly prove that zero eligible spans does not allocate a Qwen
+            # worker or touch a GPU service.
+            qwen_metrics["model_load_count"] = 0
+        for idx, (rec, plan) in enumerate(zip(native_records, plans)):
+            if "external_aligner" not in rec["diagnostic"]:
+                rec["diagnostic"]["external_aligner"] = {
+                    "backend": "qwen3_forced_aligner",
+                    "status": qwen_metrics["status"],
+                    "policy": cfg.qwen_policy,
+                    "candidate_count": len(plan[0]),
+                    "localized_spans": plan[1],
+                }
+
+    # Phase 2: normalize speakers and build final utterances only after the
+    # Qwen session has been torn down and ASR restoration verified.
+    for idx, rec in enumerate(native_records):
         alignment_diagnostics.append(rec["diagnostic"])
         if rec["alignment_status"] not in (
             "ctc_aligned",
@@ -386,25 +523,16 @@ def process_media(
         ):
             warnings.append(
                 f"Chunk {idx} alignment degraded ({rec['alignment_status']}): "
-                f"cause={rec['diagnostic'].get('failure_cause')}, oov={rec['diagnostic'].get('oov_characters')}"
+                f"cause={rec['diagnostic'].get('failure_cause')}, "
+                f"oov={rec['diagnostic'].get('oov_characters')}"
             )
-
         norm_units, profs = normalize_chunk_speakers(
-            chunk_index=idx,
-            units=rec["units"],
+            chunk_index=idx, units=rec["units"],
             diarization=rec["diarization"],
             speaker_mapping=rec["speaker_mapping"],
         )
         chunk_units_norm.append(norm_units)
         chunk_profiles.append(profs)
-        raw_events.extend(
-            extract_events_from_raw_text(
-                raw_text,
-                chunk_index=idx,
-                chunk_start_s=spec.infer_start_s,
-                chunk_end_s=spec.infer_end_s,
-            )
-        )
 
     # Cross-chunk speaker reconciliation.
     chosen_embedder = embedder
@@ -460,6 +588,7 @@ def process_media(
             "model_path": cfg.model_path,
             "request_mode": cfg.mode,
             "alignment_fallback": cfg.alignment_fallback,
+            "qwen_recovery": qwen_metrics,
             "language_detection": lang_details,
             "total_wall_time_s": total_elapsed,
             "resumed_chunks": resumed_count,

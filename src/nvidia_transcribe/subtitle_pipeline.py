@@ -36,6 +36,11 @@ class SubtitlePipelineConfig:
     min_tail_seconds: float = 15.0
     audio_stream_index: int = 0
     alignment_fallback: str = "off"
+    qwen_policy: str = "subtitle"
+    qwen_device: str = "cuda:0"
+    qwen_gpu_mode: str = "available"
+    qwen_owned_asr_unit: str | None = None
+    qwen_asr_lease_path: str | None = None
     speaker_embeddings: str = "titanet"
     asr_base_url: str = "http://127.0.0.1:8190/v1"
     asr_model: str = "nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4"
@@ -165,6 +170,11 @@ def generate_subtitles(
                     min_tail_seconds=cfg.min_tail_seconds,
                     audio_stream_index=cfg.audio_stream_index,
                     alignment_fallback=cfg.alignment_fallback,
+                    qwen_policy=cfg.qwen_policy,
+                    qwen_device=cfg.qwen_device,
+                    qwen_gpu_mode=cfg.qwen_gpu_mode,
+                    qwen_owned_asr_unit=cfg.qwen_owned_asr_unit,
+                    qwen_asr_lease_path=cfg.qwen_asr_lease_path,
                     speaker_embeddings=cfg.speaker_embeddings,
                     resume=cfg.resume,
                 ),
