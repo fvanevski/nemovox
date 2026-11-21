@@ -1,0 +1,45 @@
+{
+  "campaign": "gui-foundation-20261121",
+  "repository": "https://github.com/fvanevski/nemovox",
+  "origin_main_sha": "9b4c8b539c67f2f6266fef135a259e92f5477b19",
+  "central_branch": "central/gui-foundation-20261121",
+  "central_head_sha": "cf74bc8c5a793286bd424b3c3667451a92d8079e",
+  "integration_branch": "integration/gui-foundation-20261121",
+  "integration_head_sha": "d6962a58783d982343f99f697339fc3fdd22ec87",
+  "evidence_branch": "evidence/gui-foundation-20261121",
+  "archive": {
+    "path": "staging/agent-evidence/gui-foundation-20261121/gui-foundation-evidence.tar.gz",
+    "local_staging_path": "outputs/handbacks/gui-foundation-evidence.tar.gz",
+    "size_bytes": 1678558,
+    "sha256": "faa6083ecdea4ae7ce9ceaf35aac6f5b7e15b0f1a760c05f2a65eefa6f6ac38b"
+  },
+  "payload_sha256": {
+    "changed_files/.gitignore": "7a2867b2e1c29120d6aac254eb765ffc3be20c5bebe97eff191598aba17df9cf",
+    "changed_files/src/nvidia_transcribe/studio_api.py": "61fc35dc83e907b288f11ed79000449f2c0910c83752a921ab26b99d20f77688",
+    "changed_files/tests/test_studio_api.py": "6ff7ed4a28b9a293b6291be50aa6b709758f133fde6bedf012584f21d5dbd847",
+    "changed_files/web/index.html": "1157a56117a903e7f9352f5692294c39a0e1593c1c7aa6b106bb21ef0fcc33e4",
+    "changed_files/web/package-lock.json": "fb10700313530722db534794c0a564b13235e89add7c54b69edd4b3aad29a49c",
+    "changed_files/web/src/App.tsx": "c9faa7116efd95fe05093e9aba4736071cd89aecd4979ca65de344263e533f5c",
+    "changed_files/web/src/api.test.ts": "2425a08fc02a72a43f444d01820a93140e9e72e3f5ffc55743d8ba71af6dc354",
+    "git_shas_and_stat.txt": "569cd98f2eaa15bc89542999845f6edf931f36e49e1f6400dfe1110006ce3494",
+    "integration.diff": "d3f3380c4407e6cf04e6fdb936a0c9f1ebb65aca92f54cab8082f3270c6e84ae",
+    "logs/e2e_http_smoke.log": "77754f236f82c4c8cf1895f6e4df988f661d04c5125eb1d83a658a1e3025d50d",
+    "logs/pytest_cli.log": "28ccd8c5b3328677c43a8c6afdb4e8f8dff9dea992bb072afaeecd29cdd48f10",
+    "logs/pytest_studio.log": "efdf74375ef41bda153a5aa7593a68b1b7d4361e9d02bf39f23eb73d3e374d1d",
+    "logs/web_test_build.log": "6f309a90498e3efc96ea25b78bb5772dba683a9ce53f6739296f4a3dfa125a65",
+    "node_deps.txt": "75003522487deeab529c7fcf97d7631a053b01adafe4378fadb3c02c32ff300d",
+    "python_studio_deps.txt": "41baab655c16ac933b8435a341eba2f040993e0737a9a80bf990bd05525ed944",
+    "screenshots/firedragon_preview.png": "6fc844785d342ec13dc6697e86c441eb31ea7bba12c9b4d6aa644e533b71fa76",
+    "screenshots/tab1_media_task.png": "e797d1773c4973b3dae4547bd0f21f85af29b1e684f37996a764824f31e1aadc",
+    "screenshots/tab2_configure.png": "d27c10c868718c2a5299537bf8e5ce37bce4ed5ad8b1d9c9f5348356ea4e1",
+    "screenshots/tab3_preview_ass.png": "6093db5eb26de89090dc3dc1b02c0678556f8957cb1c1176363bc334c41ff535",
+    "screenshots/tab3_preview_fallback.png": "8141f7f1917379c24ef9aa63f0dc506e810d6b13960f9fe728ff768889c02030"
+  },
+  "checks": {
+    "pytest_studio_cpu": "79 passed in 1.83s (exit 0)",
+    "pytest_cli_cpu": "79 passed in 1.75s (exit 0)",
+    "vitest": "1 file, 2 passed (exit 0)",
+    "vite_tsc_build": "tsc --noEmit && vite build succeeded (2035 modules, exit 0)",
+    "live_gpu_asr": "not run (no live Nemotron vLLM/SwiftU daemon active on ports 8190/8001; CLI+API integration exercised via synthetic contract and local OpenAI-compatible mock translator)"
+  }
+}
