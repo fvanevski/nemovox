@@ -192,7 +192,10 @@ class JobRunner:
             self._cancelled.add(job_id)
             process = self._processes.get(job_id)
         if process is not None and process.poll() is None:
-            os.killpg(process.pid, signal.SIGTERM)
+            try:
+                os.killpg(process.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
         self.update(job_id, stage="Cancelling")
         return self.get(job_id)
 
@@ -224,6 +227,8 @@ class JobRunner:
                             os.killpg(process.pid, signal.SIGKILL)
                         raise InterruptedError("Cancelled")
                     time.sleep(0.4)
+                if job_id in self._cancelled:
+                    raise InterruptedError("Cancelled")
                 if process.returncode != 0:
                     raise RuntimeError(stage + " failed (exit " + str(process.returncode) + "); see execution.log")
             finally:
