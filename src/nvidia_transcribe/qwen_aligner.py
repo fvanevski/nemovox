@@ -307,6 +307,8 @@ class QwenAlignerSession:
             self.metrics.update(
                 model_load_count=ready.get("model_load_count", 0),
                 device_used=used, dtype=ready.get("dtype"),
+                observed_dtype=ready.get("observed_dtype"),
+                cuda_allocated_bytes=ready.get("cuda_allocated_bytes"),
                 model_load_wall_s=ready.get("model_load_wall_s"),
                 startup_wall_s=round(time.monotonic() - t0, 4),
                 peak_gpu_allocated_bytes=ready.get("peak_gpu_allocated_bytes"),
@@ -471,6 +473,8 @@ class QwenForcedAlignerAdapter:
             "dtype": raw_out.get("dtype"), "quantized_resolution_s": 0.08,
             "inference_wall_s": raw_out.get("inference_wall_s"),
             "model_load_count": self.session.metrics["model_load_count"],
+            "observed_dtype": self.session.metrics.get("observed_dtype"),
+            "cuda_allocated_bytes": self.session.metrics.get("cuda_allocated_bytes"),
             "peak_gpu_allocated_bytes": self.session.metrics["peak_gpu_allocated_bytes"],
             **stats,
         }}
