@@ -1,0 +1,65 @@
+{
+  "issue": 1,
+  "repository": "fvanevski/nemovox",
+  "base_main_sha": "242c418f55cd2afb796ee2c4fa742a10ff04f7a3",
+  "initial_central_head": "570f2de312cee1444defa671073e83e8dab4dd6b",
+  "final_source_sha": "28655e0d6fe57d9363e576cd0795a24aae77a4a3",
+  "evidence_branch": "evidence/issue-1-qwen-20261121",
+  "evidence_directory": "staging/agent-evidence/issue-1-qwen/",
+  "managed_asr_disposition": "MANAGED_GPU_BLOCKED",
+  "cpu_tests": {
+    "venv": "107 passed",
+    "venv_studio": "107 passed"
+  },
+  "gpu_qualification": "PASS (available cuda:0 torch.bfloat16, model_load_count=1 multi-span reuse)",
+  "members": {
+    "HANDback.md": {
+      "sha256": "3c6335b1d8bb526584f176e82715b37a9d67cd9e3dcff0bea45b25730a84b8f8",
+      "size_bytes": 5763
+    },
+    "changed_files.txt": {
+      "sha256": "8b482e7ec0f222a9a9b2619d1b42835b8b2aae80b88b54d9770b144333d7e39e",
+      "size_bytes": 734
+    },
+    "diff_local_fix.patch": {
+      "sha256": "67258bd6a1727f82c051695ca3bfaf8b16a1873d1124b1689ad2609fdcb291ab",
+      "size_bytes": 15457
+    },
+    "diff_vs_base_main.patch": {
+      "sha256": "d2bbfe017d1d8bd33b9cfb18d9a2639bc509fd912fdf9c4f0c7a0f8fbe8b4de3",
+      "size_bytes": 132596
+    },
+    "gpu-benchmark.md": {
+      "sha256": "c7c76d961587daacf7049564697a7eb7404c31c9ebdc47a57900e35fa04f0fde",
+      "size_bytes": 3784
+    },
+    "logs/compileall.txt": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "logs/gpu_qualification_results.json": {
+      "sha256": "081fb3bddd8a41286f22ecc12f5a0d7f7e1c79bab0d82b70054cd6d010557b71",
+      "size_bytes": 18354
+    },
+    "logs/host_read_only_inspection.txt": {
+      "sha256": "d224bd17e45033797ecb20fad0cf087148b175652c3d0957c728910ba4ba5576",
+      "size_bytes": 831
+    },
+    "logs/pytest_venv_cpu.txt": {
+      "sha256": "405bd227031d9f9c205de8ec01fe77cb93fb1ab814b567898a3ecfe2b77f9b18",
+      "size_bytes": 13966
+    },
+    "logs/pytest_venv_studio_cpu.txt": {
+      "sha256": "76d1018318b6214f6387c3ddb00c61d087a5698d15019d3995489422a25e88a4",
+      "size_bytes": 13355
+    },
+    "ownership-and-restore.md": {
+      "sha256": "52dde6abd6985127e032f629a8ec02d23ff79e58b39b8b734536c274d2519f4d",
+      "size_bytes": 3450
+    },
+    "test-results.md": {
+      "sha256": "77a3cef0b8ad9de4d95dd563d188948984820e68b490805307f0afc671199204",
+      "size_bytes": 3364
+    }
+  }
+}

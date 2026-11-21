@@ -1,0 +1,2633 @@
+diff --git a/docs/alignment/ISSUE1_LOCAL_INTEGRATION.md b/docs/alignment/ISSUE1_LOCAL_INTEGRATION.md
+new file mode 100644
+index 0000000..5c47f19
+--- /dev/null
++++ b/docs/alignment/ISSUE1_LOCAL_INTEGRATION.md
+@@ -0,0 +1,62 @@
++# Issue #1: cohesive local-host integration and evidence qualification
++
++## Task identity and authority
++
++- Repository: `fvanevski/nemovox`, issue: https://github.com/fvanevski/nemovox/issues/1
++- **Implementation branch:** `issue/1`, created from `main@242c418f55cd2afb796ee2c4fa742a10ff04f7a3` (the source tree at issue start).
++- **Implementation exact head:** obtain from kickoff; re-read live GitHub and abort if it changes unexpectedly. Do not assume this document's commit is the final head.
++- Scope: one cohesive source integration/qualification of centrally authored admission, persistent worker, native two-phase sequencing, explicit device, managed ASR ownership, CLI propagation and CPU regressions.
++- Architecture: read `docs/alignment/ISSUE1_QWEN_DESIGN.md` and current `AGENTS.md`. Current GitHub source and issue criteria override historical handoffs.
++
++**Harness:** `LOCAL_AGENT_PRIMARY=build` under OpenCode/other explicitly chosen host agent. Local agent is authorized to perform host-bound tests, dependency verification, bounded fixture instrumentation, and **small evidence-driven in-scope mechanical/integration corrections** (e.g. imports, protocol parsing, test fixture/bindings, backend API adaptation), with focused regression and full diff returned. This is not a transfer of architectural or substantial production development. Never silently alter admission semantics, model-service ownership, GPU safety, native timing, source/spk fidelity or release gates. Escalate an architecture change or material safety invariant breach rather than bypass.
++
++**Git authority:** one `issue/1` working branch and at most one later consolidated PR, created **by Central only after evidence review**. No new PR, merge, issue state change, force push, rebasing origin, source changes on main, or evidence branch merge. If a small local correction must be committed to `issue/1`, use a normal fast-forward push after exact remote-head recheck; send resulting full SHA and full diff. For purely test-run failures from environment, repair the test environment, not production.
++
++## A. Authenticate and perform CPU-first validation
++
++1. Authenticate `origin/main` and `origin/issue/1` fresh; read full current issue #1, AGENTS, this handoff and design. Run `git fetch origin refs/heads/issue/1` before testing newly remote objects, prove full SHA/tree with `git cat-file` and `git rev-parse`. Prefer a clean separate worktree/detached checkout under collision-safe `/tmp` if existing `/workspace/nvidia-transcribe` is dirty or is running the persistent Studio service. Do not reset/clean/stash source. Ensure real `nvidia_transcribe` imports point to the candidate source, not an installed package shadow.
++2. Check `python -m compileall -q src/nvidia_transcribe` (use the appropriate interpreter/PYTHONPATH). Run focused `tests/test_qwen_fallback.py`, `tests/test_qwen_session_and_policy.py`, `tests/test_recording_and_normalization.py`, then complete CPU `pytest -q -m "not gpu"` in `.venv` and `.venv-studio` where dependencies permit. Run existing frontend tests only if frontend source changed (none expected), otherwise record tree equivalence and re-use prior UI evidence. Do not weaken or skip broken assertions; retain original traceback and correct within authorized narrow envelope or return FAIL.
++3. Specifically verify: default-off no worker/GPU/service action; no invalid character/zero-duration timing assignment; native successful CTC text/times stay identical; mixed speaker and ambiguous spans skipped; `subtitle` vs `fine` criteria; source offsets; process_media finishes all chunk/LID/native retry calls before first worker or managed stop; one process/model load across multiple span requests; protocol ID/timeout/cancel/reaped process group; **real Linux worker parent-death behavior with an owned, harmless fake worker**; CUDA-required never returns CPU success; unit ownership/lease/journal blocked and normal/error/**SIGTERM unwind** restore paths. Do not send test signals to production Studio or ASR.
++4. Re-read candidate and assess actual `Qwen3ForcedAligner` library API, isolated `outputs/modular-eval/.venv` availability and correct quantization/dtype, without installing new weights or mixing this venv with Nemotron. If worker backend differs in a narrowly mechanical call signature, correct it, add regression and document. Do not redesign alternate backend, change package architecture or turn off validation simply to pass.
++
++## B. Bounded host/GPU qualification
++
++5. Check GPU and service identities **read-only** first: `nvidia-smi`, `ss -ltnp`, `systemctl --user list-units --type=service --all`, current known ASR 8190 service/launcher, vLLM/SwiftU/embedding workload occupancy, model path identity and user lease/consumer semantics. Never assume a unit exists just because the model endpoint responded. Do not stop/restart any model service, including the deployed `nemovox-studio.service`, merely to create free VRAM.
++6. Use a small, already licensed/local **Mandarin OOV** audio fixture and a bounded multi-span contract that preserve the original source transcript; compare `off` to optional `qwen`. Run a GPU-required Qwen session **only when available VRAM makes it safe**; capture actual device, observed parameter dtype (or explicit UNKNOWN), allocated/peak GPU memory, load count, worker PID and lifecycle, warm/cold timings, number admitted/skipped, recovered subtitle-useful utterances/cues, invalid/zero-duration counts, and full wall time. Include at least one real `钾` OOV recovery, preferably multiple spans with model_load_count=1. If safe CUDA allocation unavailable, report `GPU_BLOCKED` rather than invoking CPU automatically.
++7. The isolated worker may use a bounded local `qwen-asr` vs compatible native-HF comparison if it is straightforward and safe; otherwise mark `native-HF comparison skipped (optional)`. No full episode reprocessing, model download, local checkpoint mutation, or repeated model benchmarking campaign.
++8. **Managed vLLM scenario:** only if the existing ASR instance is demonstrably Nemovox-owned, properly cooperative with an exclusive lease, has the exact declared `nemovox-*.service` user unit, and is safe to quiesce. Verify the actual corresponding launcher and all consumer participation, not only the presence of service markers. Then, with explicit managed flags already authorized by issue #1 and within this safe ownership envelope, run one reversible `ASR native complete/checkpoint -> ASR stop -> VRAM released -> Qwen session -> teardown -> verified ASR restoration/health` smoke with raw process/unit identity. Exercise failure/cancel restoration via CPU/simulated state machine even if no safe live takeover exists. Do **not** modify or patch existing launcher/service ownership markers, restart unrelated consumers, or invent lease authority to force managed readiness. If not safe, report typed `MANAGED_GPU_BLOCKED` with exact reason and leave services untouched. Such a safe block is not proof of real managed-handoff acceptance.
++9. If any Qwen attempt fails while ASR is owned and stopped, prioritize restoration using the documented journal/ownership procedure; do not claim restored without `/v1/models` matching the original model. Never restart a unit previously stopped. If recovery cannot be proved, STOP and escalate immediately, retain evidence, do not continue more GPU tests.
++
++## C. Evidence, handback, completion boundary
++
++10. Record a criterion-to-evidence matrix with source/head, test commands and exit codes, relevant changed paths/diff, CPU suite, worker reuse and GPU/perf, native off-vs-on quality and timing, authorization/lease state, release/restore states, cleanup and limitations. Distinguish measured current run, prior historical evidence, controlled mocks, and UNVERIFIED external service. Never fabricate quality coverage or a speedup.
++11. Publish one sanitized, self-contained **operator-attachable** `tar.gz` (target ≤20MiB) with manifest/sha256, `HANDback.md`, `test-results.md`, `gpu-benchmark.md`, `ownership-and-restore.md`, full scoped source diff and changed file list, required CPU/GPU/protocol logs and small bounded synthetic/authorized samples. Exclude commercial media, full transcripts, private host paths, secrets, environment dumps, weights, huge logs and credentials; verify member hashes/gzip integrity. Keep original full logs private when sensitive, publish redacted excerpts.
++12. Create **one** evidence-only branch `evidence/issue-1-qwen-20261121` directly from the **final exact source implementation SHA** (if branch already exists read/check and reuse, never force-rewrite). Place evidence under `staging/agent-evidence/issue-1-qwen/`, with browsable HANDback/manifest/test/GPU reports and archive; do not merge it. Verify exact parent/source identity and GitHub branch readback.
++13. Return `PASS | FAIL | BLOCKED | STALE`, exact source/evidence SHAs, tests and benchmark receipts, which acceptance criteria are supported, explicit managed-mode disposition, original/restored service identities or reason for no handoff, archive size+SHA-256, privacy/integrity checks and any remaining necessary Central code decisions. **Stop after one consolidated handback**, no PR, issue closure, service deployment or repeated local campaign. Central will independently review and handle PR once source/evidence is qualified.
++
++## Stop/escalation and autonomy
++
++Resolve ordinary host-specific compatibility failures and small in-scope integration fixes without serial confirmation. If source code needs a material new algorithm, nontrivial architectural adjustment, modified device/safety gate, unbounded GPU handling, or changes to another live service, STOP and return a minimal reproducer, current head SHA and recommendation. Prioritize completion of the declared issue objective over unrelated modernization.
++
++### Mandatory command-shape friction ledger
++
++```text
++COMMAND_SHAPE_FRICTION:
++  encountered=<yes|no>
++  events:
++    - scenario=<bounded-key>
++      requested_shape=<submitted command>
++      effective_shape=<actual executed/rejected command|same-as-requested|unknown>
++      rewrite_provenance=<none|rtk_opencode_hook|shell_or_alias|other_harness_hook|unknown>
++      event_kind=<pre_execution_rejection|execution_failure|successful_recovery|guard_annotation|harness_rewrite|runtime_misbinding|interface_discovery|other>
++      execution_effect=<not_executed|executed_failed|executed_succeeded|recovered_after_retry|unknown>
++      correction_or_annotation=<bounded decisive evidence>
++      replacement_shape=<successful correction|none>
++      recipe_reference=<GHDEV-10 key|none>
++      resource_reference=<resource consulted|none>
++      contract_conflict=<yes|no|uncertain>
++      durable_gap_candidate=<yes|no|uncertain>
++  omitted_sensitive_values=<yes|no>
++```
++
++If none: `encountered=no; events=[]; omitted_sensitive_values=no`. Report test result and friction separately; a recovered failure is evidence of friction when material.
+diff --git a/docs/alignment/ISSUE1_QWEN_DESIGN.md b/docs/alignment/ISSUE1_QWEN_DESIGN.md
+new file mode 100644
+index 0000000..7a69f1a
+--- /dev/null
++++ b/docs/alignment/ISSUE1_QWEN_DESIGN.md
+@@ -0,0 +1,69 @@
++# Issue #1: selective CUDA forced alignment and safe ASR handoff
++
++## Authority and goals
++
++Source authority: `fvanevski/nemovox` issue #1 and current GitHub `main`. At design staging, `main@242c418f55cd2afb796ee2c4fa742a10ff04f7a3`; **re-read before all consequential operations**. This document describes the Central-authored candidate on `issue/1`; it does not claim host qualification.
++
++The objective is subtitle coverage, not character timestamp perfection. All existing CTC/subinterval timings, original spoken text, speaker identity, source offsets and honest untimed states remain authoritative. `alignment_fallback=off` remains the default and must allocate zero Qwen resources.
++
++## Two-phase processing invariant
++
++1. The recording pipeline finishes all chunk ASR, LID and **native CTC/subinterval recovery**, checkpointing raw responses and an independent `native-alignment.checkpoint.json` when Qwen opt-in is selected. The ASR vLLM model must still be available for every native request.
++2. Only after native work is finished, a bounded `AdmissionPolicy` scans untimed speech spans. Each candidate must be meaningful, uniquely anchored in a finite localized window, non-overlapping with mixed speakers, and short enough to align. Default `subtitle` skips low-value isolated character gaps in otherwise timed cues; `fine` is opt-in.
++3. If there are zero eligible spans, no worker is launched and no service is touched. Otherwise one isolated `QwenForcedAlignerAdapter` owns one JSONL `QwenAlignerSession` across all chunks/candidates, with the model loaded once and responses validated before attaching timings. The same lexical matching and monotonic bounds validation in `alignment._apply_verified_sequence_timings` rejects invalid results without rewriting source text.
++4. The worker is deterministically shut down **before** the pipeline normalizes speakers/reconstructs utterances, and **before** any managed ASR vLLM restoration is adjudicated as complete. The final contract includes candidate/admission diagnostics and worker telemetry.
++
++Files: `recording.py`, `selective_alignment.py`, `qwen_aligner.py`, `_qwen_align_worker.py`, `gpu_handoff.py`, `cli.py`, `subtitle_pipeline.py`, focused CPU tests.
++
++## Reusable worker and device policy
++
++- Worker remains in `outputs/modular-eval/.venv` (qwen-asr dependencies), separate from the Nemotron inference venv. Default offline model path is `/workspace/models/Qwen3-ForcedAligner-0.6B`; no automatic checkpoint download.
++- JSONL protocol v1 uses `init -> align* -> shutdown` with request IDs and a bounded response/time. On any protocol error, deadline or cancel, kill the owned worker process group; do not silently retry each request with a freshly loaded model. On Linux the worker also registers a parent-death SIGKILL, so cancellation of Studio's separately sessioned CLI parent cannot orphan Qwen CUDA allocations. This parent-death guard does **not** restart ASR.
++- GPU requested means `cuda:0` BF16. `auto` within the adapter is an alias for **CUDA required**, never a CPU fallback. Actual CUDA tensor allocation and observed parameter dtype, when accessible through the backend, are reported separately from the dtype request. `cpu` is a distinct **explicit** selection, never selected implicitly.
++- Time the model startup/load and each alignment request; report actual device, observed/requested dtype, CUDA allocated/peak memory, model load count, align count, worker failure status, and validated zero-duration/out-of-bounds units.
++
++## Managed vLLM mode: ownership is a hard gate
++
++`--qwen-gpu-mode available` (default) never controls another process. If free CUDA memory is insufficient, report deferred/blocked. `--qwen-gpu-mode managed` is a separate explicit opt-in and requires `--qwen-owned-asr-unit` and `--qwen-asr-lease-path`, both identifying an **already known Nemovox-owned ASR user unit**.
++
++The managed controller refuses to stop a service unless all of the following hold:
++
++- Service is an exact `nemovox-*.service` **user** unit (never `nemovox-studio.service`), loaded, active and has a valid MainPID and invocation identity.
++- The service unit includes the operator-provisioned `NEMOVOX_MANAGED_ASR=1` and `NEMOVOX_ASR_LEASE_PATH=<exact private path>` markers. The lease file exists, is user-owned/private and can be locked exclusively without waiting. **All supported ASR consumers must participate in this lease discipline.** Nonparticipating clients cannot be made safe by examining a PID or guessing a port.
++- Live process command and `/v1/models` identify the *same* Nemotron ASR vLLM model/loopback port requested by the pipeline. Unknown, shared or externally managed services are not touched.
++- Native ASR has finished and a checkpoint has been written. The controller checks actual free VRAM first; it does not stop a service if CUDA is already available.
++
++Once admitted, journal original unit identity/config before stop; stop only that unit; verify stopped state and sufficient freed VRAM; launch bounded Qwen session; teardown; restart original active unit with existing unit configuration; and verify `/v1/models` returns the original model. Restore is attempted after normal return, worker failure, timeout, ordinary CLI SIGTERM cancellation (Python main-thread signal unwind), and ambiguous stop. An interrupted pending journal blocks **new automatic handoff** even if VRAM is free. Uncatchable SIGKILL, power loss and fatal process termination cannot guarantee immediate ASR restoration and require explicit journal/identity-checked recovery; never claim them as automatically recovered. Explicit `recover-qwen-asr` can restore only after revalidating unit executable/hash, fragment path, cooperative marker, lease and original active state.
++
++**Important boundary:** a user-specified unit name or a private lease file alone is not proof that no unrelated applications depend on the model. Host qualification must check launcher/consumer participation and status. If existing launcher/lease semantics do not satisfy this contract, report `BLOCKED_SAFE_HANDOFF` and leave vLLM alone. Do not silently add markers or create a competing service controller as a local-agent workaround. Central must evaluate any material launcher integration separately.
++
++## CLI examples (controlled, not autorun)
++
++Off is ordinary default:
++```bash
++python -m nvidia_transcribe.cli process-media media.wav --output-dir out/
++```
++
++GPU-required optional selective alignment:
++```bash
++python -m nvidia_transcribe.cli process-media media.wav --output-dir out/ \
++  --alignment-fallback qwen --qwen-policy subtitle --qwen-device cuda:0 \
++  --qwen-gpu-mode available
++```
++
++Fine alignment is opt-in: `--qwen-policy fine`. Explicit CPU, when desired, is `--qwen-device cpu`. Managed mode additionally requires `--qwen-gpu-mode managed --qwen-owned-asr-unit <verified-unit> --qwen-asr-lease-path <existing-private-lease>`.
++
++For a **previously interrupted** and independently identified managed unit, only operator-authorized recovery:
++```bash
++python -m nvidia_transcribe.cli recover-qwen-asr \
++  --asr-unit <verified-unit> --base-url http://127.0.0.1:8190/v1 \
++  --model <exact-served-model-id> --lease-path <private-lease> \
++  --journal <original-asr-output-dir>/qwen-asr-handoff.journal.json
++```
++
++## Evidence / limitations
++
++- Historic OOV and warm/cold benchmark numbers in `evaluations/` are **not** directly comparable to new throughput. Benchmark identical bounded Mandarin and multi-span inputs with off vs qwen on this exact source head; report wall time, useful utterance/cue recovery, invalid/zero durations, device/dtype, worker model loads and VRAM telemetry. Warm-model benefit must be demonstrated, not extrapolated.
++- Real managed handoff may be **blocked** by missing service ownership/lease, which is a correct non-destructive result; synthetic lifecycle tests still required. Do not mark full managed-mode acceptance PASS without a real qualified handoff.
++- Optional native-HF comparison is permitted only if compatible locally and bounded. Do not make Torch compile or a universal GPU scheduler prerequisites or enlarge the issue for them.
++- `Studio`'s existing systemd user service remains on merged `main`; do not swap its interpreter to an unreviewed branch or restart it for issue #1 tests. Host tests run in isolated worktrees and outputs.
+diff --git a/src/nvidia_transcribe/_qwen_align_worker.py b/src/nvidia_transcribe/_qwen_align_worker.py
+index 5c73527..c4df97b 100644
+--- a/src/nvidia_transcribe/_qwen_align_worker.py
++++ b/src/nvidia_transcribe/_qwen_align_worker.py
+@@ -1,77 +1,173 @@
+ #!/usr/bin/env python3
+-"""Isolated subprocess worker for Qwen3-ForcedAligner-0.6B.
++"""JSONL session worker for a single local Qwen3 ForcedAligner model load.
+ 
+-Executed strictly inside ``outputs/modular-eval/.venv`` (qwen-asr==0.0.6,
+-transformers==4.57.6) via JSON-over-stdio/args so the primary Nemotron
+-environment never mixes incompatible Transformers dependencies.
++Only the parent process owns orchestration. The worker cannot stop any other
++service and cannot silently fall back to CPU for a CUDA request.
+ """
+-
+ from __future__ import annotations
+ 
+ import json
++import contextlib
+ import os
+ import sys
++import time
+ from pathlib import Path
+ from typing import Any
+ 
+ 
++def _reply(request_id: object, status: str, **fields: Any) -> None:
++    sys.stdout.write(json.dumps({
++        "protocol": 1, "id": request_id, "status": status, **fields,
++    }, ensure_ascii=False) + "\n")
++    sys.stdout.flush()
++
++
+ def main(argv: list[str] | None = None) -> int:
++    if argv is None:
++        argv = sys.argv[1:]
++    if argv != ["--jsonl"]:
++        print("Qwen forced-aligner worker requires --jsonl protocol v1", file=sys.stderr)
++        return 2
+     os.environ.setdefault("HF_HOME", "/workspace/models/.hf-cache")
+     os.environ.setdefault("HF_HUB_CACHE", "/workspace/models/.hf-cache/hub")
+     os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+     os.environ.setdefault("HF_HUB_OFFLINE", "1")
+ 
+-    req = json.loads(sys.stdin.read())
+-    model_path = str(req["model_path"])
+-    audio_path = str(req["audio_path"])
+-    text = str(req["text"])
+-    language = str(req["language"])
+-    device = str(req.get("device") or "auto")
+-
+-    if not Path(model_path).is_dir():
+-        print(json.dumps({"status": "error", "error": f"model_dir_missing:{model_path}"}))
+-        return 0
+-
+-    import torch
+-    from qwen_asr import Qwen3ForcedAligner
++    # On Linux the separate worker process group is not reached by the
++    # Studio/CLI parent's process-group cancellation. Kernel parent-death SIGKILL
++    # prevents a stale CUDA worker surviving abrupt parent termination.
++    if sys.platform.startswith("linux"):
++        import ctypes
++        import signal
+ 
+-    if device == "auto":
+-        if torch.cuda.is_available():
+-            free_b, _ = torch.cuda.mem_get_info()
+-            # Aligner takes ~1.84 GiB BF16 weights + ~0.4 GiB activations
+-            use_device = "cuda:0" if free_b >= 2_600_000_000 else "cpu"
+-        else:
+-            use_device = "cpu"
+-    else:
+-        use_device = device
++        parent_raw = os.environ.get("NEMOVOX_QWEN_PARENT_PID")
++        try:
++            original_parent = int(parent_raw or "")
++        except ValueError:
++            print("Missing isolated worker parent identity", file=sys.stderr)
++            return 3
++        libc = ctypes.CDLL(None, use_errno=True)
++        if libc.prctl(1, signal.SIGKILL, 0, 0, 0) != 0:
++            print("Cannot arm worker parent-death cleanup", file=sys.stderr)
++            return 3
++        # Resolve the parent-death-before-prctl race by rechecking PPID.
++        if os.getppid() != original_parent:
++            return 3
+ 
+-    dtype = torch.bfloat16 if use_device.startswith("cuda") else torch.float32
+-    aligner = Qwen3ForcedAligner.from_pretrained(
+-        model_path,
+-        dtype=dtype,
+-        device_map=use_device,
+-        local_files_only=True,
+-    )
+-    res = aligner.align(audio=audio_path, text=text, language=language)[0]
+-    items: list[dict[str, Any]] = [
+-        {
+-            "text": str(it.text),
+-            "start": float(it.start_time),
+-            "end": float(it.end_time),
+-        }
+-        for it in res.items
+-    ]
+-    print(
+-        json.dumps(
+-            {
+-                "status": "ok",
+-                "device_used": use_device,
+-                "dtype": str(dtype),
+-                "items": items,
+-            },
+-            ensure_ascii=False,
+-        )
+-    )
++    aligner: Any = None
++    torch: Any = None
++    device: str | None = None
++    dtype: str | None = None
++    model_load_count = 0
++    for line in sys.stdin:
++        if len(line) > 100_000:
++            _reply(None, "invalid_request", error="Input exceeds 100 KB")
++            continue
++        try:
++            req = json.loads(line)
++            if not isinstance(req, dict) or req.get("protocol") != 1:
++                raise ValueError("Protocol mismatch")
++            action = req.get("action")
++            req_id = req.get("id")
++            if action == "shutdown":
++                _reply(req_id, "ok")
++                return 0
++            if action == "init":
++                if aligner is not None:
++                    _reply(req_id, "already_initialized")
++                    continue
++                model_path = Path(str(req.get("model_path") or ""))
++                requested = str(req.get("device") or "cuda:0")
++                if requested not in {"cuda:0", "cpu"}:
++                    _reply(req_id, "invalid_device")
++                    continue
++                if not model_path.is_dir():
++                    _reply(req_id, "unavailable", error="Model directory missing")
++                    continue
++                import torch as torch_module
++                torch = torch_module
++                if requested == "cuda:0":
++                    if not torch.cuda.is_available() or torch.cuda.device_count() < 1:
++                        _reply(req_id, "blocked_gpu_unavailable")
++                        continue
++                    if not torch.cuda.is_bf16_supported():
++                        _reply(req_id, "blocked_bf16_unsupported")
++                        continue
++                    free_b, _ = torch.cuda.mem_get_info(0)
++                    if free_b < int(req.get("min_free_vram_bytes") or 2_600_000_000):
++                        _reply(req_id, "blocked_insufficient_vram", free_bytes=free_b)
++                        continue
++                device = requested
++                use_dtype = torch.bfloat16 if device.startswith("cuda") else torch.float32
++                t0 = time.monotonic()
++                # Third-party progress/log writes must never corrupt the
++                # machine-readable stdout protocol.
++                with contextlib.redirect_stdout(sys.stderr):
++                    from qwen_asr import Qwen3ForcedAligner
++                    aligner = Qwen3ForcedAligner.from_pretrained(
++                        str(model_path), dtype=use_dtype,
++                        device_map=device, local_files_only=True,
++                    )
++                dtype = str(use_dtype)
++                observed_dtype = None
++                for candidate in (aligner, *(getattr(aligner, name, None)
++                                              for name in ("model", "_model", "aligner_model"))):
++                    if candidate is None or not hasattr(candidate, "parameters"):
++                        continue
++                    try:
++                        observed_dtype = str(next(candidate.parameters()).dtype)
++                        break
++                    except (AttributeError, StopIteration, TypeError):
++                        continue
++                cuda_allocated = (
++                    int(torch.cuda.memory_allocated(0)) if device.startswith("cuda") else None
++                )
++                if device.startswith("cuda") and (cuda_allocated or 0) < 100_000_000:
++                    _reply(req_id, "blocked_device_unverified",
++                           error="CUDA was requested but substantial GPU model allocation was not observed")
++                    return 3
++                if observed_dtype is not None and observed_dtype != str(use_dtype):
++                    _reply(req_id, "blocked_dtype_mismatch",
++                           error=f"Requested {use_dtype}, observed {observed_dtype}")
++                    return 3
++                model_load_count += 1
++                _reply(req_id, "ok", device_used=device, dtype=dtype,
++                       observed_dtype=observed_dtype,
++                       cuda_allocated_bytes=cuda_allocated,
++                       model_load_count=model_load_count,
++                       model_load_wall_s=round(time.monotonic() - t0, 4),
++                       peak_gpu_allocated_bytes=(
++                           int(torch.cuda.max_memory_allocated(0))
++                           if device.startswith("cuda") else None
++                       ))
++                continue
++            if action != "align" or aligner is None:
++                _reply(req_id, "not_initialized")
++                continue
++            audio_path = Path(str(req["audio_path"]))
++            text = str(req["text"])
++            language = str(req["language"])
++            if not audio_path.is_file() or not text.strip() or len(text) > 30_000:
++                _reply(req_id, "invalid_request", error="Invalid audio or text")
++                continue
++            t0 = time.monotonic()
++            with contextlib.redirect_stdout(sys.stderr):
++                output = aligner.align(audio=str(audio_path), text=text, language=language)[0]
++            items = [
++                {"text": str(item.text),
++                 "start": float(item.start_time), "end": float(item.end_time)}
++                for item in output.items
++            ]
++            _reply(req_id, "ok", items=items, device_used=device, dtype=dtype,
++                   model_load_count=model_load_count,
++                   inference_wall_s=round(time.monotonic() - t0, 4),
++                   peak_gpu_allocated_bytes=(
++                       int(torch.cuda.max_memory_allocated(0))
++                       if device and device.startswith("cuda") else None
++                   ))
++        except Exception as exc:
++            _reply(req.get("id") if "req" in locals() and isinstance(req, dict) else None,
++                   "worker_error", error=f"{type(exc).__name__}: {str(exc)[:240]}")
+     return 0
+ 
+ 
+diff --git a/src/nvidia_transcribe/cli.py b/src/nvidia_transcribe/cli.py
+index b42d870..754fecd 100644
+--- a/src/nvidia_transcribe/cli.py
++++ b/src/nvidia_transcribe/cli.py
+@@ -9,6 +9,7 @@ from pathlib import Path
+ 
+ from nvidia_transcribe.checkpoint import DEFAULT_MODEL_PATH, CheckpointValidationError, validate_checkpoint
+ from nvidia_transcribe.client import InferenceRequestConfig, NemotronVLLMClient
++from nvidia_transcribe.gpu_handoff import ManagedASRBlocked, ManagedASRConfig, recover_pending_managed_asr
+ from nvidia_transcribe.media import MediaInspectionError
+ from nvidia_transcribe.parser import CTCMetadataError
+ from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
+@@ -105,6 +106,26 @@ def build_parser() -> argparse.ArgumentParser:
+     gs.add_argument("--fresh-translation", action="store_true", help="Ignore translation checkpoint cache.")
+     gs.add_argument("--re-render", action="store_true", help="Re-render SRT/ASS directly from translated.contract.json without model calls.")
+     gs.add_argument("--validation-overlay", default=None, help="Optional viewing-validation JSON overlay for coarse timing & polish.")
++    for parser in (pm, gs):
++        parser.add_argument("--qwen-policy", default="subtitle", choices=["subtitle", "fine"],
++                            help="Admit useful untimed subtitle windows by default; fine admits smaller gaps.")
++        parser.add_argument("--qwen-device", default="cuda:0", choices=["cuda:0", "cpu"],
++                            help="CUDA BF16 required unless CPU is explicitly selected.")
++        parser.add_argument("--qwen-gpu-mode", default="available", choices=["available", "managed"],
++                            help="Default never alters other services; managed requires a cooperative ASR lease.")
++        parser.add_argument("--qwen-owned-asr-unit", default=None,
++                            help="Explicit Nemovox-owned ASR systemd user unit, managed mode only.")
++        parser.add_argument("--qwen-asr-lease-path", default=None,
++                            help="Cooperative ASR ownership lease file, managed mode only.")
++
++    recover = sub.add_parser(
++        "recover-qwen-asr", help="Explicitly verify and restore a previously owned interrupted ASR handoff."
++    )
++    recover.add_argument("--asr-unit", required=True)
++    recover.add_argument("--base-url", required=True)
++    recover.add_argument("--model", required=True)
++    recover.add_argument("--lease-path", required=True)
++    recover.add_argument("--journal", required=True)
+     return p
+ 
+ 
+@@ -112,6 +133,20 @@ def main(argv: list[str] | None = None) -> int:
+     parser = build_parser()
+     args = parser.parse_args(argv)
+ 
++    if args.command == "recover-qwen-asr":
++        try:
++            report = recover_pending_managed_asr(ManagedASRConfig(
++                unit=args.asr_unit, lease_path=Path(args.lease_path),
++                base_url=args.base_url, served_model=args.model,
++                journal_path=Path(args.journal),
++            ))
++        except (ManagedASRBlocked, ValueError, RuntimeError) as exc:
++            print(json.dumps({"status": "BLOCKED", "reason": getattr(exc, "status", type(exc).__name__)}),
++                  file=sys.stderr)
++            return 2
++        print(json.dumps(report, ensure_ascii=False, indent=2))
++        return 0
++
+     if args.command == "validate-checkpoint":
+         try:
+             summary = validate_checkpoint(args.model_path)
+@@ -161,6 +196,11 @@ def main(argv: list[str] | None = None) -> int:
+             embedding_threshold=args.embedding_threshold,
+             enable_subinterval_recovery=not args.no_subinterval_recovery,
+             alignment_fallback=args.alignment_fallback,
++            qwen_policy=args.qwen_policy,
++            qwen_device=args.qwen_device,
++            qwen_gpu_mode=args.qwen_gpu_mode,
++            qwen_owned_asr_unit=args.qwen_owned_asr_unit,
++            qwen_asr_lease_path=args.qwen_asr_lease_path,
+             resume=not args.fresh,
+             model_path=args.model_path,
+         )
+@@ -223,6 +263,11 @@ def main(argv: list[str] | None = None) -> int:
+             context_seconds=args.context_seconds,
+             min_tail_seconds=args.min_tail_seconds,
+             alignment_fallback=args.alignment_fallback,
++            qwen_policy=args.qwen_policy,
++            qwen_device=args.qwen_device,
++            qwen_gpu_mode=args.qwen_gpu_mode,
++            qwen_owned_asr_unit=args.qwen_owned_asr_unit,
++            qwen_asr_lease_path=args.qwen_asr_lease_path,
+             asr_base_url=args.base_url,
+             asr_model=args.model,
+             refinement=ref_cfg,
+diff --git a/src/nvidia_transcribe/gpu_handoff.py b/src/nvidia_transcribe/gpu_handoff.py
+new file mode 100644
+index 0000000..204aff0
+--- /dev/null
++++ b/src/nvidia_transcribe/gpu_handoff.py
+@@ -0,0 +1,364 @@
++"""Opt-in reversible control of a *cooperatively owned* Nemovox ASR user unit.
++
++No generic GPU scheduler, guessed service names, or permission escalation.
++Unmarked, busy, non-Nemovox or shared services are never stopped.
++"""
++from __future__ import annotations
++
++import fcntl
++import hashlib
++import json
++import os
++import re
++import subprocess
++import signal
++import threading
++import time
++import urllib.error
++import urllib.parse
++import urllib.request
++from contextlib import contextmanager
++from dataclasses import dataclass
++from pathlib import Path
++from typing import Any, Iterator
++
++
++class ManagedASRBlocked(RuntimeError):
++    """Typed non-mutating admission failure, or a detected lifecycle fault."""
++
++    def __init__(self, status: str, detail: str = "") -> None:
++        super().__init__(detail or status)
++        self.status = status
++
++
++@dataclass(frozen=True)
++class ManagedASRConfig:
++    unit: str
++    lease_path: Path
++    base_url: str
++    served_model: str
++    journal_path: Path
++    timeout_s: float = 45.0
++    min_free_vram_mb: int = 2600
++
++    def __post_init__(self) -> None:
++        if not re.fullmatch(r"nemovox-[A-Za-z0-9_.@-]+\.service", self.unit):
++            raise ValueError("Managed ASR unit must be explicitly named nemovox-*.service")
++        if self.unit == "nemovox-studio.service":
++            raise ValueError("Studio service is not an ASR-owned unit")
++        parsed = urllib.parse.urlsplit(self.base_url)
++        if parsed.scheme != "http" or parsed.hostname not in {"127.0.0.1", "localhost"}:
++            raise ValueError("Managed ASR service must use loopback HTTP")
++        if not 1 <= (parsed.port or 0) <= 65535:
++            raise ValueError("Managed ASR base URL must declare a port")
++        if not self.served_model.strip() or not 5 <= self.timeout_s <= 180:
++            raise ValueError("Invalid managed ASR model/timeout")
++
++
++def _run_systemctl(*args: str) -> str:
++    try:
++        proc = subprocess.run(
++            ["systemctl", "--user", *args],
++            check=False, text=True, capture_output=True, timeout=12,
++        )
++    except (OSError, subprocess.TimeoutExpired) as exc:
++        raise ManagedASRBlocked("systemctl_unavailable", type(exc).__name__) from exc
++    if proc.returncode:
++        raise ManagedASRBlocked("systemctl_failed", proc.stderr[-250:])
++    return proc.stdout
++
++
++def _unit_properties(unit: str) -> dict[str, str]:
++    keys = "LoadState,ActiveState,MainPID,InvocationID,ExecStart,Environment,FragmentPath"
++    out = _run_systemctl("show", unit, "--no-page", "--property="+keys)
++    return dict(line.split("=", 1) for line in out.splitlines() if "=" in line)
++
++
++def _free_vram_mb() -> int | None:
++    try:
++        p = subprocess.run(
++            ["nvidia-smi", "--query-gpu=memory.free", "--format=csv,noheader,nounits"],
++            text=True, capture_output=True, timeout=5, check=False,
++        )
++        if p.returncode == 0:
++            return int(p.stdout.splitlines()[0].strip())
++    except (OSError, subprocess.TimeoutExpired, IndexError, ValueError):
++        pass
++    return None
++
++
++def _models_healthy(base_url: str, model: str, timeout: float = 4.0) -> bool:
++    url = base_url.rstrip("/")
++    if not url.endswith("/v1"):
++        url += "/v1"
++    try:
++        with urllib.request.urlopen(url + "/models", timeout=timeout) as response:
++            if response.status != 200:
++                return False
++            result = json.loads(response.read(500_000))
++            return any(str(m.get("id")) == model for m in result.get("data", []))
++    except (OSError, ValueError, KeyError, urllib.error.URLError):
++        return False
++
++
++def _wait_unit(unit: str, active: bool, deadline: float) -> dict[str, str]:
++    while time.monotonic() < deadline:
++        props = _unit_properties(unit)
++        state = props.get("ActiveState")
++        if active and state == "active" and int(props.get("MainPID") or 0) > 0:
++            return props
++        if not active and state in {"inactive", "failed"}:
++            return props
++        time.sleep(0.3)
++    raise ManagedASRBlocked("unit_transition_timeout", f"{unit} did not reach expected state")
++
++
++def _verified_owner(cfg: ManagedASRConfig) -> dict[str, str]:
++    props = _unit_properties(cfg.unit)
++    if props.get("LoadState") != "loaded" or props.get("ActiveState") != "active":
++        raise ManagedASRBlocked("asr_unit_not_active")
++    if not props.get("FragmentPath") or not props.get("InvocationID"):
++        raise ManagedASRBlocked("asr_owner_unknown")
++    pid = int(props.get("MainPID") or 0)
++    if pid <= 0:
++        raise ManagedASRBlocked("asr_owner_unknown")
++    # The marker is a specific opt-in contract installed by the ASR unit's
++    # operator, not a wildcard permission to stop any vLLM service.
++    env = props.get("Environment") or ""
++    if "NEMOVOX_MANAGED_ASR=1" not in env or (
++        "NEMOVOX_ASR_LEASE_PATH=" + str(cfg.lease_path)
++    ) not in env:
++        raise ManagedASRBlocked("asr_not_cooperatively_owned")
++    try:
++        cmdline = Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\0", b" ").decode("utf-8")
++    except (OSError, UnicodeError) as exc:
++        raise ManagedASRBlocked("asr_owner_unknown", type(exc).__name__) from exc
++    port = str(urllib.parse.urlsplit(cfg.base_url).port)
++    if (port not in cmdline or
++        "vllm" not in (cmdline + props.get("ExecStart", "")).lower() or
++        "nemotron" not in (cmdline + props.get("ExecStart", "")).lower()):
++        raise ManagedASRBlocked("asr_identity_mismatch")
++    if not _models_healthy(cfg.base_url, cfg.served_model):
++        raise ManagedASRBlocked("asr_model_health_mismatch")
++    # Catch live non-cooperating clients at the handoff boundary. This is
++    # supplemental to, not a replacement for, the cooperative lease contract.
++    try:
++        observed = subprocess.run(
++            ["ss", "-Htn", "state", "established",
++             f"( sport = :{urllib.parse.urlsplit(cfg.base_url).port} )"],
++            text=True, capture_output=True, timeout=5, check=False,
++        )
++    except (OSError, subprocess.TimeoutExpired) as exc:
++        raise ManagedASRBlocked("asr_clients_unverifiable") from exc
++    if observed.returncode != 0:
++        raise ManagedASRBlocked("asr_clients_unverifiable")
++    if observed.stdout.strip():
++        raise ManagedASRBlocked("asr_has_live_connections")
++    return props
++
++
++def _check_lease(path: Path) -> Any:
++    path = path.resolve()
++    try:
++        st = path.stat()
++    except OSError as exc:
++        raise ManagedASRBlocked("asr_lease_missing", type(exc).__name__) from exc
++    if st.st_uid != os.getuid() or st.st_mode & 0o077 or not path.is_file():
++        raise ManagedASRBlocked("asr_lease_permissions")
++    file = path.open("a+b")
++    try:
++        fcntl.flock(file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
++    except BlockingIOError as exc:
++        file.close()
++        raise ManagedASRBlocked("asr_busy") from exc
++    return file
++
++
++def _pending_journal(path: Path) -> bool:
++    try:
++        state = json.loads(path.read_text(encoding="utf-8"))
++    except FileNotFoundError:
++        return False
++    except (OSError, ValueError) as exc:
++        raise ManagedASRBlocked("handoff_journal_unreadable") from exc
++    return state.get("phase") not in {"restored", "not_stopped"}
++
++
++def _write_journal(path: Path, entry: dict[str, Any]) -> None:
++    path.parent.mkdir(parents=True, exist_ok=True)
++    tmp = path.with_name("." + path.name + ".tmp")
++    try:
++        with tmp.open("w", encoding="utf-8") as fp:
++            json.dump(entry, fp, indent=2)
++            fp.flush()
++            os.fsync(fp.fileno())
++        os.replace(tmp, path)
++    finally:
++        tmp.unlink(missing_ok=True)
++
++
++@contextmanager
++def managed_asr_handoff(cfg: ManagedASRConfig) -> Iterator[dict[str, Any]]:
++    """Release a cooperatively owned ASR instance only if CUDA lacks free VRAM.
++
++    A journal is durably written before stop. On normal/error/interrupt,
++    release proceeds first, then systemd restores the exact same pre-existing
++    unit and confirms the exact served model. An interrupted journal blocks
++    future automatic takeovers: operator must inspect/restore service first.
++    """
++    telemetry: dict[str, Any] = {"mode": "managed", "released": False, "restored": False}
++    # A previous interrupted release must never be ignored simply because
++    # VRAM happens to be free (the ASR unit might still be stopped).
++    if _pending_journal(cfg.journal_path):
++        raise ManagedASRBlocked("prior_handoff_requires_recovery")
++    free = _free_vram_mb()
++    telemetry["free_vram_before_mb"] = free
++    if free is None:
++        raise ManagedASRBlocked("gpu_telemetry_unavailable")
++    if free >= cfg.min_free_vram_mb:
++        telemetry["status"] = "cuda_already_available"
++        yield telemetry
++        return
++    lease = _check_lease(cfg.lease_path)
++    stopped = False
++    original: dict[str, str] | None = None
++    previous_sigterm: Any = None
++    sigterm_installed = False
++    try:
++        # Unlike SIGKILL, SIGTERM can execute Python finally blocks. Treat
++        # Studio/CLI cancellation as an exception so the owned ASR instance
++        # is restored before the CLI exits. Non-main threads cannot install
++        # signal handlers; their cancellation still requires normal context
++        # unwinding or explicit interrupted-journal recovery.
++        if threading.current_thread() is threading.main_thread():
++            previous_sigterm = signal.getsignal(signal.SIGTERM)
++
++            def _cancel_managed_handoff(_signum: int, _frame: Any) -> None:
++                raise KeyboardInterrupt("Managed ASR handoff interrupted by SIGTERM")
++
++            signal.signal(signal.SIGTERM, _cancel_managed_handoff)
++            sigterm_installed = True
++        original = _verified_owner(cfg)
++        telemetry["owner_invocation_id"] = original.get("InvocationID")
++        _write_journal(cfg.journal_path, {
++            "phase": "pending_restore", "unit": cfg.unit,
++            "invocation_id": original.get("InvocationID"),
++            "served_model": cfg.served_model,
++            "base_url": cfg.base_url, "originally_active": True,
++            "unit_exec_sha256": hashlib.sha256(
++                original.get("ExecStart", "").encode("utf-8")
++            ).hexdigest(),
++            "unit_fragment_path": original.get("FragmentPath"),
++        })
++        # From this point even a systemctl transport error is ambiguous:
++        # always inspect/restore the prior unit in the finally path.
++        stopped = True
++        _run_systemctl("stop", cfg.unit)
++        _wait_unit(cfg.unit, False, time.monotonic() + cfg.timeout_s)
++        deadline = time.monotonic() + min(cfg.timeout_s, 30)
++        while time.monotonic() < deadline:
++            released_mb = _free_vram_mb()
++            if released_mb is not None and released_mb >= cfg.min_free_vram_mb:
++                telemetry["free_vram_after_release_mb"] = released_mb
++                break
++            time.sleep(0.5)
++        else:
++            raise ManagedASRBlocked("vram_not_released")
++        telemetry["released"] = True
++        yield telemetry
++    finally:
++        try:
++            if stopped and original is not None:
++                current = _unit_properties(cfg.unit)
++                if current.get("ActiveState") != "active":
++                    _run_systemctl("start", cfg.unit)
++                    current = _wait_unit(cfg.unit, True, time.monotonic() + cfg.timeout_s)
++                # An already-running unit can be the original process when
++                # stop failed without side effects; do not restart it needlessly.
++                if current.get("ActiveState") != "active":
++                    raise ManagedASRBlocked("asr_restore_not_active")
++                deadline = time.monotonic() + cfg.timeout_s
++                while time.monotonic() < deadline:
++                    if _models_healthy(cfg.base_url, cfg.served_model):
++                        telemetry["restored"] = True
++                        break
++                    time.sleep(0.5)
++                if not telemetry["restored"]:
++                    raise ManagedASRBlocked("asr_restore_health_failed")
++                _write_journal(cfg.journal_path, {
++                    "phase": "restored", "unit": cfg.unit,
++                    "original_invocation_id": original.get("InvocationID"),
++                    "restored_invocation_id": current.get("InvocationID"),
++                })
++        finally:
++            try:
++                if sigterm_installed:
++                    signal.signal(signal.SIGTERM, previous_sigterm)
++            finally:
++                fcntl.flock(lease.fileno(), fcntl.LOCK_UN)
++                lease.close()
++
++
++def recover_pending_managed_asr(cfg: ManagedASRConfig) -> dict[str, Any]:
++    """Explicit crash-recovery operation: revalidate unit identity before start.
++
++    This is NOT called automatically by an ordinary subtitle processing run.
++    It never restarts a service unless its prior active state, unit file,
++    original executable, cooperative marker and lease are all evidenced.
++    """
++    path = cfg.journal_path
++    try:
++        data = json.loads(path.read_text(encoding="utf-8"))
++    except FileNotFoundError:
++        return {"status": "no_pending_handoff"}
++    except (OSError, ValueError) as exc:
++        raise ManagedASRBlocked("handoff_journal_unreadable") from exc
++    if data.get("phase") == "restored":
++        return {"status": "already_restored"}
++    if not (
++        data.get("phase") == "pending_restore"
++        and data.get("unit") == cfg.unit
++        and data.get("served_model") == cfg.served_model
++        and data.get("base_url") == cfg.base_url
++        and data.get("originally_active") is True
++        and data.get("unit_exec_sha256")
++        and data.get("unit_fragment_path")
++    ):
++        raise ManagedASRBlocked("handoff_journal_identity_mismatch")
++    lease = _check_lease(cfg.lease_path)
++    try:
++        props = _unit_properties(cfg.unit)
++        env = props.get("Environment") or ""
++        if props.get("LoadState") != "loaded":
++            raise ManagedASRBlocked("asr_unit_not_loaded")
++        if "NEMOVOX_MANAGED_ASR=1" not in env or (
++            "NEMOVOX_ASR_LEASE_PATH=" + str(cfg.lease_path)
++        ) not in env:
++            raise ManagedASRBlocked("asr_not_cooperatively_owned")
++        if props.get("FragmentPath") != data["unit_fragment_path"]:
++            raise ManagedASRBlocked("asr_unit_changed_since_handoff")
++        if hashlib.sha256(props.get("ExecStart", "").encode()).hexdigest() != data["unit_exec_sha256"]:
++            raise ManagedASRBlocked("asr_unit_changed_since_handoff")
++        command = props.get("ExecStart", "").lower()
++        port = str(urllib.parse.urlsplit(cfg.base_url).port)
++        if "vllm" not in command or "nemotron" not in command or port not in command:
++            raise ManagedASRBlocked("asr_identity_mismatch")
++        if props.get("ActiveState") != "active":
++            if props.get("ActiveState") not in {"inactive", "failed"}:
++                raise ManagedASRBlocked("asr_state_unknown")
++            _run_systemctl("start", cfg.unit)
++            props = _wait_unit(cfg.unit, True, time.monotonic() + cfg.timeout_s)
++        deadline = time.monotonic() + cfg.timeout_s
++        while time.monotonic() < deadline:
++            if _models_healthy(cfg.base_url, cfg.served_model):
++                _write_journal(path, {
++                    "phase": "restored", "unit": cfg.unit,
++                    "restored_invocation_id": props.get("InvocationID"),
++                    "recovered_from": data.get("invocation_id"),
++                })
++                return {"status": "restored", "unit": cfg.unit, "health_verified": True}
++            time.sleep(0.5)
++        raise ManagedASRBlocked("asr_restore_health_failed")
++    finally:
++        fcntl.flock(lease.fileno(), fcntl.LOCK_UN)
++        lease.close()
+diff --git a/src/nvidia_transcribe/qwen_aligner.py b/src/nvidia_transcribe/qwen_aligner.py
+index adcb8d1..80e394c 100644
+--- a/src/nvidia_transcribe/qwen_aligner.py
++++ b/src/nvidia_transcribe/qwen_aligner.py
+@@ -4,6 +4,7 @@ from __future__ import annotations
+ 
+ import json
+ import math
++import os
+ import subprocess
+ import wave
+ from dataclasses import dataclass
+@@ -176,132 +177,306 @@ def validate_qwen_items(
+ class QwenAlignerConfig:
+     model_path: str = str(DEFAULT_QWEN_ALIGNER_PATH)
+     worker_python: str = str(DEFAULT_QWEN_PYTHON)
+-    device: str = "auto"
++    device: str = "cuda:0"  # GPU required; CPU only with explicit device="cpu".
+     timeout_s: float = 120.0
++    startup_timeout_s: float = 120.0
++    min_free_vram_bytes: int = 2_600_000_000
++
++
++class QwenWorkerError(RuntimeError):
++    """A typed, non-silent failure of the isolated forced-aligner worker."""
++
++    def __init__(self, status: str, detail: str = "") -> None:
++        super().__init__(detail or status)
++        self.status = status
++
++
++class QwenAlignerSession:
++    """One isolated model load for multiple requests; no implicit CPU downgrade.
++
++    JSONL worker protocol v1: init -> ready -> align* -> shutdown. Parent owns
++    subprocess session and kills the entire worker group on every exit path.
++    """
++
++    def __init__(self, config: QwenAlignerConfig) -> None:
++        self.config = config
++        self.process: subprocess.Popen[bytes] | None = None
++        self._stderr: Any = None
++        self._buffer = bytearray()
++        self._pending = bytearray()
++        self._next_id = 1
++        self.started = False
++        self.failed = False
++        self.metrics: dict[str, Any] = {
++            "model_load_count": 0, "align_count": 0,
++            "startup_wall_s": 0.0, "inference_wall_s": 0.0,
++            "peak_gpu_allocated_bytes": None,
++        }
++
++    def __enter__(self) -> "QwenAlignerSession":
++        return self
++
++    def __exit__(self, *_exc: object) -> None:
++        self.close()
++
++    def _read(self, timeout_s: float) -> dict[str, Any]:
++        import os
++        import select
++        import time
++
++        assert self.process is not None and self.process.stdout is not None
++        fd = self.process.stdout.fileno()
++        deadline = time.monotonic() + timeout_s
++        while True:
++            nl = self._buffer.find(b"\n")
++            if nl >= 0:
++                raw = bytes(self._buffer[:nl])
++                del self._buffer[:nl + 1]
++                if len(raw) > 4_000_000:
++                    raise QwenWorkerError("malformed_worker_output", "Worker JSON response too large")
++                try:
++                    response = json.loads(raw.decode("utf-8"))
++                except (UnicodeError, ValueError) as exc:
++                    raise QwenWorkerError("malformed_worker_output", str(exc)) from exc
++                if not isinstance(response, dict) or response.get("protocol") != 1:
++                    raise QwenWorkerError("malformed_worker_output", "Worker protocol mismatch")
++                return response
++            if len(self._buffer) > 4_000_000:
++                raise QwenWorkerError("malformed_worker_output", "Worker response exceeds 4 MB")
++            remaining = deadline - time.monotonic()
++            if remaining <= 0:
++                raise QwenWorkerError("worker_timeout", "Qwen worker deadline exceeded")
++            ready, _, _ = select.select([fd], [], [], remaining)
++            if not ready:
++                raise QwenWorkerError("worker_timeout", "Qwen worker deadline exceeded")
++            chunk = os.read(fd, 65536)
++            if not chunk:
++                raise QwenWorkerError("worker_exited", f"Qwen worker exited ({self.process.poll()})")
++            self._buffer.extend(chunk)
++
++    def _request(self, action: str, payload: dict[str, Any], timeout_s: float) -> dict[str, Any]:
++        assert self.process is not None and self.process.stdin is not None
++        req_id = self._next_id
++        self._next_id += 1
++        message = json.dumps({"protocol": 1, "id": req_id, "action": action, **payload}, ensure_ascii=False)
++        if len(message.encode("utf-8")) > 100_000:
++            raise QwenWorkerError("invalid_request", "Worker request too large")
++        try:
++            self.process.stdin.write((message + "\n").encode("utf-8"))
++            self.process.stdin.flush()
++            response = self._read(timeout_s)
++        except (BrokenPipeError, OSError) as exc:
++            raise QwenWorkerError("worker_exited", str(exc)) from exc
++        if response.get("id") != req_id:
++            raise QwenWorkerError("malformed_worker_output", "Worker request/response ID mismatch")
++        if response.get("status") != "ok":
++            raise QwenWorkerError(str(response.get("status") or "worker_error"),
++                                  str(response.get("error") or "")[:300])
++        return response
++
++    def start(self) -> None:
++        import tempfile
++        import time
++
++        if self.started:
++            return
++        if self.failed:
++            raise QwenWorkerError("worker_failed", "Prior session failure; cannot reuse")
++        py_path = Path(self.config.worker_python)
++        model_dir = Path(self.config.model_path)
++        if not py_path.is_file() or not model_dir.is_dir() or not WORKER_SCRIPT.is_file():
++            raise QwenWorkerError("unavailable", "Qwen worker Python, model, or worker script unavailable")
++        if self.config.device not in {"cuda:0", "auto", "cpu"}:
++            raise QwenWorkerError("invalid_device", "Use cuda:0, auto (CUDA-required), or explicit cpu")
++        self._stderr = tempfile.TemporaryFile(mode="w+b")
++        t0 = time.monotonic()
++        try:
++            self.process = subprocess.Popen(
++                [str(py_path), str(WORKER_SCRIPT), "--jsonl"],
++                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
++                stderr=self._stderr, bufsize=0, start_new_session=True,
++                env={**os.environ, "NEMOVOX_QWEN_PARENT_PID": str(os.getpid())},
++            )
++            ready = self._request("init", {
++                "model_path": str(model_dir),
++                "device": "cuda:0" if self.config.device == "auto" else self.config.device,
++                "min_free_vram_bytes": self.config.min_free_vram_bytes,
++            }, self.config.startup_timeout_s)
++            used = str(ready.get("device_used") or "")
++            expected = "cpu" if self.config.device == "cpu" else "cuda:0"
++            if used != expected:
++                raise QwenWorkerError("device_mismatch", f"Expected {expected}, worker used {used}")
++            self.metrics.update(
++                model_load_count=ready.get("model_load_count", 0),
++                device_used=used, dtype=ready.get("dtype"),
++                observed_dtype=ready.get("observed_dtype"),
++                cuda_allocated_bytes=ready.get("cuda_allocated_bytes"),
++                model_load_wall_s=ready.get("model_load_wall_s"),
++                startup_wall_s=round(time.monotonic() - t0, 4),
++                peak_gpu_allocated_bytes=ready.get("peak_gpu_allocated_bytes"),
++            )
++            if self.metrics["model_load_count"] != 1:
++                raise QwenWorkerError("unexpected_model_load_count", "Worker did not load exactly once")
++            self.started = True
++        except Exception:
++            self.failed = True
++            self.close()
++            raise
++
++    def align(
++        self, *, audio_path: Path, text: str, language: str, source_offset_s: float,
++    ) -> dict[str, Any]:
++        import time
++
++        self.start()
++        t0 = time.monotonic()
++        try:
++            result = self._request("align", {
++                "audio_path": str(audio_path), "text": text, "language": language,
++            }, self.config.timeout_s)
++        except Exception:
++            self.failed = True
++            self.close()
++            raise
++        elapsed = time.monotonic() - t0
++        self.metrics["align_count"] += 1
++        self.metrics["inference_wall_s"] += elapsed
++        current_peak = result.get("peak_gpu_allocated_bytes")
++        if isinstance(current_peak, (int, float)):
++            old_peak = self.metrics.get("peak_gpu_allocated_bytes") or 0
++            self.metrics["peak_gpu_allocated_bytes"] = max(old_peak, int(current_peak))
++        return result
++
++    def close(self) -> None:
++        import os
++        import signal
++
++        process = self.process
++        self.process = None
++        self.started = False
++        if process is not None:
++            try:
++                if process.poll() is None and process.stdin is not None:
++                    process.stdin.write(
++                        (json.dumps({"protocol": 1, "id": self._next_id, "action": "shutdown"}) + "\n").encode()
++                    )
++                    process.stdin.flush()
++                    process.wait(timeout=3)
++            except (OSError, BrokenPipeError, subprocess.TimeoutExpired):
++                pass
++            # Reap remaining live group members even when the model-worker
++            # leader already exited. Zombies are not mistaken for active GPU
++            # consumers, and no unrelated system service is signaled.
++            import time
++            def group_live() -> bool:
++                proc_root = Path("/proc")
++                if proc_root.is_dir():
++                    for entry in proc_root.iterdir():
++                        if not entry.name.isdecimal():
++                            continue
++                        try:
++                            stat = (entry / "stat").read_text().rsplit(") ", 1)[1].split()
++                            if stat[0] not in {"Z", "X"} and int(stat[2]) == process.pid and int(stat[3]) == process.pid:
++                                return True
++                        except (OSError, IndexError, ValueError):
++                            continue
++                    return False
++                try:
++                    os.killpg(process.pid, 0)
++                    return True
++                except ProcessLookupError:
++                    return False
++            for sig in (signal.SIGTERM, signal.SIGKILL):
++                if not group_live():
++                    break
++                try:
++                    os.killpg(process.pid, sig)
++                except ProcessLookupError:
++                    break
++                deadline = time.monotonic() + 2
++                while group_live() and time.monotonic() < deadline:
++                    time.sleep(0.05)
++            process.wait(timeout=2)
++            if group_live():
++                raise QwenWorkerError("worker_cleanup_failed", "Qwen worker descendants remain")
++            if process.stdin is not None:
++                process.stdin.close()
++            if process.stdout is not None:
++                process.stdout.close()
++        if self._stderr is not None:
++            self._stderr.close()
++            self._stderr = None
+ 
+ 
+ class QwenForcedAlignerAdapter:
+-    """``ExternalForcedAligner`` adapter invoking Qwen3-ForcedAligner-0.6B in its isolated venv."""
++    """Lazy session-backed adapter; one worker/model across multiple span alignments."""
+ 
+     def __init__(self, config: QwenAlignerConfig | None = None) -> None:
+         self.config = config or QwenAlignerConfig()
++        self.session = QwenAlignerSession(self.config)
+ 
+-    def align(
+-        self,
+-        *,
+-        audio_path: Path,
+-        text: str,
+-        language: str | None,
+-        source_offset_s: float,
+-    ) -> dict[str, Any]:
++    def __enter__(self) -> "QwenForcedAlignerAdapter":
++        return self
++
++    def __exit__(self, *_exc: object) -> None:
++        self.close()
++
++    def close(self) -> None:
++        self.session.close()
++
++    @property
++    def metrics(self) -> dict[str, Any]:
++        return dict(self.session.metrics)
++
++    def align(self, *, audio_path: Path, text: str, language: str | None,
++              source_offset_s: float) -> dict[str, Any]:
+         qwen_lang = map_language_for_qwen_aligner(language)
+         if qwen_lang is None:
+-            return {
+-                "units": [],
+-                "diagnostic": {
+-                    "backend": "qwen3_forced_aligner",
+-                    "status": "unsupported_language",
+-                    "requested_language": language,
+-                },
+-            }
+-
++            return {"units": [], "diagnostic": {
++                "backend": "qwen3_forced_aligner", "status": "unsupported_language",
++                "requested_language": language,
++            }}
+         py_path = Path(self.config.worker_python)
+         model_dir = Path(self.config.model_path)
+         if not py_path.is_file() or not model_dir.is_dir() or not WORKER_SCRIPT.is_file():
+-            return {
+-                "units": [],
+-                "diagnostic": {
+-                    "backend": "qwen3_forced_aligner",
+-                    "status": "unavailable",
+-                    "worker_python": str(py_path),
+-                    "model_path": str(model_dir),
+-                },
+-            }
+-
++            return {"units": [], "diagnostic": {
++                "backend": "qwen3_forced_aligner", "status": "unavailable",
++                "worker_python": str(py_path), "model_path": str(model_dir),
++            }}
+         dur_s = _wav_duration_s(Path(audio_path))
+         if dur_s is not None and dur_s > MAX_QWEN_ALIGN_SECONDS:
+-            return {
+-                "units": [],
+-                "diagnostic": {
+-                    "backend": "qwen3_forced_aligner",
+-                    "status": "duration_exceeds_max_limit",
+-                    "audio_duration_s": round(dur_s, 3),
+-                    "max_seconds": MAX_QWEN_ALIGN_SECONDS,
+-                },
+-            }
+-
+-        payload = {
+-            "model_path": str(model_dir),
+-            "audio_path": str(audio_path),
+-            "text": text,
+-            "language": qwen_lang,
+-            "device": self.config.device,
+-        }
++            return {"units": [], "diagnostic": {
++                "backend": "qwen3_forced_aligner", "status": "duration_exceeds_max_limit",
++                "audio_duration_s": round(dur_s, 3), "max_seconds": MAX_QWEN_ALIGN_SECONDS,
++            }}
+         try:
+-            proc = subprocess.run(
+-                [str(py_path), str(WORKER_SCRIPT)],
+-                input=json.dumps(payload, ensure_ascii=False),
+-                capture_output=True,
+-                text=True,
+-                timeout=self.config.timeout_s,
++            raw_out = self.session.align(
++                audio_path=Path(audio_path), text=text,
++                language=qwen_lang, source_offset_s=source_offset_s,
+             )
+-        except Exception as exc:
+-            return {
+-                "units": [],
+-                "diagnostic": {
+-                    "backend": "qwen3_forced_aligner",
+-                    "status": "worker_invocation_failed",
+-                    "error": f"{type(exc).__name__}: {exc}",
+-                },
+-            }
+-
+-        if proc.returncode != 0:
+-            return {
+-                "units": [],
+-                "diagnostic": {
+-                    "backend": "qwen3_forced_aligner",
+-                    "status": "worker_error",
+-                    "returncode": proc.returncode,
+-                    "stderr": proc.stderr[-500:],
+-                },
+-            }
+-
+-        try:
+-            raw_out = json.loads(proc.stdout.strip().splitlines()[-1])
+-        except Exception as exc:
+-            return {
+-                "units": [],
+-                "diagnostic": {
+-                    "backend": "qwen3_forced_aligner",
+-                    "status": "malformed_worker_output",
+-                    "error": str(exc),
+-                },
+-            }
+-
+-        if raw_out.get("status") != "ok":
+-            return {
+-                "units": [],
+-                "diagnostic": {
+-                    "backend": "qwen3_forced_aligner",
+-                    "status": "aligner_failed",
+-                    "error": raw_out.get("error"),
+-                },
+-            }
+-
+-        validated, val_stats = validate_qwen_items(
+-            raw_out.get("items") or [],
+-            audio_duration_s=dur_s,
+-            source_offset_s=source_offset_s,
+-        )
+-        return {
+-            "units": validated,
+-            "diagnostic": {
++        except (QwenWorkerError, OSError, RuntimeError) as exc:
++            return {"units": [], "diagnostic": {
+                 "backend": "qwen3_forced_aligner",
+-                "status": "ok" if val_stats["valid_items"] > 0 else "no_valid_units",
+-                "qwen_language": qwen_lang,
+-                "device_used": raw_out.get("device_used"),
+-                "dtype": raw_out.get("dtype"),
+-                "quantized_resolution_s": 0.08,
+-                **val_stats,
+-            },
+-        }
++                "status": exc.status if isinstance(exc, QwenWorkerError) else "worker_error",
++                "error_type": type(exc).__name__, "error": str(exc)[:300],
++            }}
++        items = raw_out.get("items")
++        if not isinstance(items, list):
++            return {"units": [], "diagnostic": {
++                "backend": "qwen3_forced_aligner", "status": "malformed_worker_output",
++            }}
++        validated, stats = validate_qwen_items(
++            items, audio_duration_s=dur_s, source_offset_s=source_offset_s,
++        )
++        return {"units": validated, "diagnostic": {
++            "backend": "qwen3_forced_aligner",
++            "status": "ok" if stats["valid_items"] else "no_valid_units",
++            "qwen_language": qwen_lang, "device_used": raw_out.get("device_used"),
++            "dtype": raw_out.get("dtype"), "quantized_resolution_s": 0.08,
++            "inference_wall_s": raw_out.get("inference_wall_s"),
++            "model_load_count": self.session.metrics["model_load_count"],
++            "observed_dtype": self.session.metrics.get("observed_dtype"),
++            "cuda_allocated_bytes": self.session.metrics.get("cuda_allocated_bytes"),
++            "peak_gpu_allocated_bytes": self.session.metrics["peak_gpu_allocated_bytes"],
++            **stats,
++        }}
+diff --git a/src/nvidia_transcribe/recording.py b/src/nvidia_transcribe/recording.py
+index 20c288b..09e9dd1 100644
+--- a/src/nvidia_transcribe/recording.py
++++ b/src/nvidia_transcribe/recording.py
+@@ -23,7 +23,9 @@ from nvidia_transcribe.contract import (
+ )
+ from nvidia_transcribe.media import MediaInfo, compute_file_sha256, extract_wav_segment, probe_media, validate_wav_file
+ from nvidia_transcribe.prompts import cleanup_generation_loops
+-from nvidia_transcribe.qwen_aligner import QwenForcedAlignerAdapter
++from nvidia_transcribe.qwen_aligner import (QwenAlignerConfig, QwenForcedAlignerAdapter, map_language_for_qwen_aligner)
++from nvidia_transcribe.selective_alignment import AdmissionPolicy, apply_selective_recovery, plan_selective_recovery
++from nvidia_transcribe.gpu_handoff import ManagedASRBlocked, ManagedASRConfig, managed_asr_handoff
+ from nvidia_transcribe.speakers import (
+     SpeakerEmbedder,
+     TitaNetSpeakerEmbedder,
+@@ -45,6 +47,11 @@ class RecordingPipelineConfig:
+     embedding_threshold: float = 0.65
+     enable_subinterval_recovery: bool = True
+     alignment_fallback: str = "off"  # "off" | "qwen"
++    qwen_policy: str = "subtitle"     # "subtitle" | "fine"
++    qwen_device: str = "cuda:0"      # "cuda:0" | "cpu" (explicit only)
++    qwen_gpu_mode: str = "available"  # "available" | "managed"
++    qwen_owned_asr_unit: str | None = None
++    qwen_asr_lease_path: str | None = None
+     resume: bool = True
+     model_path: str = str(DEFAULT_MODEL_PATH)
+ 
+@@ -181,6 +188,12 @@ def process_media(
+     cfg = config or RecordingPipelineConfig()
+     if cfg.alignment_fallback not in ("off", "qwen"):
+         raise ValueError(f"Unsupported alignment_fallback {cfg.alignment_fallback!r}; expected 'off' or 'qwen'.")
++    if cfg.qwen_policy not in ("subtitle", "fine"):
++        raise ValueError("qwen_policy must be subtitle or fine")
++    if cfg.qwen_device not in ("cuda:0", "cpu") or cfg.qwen_gpu_mode not in ("available", "managed"):
++        raise ValueError("Unsupported Qwen device/GPU resource mode")
++    if cfg.qwen_gpu_mode == "managed" and cfg.qwen_device != "cuda:0":
++        raise ValueError("Managed GPU mode requires CUDA and is not a CPU selection")
+     out_dir = Path(output_dir)
+     chunks_dir = out_dir / "chunks"
+     chunks_dir.mkdir(parents=True, exist_ok=True)
+@@ -332,34 +345,32 @@ def process_media(
+     if lang_prov == "ambiguous":
+         warnings.append(f"Source language detection was ambiguous: {lang_details}")
+ 
+-    chosen_external_aligner = external_aligner
+-    if chosen_external_aligner is None and cfg.alignment_fallback == "qwen":
+-        chosen_external_aligner = QwenForcedAlignerAdapter()
++    # Phase 1: finish *every* ASR/LID and native CTC/subinterval request
++    # before considering CUDA Qwen or a managed ASR vLLM release.
++    native_records: list[dict[str, Any]] = []
+ 
+-    for idx, (spec, raw_resp, raw_text, wav_path) in enumerate(zip(chunks, chunk_raws, raw_texts, chunk_wavs)):
+-        ctc_payload = raw_resp.get("ctc_timestamps")
++    def _extract_sub_wav(index: int, sub_start: float, sub_end: float) -> Path:
++        duration = max(0.2, sub_end - sub_start)
++        path = chunks_dir / (
++            f"chunk_{index:03d}_sub_{int(round(sub_start * 100))}_{int(round(sub_end * 100))}.wav"
++        )
++        extract_wav_segment(
++            media.path, start_s=sub_start, duration_s=duration, out_wav=path,
++            audio_stream_index=cfg.audio_stream_index,
++        )
++        return path
+ 
++    for idx, (spec, raw_resp, raw_text, wav_path) in enumerate(zip(chunks, chunk_raws, raw_texts, chunk_wavs)):
+         def _sub_wav_extract(sub_start: float, sub_end: float, _idx: int = idx) -> Path:
+-            dur = max(0.2, sub_end - sub_start)
+-            sub_wav = chunks_dir / f"chunk_{_idx:03d}_sub_{int(round(sub_start * 100))}_{int(round(sub_end * 100))}.wav"
+-            extract_wav_segment(
+-                media.path,
+-                start_s=sub_start,
+-                duration_s=dur,
+-                out_wav=sub_wav,
+-                audio_stream_index=cfg.audio_stream_index,
+-            )
+-            return sub_wav
++            return _extract_sub_wav(_idx, sub_start, sub_end)
+ 
+         def _subinterval_runner(sub_start: float, sub_end: float, _idx: int = idx) -> tuple[str, Any]:
+-            sub_wav = _sub_wav_extract(sub_start, sub_end)
++            sub_wav = _extract_sub_wav(_idx, sub_start, sub_end)
+             sub_res = client.transcribe(
+                 sub_wav,
+                 InferenceRequestConfig(
+-                    mode=cfg.mode,
+-                    source_language=lang_hint_for_prompt,
+-                    capture_ctc_timestamps=True,
+-                    require_ctc_timestamps=False,
++                    mode=cfg.mode, source_language=lang_hint_for_prompt,
++                    capture_ctc_timestamps=True, require_ctc_timestamps=False,
+                     source_offset_s=sub_start,
+                 ),
+             )
+@@ -367,16 +378,139 @@ def process_media(
+ 
+         rec = recover_chunk_alignment(
+             raw_text=raw_text,
+-            ctc_payload=ctc_payload,
++            ctc_payload=raw_resp.get("ctc_timestamps"),
+             source_offset_s=spec.infer_start_s,
+             chunk_index=idx,
+             model_path=cfg.model_path,
+             subinterval_runner=_subinterval_runner if cfg.enable_subinterval_recovery else None,
+-            external_aligner=chosen_external_aligner,
++            # Caller-injected test aligners retain their existing API. Production
++            # Qwen no longer runs in this native-ASR phase.
++            external_aligner=external_aligner,
+             chunk_wav_path=wav_path,
+             source_language=resolved_lang,
+             subinterval_wav_extractor=_sub_wav_extract,
+         )
++        native_records.append(rec)
++        raw_events.extend(
++            extract_events_from_raw_text(
++                raw_text, chunk_index=idx, chunk_start_s=spec.infer_start_s,
++                chunk_end_s=spec.infer_end_s,
++            )
++        )
++
++    # Keep an inspectable native timing checkpoint before any managed GPU
++    # transition. A failed/blocked optional aligner never discards native work.
++    qwen_metrics: dict[str, Any] = {"status": "disabled"}
++    if cfg.alignment_fallback == "qwen" and external_aligner is None:
++        _atomic_write_text(
++            out_dir / "native-alignment.checkpoint.json",
++            json.dumps({
++                "config_signature": sig,
++                "chunk_raw_sha256": [e.get("raw_response_sha256") for e in chunk_manifest_entries],
++                "native_records": native_records,
++            }, ensure_ascii=False, indent=2),
++        )
++        policy = AdmissionPolicy(mode=cfg.qwen_policy)
++        plans = [
++            plan_selective_recovery(
++                native=rec, raw_text=raw_texts[idx],
++                chunk_start_s=spec.infer_start_s,
++                chunk_end_s=spec.infer_end_s, policy=policy,
++            )
++            for idx, (rec, spec) in enumerate(zip(native_records, chunks))
++        ]
++        admitted = sum(len(cands) for cands, _ in plans)
++        qwen_metrics = {
++            "status": "no_eligible_spans", "policy": cfg.qwen_policy,
++            "eligible_candidates": admitted,
++            "skipped_candidates": sum(
++                sum(str(d.get("status") or "").startswith("skipped") for d in decisions)
++                for _, decisions in plans
++            ),
++            "mode": cfg.qwen_gpu_mode,
++        }
++        if not map_language_for_qwen_aligner(resolved_lang):
++            qwen_metrics["status"] = "unsupported_language"
++        elif admitted:
++            from contextlib import nullcontext
++            managed_scope: Any = nullcontext({"mode": "available", "released": False})
++            if cfg.qwen_gpu_mode == "managed":
++                if not cfg.qwen_owned_asr_unit or not cfg.qwen_asr_lease_path:
++                    qwen_metrics["status"] = "blocked_missing_owned_asr_configuration"
++                    managed_scope = None
++                else:
++                    managed_scope = managed_asr_handoff(ManagedASRConfig(
++                        unit=cfg.qwen_owned_asr_unit,
++                        lease_path=Path(cfg.qwen_asr_lease_path),
++                        base_url=getattr(client, "base_url", "http://127.0.0.1:8190/v1"),
++                        served_model=client.model,
++                        journal_path=out_dir / "qwen-asr-handoff.journal.json",
++                    ))
++            if managed_scope is not None:
++                try:
++                    with managed_scope as lease_report:
++                        with QwenForcedAlignerAdapter(
++                            QwenAlignerConfig(device=cfg.qwen_device)
++                        ) as adapter:
++                            for idx, (spec, rec) in enumerate(zip(chunks, native_records)):
++                                if not plans[idx][0]:
++                                    continue
++                                apply_selective_recovery(
++                                    native=rec, raw_text=raw_texts[idx],
++                                    chunk_start_s=spec.infer_start_s,
++                                    chunk_end_s=spec.infer_end_s,
++                                    chunk_index=idx, source_language=resolved_lang,
++                                    aligner=adapter, policy=policy,
++                                    extract_wav=lambda start, end, _idx=idx: _extract_sub_wav(_idx, start, end),
++                                )
++                            qwen_metrics.update(adapter.metrics)
++                            attempted_statuses = [
++                                d.get("aligner_status") for rec in native_records
++                                for d in (rec.get("diagnostic", {}).get("external_aligner") or {}).get("localized_spans", [])
++                                if d.get("aligner_status")
++                            ]
++                            blocked = next(
++                                (v for v in attempted_statuses
++                                 if v.startswith("blocked_") or v in {
++                                     "worker_timeout", "worker_exited", "worker_failed",
++                                     "unavailable", "device_mismatch", "worker_error",
++                                 }), None,
++                            )
++                            qwen_metrics["status"] = (
++                                blocked or ("executed" if adapter.metrics["align_count"]
++                                else "deferred_no_successful_worker_requests")
++                            )
++                    # Snapshot the handoff report *after* context exit so
++                    # restored=True reflects verified ASR health, not a
++                    # premature pre-restoration observation.
++                    qwen_metrics["resource_handoff"] = dict(lease_report)
++                except ManagedASRBlocked as exc:
++                    # Admission failures occur *before* changing a non-owned
++                    # service. Restoration failures are fatal, not a mere skip.
++                    if exc.status.startswith(("asr_restore", "unit_transition", "systemctl_failed")):
++                        raise RuntimeError(f"Managed ASR lifecycle could not be verified: {exc.status}") from exc
++                    qwen_metrics["status"] = exc.status
++                    warnings.append(f"Optional managed Qwen deferred: {exc.status}")
++                except Exception:
++                    # Do not mask an unexpected lifecycle or processing error.
++                    raise
++        else:
++            # Explicitly prove that zero eligible spans does not allocate a Qwen
++            # worker or touch a GPU service.
++            qwen_metrics["model_load_count"] = 0
++        for idx, (rec, plan) in enumerate(zip(native_records, plans)):
++            if "external_aligner" not in rec["diagnostic"]:
++                rec["diagnostic"]["external_aligner"] = {
++                    "backend": "qwen3_forced_aligner",
++                    "status": qwen_metrics["status"],
++                    "policy": cfg.qwen_policy,
++                    "candidate_count": len(plan[0]),
++                    "localized_spans": plan[1],
++                }
++
++    # Phase 2: normalize speakers and build final utterances only after the
++    # Qwen session has been torn down and ASR restoration verified.
++    for idx, rec in enumerate(native_records):
+         alignment_diagnostics.append(rec["diagnostic"])
+         if rec["alignment_status"] not in (
+             "ctc_aligned",
+@@ -386,25 +520,16 @@ def process_media(
+         ):
+             warnings.append(
+                 f"Chunk {idx} alignment degraded ({rec['alignment_status']}): "
+-                f"cause={rec['diagnostic'].get('failure_cause')}, oov={rec['diagnostic'].get('oov_characters')}"
++                f"cause={rec['diagnostic'].get('failure_cause')}, "
++                f"oov={rec['diagnostic'].get('oov_characters')}"
+             )
+-
+         norm_units, profs = normalize_chunk_speakers(
+-            chunk_index=idx,
+-            units=rec["units"],
++            chunk_index=idx, units=rec["units"],
+             diarization=rec["diarization"],
+             speaker_mapping=rec["speaker_mapping"],
+         )
+         chunk_units_norm.append(norm_units)
+         chunk_profiles.append(profs)
+-        raw_events.extend(
+-            extract_events_from_raw_text(
+-                raw_text,
+-                chunk_index=idx,
+-                chunk_start_s=spec.infer_start_s,
+-                chunk_end_s=spec.infer_end_s,
+-            )
+-        )
+ 
+     # Cross-chunk speaker reconciliation.
+     chosen_embedder = embedder
+@@ -460,6 +585,7 @@ def process_media(
+             "model_path": cfg.model_path,
+             "request_mode": cfg.mode,
+             "alignment_fallback": cfg.alignment_fallback,
++            "qwen_recovery": qwen_metrics,
+             "language_detection": lang_details,
+             "total_wall_time_s": total_elapsed,
+             "resumed_chunks": resumed_count,
+diff --git a/src/nvidia_transcribe/selective_alignment.py b/src/nvidia_transcribe/selective_alignment.py
+new file mode 100644
+index 0000000..c6dab7f
+--- /dev/null
++++ b/src/nvidia_transcribe/selective_alignment.py
+@@ -0,0 +1,303 @@
++"""Admit useful untimed speech windows only after all native CTC recovery has finished.
++
++This module never re-aligns native-timed units or changes recognized text/speaker
++identity. A candidate requires a finite, uniquely localized speech interval.
++"""
++from __future__ import annotations
++
++import math
++import re
++from dataclasses import dataclass
++from pathlib import Path
++from typing import Any, Callable
++
++from nvidia_transcribe.alignment import (
++    _apply_verified_sequence_timings,
++    _contiguous_speaker_spans,
++    _has_mixed_speaker_overlap,
++    _join_units_for_aligner,
++    group_diarization_windows,
++)
++
++
++@dataclass(frozen=True)
++class AdmissionPolicy:
++    mode: str = "subtitle"   # subtitle (default) | fine
++    max_window_s: float = 20.0
++    max_candidates_per_chunk: int = 16
++    min_subtitle_chars: int = 3
++    min_untimed_fraction: float = 0.5
++
++    def __post_init__(self) -> None:
++        if self.mode not in {"subtitle", "fine"}:
++            raise ValueError("Unsupported Qwen admission mode")
++        if not math.isfinite(self.max_window_s) or not 0.5 <= self.max_window_s <= 180:
++            raise ValueError("Invalid max_window_s")
++        if not 1 <= self.max_candidates_per_chunk <= 100:
++            raise ValueError("Invalid max_candidates_per_chunk")
++
++
++@dataclass(frozen=True)
++class RecoveryCandidate:
++    lo: int
++    hi: int
++    text: str
++    start_s: float
++    end_s: float
++    untimed_units: int
++
++
++def _finite_interval(start: Any, end: Any) -> tuple[float, float] | None:
++    if isinstance(start, bool) or isinstance(end, bool):
++        return None
++    try:
++        a, b = float(start), float(end)
++    except (TypeError, ValueError, OverflowError):
++        return None
++    if not (math.isfinite(a) and math.isfinite(b) and 0 <= a < b):
++        return None
++    return a, b
++
++
++def _speaker_key(value: Any) -> str:
++    s = str(value or "").strip().lower()
++    found = re.search(r"(?:spk[_:]|<spk:)(\d+)", s)
++    return found.group(1) if found else s
++
++
++def plan_selective_recovery(
++    *,
++    native: dict[str, Any],
++    raw_text: str,
++    chunk_start_s: float,
++    chunk_end_s: float,
++    policy: AdmissionPolicy,
++) -> tuple[list[RecoveryCandidate], list[dict[str, Any]]]:
++    """Return strictly localized candidates and bounded reason-coded decisions."""
++    units = native.get("units") or []
++    diar = native.get("diarization") or []
++    decisions: list[dict[str, Any]] = []
++    candidates: list[RecoveryCandidate] = []
++    bounds = _finite_interval(chunk_start_s, chunk_end_s)
++    if bounds is None:
++        return [], [{"status": "skipped_invalid_chunk_window"}]
++    chunk_start_s, chunk_end_s = bounds
++
++    diar_valid: list[tuple[float, float, str]] = []
++    for d in diar:
++        if not d.get("valid_timing"):
++            continue
++        interval = _finite_interval(d.get("start"), d.get("end"))
++        if interval is not None:
++            diar_valid.append((*interval, _speaker_key(d.get("speaker"))))
++
++    spans = _contiguous_speaker_spans(units)
++    untimed_spans_by_speaker: dict[str, int] = {}
++    for s_lo, s_hi in spans:
++        s_span = units[s_lo:s_hi]
++        if any(not u.get("valid_timing") for u in s_span):
++            s_keys = {_speaker_key(u.get("speaker")) for u in s_span}
++            if len(s_keys) == 1:
++                k = next(iter(s_keys))
++                untimed_spans_by_speaker[k] = untimed_spans_by_speaker.get(k, 0) + 1
++
++    for lo, hi in spans:
++        span = units[lo:hi]
++        untimed = [u for u in span if not u.get("valid_timing")]
++        if not untimed:
++            continue
++        decision: dict[str, Any] = {"span_range": [lo, hi], "untimed_units": len(untimed)}
++        decisions.append(decision)
++        text = _join_units_for_aligner(span)
++        chars = len("".join(c for c in text if c.isalnum()))
++        if not text or chars == 0:
++            decision["status"] = "skipped_empty_or_artifact"
++            continue
++        if any(not str(u.get("text") or "").strip() for u in span):
++            decision["status"] = "skipped_invalid_unit"
++            continue
++        if policy.mode == "subtitle" and (
++            chars < policy.min_subtitle_chars
++            or len(untimed) / len(span) < policy.min_untimed_fraction
++        ):
++            decision["status"] = "skipped_low_subtitle_value"
++            continue
++        spk_keys = {_speaker_key(u.get("speaker")) for u in span}
++        if len(spk_keys) != 1:
++            decision["status"] = "skipped_mixed_speaker_units"
++            continue
++        speaker = next(iter(spk_keys))
++        valid_in_span = [
++            interval for u in span
++            if u.get("valid_timing")
++            if (interval := _finite_interval(u.get("start"), u.get("end"))) is not None
++        ]
++        matching_diar = [
++            (s, e) for s, e, who in diar_valid
++            if who == speaker and e > chunk_start_s and s < chunk_end_s
++        ]
++        grouped_diar = group_diarization_windows(
++            [{"start": s, "end": e, "valid_timing": True} for s, e in matching_diar],
++            max_gap_s=0.6,
++            pad_s=0.0,
++            max_duration_s=policy.max_window_s,
++        )
++        interval: tuple[float, float] | None = None
++        if valid_in_span:
++            # A partly timed utterance is itself a reliable localization anchor.
++            interval = (
++                max(chunk_start_s, min(s for s, _ in valid_in_span) - 1.2),
++                min(chunk_end_s, max(e for _, e in valid_in_span) + 1.2),
++            )
++        elif len(grouped_diar) == 1 and untimed_spans_by_speaker.get(speaker, 0) == 1:
++            # Intra-utterance pauses (<=0.6s) merge into one speech window for a sole untimed span;
++            # multiple separated same-speaker windows remain ambiguous.
++            s, e = grouped_diar[0]
++            interval = max(chunk_start_s, s - 0.35), min(chunk_end_s, e + 0.35)
++        else:
++            # An untimed sentence needs *both* neighboring time anchors.
++            left_same = next(
++                (_finite_interval(u.get("start"), u.get("end")) for u in reversed(units[:lo])
++                 if _speaker_key(u.get("speaker")) == speaker and u.get("valid_timing")),
++                None,
++            )
++            right_same = next(
++                (_finite_interval(u.get("start"), u.get("end")) for u in units[hi:]
++                 if _speaker_key(u.get("speaker")) == speaker and u.get("valid_timing")),
++                None,
++            )
++            left = left_same or next(
++                (_finite_interval(u.get("start"), u.get("end")) for u in reversed(units[:lo])
++                 if u.get("valid_timing")),
++                None,
++            )
++            right = right_same or next(
++                (_finite_interval(u.get("start"), u.get("end")) for u in units[hi:]
++                 if u.get("valid_timing")),
++                None,
++            )
++            if left is not None and right is not None and right[0] > left[1]:
++                between_diar = group_diarization_windows(
++                    [
++                        {"start": s, "end": e, "valid_timing": True}
++                        for s, e in matching_diar
++                        if s >= left[1] - 0.25 and e <= right[0] + 0.25
++                    ],
++                    max_gap_s=0.6,
++                    pad_s=0.0,
++                    max_duration_s=policy.max_window_s,
++                )
++                right_pad = 0.15 if right_same is not None else 0.0
++                left_pad = 0.15 if left_same is not None else 0.0
++                if len(between_diar) == 1:
++                    bs, be = between_diar[0]
++                    interval = (
++                        max(chunk_start_s, left[1] - left_pad, bs - 0.35),
++                        min(chunk_end_s, right[0] + right_pad, be + 0.35),
++                    )
++                elif left_same is not None and right_same is not None:
++                    interval = max(chunk_start_s, left[1] - 0.15), min(chunk_end_s, right[0] + 0.15)
++        if interval is None:
++            decision["status"] = "skipped_unanchored_or_ambiguous"
++            continue
++        start, end = interval
++        if not (math.isfinite(start) and math.isfinite(end) and 0 <= start < end
++                and 0.25 <= end - start <= policy.max_window_s):
++            decision["status"] = "skipped_invalid_or_long_window"
++            continue
++        if _has_mixed_speaker_overlap(diar, raw_text, window=(start, end)):
++            decision["status"] = "skipped_mixed_speaker_overlap"
++            continue
++        if any(start < prev.end_s and end > prev.start_s for prev in candidates):
++            # Do not make overlapping forced-aligner calls and accidentally map
++            # one utterance's words into a second speaker/duplicate span.
++            decision["status"] = "skipped_ambiguous_shared_window"
++            continue
++        if len(candidates) >= policy.max_candidates_per_chunk:
++            decision["status"] = "skipped_chunk_candidate_limit"
++            continue
++        decision.update(status="admitted", window=[round(start, 3), round(end, 3)])
++        candidates.append(RecoveryCandidate(lo, hi, text, start, end, len(untimed)))
++    return candidates, decisions
++
++
++def apply_selective_recovery(
++    *,
++    native: dict[str, Any],
++    raw_text: str,
++    chunk_start_s: float,
++    chunk_end_s: float,
++    chunk_index: int,
++    source_language: str | None,
++    aligner: Any,
++    extract_wav: Callable[[float, float], Path],
++    policy: AdmissionPolicy,
++) -> dict[str, Any]:
++    """Attach verified external timestamps in place, retaining native provenance."""
++    candidates, decisions = plan_selective_recovery(
++        native=native, raw_text=raw_text,
++        chunk_start_s=chunk_start_s, chunk_end_s=chunk_end_s, policy=policy,
++    )
++    units = native["units"]
++    total_recovered = 0
++    for c in candidates:
++        decision = next(d for d in decisions if d["span_range"] == [c.lo, c.hi])
++        try:
++            wav = extract_wav(c.start_s, c.end_s)
++            output = aligner.align(
++                audio_path=wav, text=c.text,
++                language=source_language, source_offset_s=c.start_s,
++            )
++            if isinstance(output, dict):
++                external_units = list(output.get("units") or [])
++                diagnostic = dict(output.get("diagnostic") or {})
++            else:
++                external_units = list(output or [])
++                diagnostic = {}
++            decision["aligner_status"] = diagnostic.get("status", "unknown")
++            decision["aligner_diagnostic"] = diagnostic
++            if not external_units:
++                decision["status"] = "attempted_no_valid_units"
++                continue
++            matched = _apply_verified_sequence_timings(
++                units, external_units, recovered_status="external_qwen_recovered",
++                only_untimed=True, target_range=(c.lo, c.hi),
++                min_start_s=c.start_s, max_end_s=c.end_s,
++                enforce_neighbor_monotonic=True,
++            )
++            decision["matched_untimed_units"] = matched["matched_units"]
++            decision["rejected_bounds_units"] = matched["rejected_bounds_count"]
++            decision["status"] = "recovered" if matched["matched_units"] else "attempted_no_verified_match"
++            total_recovered += matched["matched_units"]
++        except Exception as exc:
++            # No timestamps are fabricated and existing CTC timing survives.
++            decision["status"] = "external_error"
++            decision["error_type"] = type(exc).__name__
++            decision["error"] = str(exc)[:300]
++
++    remaining = sum(not u.get("valid_timing") for u in units)
++    native_diag = native.setdefault("diagnostic", {})
++    native_diag["external_aligner"] = {
++        "backend": "qwen3_forced_aligner",
++        "policy": policy.mode,
++        "status": ("recovered" if total_recovered else
++                   "no_eligible_spans" if not candidates else "no_recovery"),
++        "candidate_count": len(candidates),
++        "admitted_count": sum(d["status"] in {"recovered", "attempted_no_valid_units",
++                          "attempted_no_verified_match", "external_error"} for d in decisions),
++        "skipped_count": sum(str(d["status"]).startswith("skipped") for d in decisions),
++        "recovered_units": total_recovered,
++        "remaining_untimed_units": remaining,
++        "localized_spans": decisions,
++    }
++    if total_recovered:
++        native_diag["external_recovered_units"] = total_recovered
++        native_diag["untimed_units"] = remaining
++        native_diag["status"] = "external_recovered" if remaining == 0 else "partial_external_recovery"
++        native["alignment_status"] = (
++            "hybrid_ctc_and_external_recovered"
++            if any(u.get("alignment_status") == "subinterval_ctc_recovered" for u in units)
++            and remaining == 0 else
++            "external_recovered" if remaining == 0 else "partial_external_recovery"
++        )
++    return native
+diff --git a/src/nvidia_transcribe/subtitle_pipeline.py b/src/nvidia_transcribe/subtitle_pipeline.py
+index 00fe38e..90123d3 100644
+--- a/src/nvidia_transcribe/subtitle_pipeline.py
++++ b/src/nvidia_transcribe/subtitle_pipeline.py
+@@ -36,6 +36,11 @@ class SubtitlePipelineConfig:
+     min_tail_seconds: float = 15.0
+     audio_stream_index: int = 0
+     alignment_fallback: str = "off"
++    qwen_policy: str = "subtitle"
++    qwen_device: str = "cuda:0"
++    qwen_gpu_mode: str = "available"
++    qwen_owned_asr_unit: str | None = None
++    qwen_asr_lease_path: str | None = None
+     speaker_embeddings: str = "titanet"
+     asr_base_url: str = "http://127.0.0.1:8190/v1"
+     asr_model: str = "nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4"
+@@ -165,6 +170,11 @@ def generate_subtitles(
+                     min_tail_seconds=cfg.min_tail_seconds,
+                     audio_stream_index=cfg.audio_stream_index,
+                     alignment_fallback=cfg.alignment_fallback,
++                    qwen_policy=cfg.qwen_policy,
++                    qwen_device=cfg.qwen_device,
++                    qwen_gpu_mode=cfg.qwen_gpu_mode,
++                    qwen_owned_asr_unit=cfg.qwen_owned_asr_unit,
++                    qwen_asr_lease_path=cfg.qwen_asr_lease_path,
+                     speaker_embeddings=cfg.speaker_embeddings,
+                     resume=cfg.resume,
+                 ),
+diff --git a/tests/test_qwen_fallback.py b/tests/test_qwen_fallback.py
+index f81fe4c..a806b4d 100644
+--- a/tests/test_qwen_fallback.py
++++ b/tests/test_qwen_fallback.py
+@@ -102,37 +102,33 @@ def test_qwen_adapter_unavailable_and_unsupported_language(tmp_path: Path) -> No
+     assert res_unavail["diagnostic"]["status"] == "unavailable"
+ 
+ 
+-def test_qwen_adapter_subprocess_zero_duration_filtered(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
++def test_qwen_adapter_session_zero_duration_filtered(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
++    """The adapter retains strict validation with the reusable session protocol."""
+     wav = tmp_path / "seg.wav"
+     _write_silence_wav(wav, duration_s=3.0)
+     fake_py = tmp_path / "python"
+     fake_py.write_text("#!/bin/sh\n", encoding="utf-8")
+     fake_model = tmp_path / "model"
+     fake_model.mkdir()
++    adapter = QwenForcedAlignerAdapter(QwenAlignerConfig(
++        model_path=str(fake_model), worker_python=str(fake_py), device="cpu",
++    ))
++    calls: list[dict[str, Any]] = []
+ 
+-    def _fake_run(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+-        return subprocess.CompletedProcess(
+-            args=args[0],
+-            returncode=0,
+-            stdout=json.dumps(
+-                {
+-                    "status": "ok",
+-                    "device_used": "cpu",
+-                    "dtype": "float32",
+-                    "items": [
+-                        {"text": "钙", "start": 0.2, "end": 0.44},
+-                        {"text": "钾", "start": 0.56, "end": 0.56},
+-                        {"text": "金属", "start": 0.64, "end": 1.04},
+-                    ],
+-                },
+-                ensure_ascii=False,
+-            ),
+-            stderr="",
+-        )
++    def fake_session_align(**kwargs: Any) -> dict[str, Any]:
++        calls.append(kwargs)
++        return {
++            "status": "ok", "device_used": "cpu", "dtype": "torch.float32",
++            "items": [
++                {"text": "钙", "start": 0.2, "end": 0.44},
++                {"text": "钾", "start": 0.56, "end": 0.56},
++                {"text": "金属", "start": 0.64, "end": 1.04},
++            ],
++        }
+ 
+-    monkeypatch.setattr(subprocess, "run", _fake_run)
+-    adapter = QwenForcedAlignerAdapter(QwenAlignerConfig(model_path=str(fake_model), worker_python=str(fake_py)))
++    monkeypatch.setattr(adapter.session, "align", fake_session_align)
+     res = adapter.align(audio_path=wav, text="钙钾金属", language="zh", source_offset_s=5.0)
++    assert len(calls) == 1
+     assert res["diagnostic"]["status"] == "ok"
+     assert res["diagnostic"]["device_used"] == "cpu"
+     assert res["diagnostic"]["zero_duration_count"] == 1
+diff --git a/tests/test_qwen_session_and_policy.py b/tests/test_qwen_session_and_policy.py
+new file mode 100644
+index 0000000..3179613
+--- /dev/null
++++ b/tests/test_qwen_session_and_policy.py
+@@ -0,0 +1,699 @@
++"""CPU-only regression coverage for Qwen admission, persistent session and ownership safety."""
++from __future__ import annotations
++
++import json
++import os
++import sys
++from pathlib import Path
++
++import pytest
++
++from nvidia_transcribe import qwen_aligner, gpu_handoff
++from nvidia_transcribe.qwen_aligner import QwenAlignerConfig, QwenAlignerSession, QwenWorkerError
++from nvidia_transcribe.selective_alignment import (
++    AdmissionPolicy, apply_selective_recovery, plan_selective_recovery,
++)
++
++
++def _native(texts: list[str], diar: list[dict], timed: set[int] | None = None) -> dict:
++    timed = timed or set()
++    units = [
++        {"text": text, "speaker": "spk_0",
++         "start": (i * 0.4 + 0.5 if i in timed else None),
++         "end": (i * 0.4 + 0.8 if i in timed else None),
++         "valid_timing": i in timed,
++         "alignment_status": "ctc_aligned" if i in timed else "untimed",
++         "timing_error": None if i in timed else "alignment_failed"}
++        for i, text in enumerate(texts)
++    ]
++    return {"units": units, "diarization": diar, "diagnostic": {"status": "untimed"},
++            "alignment_status": "untimed", "speaker_mapping": {}}
++
++
++def _diar(start: float = 0.4, end: float = 3.0, speaker: str = "spk_0") -> dict:
++    return {"start": start, "end": end, "speaker": speaker, "valid_timing": True}
++
++
++def test_admission_recovers_anchored_untimed_utterance_and_preserves_words() -> None:
++    native = _native(["你", "好", "朋友。"], [_diar()])
++    candidates, decision = plan_selective_recovery(
++        native=native, raw_text="<spk:0>你好朋友。", chunk_start_s=0,
++        chunk_end_s=5, policy=AdmissionPolicy(),
++    )
++    assert len(candidates) == 1
++    assert decision[0]["status"] == "admitted"
++    native_copy = [dict(u) for u in native["units"]]
++
++    class Aligner:
++        calls = 0
++        def align(self, **kwargs: object) -> dict:
++            self.calls += 1
++            return {"units": [
++                {"text": t, "start": kwargs["source_offset_s"] + i * .25,
++                 "end": kwargs["source_offset_s"] + i * .25 + .2,
++                 "valid_timing": True}
++                for i, t in enumerate(["你", "好", "朋友。"])
++            ], "diagnostic": {"status": "ok"}}
++
++    aligner = Aligner()
++    out = apply_selective_recovery(
++        native=native, raw_text="<spk:0>你好朋友。",
++        chunk_start_s=0, chunk_end_s=5, chunk_index=0, source_language="zh",
++        aligner=aligner, extract_wav=lambda a, b: Path("/synthetic/window.wav"),
++        policy=AdmissionPolicy(),
++    )
++    assert aligner.calls == 1
++    assert out["diagnostic"]["external_aligner"]["recovered_units"] == 3
++    assert [u["text"] for u in out["units"]] == [u["text"] for u in native_copy]
++    assert all(u["valid_timing"] for u in out["units"])
++
++
++def test_admission_default_skips_small_gap_in_usable_cue() -> None:
++    native = _native(["我", "们", "在", "这", "里", "等。"], [_diar()], timed={0, 1, 2, 3, 5})
++    candidates, decisions = plan_selective_recovery(
++        native=native, raw_text="<spk:0>我们在这里等。",
++        chunk_start_s=0, chunk_end_s=5, policy=AdmissionPolicy(),
++    )
++    assert not candidates
++    assert decisions[0]["status"] == "skipped_low_subtitle_value"
++    finer, _ = plan_selective_recovery(
++        native=native, raw_text="<spk:0>我们在这里等。",
++        chunk_start_s=0, chunk_end_s=5, policy=AdmissionPolicy(mode="fine"),
++    )
++    assert finer
++
++
++def test_admission_skips_unanchored_ambiguous_multiwindow_and_overlap() -> None:
++    native = _native(["你", "好", "呀。"], [_diar(0.2, 1.2), _diar(2.0, 3.0)])
++    candidates, decisions = plan_selective_recovery(
++        native=native, raw_text="<spk:0>你好呀。",
++        chunk_start_s=0, chunk_end_s=5, policy=AdmissionPolicy(),
++    )
++    assert not candidates
++    assert decisions[0]["status"] == "skipped_unanchored_or_ambiguous"
++    native["diarization"] = [_diar(0.2, 2.0), _diar(1.0, 3.0, speaker="spk_1")]
++    candidates, decisions = plan_selective_recovery(
++        native=native, raw_text="<spk:0>你好呀。<spk:1>哦",
++        chunk_start_s=0, chunk_end_s=5, policy=AdmissionPolicy(),
++    )
++    assert not candidates
++    assert decisions[0]["status"] == "skipped_mixed_speaker_overlap"
++
++
++def test_no_eligible_spans_does_not_touch_aligner() -> None:
++    native = _native(["你", "好", "呀。"], [_diar()], timed={0, 1, 2})
++    class NoTouch:
++        def align(self, **_kwargs: object) -> dict:
++            raise AssertionError("No aligner should run")
++    out = apply_selective_recovery(
++        native=native, raw_text="<spk:0>你好呀。", chunk_start_s=0,
++        chunk_end_s=5, chunk_index=0, source_language="zh",
++        aligner=NoTouch(), extract_wav=lambda a, b: Path("/nonexistent"),
++        policy=AdmissionPolicy(),
++    )
++    assert out["diagnostic"]["external_aligner"]["candidate_count"] == 0
++
++
++def _fake_worker(tmp_path: Path, *, return_device: str = "cuda:0", delay_s: float = 0) -> Path:
++    path = tmp_path / "worker.py"
++    path.write_text(
++        "import json,sys,time\n"
++        "loaded=0\n"
++        "for line in sys.stdin:\n"
++        " r=json.loads(line)\n"
++        " a=r.get('action')\n"
++        " if a=='init':\n"
++        "  loaded+=1\n"
++        "  out=dict(status='ok',device_used="+repr(return_device)+",dtype='torch.bfloat16',model_load_count=loaded,model_load_wall_s=0.01)\n"
++        " elif a=='align':\n"
++        "  time.sleep("+repr(delay_s)+")\n"
++        "  out=dict(status='ok',items=[dict(text='钾',start=0.1,end=0.4)],device_used="+repr(return_device)+",dtype='torch.bfloat16',inference_wall_s=0.01)\n"
++        " elif a=='shutdown':\n"
++        "  out=dict(status='ok')\n"
++        " else:\n"
++        "  out=dict(status='worker_error')\n"
++        " out.update(protocol=1,id=r.get('id'))\n"
++        " print(json.dumps(out),flush=True)\n"
++        " if a=='shutdown':break\n",
++        encoding="utf-8",
++    )
++    return path
++
++
++def test_one_model_load_and_one_pid_for_multiple_spans(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
++    worker = _fake_worker(tmp_path)
++    monkeypatch.setattr(qwen_aligner, "WORKER_SCRIPT", worker)
++    model = tmp_path / "model"
++    model.mkdir()
++    cfg = QwenAlignerConfig(worker_python=sys.executable, model_path=str(model), device="cuda:0")
++    session = QwenAlignerSession(cfg)
++    assert session.process is None and session.metrics["model_load_count"] == 0
++    with session:
++        one = session.align(audio_path=worker, text="钾", language="Chinese", source_offset_s=0)
++        pid = session.process.pid
++        two = session.align(audio_path=worker, text="钾", language="Chinese", source_offset_s=0)
++        assert session.process.pid == pid
++        assert session.metrics["model_load_count"] == 1
++        assert session.metrics["align_count"] == 2
++        assert one["items"] == two["items"]
++    assert session.process is None
++
++
++def test_gpu_required_rejects_misreported_cpu_and_reaps_worker(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
++    monkeypatch.setattr(qwen_aligner, "WORKER_SCRIPT", _fake_worker(tmp_path, return_device="cpu"))
++    model = tmp_path / "model"
++    model.mkdir()
++    session = QwenAlignerSession(QwenAlignerConfig(
++        worker_python=sys.executable, model_path=str(model), device="cuda:0",
++    ))
++    with pytest.raises(QwenWorkerError, match="Expected cuda:0"):
++        session.start()
++    assert session.failed and session.process is None
++
++
++def test_explicit_cpu_is_not_a_silent_fallback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
++    monkeypatch.setattr(qwen_aligner, "WORKER_SCRIPT", _fake_worker(tmp_path, return_device="cpu"))
++    model = tmp_path / "model"
++    model.mkdir()
++    with QwenAlignerSession(QwenAlignerConfig(
++        worker_python=sys.executable, model_path=str(model), device="cpu",
++    )) as session:
++        response = session.align(audio_path=model, text="钾", language="Chinese", source_offset_s=0)
++        assert response["device_used"] == "cpu"
++
++
++def test_worker_timeout_is_not_retried_or_converted_to_cpu(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
++    monkeypatch.setattr(qwen_aligner, "WORKER_SCRIPT", _fake_worker(tmp_path, delay_s=0.4))
++    model = tmp_path / "model"
++    model.mkdir()
++    session = QwenAlignerSession(QwenAlignerConfig(
++        worker_python=sys.executable, model_path=str(model), timeout_s=0.05,
++    ))
++    with pytest.raises(QwenWorkerError) as err:
++        session.align(audio_path=model, text="钾", language="Chinese", source_offset_s=0)
++    assert err.value.status == "worker_timeout"
++    assert session.failed and session.process is None
++
++
++def _managed_cfg(tmp_path: Path) -> gpu_handoff.ManagedASRConfig:
++    return gpu_handoff.ManagedASRConfig(
++        unit="nemovox-asr.service",
++        lease_path=tmp_path / "asr.lock",
++        base_url="http://127.0.0.1:8190/v1",
++        served_model="test-nemotron",
++        journal_path=tmp_path / "journal.json",
++    )
++
++
++def test_managed_gpu_busy_lease_never_stops_service(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
++    cfg = _managed_cfg(tmp_path)
++    monkeypatch.setattr(gpu_handoff, "_free_vram_mb", lambda: 400)
++    monkeypatch.setattr(gpu_handoff, "_check_lease", lambda path: (_ for _ in ()).throw(
++        gpu_handoff.ManagedASRBlocked("asr_busy")))
++    monkeypatch.setattr(gpu_handoff, "_run_systemctl", lambda *a: (_ for _ in ()).throw(
++        AssertionError("must not control shared service")))
++    with pytest.raises(gpu_handoff.ManagedASRBlocked) as err:
++        with gpu_handoff.managed_asr_handoff(cfg):
++            pass
++    assert err.value.status == "asr_busy"
++
++
++def test_managed_gpu_restores_after_failure_and_journals(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
++    cfg = _managed_cfg(tmp_path)
++    cfg.lease_path.write_text("", encoding="utf-8")
++    cfg.lease_path.chmod(0o600)
++    state = {"active": True, "invocation": "original", "free": 400}
++    calls: list[str] = []
++
++    def fake_systemctl(*args: str) -> str:
++        calls.append(args[0])
++        if args[0] == "stop":
++            state.update(active=False, free=8000)
++        if args[0] == "start":
++            state.update(active=True, invocation="restored")
++        return ""
++
++    def properties(unit: str) -> dict[str, str]:
++        return {"ActiveState": "active" if state["active"] else "inactive",
++                "MainPID": "99" if state["active"] else "0",
++                "InvocationID": state["invocation"]}
++
++    monkeypatch.setattr(gpu_handoff, "_free_vram_mb", lambda: state["free"])
++    monkeypatch.setattr(gpu_handoff, "_verified_owner", lambda cfg: {
++        "ActiveState": "active", "InvocationID": "original",
++    })
++    monkeypatch.setattr(gpu_handoff, "_run_systemctl", fake_systemctl)
++    monkeypatch.setattr(gpu_handoff, "_wait_unit",
++                        lambda unit, active, deadline: properties(unit))
++    monkeypatch.setattr(gpu_handoff, "_unit_properties", properties)
++    monkeypatch.setattr(gpu_handoff, "_models_healthy", lambda *a, **k: state["active"])
++    with pytest.raises(ValueError, match="synthetic"):
++        with gpu_handoff.managed_asr_handoff(cfg) as telemetry:
++            assert telemetry["released"] is True
++            raise ValueError("synthetic failure")
++    assert calls == ["stop", "start"]
++    assert state["active"]
++    assert json.loads(cfg.journal_path.read_text())["phase"] == "restored"
++
++
++def test_interrupted_managed_journal_blocks_reentrant_takeover(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
++    cfg = _managed_cfg(tmp_path)
++    cfg.journal_path.write_text('{"phase":"pending_restore"}', encoding="utf-8")
++    monkeypatch.setattr(gpu_handoff, "_free_vram_mb", lambda: 200)
++    monkeypatch.setattr(gpu_handoff, "_run_systemctl", lambda *a: (_ for _ in ()).throw(
++        AssertionError("must not control unit before recovery")))
++    with pytest.raises(gpu_handoff.ManagedASRBlocked) as err:
++        with gpu_handoff.managed_asr_handoff(cfg):
++            pass
++    assert err.value.status == "prior_handoff_requires_recovery"
++
++
++def test_qwen_pipeline_finishes_all_native_chunks_before_worker(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
++    """Integration regression: optional GPU aligner must not run before ASR completes."""
++    import wave
++    from nvidia_transcribe import recording
++    from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
++
++    source = tmp_path / "two_chunks.wav"
++    with wave.open(str(source), "wb") as wf:
++        wf.setnchannels(1)
++        wf.setsampwidth(2)
++        wf.setframerate(16000)
++        wf.writeframes(b"\x00\x00" * 16000 * 25)
++
++    events: list[str] = []
++
++    class Client:
++        model = "test-nemotron"
++        base_url = "http://127.0.0.1:8190/v1"
++
++        def transcribe(self, path: Path, _request: object) -> dict:
++            events.append("native")
++            raw = {
++                "choices": [{"message": {"content": "<spk:0>你好朋友。"}}],
++                "ctc_timestamps": {
++                    "words": [], "error": "alignment_failed",
++                    "diarization": [
++                        {"speaker": 0, "start": 0.4, "end": 3.0},
++                    ],
++                    "speaker_tag_to_diarization_speaker": {"0": 0},
++                },
++            }
++            return {"raw_response": raw, "contract": {"raw_text": "<spk:0>你好朋友。"},
++                    "latency_s": 0.01}
++
++    class Aligner:
++        def __init__(self, *_args: object, **_kwargs: object) -> None:
++            self.metrics = {"model_load_count": 1, "align_count": 0}
++        def __enter__(self) -> "Aligner":
++            return self
++        def __exit__(self, *_args: object) -> None:
++            return None
++        def align(self, **_kwargs: object) -> dict:
++            events.append("qwen")
++            self.metrics["align_count"] += 1
++            return {"units": [], "diagnostic": {"status": "no_valid_units"}}
++
++    monkeypatch.setattr(recording, "QwenForcedAlignerAdapter", Aligner)
++    res = process_media(
++        source, output_dir=tmp_path / "out", client=Client(),
++        config=RecordingPipelineConfig(
++            source_language="zh", speaker_embeddings="none",
++            enable_subinterval_recovery=False, alignment_fallback="qwen",
++            chunk_seconds=12, min_tail_seconds=5,
++        ),
++    )
++    assert events.count("native") >= 2
++    assert events.count("qwen") >= 1
++    first_qwen = events.index("qwen")
++    assert events[:first_qwen] == ["native"] * first_qwen
++    assert (tmp_path / "out" / "native-alignment.checkpoint.json").is_file()
++    assert res["contract"]["model_provenance"]["qwen_recovery"]["eligible_candidates"] >= 1
++
++
++def test_qwen_cli_policy_defaults_and_explicit_managed_options() -> None:
++    from nvidia_transcribe.cli import build_parser
++    parser = build_parser()
++    off = parser.parse_args(["process-media", "dummy.wav", "--output-dir", "out"])
++    assert off.alignment_fallback == "off"
++    assert off.qwen_device == "cuda:0"
++    assert off.qwen_policy == "subtitle"
++    assert off.qwen_gpu_mode == "available"
++    controlled = parser.parse_args([
++        "generate-subtitles", "dummy.wav", "--output-dir", "out",
++        "--alignment-fallback", "qwen", "--qwen-policy", "fine",
++        "--qwen-gpu-mode", "managed", "--qwen-owned-asr-unit", "nemovox-asr.service",
++        "--qwen-asr-lease-path", "/run/user/1000/nemovox-asr.lock",
++    ])
++    assert controlled.qwen_policy == "fine"
++    assert controlled.qwen_owned_asr_unit == "nemovox-asr.service"
++    assert parser.parse_args([
++        "recover-qwen-asr", "--asr-unit", "nemovox-asr.service",
++        "--base-url", "http://127.0.0.1:8190/v1", "--model", "m",
++        "--lease-path", "/tmp/lease", "--journal", "/tmp/journal",
++    ]).command == "recover-qwen-asr"
++
++
++def test_managed_sigterm_restores_original_asr_and_handler(
++    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    """A normal Studio SIGTERM unwinds the managed ASR context before exit."""
++    import signal
++
++    cfg = _managed_cfg(tmp_path)
++    cfg.lease_path.write_text("", encoding="utf-8")
++    cfg.lease_path.chmod(0o600)
++    state = {"active": True, "free": 300}
++    commands: list[str] = []
++    prior_handler = signal.getsignal(signal.SIGTERM)
++
++    def control(*args: str) -> str:
++        commands.append(args[0])
++        if args[0] == "stop":
++            state.update(active=False, free=5000)
++        if args[0] == "start":
++            state["active"] = True
++        return ""
++
++    monkeypatch.setattr(gpu_handoff, "_free_vram_mb", lambda: state["free"])
++    monkeypatch.setattr(gpu_handoff, "_verified_owner", lambda cfg: {
++        "ActiveState": "active", "InvocationID": "original",
++        "ExecStart": "{ path=/bin/true ; argv[]=/bin/true ; }",
++        "FragmentPath": "/synthetic/nemovox-asr.service",
++    })
++    monkeypatch.setattr(gpu_handoff, "_run_systemctl", control)
++    monkeypatch.setattr(gpu_handoff, "_wait_unit",
++                        lambda unit, active, deadline: {
++                            "ActiveState": "active" if state["active"] else "inactive",
++                            "MainPID": "123" if state["active"] else "0",
++                            "InvocationID": "restored" if state["active"] else "original",
++                        })
++    monkeypatch.setattr(gpu_handoff, "_unit_properties",
++                        lambda unit: {"ActiveState": "active" if state["active"] else "inactive",
++                                      "InvocationID": "restored"})
++    monkeypatch.setattr(gpu_handoff, "_models_healthy", lambda *a, **kw: state["active"])
++
++    with pytest.raises(KeyboardInterrupt, match="SIGTERM"):
++        with gpu_handoff.managed_asr_handoff(cfg) as telemetry:
++            assert telemetry["released"] is True
++            active_handler = signal.getsignal(signal.SIGTERM)
++            assert active_handler is not prior_handler
++            active_handler(signal.SIGTERM, None)
++    assert commands == ["stop", "start"]
++    assert state["active"]
++    assert signal.getsignal(signal.SIGTERM) is prior_handler
++    assert json.loads(cfg.journal_path.read_text())["phase"] == "restored"
++
++
++def test_available_gpu_never_stops_asr(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
++    cfg = _managed_cfg(tmp_path)
++    monkeypatch.setattr(gpu_handoff, "_free_vram_mb", lambda: 6000)
++    monkeypatch.setattr(gpu_handoff, "_check_lease",
++                        lambda path: (_ for _ in ()).throw(AssertionError("no lease needed")))
++    monkeypatch.setattr(gpu_handoff, "_run_systemctl",
++                        lambda *args: (_ for _ in ()).throw(AssertionError("never control ASR")))
++    with gpu_handoff.managed_asr_handoff(cfg) as report:
++        assert report["status"] == "cuda_already_available"
++        assert not report["released"]
++
++
++def test_pending_journal_blocks_even_when_gpu_has_capacity(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
++    cfg = _managed_cfg(tmp_path)
++    cfg.journal_path.write_text('{"phase":"pending_restore"}', encoding="utf-8")
++    monkeypatch.setattr(gpu_handoff, "_free_vram_mb", lambda: 9000)
++    monkeypatch.setattr(gpu_handoff, "_run_systemctl",
++                        lambda *args: (_ for _ in ()).throw(AssertionError("no takeover")))
++    with pytest.raises(gpu_handoff.ManagedASRBlocked) as error:
++        with gpu_handoff.managed_asr_handoff(cfg):
++            pass
++    assert error.value.status == "prior_handoff_requires_recovery"
++
++
++def test_recovery_refuses_changed_asr_unit_without_start(
++    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    from nvidia_transcribe.gpu_handoff import recover_pending_managed_asr
++    cfg = _managed_cfg(tmp_path)
++    cfg.lease_path.write_text("", encoding="utf-8")
++    cfg.lease_path.chmod(0o600)
++    cfg.journal_path.write_text(json.dumps({
++        "phase": "pending_restore",
++        "unit": cfg.unit,
++        "served_model": cfg.served_model,
++        "base_url": cfg.base_url,
++        "originally_active": True,
++        "unit_exec_sha256": "f" * 64,
++        "unit_fragment_path": "/synthetic/old-asr.service",
++    }), encoding="utf-8")
++    monkeypatch.setattr(gpu_handoff, "_unit_properties", lambda u: {
++        "LoadState": "loaded", "ActiveState": "inactive",
++        "Environment": "NEMOVOX_MANAGED_ASR=1 NEMOVOX_ASR_LEASE_PATH=" + str(cfg.lease_path),
++        "FragmentPath": "/synthetic/new-asr.service",
++        "ExecStart": "changed",
++    })
++    monkeypatch.setattr(gpu_handoff, "_run_systemctl",
++                        lambda *a: (_ for _ in ()).throw(AssertionError("must not restart changed unit")))
++    with pytest.raises(gpu_handoff.ManagedASRBlocked) as err:
++        recover_pending_managed_asr(cfg)
++    assert err.value.status == "asr_unit_changed_since_handoff"
++
++
++def test_default_off_never_loads_worker_or_touches_managed_services(
++    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    import wave
++    from nvidia_transcribe import recording
++    from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
++
++    source = tmp_path / "oov.wav"
++    with wave.open(str(source), "wb") as wf:
++        wf.setnchannels(1)
++        wf.setsampwidth(2)
++        wf.setframerate(16000)
++        wf.writeframes(b"\x00\x00" * 16000 * 5)
++
++    class Client:
++        model = "test-nemotron"
++        base_url = "http://127.0.0.1:8190/v1"
++
++        def transcribe(self, path: Path, _request: object) -> dict:
++            return {
++                "raw_response": {
++                    "choices": [{"message": {"content": "<spk:0>钙、钾等元素属于金属。"}}],
++                    "ctc_timestamps": {
++                        "words": [],
++                        "error": "alignment_failed",
++                        "diarization": [{"speaker": 0, "start": 0.5, "end": 4.0}],
++                        "speaker_tag_to_diarization_speaker": {},
++                    },
++                },
++                "contract": {"raw_text": "<spk:0>钙、钾等元素属于金属。"},
++                "latency_s": 0.01,
++            }
++
++    monkeypatch.setattr(
++        recording,
++        "QwenForcedAlignerAdapter",
++        lambda *a, **kw: (_ for _ in ()).throw(AssertionError("off must never load Qwen worker")),
++    )
++    monkeypatch.setattr(
++        recording,
++        "managed_asr_handoff",
++        lambda *a, **kw: (_ for _ in ()).throw(AssertionError("off must never manage GPU services")),
++    )
++    res = process_media(
++        source,
++        output_dir=tmp_path / "out",
++        client=Client(),
++        config=RecordingPipelineConfig(
++            source_language="zh",
++            speaker_embeddings="none",
++            enable_subinterval_recovery=False,
++            alignment_fallback="off",
++        ),
++    )
++    assert res["contract"]["model_provenance"]["qwen_recovery"] == {"status": "disabled"}
++    assert not (tmp_path / "out" / "native-alignment.checkpoint.json").exists()
++
++
++def test_admission_merges_short_intra_utterance_diar_pauses_and_cross_speaker_neighbor() -> None:
++    # 1. Single untimed sentence split into 3 Sortformer pauses <=0.6s merges into 1 speech window.
++    native_pauses = _native(
++        ["钙、", "钾", "等", "金", "属。"],
++        [_diar(1.12, 3.32), _diar(3.75, 5.08), _diar(5.47, 6.63)],
++    )
++    cands, decs = plan_selective_recovery(
++        native=native_pauses,
++        raw_text="<spk:0>钙、钾等金属。",
++        chunk_start_s=0.0,
++        chunk_end_s=8.28,
++        policy=AdmissionPolicy(),
++    )
++    assert len(cands) == 1
++    assert decs[0]["status"] == "admitted"
++    assert cands[0].start_s == pytest.approx(0.77, abs=0.01)
++    assert cands[0].end_s == pytest.approx(6.98, abs=0.01)
++
++    # 2. Cross-speaker right boundary + unique grouped diarization localizes middle OOV sentence.
++    units = [
++        {"text": "好", "speaker": "0", "start": 1.8, "end": 2.2, "valid_timing": True},
++        {"text": "啊。", "speaker": "0", "start": 2.2, "end": 7.28, "valid_timing": True},
++        {"text": "钙、", "speaker": "0", "start": None, "end": None, "valid_timing": False},
++        {"text": "钾", "speaker": "0", "start": None, "end": None, "valid_timing": False},
++        {"text": "金属。", "speaker": "0", "start": None, "end": None, "valid_timing": False},
++        {"text": "下", "speaker": "1", "start": 22.61, "end": 23.0, "valid_timing": True},
++    ]
++    diar = [
++        _diar(1.9, 7.3, speaker="0"),
++        _diar(12.03, 14.16, speaker="0"),
++        _diar(14.64, 15.91, speaker="0"),
++        _diar(16.39, 17.49, speaker="0"),
++        _diar(22.41, 27.06, speaker="1"),
++    ]
++    cands2, decs2 = plan_selective_recovery(
++        native={"units": units, "diarization": diar},
++        raw_text="<spk:0>好啊。钙、钾金属。<spk:1>下",
++        chunk_start_s=0.0,
++        chunk_end_s=35.0,
++        policy=AdmissionPolicy(),
++    )
++    assert len(cands2) == 1
++    assert decs2[0]["status"] == "admitted"
++    assert cands2[0].start_s == pytest.approx(11.68, abs=0.01)
++    assert cands2[0].end_s == pytest.approx(17.84, abs=0.01)
++
++
++def test_worker_protocol_id_mismatch_reaps_worker(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
++    bad_worker = tmp_path / "bad_id_worker.py"
++    bad_worker.write_text(
++        "import json, sys\n"
++        "for line in sys.stdin:\n"
++        " r = json.loads(line)\n"
++        " print(json.dumps({'protocol': 1, 'id': 999999, 'status': 'ok'}), flush=True)\n",
++        encoding="utf-8",
++    )
++    monkeypatch.setattr(qwen_aligner, "WORKER_SCRIPT", bad_worker)
++    model = tmp_path / "model"
++    model.mkdir()
++    session = QwenAlignerSession(QwenAlignerConfig(
++        worker_python=sys.executable, model_path=str(model), device="cpu",
++    ))
++    with pytest.raises(QwenWorkerError) as err:
++        session.start()
++    assert err.value.status == "malformed_worker_output"
++    assert session.failed and session.process is None
++
++
++@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux PR_SET_PDEATHSIG check")
++def test_linux_parent_death_sigkill_reaps_harmless_worker(tmp_path: Path) -> None:
++    import signal
++    import subprocess
++    import time
++
++    pid_file = tmp_path / "worker.pid"
++    fake_worker = tmp_path / "pdeath_worker.py"
++    fake_worker.write_text(
++        "import ctypes, os, signal, sys, time\n"
++        "from pathlib import Path\n"
++        "orig_parent = int(os.environ['NEMOVOX_QWEN_PARENT_PID'])\n"
++        "libc = ctypes.CDLL(None, use_errno=True)\n"
++        "assert libc.prctl(1, signal.SIGKILL, 0, 0, 0) == 0\n"
++        "if os.getppid() != orig_parent:\n"
++        "    sys.exit(3)\n"
++        f"Path({str(pid_file)!r}).write_text(str(os.getpid()), encoding='utf-8')\n"
++        "time.sleep(30)\n",
++        encoding="utf-8",
++    )
++    parent_script = tmp_path / "parent.py"
++    parent_script.write_text(
++        "import os, subprocess, sys, time\n"
++        f"p = subprocess.Popen([sys.executable, {str(fake_worker)!r}], "
++        "start_new_session=True, env={**os.environ, 'NEMOVOX_QWEN_PARENT_PID': str(os.getpid())})\n"
++        "time.sleep(30)\n",
++        encoding="utf-8",
++    )
++    parent = subprocess.Popen([sys.executable, str(parent_script)])
++    worker_pid: int | None = None
++    try:
++        deadline = time.monotonic() + 5.0
++        while time.monotonic() < deadline and not pid_file.is_file():
++            time.sleep(0.05)
++        assert pid_file.is_file(), "Fake worker did not arm PR_SET_PDEATHSIG in time"
++        worker_pid = int(pid_file.read_text(encoding="utf-8"))
++        assert Path(f"/proc/{worker_pid}").exists()
++        os.kill(parent.pid, signal.SIGKILL)
++        parent.wait(timeout=5)
++        reap_deadline = time.monotonic() + 5.0
++        while time.monotonic() < reap_deadline:
++            try:
++                os.kill(worker_pid, 0)
++            except ProcessLookupError:
++                break
++            time.sleep(0.05)
++        else:
++            pytest.fail(f"Worker {worker_pid} survived parent SIGKILL despite PR_SET_PDEATHSIG")
++    finally:
++        if parent.poll() is None:
++            parent.kill()
++            parent.wait(timeout=2)
++        if worker_pid is not None:
++            try:
++                os.kill(worker_pid, signal.SIGKILL)
++            except ProcessLookupError:
++                pass
++
++
++def test_managed_config_and_owner_rejects_studio_unmarked_and_live_clients(
++    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    with pytest.raises(ValueError, match="Studio"):
++        gpu_handoff.ManagedASRConfig(
++            unit="nemovox-studio.service",
++            lease_path=tmp_path / "l",
++            base_url="http://127.0.0.1:8190/v1",
++            served_model="m",
++            journal_path=tmp_path / "j",
++        )
++    with pytest.raises(ValueError, match="nemovox-"):
++        gpu_handoff.ManagedASRConfig(
++            unit="other-vllm.service",
++            lease_path=tmp_path / "l",
++            base_url="http://127.0.0.1:8190/v1",
++            served_model="m",
++            journal_path=tmp_path / "j",
++        )
++    cfg = _managed_cfg(tmp_path)
++    monkeypatch.setattr(gpu_handoff, "_unit_properties", lambda u: {
++        "LoadState": "loaded",
++        "ActiveState": "active",
++        "FragmentPath": "/synthetic/nemovox-asr.service",
++        "InvocationID": "abc",
++        "MainPID": str(os.getpid()),
++        "Environment": "",
++        "ExecStart": "vllm serve nemotron --port 8190",
++    })
++    with pytest.raises(gpu_handoff.ManagedASRBlocked) as err:
++        gpu_handoff._verified_owner(cfg)
++    assert err.value.status == "asr_not_cooperatively_owned"
++
++    monkeypatch.setattr(gpu_handoff, "_unit_properties", lambda u: {
++        "LoadState": "loaded",
++        "ActiveState": "active",
++        "FragmentPath": "/synthetic/nemovox-asr.service",
++        "InvocationID": "abc",
++        "MainPID": str(os.getpid()),
++        "Environment": f"NEMOVOX_MANAGED_ASR=1 NEMOVOX_ASR_LEASE_PATH={cfg.lease_path}",
++        "ExecStart": "vllm serve nemotron --port 8190",
++    })
++    monkeypatch.setattr(Path, "read_bytes", lambda self: b"vllm\x00serve\x00nemotron\x00--port\x008190")
++    monkeypatch.setattr(gpu_handoff, "_models_healthy", lambda *a, **kw: True)
++    import subprocess
++    monkeypatch.setattr(
++        subprocess,
++        "run",
++        lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout="127.0.0.1:8190 127.0.0.1:54321\n", stderr=""),
++    )
++    with pytest.raises(gpu_handoff.ManagedASRBlocked) as err2:
++        gpu_handoff._verified_owner(cfg)
++    assert err2.value.status == "asr_has_live_connections"
++

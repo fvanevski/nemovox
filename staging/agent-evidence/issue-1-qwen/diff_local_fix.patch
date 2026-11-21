@@ -1,0 +1,355 @@
+diff --git a/src/nvidia_transcribe/selective_alignment.py b/src/nvidia_transcribe/selective_alignment.py
+index eb15c1a..c6dab7f 100644
+--- a/src/nvidia_transcribe/selective_alignment.py
++++ b/src/nvidia_transcribe/selective_alignment.py
+@@ -16,6 +16,7 @@ from nvidia_transcribe.alignment import (
+     _contiguous_speaker_spans,
+     _has_mixed_speaker_overlap,
+     _join_units_for_aligner,
++    group_diarization_windows,
+ )
+ 
+ 
+@@ -90,7 +91,17 @@ def plan_selective_recovery(
+         if interval is not None:
+             diar_valid.append((*interval, _speaker_key(d.get("speaker"))))
+ 
+-    for lo, hi in _contiguous_speaker_spans(units):
++    spans = _contiguous_speaker_spans(units)
++    untimed_spans_by_speaker: dict[str, int] = {}
++    for s_lo, s_hi in spans:
++        s_span = units[s_lo:s_hi]
++        if any(not u.get("valid_timing") for u in s_span):
++            s_keys = {_speaker_key(u.get("speaker")) for u in s_span}
++            if len(s_keys) == 1:
++                k = next(iter(s_keys))
++                untimed_spans_by_speaker[k] = untimed_spans_by_speaker.get(k, 0) + 1
++
++    for lo, hi in spans:
+         span = units[lo:hi]
+         untimed = [u for u in span if not u.get("valid_timing")]
+         if not untimed:
+@@ -125,6 +136,12 @@ def plan_selective_recovery(
+             (s, e) for s, e, who in diar_valid
+             if who == speaker and e > chunk_start_s and s < chunk_end_s
+         ]
++        grouped_diar = group_diarization_windows(
++            [{"start": s, "end": e, "valid_timing": True} for s, e in matching_diar],
++            max_gap_s=0.6,
++            pad_s=0.0,
++            max_duration_s=policy.max_window_s,
++        )
+         interval: tuple[float, float] | None = None
+         if valid_in_span:
+             # A partly timed utterance is itself a reliable localization anchor.
+@@ -132,25 +149,54 @@ def plan_selective_recovery(
+                 max(chunk_start_s, min(s for s, _ in valid_in_span) - 1.2),
+                 min(chunk_end_s, max(e for _, e in valid_in_span) + 1.2),
+             )
+-        elif len(matching_diar) == 1:
+-            # Multiple same-speaker diarization windows cannot be matched to
+-            # an untimed sentence uniquely. Do not guess by index.
+-            s, e = matching_diar[0]
++        elif len(grouped_diar) == 1 and untimed_spans_by_speaker.get(speaker, 0) == 1:
++            # Intra-utterance pauses (<=0.6s) merge into one speech window for a sole untimed span;
++            # multiple separated same-speaker windows remain ambiguous.
++            s, e = grouped_diar[0]
+             interval = max(chunk_start_s, s - 0.35), min(chunk_end_s, e + 0.35)
+         else:
+             # An untimed sentence needs *both* neighboring time anchors.
+-            left = next(
++            left_same = next(
+                 (_finite_interval(u.get("start"), u.get("end")) for u in reversed(units[:lo])
+                  if _speaker_key(u.get("speaker")) == speaker and u.get("valid_timing")),
+                 None,
+             )
+-            right = next(
++            right_same = next(
+                 (_finite_interval(u.get("start"), u.get("end")) for u in units[hi:]
+                  if _speaker_key(u.get("speaker")) == speaker and u.get("valid_timing")),
+                 None,
+             )
++            left = left_same or next(
++                (_finite_interval(u.get("start"), u.get("end")) for u in reversed(units[:lo])
++                 if u.get("valid_timing")),
++                None,
++            )
++            right = right_same or next(
++                (_finite_interval(u.get("start"), u.get("end")) for u in units[hi:]
++                 if u.get("valid_timing")),
++                None,
++            )
+             if left is not None and right is not None and right[0] > left[1]:
+-                interval = max(chunk_start_s, left[1] - 0.15), min(chunk_end_s, right[0] + 0.15)
++                between_diar = group_diarization_windows(
++                    [
++                        {"start": s, "end": e, "valid_timing": True}
++                        for s, e in matching_diar
++                        if s >= left[1] - 0.25 and e <= right[0] + 0.25
++                    ],
++                    max_gap_s=0.6,
++                    pad_s=0.0,
++                    max_duration_s=policy.max_window_s,
++                )
++                right_pad = 0.15 if right_same is not None else 0.0
++                left_pad = 0.15 if left_same is not None else 0.0
++                if len(between_diar) == 1:
++                    bs, be = between_diar[0]
++                    interval = (
++                        max(chunk_start_s, left[1] - left_pad, bs - 0.35),
++                        min(chunk_end_s, right[0] + right_pad, be + 0.35),
++                    )
++                elif left_same is not None and right_same is not None:
++                    interval = max(chunk_start_s, left[1] - 0.15), min(chunk_end_s, right[0] + 0.15)
+         if interval is None:
+             decision["status"] = "skipped_unanchored_or_ambiguous"
+             continue
+diff --git a/tests/test_qwen_session_and_policy.py b/tests/test_qwen_session_and_policy.py
+index d6d15fa..3179613 100644
+--- a/tests/test_qwen_session_and_policy.py
++++ b/tests/test_qwen_session_and_policy.py
+@@ -456,3 +456,244 @@ def test_recovery_refuses_changed_asr_unit_without_start(
+     with pytest.raises(gpu_handoff.ManagedASRBlocked) as err:
+         recover_pending_managed_asr(cfg)
+     assert err.value.status == "asr_unit_changed_since_handoff"
++
++
++def test_default_off_never_loads_worker_or_touches_managed_services(
++    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    import wave
++    from nvidia_transcribe import recording
++    from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
++
++    source = tmp_path / "oov.wav"
++    with wave.open(str(source), "wb") as wf:
++        wf.setnchannels(1)
++        wf.setsampwidth(2)
++        wf.setframerate(16000)
++        wf.writeframes(b"\x00\x00" * 16000 * 5)
++
++    class Client:
++        model = "test-nemotron"
++        base_url = "http://127.0.0.1:8190/v1"
++
++        def transcribe(self, path: Path, _request: object) -> dict:
++            return {
++                "raw_response": {
++                    "choices": [{"message": {"content": "<spk:0>钙、钾等元素属于金属。"}}],
++                    "ctc_timestamps": {
++                        "words": [],
++                        "error": "alignment_failed",
++                        "diarization": [{"speaker": 0, "start": 0.5, "end": 4.0}],
++                        "speaker_tag_to_diarization_speaker": {},
++                    },
++                },
++                "contract": {"raw_text": "<spk:0>钙、钾等元素属于金属。"},
++                "latency_s": 0.01,
++            }
++
++    monkeypatch.setattr(
++        recording,
++        "QwenForcedAlignerAdapter",
++        lambda *a, **kw: (_ for _ in ()).throw(AssertionError("off must never load Qwen worker")),
++    )
++    monkeypatch.setattr(
++        recording,
++        "managed_asr_handoff",
++        lambda *a, **kw: (_ for _ in ()).throw(AssertionError("off must never manage GPU services")),
++    )
++    res = process_media(
++        source,
++        output_dir=tmp_path / "out",
++        client=Client(),
++        config=RecordingPipelineConfig(
++            source_language="zh",
++            speaker_embeddings="none",
++            enable_subinterval_recovery=False,
++            alignment_fallback="off",
++        ),
++    )
++    assert res["contract"]["model_provenance"]["qwen_recovery"] == {"status": "disabled"}
++    assert not (tmp_path / "out" / "native-alignment.checkpoint.json").exists()
++
++
++def test_admission_merges_short_intra_utterance_diar_pauses_and_cross_speaker_neighbor() -> None:
++    # 1. Single untimed sentence split into 3 Sortformer pauses <=0.6s merges into 1 speech window.
++    native_pauses = _native(
++        ["钙、", "钾", "等", "金", "属。"],
++        [_diar(1.12, 3.32), _diar(3.75, 5.08), _diar(5.47, 6.63)],
++    )
++    cands, decs = plan_selective_recovery(
++        native=native_pauses,
++        raw_text="<spk:0>钙、钾等金属。",
++        chunk_start_s=0.0,
++        chunk_end_s=8.28,
++        policy=AdmissionPolicy(),
++    )
++    assert len(cands) == 1
++    assert decs[0]["status"] == "admitted"
++    assert cands[0].start_s == pytest.approx(0.77, abs=0.01)
++    assert cands[0].end_s == pytest.approx(6.98, abs=0.01)
++
++    # 2. Cross-speaker right boundary + unique grouped diarization localizes middle OOV sentence.
++    units = [
++        {"text": "好", "speaker": "0", "start": 1.8, "end": 2.2, "valid_timing": True},
++        {"text": "啊。", "speaker": "0", "start": 2.2, "end": 7.28, "valid_timing": True},
++        {"text": "钙、", "speaker": "0", "start": None, "end": None, "valid_timing": False},
++        {"text": "钾", "speaker": "0", "start": None, "end": None, "valid_timing": False},
++        {"text": "金属。", "speaker": "0", "start": None, "end": None, "valid_timing": False},
++        {"text": "下", "speaker": "1", "start": 22.61, "end": 23.0, "valid_timing": True},
++    ]
++    diar = [
++        _diar(1.9, 7.3, speaker="0"),
++        _diar(12.03, 14.16, speaker="0"),
++        _diar(14.64, 15.91, speaker="0"),
++        _diar(16.39, 17.49, speaker="0"),
++        _diar(22.41, 27.06, speaker="1"),
++    ]
++    cands2, decs2 = plan_selective_recovery(
++        native={"units": units, "diarization": diar},
++        raw_text="<spk:0>好啊。钙、钾金属。<spk:1>下",
++        chunk_start_s=0.0,
++        chunk_end_s=35.0,
++        policy=AdmissionPolicy(),
++    )
++    assert len(cands2) == 1
++    assert decs2[0]["status"] == "admitted"
++    assert cands2[0].start_s == pytest.approx(11.68, abs=0.01)
++    assert cands2[0].end_s == pytest.approx(17.84, abs=0.01)
++
++
++def test_worker_protocol_id_mismatch_reaps_worker(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
++    bad_worker = tmp_path / "bad_id_worker.py"
++    bad_worker.write_text(
++        "import json, sys\n"
++        "for line in sys.stdin:\n"
++        " r = json.loads(line)\n"
++        " print(json.dumps({'protocol': 1, 'id': 999999, 'status': 'ok'}), flush=True)\n",
++        encoding="utf-8",
++    )
++    monkeypatch.setattr(qwen_aligner, "WORKER_SCRIPT", bad_worker)
++    model = tmp_path / "model"
++    model.mkdir()
++    session = QwenAlignerSession(QwenAlignerConfig(
++        worker_python=sys.executable, model_path=str(model), device="cpu",
++    ))
++    with pytest.raises(QwenWorkerError) as err:
++        session.start()
++    assert err.value.status == "malformed_worker_output"
++    assert session.failed and session.process is None
++
++
++@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux PR_SET_PDEATHSIG check")
++def test_linux_parent_death_sigkill_reaps_harmless_worker(tmp_path: Path) -> None:
++    import signal
++    import subprocess
++    import time
++
++    pid_file = tmp_path / "worker.pid"
++    fake_worker = tmp_path / "pdeath_worker.py"
++    fake_worker.write_text(
++        "import ctypes, os, signal, sys, time\n"
++        "from pathlib import Path\n"
++        "orig_parent = int(os.environ['NEMOVOX_QWEN_PARENT_PID'])\n"
++        "libc = ctypes.CDLL(None, use_errno=True)\n"
++        "assert libc.prctl(1, signal.SIGKILL, 0, 0, 0) == 0\n"
++        "if os.getppid() != orig_parent:\n"
++        "    sys.exit(3)\n"
++        f"Path({str(pid_file)!r}).write_text(str(os.getpid()), encoding='utf-8')\n"
++        "time.sleep(30)\n",
++        encoding="utf-8",
++    )
++    parent_script = tmp_path / "parent.py"
++    parent_script.write_text(
++        "import os, subprocess, sys, time\n"
++        f"p = subprocess.Popen([sys.executable, {str(fake_worker)!r}], "
++        "start_new_session=True, env={**os.environ, 'NEMOVOX_QWEN_PARENT_PID': str(os.getpid())})\n"
++        "time.sleep(30)\n",
++        encoding="utf-8",
++    )
++    parent = subprocess.Popen([sys.executable, str(parent_script)])
++    worker_pid: int | None = None
++    try:
++        deadline = time.monotonic() + 5.0
++        while time.monotonic() < deadline and not pid_file.is_file():
++            time.sleep(0.05)
++        assert pid_file.is_file(), "Fake worker did not arm PR_SET_PDEATHSIG in time"
++        worker_pid = int(pid_file.read_text(encoding="utf-8"))
++        assert Path(f"/proc/{worker_pid}").exists()
++        os.kill(parent.pid, signal.SIGKILL)
++        parent.wait(timeout=5)
++        reap_deadline = time.monotonic() + 5.0
++        while time.monotonic() < reap_deadline:
++            try:
++                os.kill(worker_pid, 0)
++            except ProcessLookupError:
++                break
++            time.sleep(0.05)
++        else:
++            pytest.fail(f"Worker {worker_pid} survived parent SIGKILL despite PR_SET_PDEATHSIG")
++    finally:
++        if parent.poll() is None:
++            parent.kill()
++            parent.wait(timeout=2)
++        if worker_pid is not None:
++            try:
++                os.kill(worker_pid, signal.SIGKILL)
++            except ProcessLookupError:
++                pass
++
++
++def test_managed_config_and_owner_rejects_studio_unmarked_and_live_clients(
++    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    with pytest.raises(ValueError, match="Studio"):
++        gpu_handoff.ManagedASRConfig(
++            unit="nemovox-studio.service",
++            lease_path=tmp_path / "l",
++            base_url="http://127.0.0.1:8190/v1",
++            served_model="m",
++            journal_path=tmp_path / "j",
++        )
++    with pytest.raises(ValueError, match="nemovox-"):
++        gpu_handoff.ManagedASRConfig(
++            unit="other-vllm.service",
++            lease_path=tmp_path / "l",
++            base_url="http://127.0.0.1:8190/v1",
++            served_model="m",
++            journal_path=tmp_path / "j",
++        )
++    cfg = _managed_cfg(tmp_path)
++    monkeypatch.setattr(gpu_handoff, "_unit_properties", lambda u: {
++        "LoadState": "loaded",
++        "ActiveState": "active",
++        "FragmentPath": "/synthetic/nemovox-asr.service",
++        "InvocationID": "abc",
++        "MainPID": str(os.getpid()),
++        "Environment": "",
++        "ExecStart": "vllm serve nemotron --port 8190",
++    })
++    with pytest.raises(gpu_handoff.ManagedASRBlocked) as err:
++        gpu_handoff._verified_owner(cfg)
++    assert err.value.status == "asr_not_cooperatively_owned"
++
++    monkeypatch.setattr(gpu_handoff, "_unit_properties", lambda u: {
++        "LoadState": "loaded",
++        "ActiveState": "active",
++        "FragmentPath": "/synthetic/nemovox-asr.service",
++        "InvocationID": "abc",
++        "MainPID": str(os.getpid()),
++        "Environment": f"NEMOVOX_MANAGED_ASR=1 NEMOVOX_ASR_LEASE_PATH={cfg.lease_path}",
++        "ExecStart": "vllm serve nemotron --port 8190",
++    })
++    monkeypatch.setattr(Path, "read_bytes", lambda self: b"vllm\x00serve\x00nemotron\x00--port\x008190")
++    monkeypatch.setattr(gpu_handoff, "_models_healthy", lambda *a, **kw: True)
++    import subprocess
++    monkeypatch.setattr(
++        subprocess,
++        "run",
++        lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout="127.0.0.1:8190 127.0.0.1:54321\n", stderr=""),
++    )
++    with pytest.raises(gpu_handoff.ManagedASRBlocked) as err2:
++        gpu_handoff._verified_owner(cfg)
++    assert err2.value.status == "asr_has_live_connections"
++

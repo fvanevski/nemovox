@@ -1,0 +1,12 @@
+ docs/alignment/ISSUE1_LOCAL_INTEGRATION.md   |  62 +++
+ docs/alignment/ISSUE1_QWEN_DESIGN.md         |  69 +++
+ src/nvidia_transcribe/_qwen_align_worker.py  | 204 +++++---
+ src/nvidia_transcribe/cli.py                 |  45 ++
+ src/nvidia_transcribe/gpu_handoff.py         | 364 ++++++++++++++
+ src/nvidia_transcribe/qwen_aligner.py        | 397 ++++++++++-----
+ src/nvidia_transcribe/recording.py           | 196 ++++++--
+ src/nvidia_transcribe/selective_alignment.py | 303 ++++++++++++
+ src/nvidia_transcribe/subtitle_pipeline.py   |  10 +
+ tests/test_qwen_fallback.py                  |  40 +-
+ tests/test_qwen_session_and_policy.py        | 699 +++++++++++++++++++++++++++
+ 11 files changed, 2167 insertions(+), 222 deletions(-)

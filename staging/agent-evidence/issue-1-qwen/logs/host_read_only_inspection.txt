@@ -1,0 +1,12 @@
+# Sanitized Read-Only Host Inspection Summary (2026-11-21)
+
+- GPU: NVIDIA GeForce RTX 5090 (32607 MiB total)
+- VRAM at start & end: 3050 MiB used, 29077 MiB free (0 MiB delta)
+- Active GPU compute apps: kwin_wayland (328 MiB), text-embeddings-router (1728 MiB)
+- Active Nemovox services:
+  - nemovox-studio.service: loaded active running (127.0.0.1:8765, WorkingDirectory=/workspace/nvidia-transcribe, main)
+  - local_embedding.service: loaded active running (127.0.0.1:8004)
+- ASR endpoint 127.0.0.1:8190: not listening (curl failed to connect)
+- Managed ASR user unit (nemovox-*.service other than nemovox-studio.service): ABSENT
+- Cooperative ASR config (~/.config/nemovox/ / NEMOVOX_MANAGED_ASR=1 / lease): ABSENT
+- Live managed-handoff disposition: MANAGED_GPU_BLOCKED (no fabricated markers; all external services untouched)

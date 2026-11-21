@@ -1,0 +1,664 @@
+{
+  "gpu_before": {
+    "gpu_name": "NVIDIA GeForce RTX 5090",
+    "memory_used_mib": 3050,
+    "memory_free_mib": 29077,
+    "memory_total_mib": 32607,
+    "compute_apps": [
+      "11480, /usr/bin/kwin_wayland, 328",
+      "10066, /usr/local/bin/text-embeddings-router, 1728"
+    ]
+  },
+  "zh_fleurs_01_2006_off": {
+    "wall_time_s": 0.1136,
+    "utterance_count": 1,
+    "utterance_timing_status_counts": {
+      "failed": 1
+    },
+    "timed_units": 0,
+    "untimed_units": 21,
+    "qwen_recovery": {
+      "status": "disabled"
+    },
+    "qwen_zero_duration_count": 0,
+    "qwen_invalid_bounds_count": 0,
+    "qwen_non_monotonic_count": 0,
+    "jia_timings": [],
+    "utterances_brief": [
+      {
+        "id": "utt-0000",
+        "speaker": "SPK_00",
+        "start": null,
+        "end": null,
+        "timing_status": "failed",
+        "timed_units": 0,
+        "untimed_units": 21,
+        "text": "钙、钾等元素属于金属，银和金等元素当然也是金属。"
+      }
+    ]
+  },
+  "zh_fleurs_01_2006_qwen": {
+    "wall_time_s": 11.8591,
+    "utterance_count": 1,
+    "utterance_timing_status_counts": {
+      "full": 1
+    },
+    "timed_units": 21,
+    "untimed_units": 0,
+    "qwen_recovery": {
+      "status": "executed",
+      "policy": "subtitle",
+      "eligible_candidates": 1,
+      "skipped_candidates": 0,
+      "mode": "available",
+      "model_load_count": 1,
+      "align_count": 1,
+      "startup_wall_s": 8.1145,
+      "inference_wall_s": 2.0050654229999054,
+      "peak_gpu_allocated_bytes": 1900171264,
+      "device_used": "cuda:0",
+      "dtype": "torch.bfloat16",
+      "observed_dtype": "torch.bfloat16",
+      "cuda_allocated_bytes": 1841616896,
+      "model_load_wall_s": 5.9635,
+      "resource_handoff": {
+        "mode": "available",
+        "released": false
+      }
+    },
+    "qwen_zero_duration_count": 0,
+    "qwen_invalid_bounds_count": 0,
+    "qwen_non_monotonic_count": 0,
+    "jia_timings": [
+      {
+        "utt": "utt-0000",
+        "text": "钾",
+        "start": 1.41,
+        "end": 1.65
+      }
+    ],
+    "utterances_brief": [
+      {
+        "id": "utt-0000",
+        "speaker": "SPK_00",
+        "start": 1.17,
+        "end": 6.61,
+        "timing_status": "full",
+        "timed_units": 21,
+        "untimed_units": 0,
+        "text": "钙、钾等元素属于金属，银和金等元素当然也是金属。"
+      }
+    ]
+  },
+  "zh_multichunk_off": {
+    "wall_time_s": 0.5574,
+    "utterance_count": 7,
+    "utterance_timing_status_counts": {
+      "full": 5,
+      "failed": 1,
+      "partial": 1
+    },
+    "timed_units": 156,
+    "untimed_units": 23,
+    "qwen_recovery": {
+      "status": "disabled"
+    },
+    "qwen_zero_duration_count": 0,
+    "qwen_invalid_bounds_count": 0,
+    "qwen_non_monotonic_count": 0,
+    "jia_timings": [],
+    "utterances_brief": [
+      {
+        "id": "utt-0000",
+        "speaker": "SPK_00",
+        "start": 1.83,
+        "end": 7.281,
+        "timing_status": "full",
+        "timed_units": 23,
+        "untimed_units": 0,
+        "text": "这并不是告别，这是一个篇章的结束，也是新篇章的开始。"
+      },
+      {
+        "id": "utt-0001",
+        "speaker": "SPK_00",
+        "start": null,
+        "end": null,
+        "timing_status": "failed",
+        "timed_units": 0,
+        "untimed_units": 21,
+        "text": "钙、钾等元素属于金属，银和金等元素当然也是金属。"
+      },
+      {
+        "id": "utt-0002",
+        "speaker": "SPK_01",
+        "start": 22.61,
+        "end": 27.041,
+        "timing_status": "partial",
+        "timed_units": 20,
+        "untimed_units": 2,
+        "text": "脚下垂直劲空十五米，该项目于二零一一年八月完工，"
+      },
+      {
+        "id": "utt-0003",
+        "speaker": "SPK_01",
+        "start": 27.985,
+        "end": 30.915,
+        "timing_status": "full",
+        "timed_units": 15,
+        "untimed_units": 0,
+        "text": "但直到二零一七年三月才开始通车"
+      },
+      {
+        "id": "utt-0004",
+        "speaker": "SPK_01",
+        "start": 36.64,
+        "end": 43.009,
+        "timing_status": "full",
+        "timed_units": 31,
+        "untimed_units": 0,
+        "text": "科学家们可以得出结论 暗物质对其他暗物质的影响方式与普通物质相同"
+      },
+      {
+        "id": "utt-0005",
+        "speaker": "SPK_01",
+        "start": 50.24,
+        "end": 58.376,
+        "timing_status": "full",
+        "timed_units": 29,
+        "untimed_units": 0,
+        "text": "大多数现代科研望远镜都是巨型设施 位于大气条件优良的偏远地区"
+      },
+      {
+        "id": "utt-0006",
+        "speaker": "SPK_02",
+        "start": 62.3,
+        "end": 68.427,
+        "timing_status": "full",
+        "timed_units": 38,
+        "untimed_units": 0,
+        "text": "Schoolchildren bus children walk school bus"
+      }
+    ],
+    "diag_chunk0_ext": null
+  },
+  "zh_multichunk_qwen_subtitle": {
+    "wall_time_s": 9.2508,
+    "utterance_count": 7,
+    "utterance_timing_status_counts": {
+      "full": 6,
+      "partial": 1
+    },
+    "timed_units": 177,
+    "untimed_units": 2,
+    "qwen_recovery": {
+      "status": "executed",
+      "policy": "subtitle",
+      "eligible_candidates": 1,
+      "skipped_candidates": 1,
+      "mode": "available",
+      "model_load_count": 1,
+      "align_count": 1,
+      "startup_wall_s": 6.1099,
+      "inference_wall_s": 1.450669434008887,
+      "peak_gpu_allocated_bytes": 1900167680,
+      "device_used": "cuda:0",
+      "dtype": "torch.bfloat16",
+      "observed_dtype": "torch.bfloat16",
+      "cuda_allocated_bytes": 1841616896,
+      "model_load_wall_s": 4.8366,
+      "resource_handoff": {
+        "mode": "available",
+        "released": false
+      }
+    },
+    "qwen_zero_duration_count": 0,
+    "qwen_invalid_bounds_count": 0,
+    "qwen_non_monotonic_count": 0,
+    "jia_timings": [
+      {
+        "utt": "utt-0001",
+        "text": "钾",
+        "start": 12.24,
+        "end": 12.48
+      }
+    ],
+    "utterances_brief": [
+      {
+        "id": "utt-0000",
+        "speaker": "SPK_00",
+        "start": 1.83,
+        "end": 7.281,
+        "timing_status": "full",
+        "timed_units": 23,
+        "untimed_units": 0,
+        "text": "这并不是告别，这是一个篇章的结束，也是新篇章的开始。"
+      },
+      {
+        "id": "utt-0001",
+        "speaker": "SPK_00",
+        "start": 12.0,
+        "end": 17.44,
+        "timing_status": "full",
+        "timed_units": 21,
+        "untimed_units": 0,
+        "text": "钙、钾等元素属于金属，银和金等元素当然也是金属。"
+      },
+      {
+        "id": "utt-0002",
+        "speaker": "SPK_01",
+        "start": 22.61,
+        "end": 27.041,
+        "timing_status": "partial",
+        "timed_units": 20,
+        "untimed_units": 2,
+        "text": "脚下垂直劲空十五米，该项目于二零一一年八月完工，"
+      },
+      {
+        "id": "utt-0003",
+        "speaker": "SPK_01",
+        "start": 27.985,
+        "end": 30.915,
+        "timing_status": "full",
+        "timed_units": 15,
+        "untimed_units": 0,
+        "text": "但直到二零一七年三月才开始通车"
+      },
+      {
+        "id": "utt-0004",
+        "speaker": "SPK_01",
+        "start": 36.64,
+        "end": 43.009,
+        "timing_status": "full",
+        "timed_units": 31,
+        "untimed_units": 0,
+        "text": "科学家们可以得出结论 暗物质对其他暗物质的影响方式与普通物质相同"
+      },
+      {
+        "id": "utt-0005",
+        "speaker": "SPK_01",
+        "start": 50.24,
+        "end": 58.376,
+        "timing_status": "full",
+        "timed_units": 29,
+        "untimed_units": 0,
+        "text": "大多数现代科研望远镜都是巨型设施 位于大气条件优良的偏远地区"
+      },
+      {
+        "id": "utt-0006",
+        "speaker": "SPK_02",
+        "start": 62.3,
+        "end": 68.427,
+        "timing_status": "full",
+        "timed_units": 38,
+        "untimed_units": 0,
+        "text": "Schoolchildren bus children walk school bus"
+      }
+    ],
+    "diag_chunk0_ext": {
+      "backend": "qwen3_forced_aligner",
+      "policy": "subtitle",
+      "status": "recovered",
+      "candidate_count": 1,
+      "admitted_count": 1,
+      "skipped_count": 1,
+      "recovered_units": 21,
+      "remaining_untimed_units": 2,
+      "localized_spans": [
+        {
+          "span_range": [
+            23,
+            44
+          ],
+          "untimed_units": 21,
+          "status": "recovered",
+          "window": [
+            11.68,
+            17.84
+          ],
+          "aligner_status": "ok",
+          "aligner_diagnostic": {
+            "backend": "qwen3_forced_aligner",
+            "status": "ok",
+            "qwen_language": "Chinese",
+            "device_used": "cuda:0",
+            "dtype": "torch.bfloat16",
+            "quantized_resolution_s": 0.08,
+            "inference_wall_s": 1.4503,
+            "model_load_count": 1,
+            "observed_dtype": "torch.bfloat16",
+            "cuda_allocated_bytes": 1841616896,
+            "peak_gpu_allocated_bytes": 1900167680,
+            "total_items": 21,
+            "valid_items": 21,
+            "zero_duration_count": 0,
+            "invalid_bounds_count": 0,
+            "non_monotonic_count": 0
+          },
+          "matched_untimed_units": 21,
+          "rejected_bounds_units": 0
+        },
+        {
+          "span_range": [
+            44,
+            66
+          ],
+          "untimed_units": 2,
+          "status": "skipped_low_subtitle_value"
+        }
+      ]
+    }
+  },
+  "zh_multichunk_qwen_fine": {
+    "wall_time_s": 9.2219,
+    "utterance_count": 7,
+    "utterance_timing_status_counts": {
+      "full": 7
+    },
+    "timed_units": 179,
+    "untimed_units": 0,
+    "qwen_recovery": {
+      "status": "executed",
+      "policy": "fine",
+      "eligible_candidates": 2,
+      "skipped_candidates": 0,
+      "mode": "available",
+      "model_load_count": 1,
+      "align_count": 2,
+      "startup_wall_s": 6.246,
+      "inference_wall_s": 1.4354728589823935,
+      "peak_gpu_allocated_bytes": 1900210688,
+      "device_used": "cuda:0",
+      "dtype": "torch.bfloat16",
+      "observed_dtype": "torch.bfloat16",
+      "cuda_allocated_bytes": 1841616896,
+      "model_load_wall_s": 5.0476,
+      "resource_handoff": {
+        "mode": "available",
+        "released": false
+      }
+    },
+    "qwen_zero_duration_count": 1,
+    "qwen_invalid_bounds_count": 0,
+    "qwen_non_monotonic_count": 0,
+    "jia_timings": [
+      {
+        "utt": "utt-0001",
+        "text": "钾",
+        "start": 12.24,
+        "end": 12.48
+      }
+    ],
+    "utterances_brief": [
+      {
+        "id": "utt-0000",
+        "speaker": "SPK_00",
+        "start": 1.83,
+        "end": 7.281,
+        "timing_status": "full",
+        "timed_units": 23,
+        "untimed_units": 0,
+        "text": "这并不是告别，这是一个篇章的结束，也是新篇章的开始。"
+      },
+      {
+        "id": "utt-0001",
+        "speaker": "SPK_00",
+        "start": 12.0,
+        "end": 17.44,
+        "timing_status": "full",
+        "timed_units": 21,
+        "untimed_units": 0,
+        "text": "钙、钾等元素属于金属，银和金等元素当然也是金属。"
+      },
+      {
+        "id": "utt-0002",
+        "speaker": "SPK_01",
+        "start": 22.45,
+        "end": 27.041,
+        "timing_status": "full",
+        "timed_units": 22,
+        "untimed_units": 0,
+        "text": "脚下垂直劲空十五米，该项目于二零一一年八月完工，"
+      },
+      {
+        "id": "utt-0003",
+        "speaker": "SPK_01",
+        "start": 27.985,
+        "end": 30.915,
+        "timing_status": "full",
+        "timed_units": 15,
+        "untimed_units": 0,
+        "text": "但直到二零一七年三月才开始通车"
+      },
+      {
+        "id": "utt-0004",
+        "speaker": "SPK_01",
+        "start": 36.64,
+        "end": 43.009,
+        "timing_status": "full",
+        "timed_units": 31,
+        "untimed_units": 0,
+        "text": "科学家们可以得出结论 暗物质对其他暗物质的影响方式与普通物质相同"
+      },
+      {
+        "id": "utt-0005",
+        "speaker": "SPK_01",
+        "start": 50.24,
+        "end": 58.376,
+        "timing_status": "full",
+        "timed_units": 29,
+        "untimed_units": 0,
+        "text": "大多数现代科研望远镜都是巨型设施 位于大气条件优良的偏远地区"
+      },
+      {
+        "id": "utt-0006",
+        "speaker": "SPK_02",
+        "start": 62.3,
+        "end": 68.427,
+        "timing_status": "full",
+        "timed_units": 38,
+        "untimed_units": 0,
+        "text": "Schoolchildren bus children walk school bus"
+      }
+    ],
+    "diag_chunk0_ext": {
+      "backend": "qwen3_forced_aligner",
+      "policy": "fine",
+      "status": "recovered",
+      "candidate_count": 2,
+      "admitted_count": 2,
+      "skipped_count": 0,
+      "recovered_units": 23,
+      "remaining_untimed_units": 0,
+      "localized_spans": [
+        {
+          "span_range": [
+            23,
+            44
+          ],
+          "untimed_units": 21,
+          "status": "recovered",
+          "window": [
+            11.68,
+            17.84
+          ],
+          "aligner_status": "ok",
+          "aligner_diagnostic": {
+            "backend": "qwen3_forced_aligner",
+            "status": "ok",
+            "qwen_language": "Chinese",
+            "device_used": "cuda:0",
+            "dtype": "torch.bfloat16",
+            "quantized_resolution_s": 0.08,
+            "inference_wall_s": 1.4028,
+            "model_load_count": 1,
+            "observed_dtype": "torch.bfloat16",
+            "cuda_allocated_bytes": 1841616896,
+            "peak_gpu_allocated_bytes": 1900167680,
+            "total_items": 21,
+            "valid_items": 21,
+            "zero_duration_count": 0,
+            "invalid_bounds_count": 0,
+            "non_monotonic_count": 0
+          },
+          "matched_untimed_units": 21,
+          "rejected_bounds_units": 0
+        },
+        {
+          "span_range": [
+            44,
+            66
+          ],
+          "untimed_units": 2,
+          "status": "recovered",
+          "window": [
+            21.41,
+            28.241
+          ],
+          "aligner_status": "ok",
+          "aligner_diagnostic": {
+            "backend": "qwen3_forced_aligner",
+            "status": "ok",
+            "qwen_language": "Chinese",
+            "device_used": "cuda:0",
+            "dtype": "torch.bfloat16",
+            "quantized_resolution_s": 0.08,
+            "inference_wall_s": 0.0319,
+            "model_load_count": 1,
+            "observed_dtype": "torch.bfloat16",
+            "cuda_allocated_bytes": 1841616896,
+            "peak_gpu_allocated_bytes": 1900210688,
+            "total_items": 22,
+            "valid_items": 21,
+            "zero_duration_count": 1,
+            "invalid_bounds_count": 0,
+            "non_monotonic_count": 0
+          },
+          "matched_untimed_units": 2,
+          "rejected_bounds_units": 0
+        }
+      ]
+    }
+  },
+  "two_span_subtitle_off": {
+    "wall_time_s": 0.1486,
+    "utterance_count": 2,
+    "utterance_timing_status_counts": {
+      "failed": 2
+    },
+    "timed_units": 0,
+    "untimed_units": 42,
+    "qwen_recovery": {
+      "status": "disabled"
+    },
+    "qwen_zero_duration_count": 0,
+    "qwen_invalid_bounds_count": 0,
+    "qwen_non_monotonic_count": 0,
+    "jia_timings": [],
+    "utterances_brief": [
+      {
+        "id": "utt-0000",
+        "speaker": "SPK_00",
+        "start": null,
+        "end": null,
+        "timing_status": "failed",
+        "timed_units": 0,
+        "untimed_units": 21,
+        "text": "钙、钾等元素属于金属，银和金等元素当然也是金属。"
+      },
+      {
+        "id": "utt-0001",
+        "speaker": "SPK_01",
+        "start": null,
+        "end": null,
+        "timing_status": "failed",
+        "timed_units": 0,
+        "untimed_units": 21,
+        "text": "钙、钾等元素属于金属，银和金等元素当然也是金属。"
+      }
+    ],
+    "span_inference_walls_s": []
+  },
+  "two_span_subtitle_qwen": {
+    "wall_time_s": 8.0702,
+    "utterance_count": 2,
+    "utterance_timing_status_counts": {
+      "full": 2
+    },
+    "timed_units": 42,
+    "untimed_units": 0,
+    "qwen_recovery": {
+      "status": "executed",
+      "policy": "subtitle",
+      "eligible_candidates": 2,
+      "skipped_candidates": 0,
+      "mode": "available",
+      "model_load_count": 1,
+      "align_count": 2,
+      "startup_wall_s": 5.4586,
+      "inference_wall_s": 1.3389007580117323,
+      "peak_gpu_allocated_bytes": 1900171776,
+      "device_used": "cuda:0",
+      "dtype": "torch.bfloat16",
+      "observed_dtype": "torch.bfloat16",
+      "cuda_allocated_bytes": 1841616896,
+      "model_load_wall_s": 4.3662,
+      "resource_handoff": {
+        "mode": "available",
+        "released": false
+      }
+    },
+    "qwen_zero_duration_count": 0,
+    "qwen_invalid_bounds_count": 0,
+    "qwen_non_monotonic_count": 0,
+    "jia_timings": [
+      {
+        "utt": "utt-0000",
+        "text": "钾",
+        "start": 1.41,
+        "end": 1.65
+      },
+      {
+        "utt": "utt-0001",
+        "text": "钾",
+        "start": 11.65,
+        "end": 11.89
+      }
+    ],
+    "utterances_brief": [
+      {
+        "id": "utt-0000",
+        "speaker": "SPK_00",
+        "start": 1.17,
+        "end": 6.61,
+        "timing_status": "full",
+        "timed_units": 21,
+        "untimed_units": 0,
+        "text": "钙、钾等元素属于金属，银和金等元素当然也是金属。"
+      },
+      {
+        "id": "utt-0001",
+        "speaker": "SPK_01",
+        "start": 11.41,
+        "end": 16.85,
+        "timing_status": "full",
+        "timed_units": 21,
+        "untimed_units": 0,
+        "text": "钙、钾等元素属于金属，银和金等元素当然也是金属。"
+      }
+    ],
+    "span_inference_walls_s": [
+      1.3054,
+      0.0329
+    ]
+  },
+  "gpu_after": {
+    "gpu_name": "NVIDIA GeForce RTX 5090",
+    "memory_used_mib": 3050,
+    "memory_free_mib": 29077,
+    "memory_total_mib": 32607,
+    "compute_apps": [
+      "11480, /usr/bin/kwin_wayland, 328",
+      "10066, /usr/local/bin/text-embeddings-router, 1728"
+    ]
+  }
+}
