@@ -6,6 +6,7 @@ Unmarked, busy, non-Nemovox or shared services are never stopped.
 from __future__ import annotations
 
 import fcntl
+import hashlib
 import json
 import os
 import re
@@ -211,6 +212,10 @@ def managed_asr_handoff(cfg: ManagedASRConfig) -> Iterator[dict[str, Any]]:
             "invocation_id": original.get("InvocationID"),
             "served_model": cfg.served_model,
             "base_url": cfg.base_url, "originally_active": True,
+            "unit_exec_sha256": hashlib.sha256(
+                original.get("ExecStart", "").encode("utf-8")
+            ).hexdigest(),
+            "unit_fragment_path": original.get("FragmentPath"),
         })
         # From this point even a systemctl transport error is ambiguous:
         # always inspect/restore the prior unit in the finally path.
@@ -255,3 +260,68 @@ def managed_asr_handoff(cfg: ManagedASRConfig) -> Iterator[dict[str, Any]]:
         finally:
             fcntl.flock(lease.fileno(), fcntl.LOCK_UN)
             lease.close()
+
+
+def recover_pending_managed_asr(cfg: ManagedASRConfig) -> dict[str, Any]:
+    """Explicit crash-recovery operation: revalidate unit identity before start.
+
+    This is NOT called automatically by an ordinary subtitle processing run.
+    It never restarts a service unless its prior active state, unit file,
+    original executable, cooperative marker and lease are all evidenced.
+    """
+    path = cfg.journal_path
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {"status": "no_pending_handoff"}
+    except (OSError, ValueError) as exc:
+        raise ManagedASRBlocked("handoff_journal_unreadable") from exc
+    if data.get("phase") == "restored":
+        return {"status": "already_restored"}
+    if not (
+        data.get("phase") == "pending_restore"
+        and data.get("unit") == cfg.unit
+        and data.get("served_model") == cfg.served_model
+        and data.get("base_url") == cfg.base_url
+        and data.get("originally_active") is True
+        and data.get("unit_exec_sha256")
+        and data.get("unit_fragment_path")
+    ):
+        raise ManagedASRBlocked("handoff_journal_identity_mismatch")
+    lease = _check_lease(cfg.lease_path)
+    try:
+        props = _unit_properties(cfg.unit)
+        env = props.get("Environment") or ""
+        if props.get("LoadState") != "loaded":
+            raise ManagedASRBlocked("asr_unit_not_loaded")
+        if "NEMOVOX_MANAGED_ASR=1" not in env or (
+            "NEMOVOX_ASR_LEASE_PATH=" + str(cfg.lease_path)
+        ) not in env:
+            raise ManagedASRBlocked("asr_not_cooperatively_owned")
+        if props.get("FragmentPath") != data["unit_fragment_path"]:
+            raise ManagedASRBlocked("asr_unit_changed_since_handoff")
+        if hashlib.sha256(props.get("ExecStart", "").encode()).hexdigest() != data["unit_exec_sha256"]:
+            raise ManagedASRBlocked("asr_unit_changed_since_handoff")
+        command = props.get("ExecStart", "").lower()
+        port = str(urllib.parse.urlsplit(cfg.base_url).port)
+        if "vllm" not in command or "nemotron" not in command or port not in command:
+            raise ManagedASRBlocked("asr_identity_mismatch")
+        if props.get("ActiveState") != "active":
+            if props.get("ActiveState") not in {"inactive", "failed"}:
+                raise ManagedASRBlocked("asr_state_unknown")
+            _run_systemctl("start", cfg.unit)
+            props = _wait_unit(cfg.unit, True, time.monotonic() + cfg.timeout_s)
+        deadline = time.monotonic() + cfg.timeout_s
+        while time.monotonic() < deadline:
+            if _models_healthy(cfg.base_url, cfg.served_model):
+                _write_journal(path, {
+                    "phase": "restored", "unit": cfg.unit,
+                    "restored_invocation_id": props.get("InvocationID"),
+                    "recovered_from": data.get("invocation_id"),
+                })
+                return {"status": "restored", "unit": cfg.unit, "health_verified": True}
+            time.sleep(0.5)
+        raise ManagedASRBlocked("asr_restore_health_failed")
+    finally:
+        fcntl.flock(lease.fileno(), fcntl.LOCK_UN)
+        lease.close()
