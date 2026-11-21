@@ -9,6 +9,7 @@ from pathlib import Path
 
 from nvidia_transcribe.checkpoint import DEFAULT_MODEL_PATH, CheckpointValidationError, validate_checkpoint
 from nvidia_transcribe.client import InferenceRequestConfig, NemotronVLLMClient
+from nvidia_transcribe.gpu_handoff import ManagedASRBlocked, ManagedASRConfig, recover_pending_managed_asr
 from nvidia_transcribe.media import MediaInspectionError
 from nvidia_transcribe.parser import CTCMetadataError
 from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
@@ -117,12 +118,34 @@ def build_parser() -> argparse.ArgumentParser:
         parser.add_argument("--qwen-asr-lease-path", default=None,
                             help="Cooperative ASR ownership lease file, managed mode only.")
 
+    recover = sub.add_parser(
+        "recover-qwen-asr", help="Explicitly verify and restore a previously owned interrupted ASR handoff."
+    )
+    recover.add_argument("--asr-unit", required=True)
+    recover.add_argument("--base-url", required=True)
+    recover.add_argument("--model", required=True)
+    recover.add_argument("--lease-path", required=True)
+    recover.add_argument("--journal", required=True)
     return p
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    if args.command == "recover-qwen-asr":
+        try:
+            report = recover_pending_managed_asr(ManagedASRConfig(
+                unit=args.asr_unit, lease_path=Path(args.lease_path),
+                base_url=args.base_url, served_model=args.model,
+                journal_path=Path(args.journal),
+            ))
+        except (ManagedASRBlocked, ValueError, RuntimeError) as exc:
+            print(json.dumps({"status": "BLOCKED", "reason": getattr(exc, "status", type(exc).__name__)}),
+                  file=sys.stderr)
+            return 2
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return 0
 
     if args.command == "validate-checkpoint":
         try:
