@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,7 +18,7 @@ from nvidia_transcribe.refinement import GlossaryConfig, OpenAIChatTextClient
 
 VALID_REVIEW_PROFILES = ("off", "conservative", "balanced", "expressive")
 VALID_REVIEW_STYLES = ("natural", "literal", "expressive")
-_PROMPT_VERSION = "mt_postedit_v1"
+_PROMPT_VERSION = "mt_postedit_v2_polarity_guard"
 _SCHEMA = {
     "type": "json_schema",
     "json_schema": {
@@ -85,6 +86,31 @@ def _entry(u: dict[str, Any], i: int) -> dict[str, Any]:
     }
 
 
+_FRENCH_NEGATIVE = re.compile(
+    r"(?i)(?:\b(?:pas|jamais|rien|personne|aucun|aucune|sans)\b|(?:^|\W)n['’])"
+)
+_ENGLISH_NEGATIVE = re.compile(
+    r"(?i)(?:\b(?:not|never|no|none|nobody|nothing|neither|nor|without|cannot)\b|n['’]t\b)"
+)
+
+
+def _unsupported_polarity_inversion(
+    source: str, original: str, candidate: str, language: str | None,
+) -> bool:
+    """Only veto loss of lexical negation corroborated by BOTH French and Riva.
+
+    This is deliberately conservative: changes retaining lexical negatives
+    (e.g. 'not ... or' -> 'neither ... nor') remain allowed, as do
+    corrections with no jointly corroborated negative evidence.
+    """
+    return bool(
+        language and language.lower().startswith("fr")
+        and _FRENCH_NEGATIVE.search(source)
+        and _ENGLISH_NEGATIVE.search(original)
+        and not _ENGLISH_NEGATIVE.search(candidate)
+    )
+
+
 def review_translated_utterances(
     utterances: list[dict[str, Any]], *,
     source_language: str | None,
@@ -132,7 +158,7 @@ def review_translated_utterances(
     )
     errors: list[str] = []
     blocked_reason: str | None = None
-    calls = hits = changed_count = reviewed_count = 0
+    calls = hits = changed_count = reviewed_count = rejected_polarity = 0
     started = time.perf_counter()
     n = len(out)
     batch = max(1, int(cfg.batch_size))
@@ -232,6 +258,15 @@ def review_translated_utterances(
                 continue
             out[i]["translation_review_reason"] = item["reason"]
             out[i]["translation_reviewed_text"] = candidate.strip()
+            if changed and _unsupported_polarity_inversion(
+                str(out[i].get("source_text") or ""),
+                original, candidate, source_language,
+            ):
+                out[i]["translation_review_status"] = "review_rejected_polarity_preserved_machine_translation"
+                out[i]["translation_review_rejection_reason"] = "source_and_primary_mt_negative_but_review_affirmative"
+                rejected_polarity += 1
+                reviewed_count += 1
+                continue
             out[i]["translation_review_status"] = "corrected" if changed else "unchanged"
             if changed:
                 out[i]["translated_text"] = candidate.strip()
@@ -251,6 +286,7 @@ def review_translated_utterances(
         "profile": cfg.profile, "style": cfg.style,
         "resource_fingerprint": cfg.resource_fingerprint,
         "reviewed": reviewed_count, "changed": changed_count,
+        "rejected_polarity": rejected_polarity,
         "cache_hits": hits, "api_calls": calls, "errors": errors,
         "resource_blocked_reason": blocked_reason,
         "elapsed_s": round(time.perf_counter() - started, 3),
