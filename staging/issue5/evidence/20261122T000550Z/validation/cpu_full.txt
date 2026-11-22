@@ -1,0 +1,19 @@
+COMMAND_1: PYTHONPATH=src .venv/bin/python -m compileall -q src tests experiments
+EXIT_CODE_1: 0
+
+COMMAND_2: PYTHONPATH=src .venv/bin/python -m pytest -q -m "not gpu"
+EXIT_CODE_2: 0
+
+........................................................................ [ 48%]
+........................................................................ [ 96%]
+.....                                                                    [100%]
+=============================== warnings summary ===============================
+../nvidia-transcribe/.venv/lib/python3.13/site-packages/anyio/pytest_plugin.py:14
+  /workspace/nvidia-transcribe/.venv/lib/python3.13/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+  The CallSpec2 alias will be removed in pytest 10.
+  Update imports to use CallSpec instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
+    from _pytest.python import CallSpec2
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+149 passed, 1 warning in 8.66s

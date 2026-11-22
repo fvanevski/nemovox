@@ -1,0 +1,71 @@
+{
+  "schema": "nemovox-issue5-final-qualification/v1",
+  "utc_run_id": "20261122T000550Z",
+  "source_base_sha": "7b4112cc31784953abbb041fd0b5d7997851841d",
+  "required_source_sha": "d23293ae87e27c00ee798d73d762efb13fd4bb3e",
+  "tested_source_sha": "d23293ae87e27c00ee798d73d762efb13fd4bb3e",
+  "local_source_changes": false,
+  "source_patch_sha256": "none",
+  "members": [
+    {
+      "path": "COMMAND_SHAPE_FRICTION.txt",
+      "criterion": "Canonical command friction report",
+      "bytes": 84,
+      "sha256": "8646d16795e8b857c0ffbdb0da4846caf520c962d4025efeddb67667930f388e"
+    },
+    {
+      "path": "host/resource_smoke.json",
+      "criterion": "Read-only host endpoint & GPU status",
+      "bytes": 510,
+      "sha256": "60ba51684a5455b3ff9b3fdd20c738400d4166a71e9c3fcb731bbc41fcfd8671"
+    },
+    {
+      "path": "review/doc_audit.json",
+      "criterion": "Documentation vs CLI/schema/Studio audit",
+      "bytes": 2097,
+      "sha256": "bb3b07546509f5a151c4be1f113cc6c687390f5412078a21a2502f0625af742a"
+    },
+    {
+      "path": "review/findings.md",
+      "criterion": "Final qualification findings",
+      "bytes": 1695,
+      "sha256": "aeaad3c188089d52795e2bb2d7bc87ebc39116b852391280228bc8d8f4241776"
+    },
+    {
+      "path": "source/identity.json",
+      "criterion": "Exact-head source & worktree identity",
+      "bytes": 672,
+      "sha256": "98bd42ae1e3c4455092c24136cb2fbb738606da43db6daac60e9ee0ac60ea098"
+    },
+    {
+      "path": "validation/cache_identity.txt",
+      "criterion": "Resource-sensitive cache key verification",
+      "bytes": 222,
+      "sha256": "ab0125e5c8ed0b52de9fd1d267693c4b000cc86de63540167b89d0650b828dab"
+    },
+    {
+      "path": "validation/cpu_full.txt",
+      "criterion": "Python compilation & full CPU suite",
+      "bytes": 1075,
+      "sha256": "e7ddf2936d893c6a95c0bb71b3a6f306a3bf7495bde4bc2d4b428c8aaf684131"
+    },
+    {
+      "path": "validation/focused_regressions.txt",
+      "criterion": "Focused issue #5 remediation & policy regressions",
+      "bytes": 11312,
+      "sha256": "ee3bcbe25c16a3f444975865ddc2c7414ae5098a62b8aed194d14f780c1ec60a"
+    },
+    {
+      "path": "validation/web_build.txt",
+      "criterion": "Frontend TypeScript & Vite production build",
+      "bytes": 1019,
+      "sha256": "894aa60e706cc57de8c79e6b14a79878a720d64f9c8a9a533d0ef9af97c0a7d7"
+    },
+    {
+      "path": "validation/web_test.txt",
+      "criterion": "Frontend unit tests",
+      "bytes": 454,
+      "sha256": "16e6e79328432e149ecabdbe14241bad13caffa083a428c6390f5b89e7fa8e34"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "repo_id": "fvanevski/nemovox",
+  "issue_number": 5,
+  "branch": "issue/5-model-resources",
+  "phase": "final-exact-head-qualification",
+  "source_base_sha": "7b4112cc31784953abbb041fd0b5d7997851841d",
+  "required_source_sha": "d23293ae87e27c00ee798d73d762efb13fd4bb3e",
+  "tested_source_sha": "d23293ae87e27c00ee798d73d762efb13fd4bb3e",
+  "local_source_changes": false,
+  "source_patch_sha256": "none",
+  "worktree": "/workspace/nemovox-issue5-final",
+  "git_status": [
+    "## HEAD (no branch)"
+  ],
+  "python_version": "Python 3.13.15",
+  "imported_package": "/workspace/nemovox-issue5-final/src/nvidia_transcribe/__init__.py",
+  "utc_run_id": "20261122T000550Z"
+}

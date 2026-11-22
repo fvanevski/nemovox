@@ -1,0 +1,8 @@
+{
+  "refinement_calls_[fp-1, fp-1, fp-2]": 2,
+  "translation_calls_[fp-1, fp-1, fp-2]": 2,
+  "condensation_calls_[fp-1, fp-1, fp-2]": 2,
+  "asr_sig_same": true,
+  "asr_sig_diff_fp": true,
+  "asr_sig_diff_endpoint": true
+}

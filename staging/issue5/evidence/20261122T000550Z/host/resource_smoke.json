@@ -1,0 +1,18 @@
+{
+  "gpu_service_mutation": false,
+  "gpu_status_csv": "0, NVIDIA GeForce RTX 5090, 3048 MiB, 32607 MiB",
+  "endpoints": {
+    "asr_local_default": {
+      "url": "http://127.0.0.1:8190/v1/models",
+      "reachable": false,
+      "error": "[Errno 111] Connection refused"
+    },
+    "text_local_default": {
+      "url": "http://127.0.0.1:8001/v1/models",
+      "reachable": false,
+      "error": "[Errno 111] Connection refused"
+    }
+  },
+  "text_live_smoke": "UNVERIFIED",
+  "asr_live_smoke": "UNVERIFIED"
+}
