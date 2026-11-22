@@ -619,6 +619,12 @@ class JobRunner:
                 (imported / "transcript.txt").write_text(
                     _format_existing_transcript(value), encoding="utf-8"
                 )
+                if spec.task != "transcription":
+                    # Keep the original input directory as the reconstruction
+                    # authority: subtitle_pipeline reads manifest.json and
+                    # chunks/*.raw.json adjacent to recording.contract.json.
+                    # The job-owned copy above remains available for export.
+                    contract = source
             else:
                 args = [
                     "process-media", str(source), "--output-dir", str(root / "asr"),
