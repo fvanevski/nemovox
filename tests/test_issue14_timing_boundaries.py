@@ -104,6 +104,19 @@ def test_actual_repeated_interjection_in_one_chunk_survives() -> None:
     assert [u["text"] for u in merged].count("again") == 4
 
 
+def test_mandarin_character_spans_are_not_deleted_or_extended_by_word_matching() -> None:
+    left = _phrase(list("古老城市仍在这里"), 985.0, "SPK_A", .21)
+    right = _phrase(list("古老城市仍在这里"), 1003.0, "SPK_B", .21)
+    for unit in (*left, *right):
+        unit["unit_type"] = "character"
+    merged, diag = reconcile_chunk_boundaries([left, right], _chunks(990))
+    assert len(merged) == len(left) + len(right)
+    assert diag["sequence_evidence"]["sequence_deduplicated_units"] == 0
+    assert diag["sequence_evidence"]["ambiguities"][0]["reason"] == (
+        "character_sequence_requires_review"
+    )
+
+
 def test_missed_right_context_6_words_recovered_beyond_legacy_cap() -> None:
     tokens = ["small", "stones", "are", "falling", "over", "there"]
     left = _phrase(tokens, 1352.05, "SPK_CHILD", .25)

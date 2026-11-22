@@ -19,7 +19,8 @@ def _norm(token: str) -> str:
 
 def _speaker(unit: dict[str, Any]) -> str | None:
     v = unit.get("global_speaker_id") or unit.get("local_speaker_id") or unit.get("speaker")
-    if v is None or str(v).startswith("SPK_UNK") or str(v).endswith(":unknown"):
+    if (v is None or str(v) == "unknown"
+            or str(v).startswith("SPK_UNK") or str(v).endswith(":unknown")):
         return None
     return str(v)
 
@@ -137,6 +138,15 @@ def reconcile_displaced_sequences(
                     or not _same_voice_within(lu) or not _same_voice_within(ru)):
                 ambiguities.append({**signature, "reason": "repeated_or_mixed_voice_sequence"})
                 continue
+            # Character-level (e.g. Mandarin) CTC needs a different lexical
+            # uniqueness model; keep the legacy near-time reconciliation only.
+            # Unknown identities are not positive evidence for deleting speech.
+            if any(u.get("unit_type") == "character" for u in (*lu, *ru)):
+                ambiguities.append({**signature, "reason": "character_sequence_requires_review"})
+                continue
+            if any(_speaker(u) is None for u in (*lu, *ru)):
+                ambiguities.append({**signature, "reason": "unknown_speaker_sequence"})
+                continue
             same_speaker = _speaker(lu[0]) is not None and _speaker(lu[0]) == _speaker(ru[0])
             left_suffix = _continuation(left, a1, lu[-1], boundary)
             right_suffix = _continuation(right, z1, ru[-1], boundary)
@@ -235,7 +245,8 @@ def recover_extended_right_context(
         right_words = [_norm(u["text"]) for u in right]
         for group in groups:
             if (len(group) < 3 or not _same_voice_within(group)
-                    or _speaker(group[0]) is None):
+                    or _speaker(group[0]) is None
+                    or any(u.get("unit_type") == "character" for u in group)):
                 continue
             if float(group[-1]["end"]) - float(group[0]["start"]) > 8.0:
                 continue
