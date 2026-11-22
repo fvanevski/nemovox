@@ -1,0 +1,74 @@
+{
+  "schema": "nemovox-issue14-integrated-manifest/v1",
+  "utc_run_id": "20261122T223253Z",
+  "repo_id": "fvanevski/nemovox",
+  "issue_number": 14,
+  "pr_number": 15,
+  "exact_tested_source_sha": "4c6c7ac5719fc70b8db3a671e2970409a9a11e29",
+  "handoff_carrier_sha": "b110657d02788b13d32ffa7b031a2c57122e17a8",
+  "evidence_branch": "issue/14-longform-timing-boundaries",
+  "evidence_root": "staging/issue14/evidence/20261122T223253Z/",
+  "omissions_for_privacy": [
+    "original_video_webm",
+    "raw_asr_chunk_json",
+    "full_copyrighted_transcripts_and_ass",
+    "absolute_personal_host_paths"
+  ],
+  "members": [
+    {
+      "path": "COMMAND_SHAPE_FRICTION.txt",
+      "bytes": 25,
+      "sha256": "c333f1c530df2dbfa232d903a30c99bb7948f93c3a0e297957efe6c114eb48e9"
+    },
+    {
+      "path": "README.md",
+      "bytes": 828,
+      "sha256": "61b4662565fa920494133eeba5ef3cad0a2aa236ae95f62c09799e3eda865ef1"
+    },
+    {
+      "path": "review/acceptance-matrix.md",
+      "bytes": 1234,
+      "sha256": "66969612ad2eaca120a9fb7bce7c6fcd2910463069fec76e8402637f1f6fec8d"
+    },
+    {
+      "path": "review/findings.md",
+      "bytes": 1389,
+      "sha256": "506831bea6c03edfa2b0638f462dcf3b3f8ed8ad0389944a04619dd0bc3eb067"
+    },
+    {
+      "path": "source-identity.json",
+      "bytes": 2300,
+      "sha256": "b8922f79734730f5de9e9722e7db54e76d0d3cee26aef8f548a834e958422105"
+    },
+    {
+      "path": "validation/causal-assessment.md",
+      "bytes": 1332,
+      "sha256": "cba425c6685b5bf198ce886933bf63987e1a4862cf452dd9510554fbbf433413"
+    },
+    {
+      "path": "validation/chunk-plan.json",
+      "bytes": 21559,
+      "sha256": "c2224913391c8364ff4332cc2111ebd36a2028b61c2b8fa3027934b7f7d9270a"
+    },
+    {
+      "path": "validation/pilot-cases.jsonl",
+      "bytes": 10113,
+      "sha256": "81d5deb2b351d3635c8cf72848d445f3b761af3742ecf68a58268380a3fb66e1"
+    },
+    {
+      "path": "validation/polarity-review.md",
+      "bytes": 1057,
+      "sha256": "bbcf90ef41cc8316895522492c51adf86455efe71de46aaa6d7fd61a50b4b941"
+    },
+    {
+      "path": "validation/speaker-review.md",
+      "bytes": 1665,
+      "sha256": "bdad248a6f98733c4d74f385c920ebc891708dd126529996d5845c761b844fcf"
+    },
+    {
+      "path": "validation/tests.md",
+      "bytes": 3087,
+      "sha256": "776d8d4766d803c20c2bb2b3ac8aa340ad4d11e817c9a41a9da26e5f89e71488"
+    }
+  ]
+}
