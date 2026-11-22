@@ -235,3 +235,44 @@ def test_offline_constructor_never_reads_invalid_lifecycle_config(tmp_path):
     with pytest.raises(lifecycle.ResourceLifecycleError) as error:
         _ = manager.services
     assert error.value.status == "invalid_lifecycle_config"
+
+
+def test_lock_restores_sigterm_handler_and_rejects_symlink(tmp_path):
+    import signal
+    manager = lifecycle.ModelLifecycle(lock_path=tmp_path / "resources.lock")
+    prior = signal.getsignal(signal.SIGTERM)
+    with pytest.raises(KeyboardInterrupt):
+        with manager._lock():
+            handler = signal.getsignal(signal.SIGTERM)
+            assert callable(handler)
+            handler(signal.SIGTERM, None)
+    assert signal.getsignal(signal.SIGTERM) is prior
+    assert manager.lock_path.is_file()
+
+    manager.lock_path.unlink()
+    destination = tmp_path / "other-file"
+    destination.write_text("preserve", encoding="utf-8")
+    manager.lock_path.symlink_to(destination)
+    with pytest.raises(lifecycle.ResourceLifecycleError) as error:
+        with manager._lock():
+            pass
+    assert error.value.status == "resource_lock_unavailable"
+    assert destination.read_text(encoding="utf-8") == "preserve"
+
+
+def test_resource_lease_wait_is_bounded(tmp_path, monkeypatch):
+    import fcntl
+    import os
+    lock = tmp_path / "busy.lock"
+    fd = os.open(lock, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        monkeypatch.setenv("NEMOVOX_LIFECYCLE_LOCK_TIMEOUT_S", "0.1")
+        contender = lifecycle.ModelLifecycle(lock_path=lock)
+        with pytest.raises(lifecycle.ResourceLifecycleError) as error:
+            with contender._lock():
+                pass
+        assert error.value.status == "resource_lease_timeout"
+    finally:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        os.close(fd)
