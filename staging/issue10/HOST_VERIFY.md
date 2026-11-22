@@ -33,22 +33,26 @@ that test. Central has now aligned ASR readiness with
 `NemotronVLLMClient`'s `VLLM_API_KEY` fallback, without altering
 explicit credential enforcement or text-model authorization.
 
-The candidate **source SHA changes** (both credential parity and crash-recovery controller); rerun Phase A completely and confirm
-new credential regressions: ASR default key, no key/EMPTY parity, explicit
-ASR override precedence, missing explicit token fail-closed, and no leak to
-the text review endpoint. Continue Phases B/C safely, but **do not**
-unnecessarily repeat the entire long foreign-language E2E if exact fresh
-evidence already proves every pipeline dependency other than the changed ASR
-readiness header: execute a targeted authenticated ASR start/readiness/CTC
-probe from both initially stopped unit and exact candidate CLI, **without**
-`api_key_env` in the isolated ASR mapping while `VLLM_API_KEY` is
-available to the candidate and the ASR unit. Verify successful credentialed
-`/v1/models`, exact served-model ID, one short ASR request with CTC timings,
-proper unit release, no unrelated service mutation, and healthy final state.
-Source changes now include supervised SIGKILL recovery in Studio and lifecycle, so a **fresh full foreign-language Studio E2E is required**. Reuse the earlier evidence only as comparative baseline, never as new source-bound qualification. Capture both the original failure and
-new successful automatic startup, distinguish host-only credentials from
-tracked configuration, and preserve old PASS evidence as historical rather
-than pretending it is source-bound to the new SHA.
+The candidate **source SHA changes**: the fix includes authenticated ASR
+readiness parity and a Studio-supervised SIGKILL orphan-reconciliation path.
+Re-run Phase A fully at the current exact candidate SHA. Confirm credential
+regressions for ASR fallback/EMPTY, explicit-key precedence, missing explicit
+credential failure, and no leakage to text models. Confirm orphan-recovery
+regressions (owner/model/endpoint/PID/invocation validation, external-client
+protection, nonblocking shared lock, and Studio subprocess/startup wiring)
+with no real host resource mutation during CPU tests.
+
+Re-run the **full short French Studio ASR -> Riva -> English-review E2E**
+and direct CLI parity on the isolated candidate, from initially stopped
+owned services. To prove F-01 is corrected rather than merely configured
+around, the isolated ASR model resource should **omit** `api_key_env` while
+`VLLM_API_KEY` is present in both the vLLM user-manager environment and
+candidate CLI environment. Verify authenticated `/v1/models`, matching
+served-model ID, CTC word timing, true no-operator model lifecycle, SRT/ASS,
+post-stage cleanup, and live Studio/CLI logs. Additionally run the tightly
+controlled SIGKILL and recovery verification below. Historical PASS evidence
+at `8d6f70f161c9100d4e64fca49da5139c4d109615` is a **comparison
+baseline only**, not proof for changed source.
 
 ## Phase A: exact-head inspect, CPU and frontend verification
 
