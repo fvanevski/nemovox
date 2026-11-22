@@ -64,13 +64,36 @@ def test_long_displaced_duplicate_from_adjacent_excerpts_is_not_rendered_twice()
     assert all(u["timing_evidence_status"] == "displaced_sequence_ctc_unverified" for u in merged)
 
 
+def test_more_complete_right_excerpt_replaces_truncated_core_without_losing_tail() -> None:
+    boundary = 1260.0
+    phrase = ["the", "city", "has", "been", "saved"]
+    left = _phrase(phrase, 1252.0, "SPK_A", .30)
+    right = _phrase(phrase + ["today", "indeed"], 1252.0, "SPK_B", .30)
+    merged, diag = reconcile_chunk_boundaries([left, right], _chunks(boundary))
+    assert [u["text"] for u in merged] == phrase + ["today", "indeed"]
+    assert diag["sequence_evidence"]["matches"][0]["selected_better_complete_turn"] is True
+    assert all(u["boundary_provenance"] == "sequence_alternate_recovered" for u in merged)
+    assert diag["sequence_evidence"]["sequence_promoted_units"] == 7
+
+
+def test_same_six_word_phrase_by_distinct_speakers_far_apart_is_not_auto_deleted() -> None:
+    tokens = ["wait", "for", "the", "ancient", "golden", "river"]
+    left = _phrase(tokens, 985.0, "SPK_A")
+    right = _phrase(tokens, 1003.0, "SPK_B")
+    merged, diag = reconcile_chunk_boundaries([left, right], _chunks(990))
+    assert len(merged) == 12
+    assert diag["sequence_evidence"]["ambiguities"][0]["reason"] == (
+        "insufficient_cross_speaker_sequence_evidence"
+    )
+
+
 def test_short_displaced_distinct_speaker_repetition_is_preserved_as_ambiguous() -> None:
     tokens = ["stop", "the", "river", "now"]
     left = _phrase(tokens, 1073.0, "SPK_A")
     right = _phrase(tokens, 1085.5, "SPK_B")
     merged, diag = reconcile_chunk_boundaries([left, right], _chunks(1080))
     assert len(merged) == 8
-    assert diag["sequence_evidence"]["ambiguities"][0]["reason"] == "short_unanchored_duplicate_candidate"
+    assert diag["sequence_evidence"]["ambiguities"][0]["reason"] == "insufficient_cross_speaker_sequence_evidence"
 
 
 def test_actual_repeated_interjection_in_one_chunk_survives() -> None:
@@ -102,6 +125,16 @@ def test_right_context_recovery_does_not_duplicate_shifted_lexical_copy() -> Non
     merged, diag = reconcile_chunk_boundaries([left, right], _chunks(1350))
     assert diag["extended_recovery"]["extended_recovered_units"] == 0
     assert len(merged) == 6  # right already has it; never add left as a third copy
+
+
+def test_extended_recovery_does_not_override_alternate_right_speech() -> None:
+    tokens = ["small", "stones", "are", "falling", "over", "there"]
+    left = _phrase(tokens, 1352.05, "SPK_CHILD", .25)
+    right = [_word("narrator", 1352.7, "SPK_ADULT")]
+    merged, diag = reconcile_chunk_boundaries([left, right], _chunks(1350))
+    assert [u["text"] for u in merged] == ["narrator"]
+    assert diag["extended_recovery"]["extended_recovered_units"] == 0
+    assert diag["extended_recovery"]["extended_ambiguities"]
 
 
 def test_one_word_or_unknown_voice_cannot_trigger_sequence_based_deletion() -> None:

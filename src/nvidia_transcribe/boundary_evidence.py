@@ -144,6 +144,9 @@ def reconcile_displaced_sequences(
                 not left_suffix and bool(right_suffix) and abs(delta) <= 1.0
                 and not str(lu[-1].get("text", "")).endswith((".", "!", "?"))
             )
+            if abs(delta) > 3.0 and not same_speaker and exact_matches < 8:
+                ambiguities.append({**signature, "reason": "insufficient_cross_speaker_sequence_evidence"})
+                continue
             if (exact_matches < 6 and not (abs(delta) <= 1.0 and same_speaker)
                     and not right_more_complete):
                 ambiguities.append({**signature, "reason": "short_unanchored_duplicate_candidate"})
@@ -231,7 +234,8 @@ def recover_extended_right_context(
                  if not u["_drop"] and _norm(u.get("text", ""))]
         right_words = [_norm(u["text"]) for u in right]
         for group in groups:
-            if len(group) < 3 or not _same_voice_within(group):
+            if (len(group) < 3 or not _same_voice_within(group)
+                    or _speaker(group[0]) is None):
                 continue
             if float(group[-1]["end"]) - float(group[0]["start"]) > 8.0:
                 continue
