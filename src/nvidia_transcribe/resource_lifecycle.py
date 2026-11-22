@@ -179,6 +179,29 @@ class ModelLifecycle:
         default = Path.home() / ".local/state/nemovox/model-lifecycle.lock"
         self.lock_path = Path(lock_path or os.environ.get("NEMOVOX_LIFECYCLE_LOCK", default)).expanduser()
 
+    def inspect(self, resource: ModelResource) -> dict[str, str | bool]:
+        """Read-only status for Studio; never starts/stops or loads any model."""
+        healthy = _models_healthy(resource)
+        settings = self.services.get(resource.name)
+        if not settings:
+            return {"state": "ready_external" if healthy else "unmanaged_unavailable",
+                    "ready": healthy, "managed": False, "startable": False}
+        try:
+            state = _unit(settings.unit)
+        except ResourceLifecycleError:
+            return {"state": "ready_external" if healthy else "manager_unavailable",
+                    "ready": healthy, "managed": False, "startable": False}
+        owned = _owned(state, resource)
+        if not owned:
+            return {"state": "ready_external" if healthy else "managed_unit_not_configured",
+                    "ready": healthy, "managed": False, "startable": False}
+        if healthy:
+            return {"state": "ready_managed", "ready": True,
+                    "managed": True, "startable": True}
+        status = "startable" if state.get("ActiveState") in {"inactive", "failed"} else "managed_model_mismatch"
+        return {"state": status, "ready": False, "managed": True,
+                "startable": status == "startable"}
+
     @contextmanager
     def _lock(self) -> Iterator[None]:
         self.lock_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
