@@ -16,6 +16,18 @@ fastapi = pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
 from nvidia_transcribe.studio_api import JobRunner, StudioConfig, _remote_url, _srt_cues, create_app
+from nvidia_transcribe.media import MediaInspectionError
+
+
+@pytest.fixture(autouse=True)
+def fake_media_probe(monkeypatch: pytest.MonkeyPatch):
+    # The existing Studio tests use synthetic files. Explicit media-probe tests
+    # below independently exercise the real ffprobe parser and API validation.
+    monkeypatch.setattr(
+        "nvidia_transcribe.studio_api.inspect_audio_streams",
+        lambda path: [{"index": 0, "codec": "aac", "channels": 2, "sample_rate_hz": 48000,
+                       "container_index": 1, "language": "eng", "title": "Main"}],
+    )
 
 
 @pytest.fixture
@@ -445,3 +457,60 @@ def test_cancel_and_completion_have_serialized_terminal_state(client):
     assert after.json()["state"] == "complete"
     assert after.json()["stage"] == "Complete"
     assert runner.get(completed)["state"] == "complete"
+
+
+
+def test_audio_inspection_authorization_and_stream_index_validation(client, monkeypatch):
+    c, media, secret, _ = client
+    source = {"kind": "path", "value": str(media / "sample.webm")}
+    tracks = [
+        {"index": 0, "container_index": 1, "codec": "aac",
+         "channels": 2, "sample_rate_hz": 48000, "language": "fra", "title": "French"},
+        {"index": 1, "container_index": 3, "codec": "eac3",
+         "channels": 6, "sample_rate_hz": 48000, "language": "eng", "title": "English"},
+    ]
+    monkeypatch.setattr("nvidia_transcribe.studio_api.inspect_audio_streams",
+                        lambda path: tracks)
+    response = c.post("/api/media/inspect", json=source)
+    assert response.status_code == 200, response.text
+    assert response.json() == {"audio_streams": tracks}
+    assert c.post("/api/media/inspect", json={
+        "kind": "path", "value": str(secret / "private.webm")}).status_code == 403
+    assert c.post("/api/media/inspect", json={
+        "kind": "contract", "value": str(media / "recording.contract.json")}).status_code == 422
+    allowed = c.post("/api/jobs", json={
+        "source": source, "task": "transcription", "options": {"audio_stream": 1}})
+    assert allowed.status_code == 202, allowed.text
+    rejected = c.post("/api/jobs", json={
+        "source": source, "task": "transcription", "options": {"audio_stream": 2}})
+    assert rejected.status_code == 422
+
+
+def test_glossary_metadata_explains_series_specific_examples(client):
+    c, _media, _secret, _settings = client
+    entries = c.get("/api/glossaries").json()
+    assert any("A Will Eternal" in e["name"] and e["characters"] and e["terms"]
+               for e in entries)
+    assert any("French example" in e["name"] and e["notes"] for e in entries)
+    assert all("path" in e and "notes" in e for e in entries)
+
+
+def test_audio_stream_parser_uses_audio_only_indices(monkeypatch, tmp_path):
+    from nvidia_transcribe import media as media_module
+    clip = tmp_path / "episode.mkv"
+    clip.write_bytes(b"synthetic media")
+    payload = {"streams": [
+        {"index": 0, "codec_type": "video", "codec_name": "hevc"},
+        {"index": 1, "codec_type": "audio", "codec_name": "aac",
+         "channels": 2, "sample_rate": "48000",
+         "tags": {"language": "fra", "title": "French"}},
+        {"index": 2, "codec_type": "subtitle", "codec_name": "ass"},
+        {"index": 3, "codec_type": "audio", "codec_name": "eac3",
+         "channels": 6, "sample_rate": "48000", "tags": {"language": "eng"}},
+    ]}
+    monkeypatch.setattr(media_module.subprocess, "check_output",
+                        lambda *args, **kwargs: json.dumps(payload))
+    records = media_module.inspect_audio_streams(clip)
+    assert [x["index"] for x in records] == [0, 1]
+    assert [x["container_index"] for x in records] == [1, 3]
+    assert records[0]["language"] == "fra"
