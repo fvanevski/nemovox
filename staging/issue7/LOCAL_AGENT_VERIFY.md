@@ -19,7 +19,7 @@ REPO_ID=fvanevski/nemovox
 ISSUE_NUMBER=7
 PR_NUMBER=8
 TARGET_BRANCH=issue/7-studio-subtitle-workflow
-TESTED_SOURCE_SHA=9de11ef89894414a4a8ed7c4fe0a3987d9b1a5d1
+TESTED_SOURCE_SHA=e824321d5680e61044cdbccc9564ca25d2b2f9e9
 BASE_MAIN_SHA=8205d7783230272c39a669c3f51d89bca50669e6
 LOCAL_AGENT_PRIMARY=evidence
 LOCAL_AGENT_FALLBACK=build (only when the actual harness forbids test/scratch execution, with explicit role boundary)
@@ -37,7 +37,7 @@ GPU_INTENSIVE_VALIDATION=optional read-only/available-only, never required for C
 
 Fetch the branch without rebasing, resetting, force-pushing, or modifying an
 existing operator worktree. Create a clean detached worktree at
-`9de11ef89894414a4a8ed7c4fe0a3987d9b1a5d1` (suggested scratch `/workspace/nemovox-issue7-evidence`).
+`e824321d5680e61044cdbccc9564ca25d2b2f9e9` (suggested scratch `/workspace/nemovox-issue7-evidence`).
 Prove full `git rev-parse HEAD`, `git status --porcelain=v1`, and module
 import paths. A single evidence-only commit after qualification may advance
 the issue branch; before such a commit, establish tree equivalence of all
