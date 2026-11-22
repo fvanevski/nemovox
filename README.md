@@ -45,7 +45,7 @@ export NEMOVOX_MODEL_RESOURCES="$PWD/configs/model-resources.local.json"
 
 The resource file binds functional roles (ASR, **dedicated Riva translation and English translation review**, optional legacy source refinement/condensation, alignment, embeddings) to installed local resources. The shipped `text_local` binding points to the existing SwiftU/NInfer host endpoint for selective English post-editing. The CLI and Studio use the same resolver, but the Studio uses Riva for primary translation while the legacy CLI text translator remains opt-in. See [model-resource configuration](docs/model-resources/CONFIGURATION.md) and the [Studio subtitle workflow guide](docs/gui/SUBTITLE_WORKFLOW.md). Reading this configuration never starts inference services.
 
-Launch the ASR serving backend (reads `configs/vllm_rtx5090.env` by default):
+For automatic per-job ASR/reviewer service acquisition, provision the explicitly owned user-systemd units once (not per job) and configure `NEMOVOX_LIFECYCLE_CONFIG` as described in [model lifecycle](docs/model-resources/LIFECYCLE.md). The CLI/Studio then starts and releases required owned resources automatically. The following standalone launcher remains available for explicit diagnostics:
 
 ```bash
 ./scripts/start_vllm_server.sh
@@ -103,7 +103,7 @@ nvidia-transcribe generate-subtitles \
 - **`src/nvidia_transcribe/`** — Core package:
   - *ASR & media:* `checkpoint.py`, `client.py`, `prompts.py`, `media.py`, `chunking.py`, `parser.py`, `recording.py`
   - *Alignment & speakers:* `alignment.py`, `qwen_aligner.py`, `speakers.py`, `scene_diarization.py`, `utterances.py`, `contract.py`, `metrics.py`
-  - *Resource resolution:* `model_resources.py` (validated role/resource mappings and host overrides)
+  - *Resource resolution and lifecycle:* `model_resources.py` (validated role/resource mappings) and `resource_lifecycle.py` (exact-owned model service acquisition, GPU admission and release)
   - *Refinement, translation & output:* `refinement.py`, `translation.py`, `translation_review.py`, `subtitles.py`, `subtitle_pipeline.py`, `cli.py`
 - **`configs/`** — Example model-resource JSON (`model-resources.example.json`), server/runtime templates (`*.env.example`), domain glossaries, and validation overlays.
 - **`scripts/`** — vLLM server launcher (`start_vllm_server.sh`), evaluation runners, and evidence packagers.
