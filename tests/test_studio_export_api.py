@@ -10,6 +10,7 @@ pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
 from nvidia_transcribe.studio_api import JobRunner, StudioConfig, create_app
+from nvidia_transcribe.utterances import audit_and_reconstruct_contract
 
 
 @pytest.fixture
@@ -151,8 +152,11 @@ def test_imported_contract_processing_keeps_adjacent_reconstruction_sidecars(
     ]}), encoding="utf-8")
     chunks = original.parent / "chunks"
     chunks.mkdir()
-    sidecar = chunks / "0001.raw.json"
-    sidecar.write_text('{"synthetic": "chunk sidecar"}', encoding="utf-8")
+    sidecar = chunks / "chunk_001.raw.json"
+    sidecar.write_text(json.dumps({"choices": [{
+        "finish_reason": "stop",
+        "message": {"content": "<spk:0> Parole sans temps."},
+    }]}), encoding="utf-8")
     original_contents = original.read_bytes()
     response = client.post("/api/jobs", json={
         "source": {"kind": "contract", "value": str(original)},
@@ -173,8 +177,20 @@ def test_imported_contract_processing_keeps_adjacent_reconstruction_sidecars(
         invoked.append(path)
         # Untimed-order reconstruction reads these files via path.parent.
         assert path == original
-        assert json.loads((path.parent / "manifest.json").read_text())["chunks"][1]["infer_end_s"] == 610.0
+        manifest_chunks = json.loads((path.parent / "manifest.json").read_text())["chunks"]
+        assert manifest_chunks[1]["infer_end_s"] == 610.0
         assert (path.parent / "chunks" / sidecar.name).read_bytes() == sidecar.read_bytes()
+        # Exercise the real reconstruction algorithm with the sidecars the CLI
+        # will see, not a mocked interpretation of chunk-window ordering.
+        reconstructed, audit = audit_and_reconstruct_contract(
+            json.loads(path.read_text(encoding="utf-8")),
+            chunk_raw_dir=path.parent / "chunks", manifest_chunks=manifest_chunks,
+        )
+        entry = next(item for item in audit
+                     if item["original_utterance_id"] == "chunk1-untimed")
+        assert entry["chunk_window_s"] == [290.0, 610.0]
+        assert entry["estimated_order_s"] > 150.0
+        assert reconstructed["utterances"][-1]["original_utterance_id"] == "chunk1-untimed"
         (settings.job_root / job_id / "output").mkdir(exist_ok=True)
 
     monkeypatch.setattr(runner, "_command", fake_generate)
