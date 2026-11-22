@@ -35,10 +35,11 @@ class OwnedService:
     unit: str
     startup_timeout_s: float = 240.0
     stop_after_stage: bool = True
+    min_free_vram_mb: int = 0
 
 
 _DEFAULT_UNITS = {
-    "asr_local": OwnedService("nemovox-asr.service"),
+    "asr_local": OwnedService("nemovox-asr.service", min_free_vram_mb=26000),
     "text_local": OwnedService("nemovox-text-review.service"),
 }
 _UNIT_RE = re.compile(r"^nemovox-[a-zA-Z0-9_.@-]+\.service$")
@@ -70,14 +71,16 @@ def _service_config(path: str | Path | None = None) -> dict[str, OwnedService]:
             raise ResourceLifecycleError("invalid_resource_name")
         if not isinstance(value, dict) or not isinstance(value.get("unit"), str):
             raise ResourceLifecycleError("invalid_lifecycle_config", f"Invalid service definition for {name}")
-        if set(value) - {"unit", "startup_timeout_s", "stop_after_stage"}:
+        if set(value) - {"unit", "startup_timeout_s", "stop_after_stage", "min_free_vram_mb"}:
             raise ResourceLifecycleError("invalid_lifecycle_config", f"Unsupported service fields for {name}")
         unit = value["unit"]
         timeout = value.get("startup_timeout_s", 240)
         release = value.get("stop_after_stage", True)
-        if not _UNIT_RE.fullmatch(unit) or not isinstance(timeout, (int, float)) or isinstance(timeout, bool) or not (10 <= timeout <= 900) or not isinstance(release, bool):
+        min_free = value.get("min_free_vram_mb", 0)
+        if not _UNIT_RE.fullmatch(unit) or not isinstance(timeout, (int, float)) or isinstance(timeout, bool) or not (10 <= timeout <= 900) or not isinstance(release, bool) or not isinstance(min_free, int) or isinstance(min_free, bool) or not (0 <= min_free <= 120000):
             raise ResourceLifecycleError("invalid_lifecycle_config", f"Invalid unit, timeout or release policy for {name}")
-        parsed[name] = OwnedService(unit=unit, startup_timeout_s=float(timeout), stop_after_stage=release)
+        parsed[name] = OwnedService(unit=unit, startup_timeout_s=float(timeout), stop_after_stage=release,
+                                    min_free_vram_mb=min_free)
     return parsed
 
 
@@ -98,21 +101,25 @@ def _unit(unit: str) -> dict[str, str]:
     return dict(x.split("=", 1) for x in raw.splitlines() if "=" in x)
 
 
-def _owned(properties: dict[str, str], name: str) -> bool:
+def _owned(properties: dict[str, str], resource: ModelResource) -> bool:
     if properties.get("LoadState") != "loaded" or not properties.get("FragmentPath"):
         return False
     try:
         assignments = shlex.split(properties.get("Environment") or "")
     except ValueError:
         return False
-    markers: dict[str, list[str]] = {"NEMOVOX_MANAGED_RESOURCE": [], "NEMOVOX_RESOURCE_NAME": []}
+    markers: dict[str, list[str]] = {"NEMOVOX_MANAGED_RESOURCE": [], "NEMOVOX_RESOURCE_NAME": [],
+        "NEMOVOX_RESOURCE_MODEL": [], "NEMOVOX_RESOURCE_ENDPOINT": []}
     for assignment in assignments:
         if "=" not in assignment:
             return False
         key, value = assignment.split("=", 1)
         if key in markers:
             markers[key].append(value)
-    return markers["NEMOVOX_MANAGED_RESOURCE"] == ["1"] and markers["NEMOVOX_RESOURCE_NAME"] == [name]
+    return (markers["NEMOVOX_MANAGED_RESOURCE"] == ["1"]
+            and markers["NEMOVOX_RESOURCE_NAME"] == [resource.name]
+            and markers["NEMOVOX_RESOURCE_MODEL"] == [resource.model]
+            and markers["NEMOVOX_RESOURCE_ENDPOINT"] == [resource.endpoint])
 
 
 def _models_healthy(resource: ModelResource, timeout: float = 3.0) -> bool:
@@ -201,7 +208,7 @@ class ModelLifecycle:
                     yield
                     return
                 raise
-            owned = bool(config and properties and _owned(properties, resource.name))
+            owned = bool(config and properties and _owned(properties, resource))
             if healthy and not owned:
                 yield
                 return
@@ -226,6 +233,13 @@ class ModelLifecycle:
                 if not healthy:
                     if properties.get("ActiveState") not in {"inactive", "failed"}:
                         raise ResourceLifecycleError("owned_service_busy", resource.name)
+                    if config.min_free_vram_mb:
+                        free = _free_vram_mb()
+                        if free is None:
+                            raise ResourceLifecycleError("gpu_telemetry_unavailable", resource.name)
+                        if free < config.min_free_vram_mb:
+                            raise ResourceLifecycleError("gpu_capacity_blocked",
+                                                         f"{resource.name}: insufficient free VRAM for managed startup")
                     # Failed startup must enter finally too.
                     started = True
                     _systemctl("start", config.unit)
@@ -234,7 +248,7 @@ class ModelLifecycle:
                         if _models_healthy(resource):
                             break
                         current = _unit(config.unit)
-                        if not _owned(current, resource.name) or current.get("ActiveState") == "failed":
+                        if not _owned(current, resource) or current.get("ActiveState") == "failed":
                             raise ResourceLifecycleError("managed_start_failed", resource.name)
                         time.sleep(1.0)
                     else:
@@ -244,7 +258,7 @@ class ModelLifecycle:
                 if config.stop_after_stage and (started or active):
                     # Never stop a replaced unit or one with other live clients.
                     current = _unit(config.unit)
-                    if not _owned(current, resource.name):
+                    if not _owned(current, resource):
                         raise ResourceLifecycleError("managed_owner_changed", resource.name)
                     if current.get("ActiveState") == "active":
                         port = urllib.parse.urlsplit(resource.endpoint or "").port
