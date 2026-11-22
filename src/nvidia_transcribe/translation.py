@@ -526,8 +526,11 @@ def translate_utterances(
 
         riva_meta: dict[str, Any] = {}
         if pending_items:
+            # "auto" may choose CUDA inside the subprocess. Admit it before
+            # device selection so the worker never bypasses the shared GPU lease.
             with (lifecycle.worker(resource_name=riva_resource_name)
-                  if lifecycle is not None and cfg.riva_device.startswith("cuda") else nullcontext()):
+                  if lifecycle is not None and (cfg.riva_device == "auto" or cfg.riva_device.startswith("cuda"))
+                  else nullcontext()):
                 proc = subprocess.run(
                     [cfg.riva_python, str(RIVA_WORKER_SCRIPT)],
                     input=json.dumps(
