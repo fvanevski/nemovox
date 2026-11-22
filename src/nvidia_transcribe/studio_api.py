@@ -402,12 +402,21 @@ class JobRunner:
             path = self.config.job_root / job_id / "job.json"
             record = json.loads(path.read_text(encoding="utf-8"))
             stages = list(record.get("stage_history") or [])
-            event = {"id": name, "status": status, "at": time.time(), "detail": detail[:240]}
+            now = time.time()
+            event = {"id": name, "status": status, "at": now, "detail": detail[:240]}
             for index, item in enumerate(stages):
                 if item.get("id") == name:
+                    if item.get("started_at") is not None:
+                        event["started_at"] = item["started_at"]
+                    if status in {"complete", "skipped", "failed", "cancelled"}:
+                        event["finished_at"] = now
                     stages[index] = event
                     break
             else:
+                if status == "running":
+                    event["started_at"] = now
+                elif status in {"complete", "skipped", "failed", "cancelled"}:
+                    event["finished_at"] = now
                 stages.append(event)
             record["stage_history"] = stages
             if status == "running":
@@ -462,11 +471,17 @@ class JobRunner:
             return {"status": "disabled", "directory": None, "items": []}
         source_path = Path(record["source_path"]) if record.get("source_path") and \
             request["source"]["kind"] == "url" else None
-        report = export_selected(
-            self.config.job_root / job_id, job_id, plan,
-            self.config.export_roots or export_roots(PROJECT),
-            remote_media=source_path, media_only=media_only,
-        )
+        try:
+            report = export_selected(
+                self.config.job_root / job_id, job_id, plan,
+                self.config.export_roots or export_roots(PROJECT),
+                remote_media=source_path, media_only=media_only,
+            )
+        except (OSError, ValueError) as exc:
+            # An export failure is not a translation/ASR failure. Preserve job files.
+            report = {"status": "failed", "directory": plan.get("destination"),
+                      "items": [{"type": "export", "status": "failed", "error": str(exc)}],
+                      "updated_at": time.time()}
         self.update(job_id, export_report=report)
         return report
 
@@ -577,6 +592,7 @@ class JobRunner:
             # child environment. Studio must not elevate env to CLI overrides.
 
             if spec.source.kind == "contract":
+                self._stage_event(job_id, "asr", "skipped", "Using an existing recording contract")
                 contract = source
                 if spec.task == "transcription":
                     value = _read_transcription_contract(source)
@@ -620,7 +636,7 @@ class JobRunner:
                 if opt.glossary:
                     args.extend(["--glossary", opt.glossary])
                 self._command(job_id, args, "Generating English outputs", 55)
-            if spec.export.destination:
+            if spec.export.destination and (spec.export.artifacts or spec.export.save_remote_media):
                 self._stage_event(job_id, "export", "running")
                 report = self._export(job_id)
                 self._stage_event(job_id, "export",
@@ -882,8 +898,7 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
 
     @app.get("/api/job-history")
     def job_history(offset: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=100)) -> dict:
-        records = jobs()
-        # The legacy endpoint is bounded to 50: history scans all retained jobs.
+        # Unlike the legacy /api/jobs, history covers all retained jobs.
         records = []
         for path in settings.job_root.glob("*/job.json"):
             try:
@@ -934,9 +949,25 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
         with path.open("rb") as handle:
             handle.seek(offset)
             data = handle.read(limit)
+            # Include at most three continuation bytes for a split UTF-8 codepoint.
+            for _ in range(3):
+                try:
+                    decoded = data.decode("utf-8")
+                    break
+                except UnicodeDecodeError as exc:
+                    if exc.reason != "unexpected end of data":
+                        decoded = data.decode("utf-8", errors="replace")
+                        break
+                    extra = handle.read(1)
+                    if not extra:
+                        decoded = data.decode("utf-8", errors="replace")
+                        break
+                    data += extra
+            else:
+                decoded = data.decode("utf-8", errors="replace")
         end = offset + len(data)
-        return {"text": data.decode("utf-8", errors="replace"),
-                "next_offset": end, "total": total, "complete": end >= total}
+        return {"text": decoded, "next_offset": end,
+                "total": total, "complete": end >= total}
 
     @app.get("/api/jobs/{job_id}/log/download")
     def log_download(job_id: str):
@@ -989,6 +1020,8 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
             root / "output/subtitles.metadata.json",
             *sorted((root / "output").glob("*.srt")),
             *sorted((root / "output").glob("*.ass")),
+            *sorted(p for p in (root / "remote").glob("*") if p.is_file() and p.suffix.lower() in MEDIA_EXTENSIONS)
+                if (root / "remote").is_dir() else [],
         ]
         return [{
             "name": p.name, "path": str(p.relative_to(root)),
@@ -999,9 +1032,12 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
     def artifact(job_id: str, path: str):
         root = runner.path(job_id)
         candidate = (root / path).resolve()
-        if not candidate.is_file() or not _within(candidate, (root / "asr", root / "output")):
+        if not candidate.is_file() or not _within(candidate, (root / "asr", root / "output", root / "remote")):
             raise HTTPException(404, "Artifact not found.")
-        if candidate.suffix not in {".json", ".txt", ".srt", ".ass"}:
+        if candidate.is_relative_to((root / "remote").resolve()):
+            if candidate.suffix.lower() not in MEDIA_EXTENSIONS:
+                raise HTTPException(403, "Remote media artifact type not permitted.")
+        elif candidate.suffix not in {".json", ".txt", ".srt", ".ass"}:
             raise HTTPException(403, "Artifact type not permitted.")
         return FileResponse(candidate, filename=candidate.name)
 
