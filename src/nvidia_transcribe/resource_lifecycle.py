@@ -175,9 +175,18 @@ class ModelLifecycle:
 
     def __init__(self, *, config_path: str | Path | None = None,
                  lock_path: str | Path | None = None) -> None:
-        self.services = _service_config(config_path)
+        self.config_path = config_path
+        self._services: dict[str, OwnedService] | None = None
         default = Path.home() / ".local/state/nemovox/model-lifecycle.lock"
         self.lock_path = Path(lock_path or os.environ.get("NEMOVOX_LIFECYCLE_LOCK", default)).expanduser()
+
+    @property
+    def services(self) -> dict[str, OwnedService]:
+        # Cached on first real acquisition/status inspection. Offline rerender
+        # must not fail merely because a dormant service config is unavailable.
+        if self._services is None:
+            self._services = _service_config(self.config_path)
+        return self._services
 
     def inspect(self, resource: ModelResource) -> dict[str, str | bool]:
         """Read-only status for Studio; never starts/stops or loads any model."""
