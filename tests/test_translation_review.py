@@ -121,3 +121,95 @@ def test_programmatic_postedit_rejects_legacy_primary_translator(tmp_path):
         generate_subtitles(recording_contract_path=tmp_path / "not-needed",
                            output_dir=tmp_path / "new-output", config=config)
     assert not (tmp_path / "new-output").exists()
+
+
+
+def test_riva_first_pipeline_runs_separate_postedit_and_preserves_raw_mt(tmp_path, monkeypatch):
+    """No actual model or media file: verify stage order, saved contracts and rerender."""
+    from pathlib import Path
+    from types import SimpleNamespace
+    from nvidia_transcribe import translation
+    from nvidia_transcribe.refinement import RefinementConfig
+    from nvidia_transcribe.translation import TranslationConfig
+    from nvidia_transcribe.subtitle_pipeline import SubtitlePipelineConfig, generate_subtitles
+
+    contract = {
+        "schema_version": "nemotron-recording-contract/v1",
+        "source": {"path": "/sample/French_episode.mkv", "duration_s": 10.0},
+        "source_language": "fr",
+        "utterances": [{"id": "utt-0000", "speaker_id": "SPK_00",
+                        "source_start": 1.0, "source_end": 3.0,
+                        "source_text": "Bonjour, Esteban."}],
+    }
+    recording = tmp_path / "recording.contract.json"
+    recording.write_text(json.dumps(contract), encoding="utf-8")
+    worker_calls = []
+
+    def fake_riva(command, **kwargs):
+        req = json.loads(kwargs["input"])
+        worker_calls.append(req)
+        assert req["device"] == "cuda:0"
+        assert req["items"][0]["lang_pair"] == "fr-en"
+        return SimpleNamespace(returncode=0, stderr="", stdout=json.dumps({
+            "status": "ok", "device_used": "cuda:0", "results": [
+                {"utterance_id": "utt-0000", "translated_text": "Hello, Estban."},
+            ],
+        }))
+    monkeypatch.setattr(translation.subprocess, "run", fake_riva)
+
+    review_client = FakeClient({"reviews": [
+        {"utterance_id": "utt-0000", "changed": True,
+         "corrected_text": "Hello, Esteban.", "reason": "Correct proper name from French source."},
+    ]})
+    outdir = tmp_path / "subtitle-output"
+    config = SubtitlePipelineConfig(
+        source_language="fr",
+        refinement=RefinementConfig(backend="off", profile="off"),
+        translation=TranslationConfig(backend="riva", riva_device="cuda:0"),
+        translation_review=_cfg(),
+        condense_high_cps=False,
+        formats=("srt",),
+    )
+    meta = generate_subtitles(
+        recording_contract_path=recording, output_dir=outdir,
+        config=config, text_client=review_client,
+    )
+    assert len(worker_calls) == 1
+    assert len(review_client.calls) == 1
+    assert meta["translation"]["backend"] == "riva"
+    assert meta["translation_review"]["changed"] == 1
+    translated = json.loads((outdir / "translated.contract.json").read_text(encoding="utf-8"))
+    u = translated["utterances"][0]
+    assert u["machine_translated_text"] == "Hello, Estban."
+    assert u["translated_text"] == "Hello, Esteban."
+    assert u["translation_review_status"] == "corrected"
+    assert u["source_text"] == "Bonjour, Esteban."
+    assert u["speaker_id"] == "SPK_00" and (u["source_start"], u["source_end"]) == (1.0, 3.0)
+    assert "Hello, Esteban." in Path(meta["files"]["srt"]).read_text(encoding="utf-8")
+
+    # Rerender must not touch either Riva worker or reviewer.
+    offline = generate_subtitles(output_dir=outdir,
+                                 config=SubtitlePipelineConfig(re_render_only=True, formats=("srt",)))
+    assert offline["translation_review"]["status"] == "reused_translated_contract"
+    assert len(worker_calls) == 1 and len(review_client.calls) == 1
+
+
+def test_riva_rejects_missing_or_duplicate_worker_items(tmp_path, monkeypatch):
+    """The dedicated translator must not pass malformed MT through to review."""
+    import pytest
+    from types import SimpleNamespace
+    from nvidia_transcribe import translation
+    from nvidia_transcribe.translation import TranslationConfig, translate_utterances
+
+    def bad_worker(command, **kwargs):
+        return SimpleNamespace(returncode=0, stderr="", stdout=json.dumps({
+            "status": "ok", "device_used": "cuda:0", "results": [
+                {"utterance_id": "wrong-id", "translated_text": "Incorrect"},
+            ],
+        }))
+    monkeypatch.setattr(translation.subprocess, "run", bad_worker)
+    with pytest.raises(RuntimeError, match="invalid or duplicate utterance IDs"):
+        translate_utterances(
+            [{"id": "id1", "source_text": "Bonjour"}], source_language="fr",
+            config=TranslationConfig(backend="riva", riva_device="cuda:0"),
+        )
