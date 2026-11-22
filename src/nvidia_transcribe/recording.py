@@ -370,6 +370,19 @@ def process_media(
         entry["generation_integrity"] = integrity
         if integrity["status"] == "incomplete":
             entry["status"] = "incomplete_generation"
+            # Keep the exact rejected response across the next retry.
+            # Existing chunk_*.raw.json readers must not mistake it for
+            # another completed inference; archive in a separate directory.
+            rejected_dump = raw_path.read_text(encoding="utf-8")
+            rejected_hash = _sha256_text(rejected_dump)
+            rejected_path = (
+                chunks_dir / "rejected"
+                / f"chunk_{spec.chunk_index:03d}_{rejected_hash[:16]}.raw.json"
+            )
+            if not rejected_path.is_file():
+                _atomic_write_text(rejected_path, rejected_dump)
+            entry["rejected_raw_response_path"] = str(rejected_path)
+            entry["rejected_raw_response_sha256"] = rejected_hash
         chunk_raws.append(raw_resp)
         chunk_manifest_entries.append(entry)
 
@@ -386,7 +399,7 @@ def process_media(
         if integrity["status"] == "incomplete":
             raise IncompleteASRGeneration(
                 f"Chunk {spec.chunk_index} ASR generation incomplete "
-                f"({integrity['reason']}); raw response retained at {raw_path}. "
+                f"({integrity['reason']}); rejected raw response retained at {rejected_path}. "
                 "No recording contract or subtitles were produced from this incomplete chunk. "
                 "Use a source-verified bounded retry/rechunk, not the loop-cleaned fragment."
             )

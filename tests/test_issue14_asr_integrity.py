@@ -75,6 +75,9 @@ def test_failed_generation_preserves_raw_and_does_not_mark_resume_completed(tmp_
     assert manifest["chunks"][0]["status"] == "incomplete_generation"
     assert manifest["chunks"][0]["generation_integrity"]["reason"] == "generation_limit_exhausted"
     assert manifest["chunks"][0]["raw_response_sha256"]
+    rejected = Path(manifest["chunks"][0]["rejected_raw_response_path"])
+    assert rejected.parent.name == "rejected" and rejected.is_file()
+    assert json.loads(rejected.read_text()) == bad
     assert json.loads((root / "chunks" / "chunk_000.raw.json").read_text()) == bad
     assert not (root / "recording.contract.json").exists()
 
@@ -85,3 +88,4 @@ def test_failed_generation_preserves_raw_and_does_not_mark_resume_completed(tmp_
     accepted = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
     assert accepted["chunks"][0]["status"] == "completed"
     assert accepted["chunks"][0]["generation_integrity"]["status"] == "complete"
+    assert json.loads(rejected.read_text()) == bad
