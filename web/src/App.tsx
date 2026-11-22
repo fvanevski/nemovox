@@ -411,9 +411,14 @@ export default function App() {
                 <Field title="English translation review"><ExplainedSelect label="English translation review"
                   value={options.translation_review} items={TRANSLATION_REVIEW}
                   onChange={v => option("translation_review", v as JobOptions["translation_review"])}/></Field>
-                <Field title="Localization style"><ExplainedSelect label="Localization style"
-                  value={options.style} items={LOCALIZATION_STYLES}
-                  onChange={v => option("style", v as JobOptions["style"])}/></Field>
+                <Field title="Localization style"
+                  hint={options.translation_review === "off"
+                    ? "Style takes effect during English translation review. Enable a review profile to apply it; Riva's direct translation does not use this control."
+                    : "Applies to the separate English post-edit stage, not the Riva translator."}>
+                  <ExplainedSelect label="Localization style"
+                    value={options.style} items={LOCALIZATION_STYLES}
+                    onChange={v => option("style", v as JobOptions["style"])}/>
+                </Field>
                 <Field title="Character / terminology glossary" hint="Optional series-specific names and terms for source correction and English post-editing. No example glossary is applied automatically.">
                   <Select value={options.glossary || ""} onChange={v => option("glossary", v || null)}>
                     <option value="">No glossary (default)</option>
