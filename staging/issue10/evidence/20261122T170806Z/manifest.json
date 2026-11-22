@@ -1,0 +1,93 @@
+{
+  "schema": "nemovox-pr11-issue10-evidence/v2",
+  "utc_run_id": "20261122T170806Z",
+  "repo_id": "fvanevski/nemovox",
+  "issue_number": 10,
+  "pr_number": 11,
+  "branch": "issue/10-auto-model-resources",
+  "tested_source_sha": "2bce0d8b3730c7e8784eef9b10cc616c273e86d2",
+  "tested_tree_sha": "1e20bf7fdf906f8a07e81dc4c611aceaba869fa4",
+  "base_main_sha": "8fee1e177db9742dbdb38c4a22bdd663c20ac80f",
+  "worktree": "/workspace/nemovox-issue10-verify5",
+  "source_edited": false,
+  "result": "PASS",
+  "members": [
+    {
+      "path": "COMMAND_SHAPE_FRICTION.txt",
+      "bytes": 4130,
+      "sha256": "66c73e181626af1b3f69fd56c897835d356a9df483cce8ac7dde6da9d319478a",
+      "criterion": "independent_review_readiness",
+      "evidence_class": "public_safe_friction_log"
+    },
+    {
+      "path": "review/acceptance-matrix.md",
+      "bytes": 1690,
+      "sha256": "e4ee10c73f1116a282cd9ee81b79bf6017ede4b0736dece184436d8051405a18",
+      "criterion": "independent_review_readiness",
+      "evidence_class": "public_safe_acceptance_matrix"
+    },
+    {
+      "path": "review/findings.md",
+      "bytes": 1657,
+      "sha256": "66868d57eb241c9d2daff1bf176ebace491c704126290ff5a872ff755d33dc9a",
+      "criterion": "independent_review_readiness",
+      "evidence_class": "public_safe_review_summary"
+    },
+    {
+      "path": "source/identity.json",
+      "bytes": 1154,
+      "sha256": "fd2c80ca8101378a9007ca347e9af678642d168014f4633fccc71b35eef324b3",
+      "criterion": "exact_tested_source_no_drift",
+      "evidence_class": "public_safe_source_identity"
+    },
+    {
+      "path": "source/remediation.diff",
+      "bytes": 5655,
+      "sha256": "d3fb7fd34691c2f9cee7b8361cb08350511c96db6f12525fbc47604eb1f344a1",
+      "criterion": "exact_tested_source_no_drift",
+      "evidence_class": "public_safe_diff"
+    },
+    {
+      "path": "validation/admission-trace.md",
+      "bytes": 1962,
+      "sha256": "309fd0a823e41879d2ed5bd80ee57779e1588e25384a6c653b412b52a95ca85f",
+      "criterion": "admission_regression_and_cpu_suite",
+      "evidence_class": "public_safe_execution_trace"
+    },
+    {
+      "path": "validation/cpu-tests.txt",
+      "bytes": 1610,
+      "sha256": "eb7aa2ccce9e4f581bd1c4e952a1d70de7c9810e56b8c434fc48623faf9617f2",
+      "criterion": "admission_regression_and_cpu_suite",
+      "evidence_class": "public_safe_test_log"
+    },
+    {
+      "path": "validation/foreign-studio-cli.md",
+      "bytes": 3166,
+      "sha256": "1d23a2a5b8bbaaa01b62853532e959bb0354c547654c6fbd5da688e96ab8ed72",
+      "criterion": "candidate_studio_cli_and_service_safety",
+      "evidence_class": "sanitized_e2e_observation"
+    },
+    {
+      "path": "validation/frontend.txt",
+      "bytes": 1006,
+      "sha256": "298f5287456b41bb8dc1c7777dc2fb17013fd8c41ec8e6595c9ecce3d7b81bf4",
+      "criterion": "existing_deterministic_coverage",
+      "evidence_class": "public_safe_build_and_test_log"
+    },
+    {
+      "path": "validation/host-riva-auto.md",
+      "bytes": 3068,
+      "sha256": "70c3c57da145cd5ee6d4e9e57dc81745cfc26879671953446fb0157fb97a550d",
+      "criterion": "real_cuda_auto_and_lease_contention",
+      "evidence_class": "sanitized_host_gpu_observation"
+    },
+    {
+      "path": "validation/service-invariance.md",
+      "bytes": 2027,
+      "sha256": "2dec5f00149ddef78b7206c6de764ce869235673a78fc1786b22b7fdd147de76",
+      "criterion": "candidate_studio_cli_and_service_safety",
+      "evidence_class": "sanitized_host_invariance"
+    }
+  ]
+}
