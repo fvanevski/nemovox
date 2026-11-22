@@ -68,7 +68,7 @@ def test_job_submission_and_preview(client):
     response = c.post("/api/jobs", json={
         "source": {"kind": "contract", "value": str(media / "recording.contract.json")},
         "task": "subtitles",
-        "options": {"source_language": "zh", "refinement": "balanced", "translator": "swiftu"},
+        "options": {"source_language": "zh", "refinement": "off", "translator": "swiftu"},
     })
     assert response.status_code == 202, response.text
     job = response.json()
@@ -526,3 +526,21 @@ def test_studio_rejects_legacy_text_translation_with_riva_only_review(client):
         },
     })
     assert response.status_code == 422
+
+
+
+def test_studio_keeps_source_asr_uncorrected(client):
+    from nvidia_transcribe.studio_api import Options
+    c, media, _secret, _settings = client
+    assert Options().refinement == "off"
+    payload = {
+        "source": {"kind": "contract", "value": str(media / "recording.contract.json")},
+        "task": "subtitles",
+        "options": {"translator": "openai_chat", "refinement": "balanced"},
+    }
+    result = c.post("/api/jobs", json=payload)
+    assert result.status_code == 422
+    assert "original ASR transcript" in result.json()["detail"]
+    payload["options"]["refinement"] = "off"
+    permitted = c.post("/api/jobs", json=payload)
+    assert permitted.status_code == 202

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ASR_MODES, SOURCE_REFINEMENT, TRANSLATION_REVIEW, LOCALIZATION_STYLES,
+import { INITIAL_OPTIONS, ASR_MODES, TRANSLATION_REVIEW, LOCALIZATION_STYLES,
   hasAudioIndex, normalizeAudioIndex, streamLabel } from "./config-options";
 import type { AudioStream } from "./api";
 
@@ -11,15 +11,18 @@ const tracks: AudioStream[] = [
 ];
 
 describe("Studio configuration guidance", () => {
-  it("describes every option and separates source and target correction profiles", () => {
-    for (const options of [ASR_MODES, SOURCE_REFINEMENT, TRANSLATION_REVIEW, LOCALIZATION_STYLES]) {
+  it("describes ASR and the single target-language review rather than source correction", () => {
+    for (const options of [ASR_MODES, TRANSLATION_REVIEW, LOCALIZATION_STYLES]) {
       expect(options.every(x => x.label && x.description.length > 35)).toBe(true);
       expect(new Set(options.map(x => x.value)).size).toBe(options.length);
     }
     expect(ASR_MODES.map(x => x.value)).toEqual(["speaker", "multispeaker_sot", "verbatim", "rich"]);
     expect(TRANSLATION_REVIEW.some(x => x.value === "balanced")).toBe(true);
-    expect(SOURCE_REFINEMENT[1].description).toContain("ASR");
     expect(TRANSLATION_REVIEW[1].description).toContain("translation");
+    expect(INITIAL_OPTIONS.refinement).toBe("off");
+    expect(INITIAL_OPTIONS.translator).toBe("riva");
+    expect(INITIAL_OPTIONS.translation_review).toBe("balanced");
+    expect(INITIAL_OPTIONS.condense_high_cps).toBe(false);
   });
   it("never invents audio tracks or preserves indices from a different file", () => {
     expect(tracks.map(x => x.index)).toEqual([0, 1]);

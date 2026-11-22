@@ -129,7 +129,6 @@ def test_riva_first_pipeline_runs_separate_postedit_and_preserves_raw_mt(tmp_pat
     from pathlib import Path
     from types import SimpleNamespace
     from nvidia_transcribe import translation
-    from nvidia_transcribe.refinement import RefinementConfig
     from nvidia_transcribe.translation import TranslationConfig
     from nvidia_transcribe.subtitle_pipeline import SubtitlePipelineConfig, generate_subtitles
 
@@ -164,7 +163,6 @@ def test_riva_first_pipeline_runs_separate_postedit_and_preserves_raw_mt(tmp_pat
     outdir = tmp_path / "subtitle-output"
     config = SubtitlePipelineConfig(
         source_language="fr",
-        refinement=RefinementConfig(backend="off", profile="off"),
         translation=TranslationConfig(backend="riva", riva_device="cuda:0"),
         translation_review=_cfg(),
         condense_high_cps=False,
@@ -178,6 +176,7 @@ def test_riva_first_pipeline_runs_separate_postedit_and_preserves_raw_mt(tmp_pat
     assert len(review_client.calls) == 1
     assert meta["translation"]["backend"] == "riva"
     assert meta["translation_review"]["changed"] == 1
+    assert meta["refinement"]["profile"] == "off"  # no source-text model call in the normal pipeline
     translated = json.loads((outdir / "translated.contract.json").read_text(encoding="utf-8"))
     u = translated["utterances"][0]
     assert u["machine_translated_text"] == "Hello, Estban."
@@ -213,3 +212,32 @@ def test_riva_rejects_missing_or_duplicate_worker_items(tmp_path, monkeypatch):
             [{"id": "id1", "source_text": "Bonjour"}], source_language="fr",
             config=TranslationConfig(backend="riva", riva_device="cuda:0"),
         )
+
+
+
+def test_reviewer_uses_original_asr_and_uncorrected_english_neighbors_not_legacy_refined_text():
+    initial = _utts()
+    initial[0]["refined_text"] = "Invented altered source-language hypothesis"
+    initial[1]["refined_text"] = "Another invented hypothesis"
+    client = FakeClient({"reviews": [
+        {"utterance_id": "u0", "changed": False,
+         "corrected_text": "Hello, Estban.", "reason": "No supported correction"},
+        {"utterance_id": "u1", "changed": False,
+         "corrected_text": "Hi!", "reason": "No supported correction"},
+    ]})
+    out, summary = review_translated_utterances(
+        initial, source_language="fr", config=_cfg(), text_client=client,
+    )
+    assert summary["changed"] == 0
+    assert [u["translated_text"] for u in out] == [u["translated_text"] for u in initial]
+    prompt = json.loads(client.calls[0]["messages"][1]["content"])
+    targets = prompt["target_utterances"]
+    assert [u["source_text"] for u in targets] == [
+        "Bonjour, Esteban.", "Salut!",
+    ]
+    assert [u["machine_translation"] for u in targets] == ["Hello, Estban.", "Hi!"]
+    assert "Invented altered source-language hypothesis" not in client.calls[0]["messages"][1]["content"]
+    assert "Another invented hypothesis" not in client.calls[0]["messages"][1]["content"]
+    instructions = client.calls[0]["messages"][0]["content"]
+    assert "only edit TARGET translated English cues" in instructions
+    assert "not a blanket" in instructions

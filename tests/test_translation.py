@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from nvidia_transcribe.cli import build_parser
-from nvidia_transcribe.refinement import GlossaryConfig
+from nvidia_transcribe.refinement import GlossaryConfig, RefinementConfig
 from nvidia_transcribe.subtitle_pipeline import SubtitlePipelineConfig, generate_subtitles
 from nvidia_transcribe.translation import TranslationConfig, map_language_for_riva, translate_utterances
 
@@ -151,7 +151,7 @@ def test_translate_vetoed_regrouping_never_leaves_untranslated_source_orphan() -
     assert "merged_into" not in out[1]
 
 
-def test_end_to_end_generate_subtitles_from_contract_and_rerender_without_asr(tmp_path: Path) -> None:
+def test_explicit_legacy_source_refinement_and_rerender_without_asr(tmp_path: Path) -> None:
     parser = build_parser()
     args = parser.parse_args(
         [
@@ -235,7 +235,11 @@ def test_end_to_end_generate_subtitles_from_contract_and_rerender_without_asr(tm
     meta = generate_subtitles(
         recording_contract_path=rc_path,
         output_dir=out_dir,
-        config=SubtitlePipelineConfig(),
+        # This legacy test deliberately opts in to the old source-language
+        # correction to retain coverage. Ordinary subtitle defaults use "off".
+        config=SubtitlePipelineConfig(
+            refinement=RefinementConfig(backend="openai_chat", profile="balanced"),
+        ),
         text_client=stub,
     )
     assert len(stub.calls) == 2
