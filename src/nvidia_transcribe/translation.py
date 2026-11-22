@@ -430,6 +430,7 @@ def translate_utterances(
     glossary: GlossaryConfig | None = None,
     text_client: Any = None,
     lifecycle: ModelLifecycle | None = None,
+    riva_resource_name: str = "riva_local",
     checkpoint_path: str | Path | None = None,
     resume: bool = True,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
@@ -525,7 +526,7 @@ def translate_utterances(
 
         riva_meta: dict[str, Any] = {}
         if pending_items:
-            with (lifecycle.worker(resource_name="riva_local")
+            with (lifecycle.worker(resource_name=riva_resource_name)
                   if lifecycle is not None and cfg.riva_device.startswith("cuda") else nullcontext()):
                 proc = subprocess.run(
                     [cfg.riva_python, str(RIVA_WORKER_SCRIPT)],

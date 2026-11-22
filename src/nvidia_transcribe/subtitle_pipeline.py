@@ -270,6 +270,8 @@ def generate_subtitles(
                 glossary=gl,
                 text_client=stage_client,
                 lifecycle=lifecycle,
+                riva_resource_name=(lifecycle_resources["riva_translation"].name
+                                    if lifecycle_resources else "riva_local"),
                 checkpoint_path=out_dir / "translation.checkpoint.json",
                 resume=cfg.resume_translation,
             )
