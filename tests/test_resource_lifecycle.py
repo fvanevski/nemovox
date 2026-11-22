@@ -276,3 +276,34 @@ def test_resource_lease_wait_is_bounded(tmp_path, monkeypatch):
     finally:
         fcntl.flock(fd, fcntl.LOCK_UN)
         os.close(fd)
+
+
+def test_cached_recording_does_not_acquire_asr_before_first_transcribe(manager, asr, monkeypatch):
+    events = []
+
+    @contextmanager
+    def fake_endpoint(_):
+        events.append("start")
+        try:
+            yield
+        finally:
+            events.append("stop")
+
+    class FakeASR:
+        model = "nemotron"
+        base_url = "http://127.0.0.1:8190/v1"
+
+        def transcribe(self, filename, config=None):
+            events.append("transcribe")
+            return filename
+
+    monkeypatch.setattr(manager, "endpoint", fake_endpoint)
+    with lifecycle.managed_asr_client(manager, asr, FakeASR()) as client:
+        assert client.model == "nemotron"
+        assert client.base_url.endswith("/v1")
+        assert events == []
+    assert events == []
+    with lifecycle.managed_asr_client(manager, asr, FakeASR()) as client:
+        assert client.transcribe("fixture.wav") == "fixture.wav"
+        assert client.transcribe("next.wav") == "next.wav"
+    assert events == ["start", "transcribe", "transcribe", "stop"]
