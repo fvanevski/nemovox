@@ -1,0 +1,49 @@
+COMMAND_SHAPE_FRICTION:
+  encountered=yes
+  events:
+    - requested_shape: "python -m compileall / pytest -q ... (Phase A & CLI runs)"
+      effective_invocation: "PYTHONPATH=/workspace/nemovox-issue10-verify4/src /workspace/nvidia-transcribe/.venv/bin/python -m ..."
+      guard_or_tool_rewrite: none
+      rejection: "Editable install in /workspace/nvidia-transcribe/.venv points to /workspace/nvidia-transcribe/src instead of /workspace/nemovox-issue10-verify4/src."
+      attribution: environment
+      effect: "Verified python imported /workspace/nemovox-issue10-verify4/src/nvidia_transcribe/__init__.py without altering .venv or main checkout."
+      correction: "Export PYTHONPATH=/workspace/nemovox-issue10-verify4/src for candidate Python and Studio invocations."
+      replacement: "PYTHONPATH=/workspace/nemovox-issue10-verify4/src /workspace/nvidia-transcribe/.venv/bin/python -m ..."
+      status: recovered_after_retry
+    - requested_shape: "cd /workspace/nemovox-issue10-verify4/web && npm test && npm run build"
+      effective_invocation: "ln -sfn /workspace/nvidia-transcribe/web/node_modules /workspace/nemovox-issue10-verify4/web/node_modules && npm test && npm run build && rm -f /workspace/nemovox-issue10-verify4/web/node_modules"
+      guard_or_tool_rewrite: none
+      rejection: "Fresh detached worktree has no untracked web/node_modules directory; .gitignore 'web/node_modules/' does not ignore a file symlink unless removed afterward."
+      attribution: worktree_layout
+      effect: "Executed committed Vitest suite and Vite production build against /workspace/nemovox-issue10-verify4/web without mutating tracked package files."
+      correction: "Temporarily symlinked existing web/node_modules for test/build, then removed the symlink before git operations."
+      replacement: "Same command inside worktree with temporary node_modules symlink cleanup."
+      status: recovered_after_retry
+    - requested_shape: "Launch candidate Studio on 127.0.0.1:8766"
+      effective_invocation: "Launch candidate Studio on 127.0.0.1:8767 while keeping production Studio untouched on 127.0.0.1:8765."
+      guard_or_tool_rewrite: none
+      rejection: "Port 127.0.0.1:8766 was already occupied on this host by an unrelated existing listener (/workspace/mcp_servers/graph)."
+      attribution: host_port_occupancy
+      effect: "Avoided port conflict and preserved unrelated services and production Studio on 127.0.0.1:8765."
+      correction: "Bound isolated candidate Studio uvicorn listener to 127.0.0.1:8767."
+      replacement: "uvicorn nvidia_transcribe.studio_api:app --host 127.0.0.1 --port 8767 --workers 1"
+      status: recovered_after_retry
+    - requested_shape: "Playwright Chromium launch and Studio job completion poll"
+      effective_invocation: "executable_path='/usr/bin/chromium', click '.media-row', and check job['state'] in ('complete', 'completed', 'failed', 'cancelled', 'interrupted')"
+      guard_or_tool_rewrite: none
+      rejection: "uv Playwright cache lacked headless shell binary; host binary is /usr/bin/chromium."
+      attribution: host_playwright_binary
+      effect: "Captured clean browser Console/Page error telemetry, UI state, screenshots, and artifact HTTP 200 downloads."
+      correction: "Specified executable_path='/usr/bin/chromium' in harness."
+      replacement: "p.chromium.launch(headless=True, executable_path='/usr/bin/chromium')"
+      status: recovered_after_retry
+    - requested_shape: "SIGKILL harness watcher matching child CLI PID via ps -eo pid,ppid,args"
+      effective_invocation: "Match child PPID==20248 and command substring 'nvidia_transcribe.cli process-media' using ps --no-headers -eo pid,ppid,args when GPU used > 18000 MiB"
+      guard_or_tool_rewrite: none
+      rejection: "Initial watcher failed on ps header 'PPID' and subsequently on matching an outer shell wrapper line or missing ready window before job completion."
+      attribution: test_script_defect
+      effect: "First two candidate jobs completed normally (64b2b9c2, c30cf680); third attempt (job 9387b8bb) targeted exact child CLI PID 100970 at 24689 MiB VRAM and verified Studio SIGKILL supervision."
+      correction: "Passed --no-headers and exact parent Studio PID=20248 + 'process-media' filter."
+      replacement: "ps --no-headers -eo pid,ppid,args filtered by ppid==20248"
+      status: recovered_after_retry
+  omitted_sensitive_values: yes (VLLM_API_KEY secret value never logged or committed; only variable name and non-empty boolean presence reported)
