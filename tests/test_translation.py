@@ -17,7 +17,7 @@ from nvidia_transcribe.translation import TranslationConfig, map_language_for_ri
 
 
 class _StubTranslationClient:
-    def __init__(self, responses: list[dict[str, Any]]) -> None:
+    def __init__(self, responses: list[dict[str, Any] | Exception]) -> None:
         self.responses = list(responses)
         self.calls: list[dict[str, Any]] = []
 
@@ -251,6 +251,75 @@ def test_translate_vetoed_regrouping_never_leaves_untranslated_source_orphan() -
     assert out[0]["translated_text"] == "It's the"
     assert out[1]["translated_text"] == "pyramid of Mu!"
     assert "merged_into" not in out[1]
+
+
+@pytest.mark.parametrize("backend", ["openai_chat", "swiftu"])
+@pytest.mark.parametrize("reply_kind", ["ok", "request_error", "missing_id"])
+def test_subtitle_translation_stage_reports_fallback_errors_without_aborting(
+    tmp_path: Path, backend: str, reply_kind: str,
+) -> None:
+    """A completed render must not disguise a degraded translation stage."""
+    contract = tmp_path / "recording.contract.json"
+    contract.write_text(json.dumps({
+        "source_language": "fr",
+        "source": {"path": "/synthetic/dialogue.wav"},
+        "utterances": [
+            {"id": "utt-0000", "speaker_id": "SPK_00",
+             "source_start": 1.0, "source_end": 3.0, "source_text": "Bonjour."},
+        ],
+    }), encoding="utf-8")
+
+    translated_reply = {"choices": [{"message": {"content": json.dumps({
+        "translations": [{"utterance_id": "utt-0000", "translated_text": "Hello.",
+                          "grouped_with_prev": False, "notes": ""}],
+    })}}]}
+    missing_id_reply = {"choices": [{"message": {"content": json.dumps({
+        "translations": [{"utterance_id": "unknown", "translated_text": "wrong",
+                          "grouped_with_prev": False, "notes": ""}],
+    })}}]}
+    reply: dict[str, Any] | Exception = (
+        translated_reply if reply_kind == "ok" else
+        RuntimeError("synthetic translation endpoint unavailable")
+        if reply_kind == "request_error" else missing_id_reply
+    )
+    progress: list[str] = []
+    output = tmp_path / "output"
+    metadata = generate_subtitles(
+        recording_contract_path=contract,
+        output_dir=output,
+        config=SubtitlePipelineConfig(
+            translation=TranslationConfig(backend=backend, batch_size=1),
+            formats=("srt",),
+        ),
+        text_client=_StubTranslationClient([reply]),
+        progress_callback=progress.append,
+    )
+    events = [json.loads(line[len("NEMOVOX_EVENT "):])
+              for line in progress if line.startswith("NEMOVOX_EVENT ")]
+    trans_events = [event for event in events if event["stage"] == "translation"]
+    expected_status = "complete" if reply_kind == "ok" else "failed"
+    assert [event["status"] for event in trans_events] == ["running", expected_status]
+    assert all(event["schema"] == "nemovox-progress/v1" for event in trans_events)
+    assert [event["status"] for event in events if event["stage"] == "render"] == [
+        "running", "complete",
+    ]
+
+    persisted = json.loads((output / "translated.contract.json").read_text(encoding="utf-8"))
+    assert persisted["translation"]["errors"] == metadata["translation"]["errors"]
+    if reply_kind == "ok":
+        assert not metadata["translation"]["errors"]
+        assert trans_events[-1]["detail"] == ""
+        assert persisted["utterances"][0]["translated_text"] == "Hello."
+    else:
+        assert metadata["translation"]["errors"]
+        assert "completed_with_errors" in trans_events[-1]["detail"]
+        assert "1 translation error(s)" in trans_events[-1]["detail"]
+        assert persisted["utterances"][0]["translated_text"] == "Bonjour."
+        assert persisted["utterances"][0]["translation_status"] == (
+            "fallback_source_after_error" if reply_kind == "request_error"
+            else "fallback_missing_id"
+        )
+    assert Path(metadata["files"]["srt"]).is_file()
 
 
 def test_explicit_legacy_source_refinement_and_rerender_without_asr(tmp_path: Path) -> None:

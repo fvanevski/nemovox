@@ -285,11 +285,21 @@ def generate_subtitles(
                 checkpoint_path=out_dir / "translation.checkpoint.json",
                 resume=cfg.resume_translation,
             )
-        _event("translation", "skipped" if
-               (cfg.translation.backend == "none" or
-                (cfg.translation.backend == "riva" and
-                 is_english_source_to_english(src_lang, cfg.target_language)))
-               else "complete", str(trans_summary.get("status", "")))
+        # Legacy text backends can retain source text after request/ID
+        # failures without aborting rendering. Preserve that recovery, but
+        # do not present degraded primary translation as a successful stage.
+        translation_errors = trans_summary.get("errors") or []
+        translation_skipped = (
+            cfg.translation.backend == "none" or
+            (cfg.translation.backend == "riva" and
+             is_english_source_to_english(src_lang, cfg.target_language))
+        )
+        _event("translation",
+               "skipped" if translation_skipped else
+               "failed" if translation_errors else "complete",
+               (f"completed_with_errors: {len(translation_errors)} translation error(s); "
+                "fallback source text retained") if translation_errors else
+               str(trans_summary.get("status", "")))
         # Retain the first-stage MT independently of all text-model edits.
         if (cfg.translation.backend == "riva"
                 and is_english_source_to_english(src_lang, cfg.target_language)):
