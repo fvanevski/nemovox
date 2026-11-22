@@ -146,7 +146,19 @@ def generate_subtitles(
         if lifecycle is None or text_client is not None or not lifecycle_resources:
             return nullcontext(text_client)
         resource = lifecycle_resources.get(role)
-        return managed_text_client(lifecycle, resource) if resource else nullcontext(text_client)
+        if resource is None:
+            return nullcontext(text_client)
+        stage_config = {
+            "source_refinement": cfg.refinement,
+            "text_translation": cfg.translation,
+            "translation_review": cfg.translation_review,
+            "subtitle_condensation": cfg.condensation or cfg.translation,
+        }[role]
+        return managed_text_client(
+            lifecycle, resource,
+            timeout_s=stage_config.timeout_s,
+            reasoning_effort=stage_config.reasoning_effort,
+        )
 
     translated_path = out_dir / "translated.contract.json"
     refined_path = out_dir / "refined.contract.json"

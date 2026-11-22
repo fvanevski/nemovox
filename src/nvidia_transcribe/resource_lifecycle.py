@@ -322,9 +322,12 @@ class ModelLifecycle:
 class _DeferredTextClient:
     """Acquire a text service at the first uncached inference request."""
 
-    def __init__(self, manager: ModelLifecycle, resource: ModelResource) -> None:
+    def __init__(self, manager: ModelLifecycle, resource: ModelResource, *,
+                 timeout_s: float = 180.0, reasoning_effort: str | None = None) -> None:
         self.manager = manager
         self.resource = resource
+        self.timeout_s = timeout_s
+        self.reasoning_effort = reasoning_effort
         self._scope = None
         self._client = None
 
@@ -338,6 +341,7 @@ class _DeferredTextClient:
                 base_url=self.resource.endpoint or "",
                 model=self.resource.model or "",
                 api_key=self.resource.credential(),
+                timeout_s=self.timeout_s, reasoning_effort=self.reasoning_effort,
             )
         return self._client.complete(**kwargs)
 
@@ -348,8 +352,11 @@ class _DeferredTextClient:
 
 
 @contextmanager
-def managed_text_client(manager: ModelLifecycle, resource: ModelResource) -> Iterator[_DeferredTextClient]:
-    client = _DeferredTextClient(manager, resource)
+def managed_text_client(manager: ModelLifecycle, resource: ModelResource, *,
+                        timeout_s: float = 180.0,
+                        reasoning_effort: str | None = None) -> Iterator[_DeferredTextClient]:
+    client = _DeferredTextClient(manager, resource, timeout_s=timeout_s,
+                                 reasoning_effort=reasoning_effort)
     try:
         yield client
     finally:
