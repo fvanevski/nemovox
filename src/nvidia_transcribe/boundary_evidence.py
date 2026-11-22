@@ -85,7 +85,8 @@ def _right_continuation(
     for unit in stream[end:end + 4]:
         if unit["_drop"] or abs(_mid(unit) - boundary) > 15.0:
             break
-        if (float(unit["start"]) - float(prev["end"]) > 0.75
+        if (unit["_unit_idx"] != prev["_unit_idx"] + 1
+                or float(unit["start"]) - float(prev["end"]) > 0.75
                 or float(unit["start"]) < float(prev["start"]) - 0.15):
             break
         suffix.append(unit)
@@ -117,6 +118,25 @@ def reconcile_displaced_sequences(
             lspec.infer_start_s, rspec.infer_start_s
         ):
             continue
+        # Character-level CTC needs its own alignment model. Expose a
+        # review-only candidate instead of silently deleting repeated glyphs.
+        lc = [u for u in tagged_by_chunk[bi]
+              if not u["_drop"] and u.get("unit_type") == "character"
+              and u.get("_mid") is not None and abs(_mid(u) - boundary) <= lookaround_s]
+        rc = [u for u in tagged_by_chunk[bi + 1]
+              if not u["_drop"] and u.get("unit_type") == "character"
+              and u.get("_mid") is not None and abs(_mid(u) - boundary) <= lookaround_s]
+        if len(lc) >= 4 and len(rc) >= 4:
+            match = SequenceMatcher(
+                None, [_norm(u["text"]) for u in lc],
+                [_norm(u["text"]) for u in rc], autojunk=False
+            ).find_longest_match(0, len(lc), 0, len(rc))
+            if match.size >= 4:
+                ambiguities.append({
+                    "left_chunk": lspec.chunk_index, "right_chunk": rspec.chunk_index,
+                    "reason": "character_sequence_requires_review",
+                    "matched_tokens": match.size, "resolution": "preserved_both",
+                })
         ls = _stream_candidates(tagged_by_chunk[bi], lspec, boundary, lookaround_s)
         rs = _stream_candidates(tagged_by_chunk[bi + 1], rspec, boundary, lookaround_s)
         # The number of local speakers is bounded by the actual ASR response;
