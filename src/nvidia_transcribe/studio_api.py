@@ -37,7 +37,7 @@ from nvidia_transcribe.translation import is_english_source_to_english
 from nvidia_transcribe.model_resources import ResourceConfigError, load_model_resources
 from nvidia_transcribe.resource_lifecycle import ModelLifecycle, ResourceLifecycleError
 from nvidia_transcribe.refinement import load_glossary
-from nvidia_transcribe.studio_exports import (EXPORT_TYPES, browse_destinations, export_roots,
+from nvidia_transcribe.studio_exports import (browse_destinations, export_roots,
                                              export_selected, validate_destination)
 from pydantic import BaseModel, Field
 

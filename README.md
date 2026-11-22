@@ -125,3 +125,12 @@ cd web && npm test && npm run build
 ```
 
 The live ASR and text services are separate validation requirements and are not started by this test suite. For current resource CLI switches, run `nvidia-transcribe generate-subtitles --help`.
+
+
+### Studio output destinations
+
+The Studio Source tab can select which final files to copy into a host folder.
+Set `NEMOVOX_EXPORT_ROOTS` to explicitly approved writable host directories
+(or use the built-in `outputs/exports` root). Internal job artifacts, logs and
+remote downloads are retained independently of selected exports. See
+[Studio output configuration](docs/gui/STUDIO_OUTPUTS.md).
