@@ -1,0 +1,25 @@
+# Live Hosted Studio Job E2E (`20261122T031252Z`)
+
+- **Job ID:** `bd26c9d6bb854336ba1e651d2f5fbd3c` (submitted via live browser UI `Start processing` button against `http://127.0.0.1:8765/api/jobs`).
+- **Input:** Synthetic English `recording.contract.json` (`source_language="en"`, 2 timed utterances, synthetic `one_track_test.webm` source path).
+- **Submitted & Persisted `job.json` Options:**
+  - `source_language="en"`, `target_language="en"`, `translator="riva"`, `translation_review="balanced"`, `refinement="off"`, `condense_high_cps=false`, `formats=["srt","ass"]`.
+- **Lifecycle:** `queued` -> `running` -> `complete` (`progress=100`, `error=null`).
+- **Execution Log Excerpt (Sanitized):**
+  - `STAGE: Translating, reviewing English and rendering`
+  - `[nvidia-transcribe] Stage 1/4: Loading existing recording contract <SMOKE_ROOT>/recording.contract.json`
+  - `[nvidia-transcribe] Stage 2/4: Preserving raw ASR transcript (source correction disabled)`
+  - `[nvidia-transcribe] Stage 3/4: Translation (en -> en, backend=riva, style=natural)`
+  - `[nvidia-transcribe] Stage 4/4: Rendering subtitles (srt,ass) -> one_track_test.en.*`
+- **Contract & Output Invariants:**
+  - `refinement`: `{"backend":"off","profile":"off","total_utterances":2,"changed_count":0}`
+  - `translation`: `{"backend":"riva","status":"bypassed_same_language","total_utterances":2}`
+  - `translation_review`: `{"status":"skipped_same_language","profile":"balanced","reviewed":0,"changed":0}`
+  - `condensation`: `{"status":"disabled","candidate_count":0,"condensed_count":0}`
+  - Utterances (`utt-0000`, `utt-0001`): `source_text == translated_text`, `translation_status="bypassed_same_language"`, `translation_review_status="skipped_same_language"`.
+- **HTTP Preview & Downloads (all 200 OK):**
+  - `GET /api/jobs/bd26c9d6bb854336ba1e651d2f5fbd3c/preview` -> 200 (2 cues)
+  - `GET /api/jobs/bd26c9d6bb854336ba1e651d2f5fbd3c/artifacts` -> 200 (8 files)
+  - Downloads returning 200 OK: `refined.contract.json`, `translated.contract.json`, `raw_source_transcript.txt`, `refined_source_transcript.txt`, `final_english_subtitles.txt`, `subtitles.metadata.json`, `one_track_test.en.srt`, `one_track_test.en.ass`.
+- **Browser Reload Persistence:** `page.reload()` preserved the job in `Recent runs` and 2 cues in `Dialogue timeline`.
+- **Foreign-Language Riva + Text-Review Live E2E:** `BLOCKED_BY_ENV` (neither OpenAI-compatible text endpoint `127.0.0.1:8001` nor ASR endpoint `127.0.0.1:8190` is running on the host; external GPU service mutations forbidden).

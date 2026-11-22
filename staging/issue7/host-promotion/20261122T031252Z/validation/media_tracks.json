@@ -1,0 +1,32 @@
+{
+  "synthetic_two_track_media": {
+    "label": "synthetic_two_track_test.webm",
+    "ffprobe_container_streams": [
+      {"index": 0, "codec_type": "video", "codec_name": "vp8"},
+      {"index": 1, "codec_type": "audio", "codec_name": "opus", "language": "fra", "title": "French Dialogue"},
+      {"index": 2, "codec_type": "audio", "codec_name": "opus", "language": "eng", "title": "English Commentary"}
+    ],
+    "api_media_inspect_status": 200,
+    "api_media_inspect_audio_streams": [
+      {"index": 0, "container_index": 1, "codec": "opus", "language": "fra", "title": "French Dialogue", "channels": 2, "sample_rate_hz": 48000},
+      {"index": 1, "container_index": 2, "codec": "opus", "language": "eng", "title": "English Commentary", "channels": 2, "sample_rate_hz": 48000}
+    ],
+    "ui_select_options": [
+      "Audio 1 (fra · French Dialogue · opus · 2ch · 48kHz)",
+      "Audio 2 (eng · English Commentary · opus · 2ch · 48kHz)"
+    ]
+  },
+  "synthetic_one_track_media": {
+    "label": "synthetic_one_track_test.webm",
+    "ui_select_options_after_switch": [
+      "Audio 1 (eng · Main English · opus · 2ch · 48kHz)"
+    ],
+    "audio_stream_before_switch": "1",
+    "audio_stream_reset_after_switch": "0"
+  },
+  "negative_api_checks": {
+    "inspect_outside_root_http": 403,
+    "submit_invalid_audio_index_2_http": 422,
+    "submit_outside_root_http": 403
+  }
+}

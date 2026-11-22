@@ -1,0 +1,9 @@
+COMMAND_SHAPE_FRICTION:
+  encountered=yes
+  events:
+    - requested: "playwright chromium.launch()"
+      effective: "chromium.launch(executable_path='/usr/bin/chromium', headless=True) via /home/filip/.local/share/uv/tools/playwright/bin/python"
+      reason: "Playwright default cache lacked downloaded chrome-headless-shell; system /usr/bin/chromium is already installed."
+      effect: "Ran full headless Chromium browser checks without downloading browsers or modifying host packages."
+      status: recovered_after_retry
+  omitted_sensitive_values: yes (raw host home/repo paths sanitized to <USER_HOME>/<REPO_ROOT>; full private preimage backup and raw smoke_results.json retained privately on host)

@@ -1,0 +1,38 @@
+{
+  "target": "http://127.0.0.1:8765",
+  "main_pid": 2922624,
+  "pre_promotion": {
+    "main_pid": 1006972,
+    "health_status": 200,
+    "translation_backends_status": 404,
+    "entry_js": "assets/index-Bwa8rYL-.js"
+  },
+  "post_promotion": {
+    "health": {
+      "status": 200,
+      "body": {
+        "status": "ok",
+        "backend": "local",
+        "ffmpeg": true,
+        "ytdlp": true,
+        "media_roots_count": 4
+      }
+    },
+    "spa_assets_http_200": [
+      "/",
+      "/assets/index-B12FMBjD.js",
+      "/assets/index-mYr5Cx9X.css",
+      "/assets/jassub-BPxFTjq7.js",
+      "/assets/worker-BWunBCmv.js",
+      "/assets/jassub-worker-modern-BUW0J9we.js",
+      "/assets/jassub-worker-modern-D8ggd1vm.wasm",
+      "/assets/default-jVcJgvWm.woff2"
+    ],
+    "negative_checks": {
+      "inspect_outside_root_status": 403,
+      "submit_invalid_audio_index_status": 422,
+      "submit_outside_root_status": 403,
+      "submit_non_off_refinement_status": 422
+    }
+  }
+}

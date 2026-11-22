@@ -1,0 +1,90 @@
+{
+  "schema": "nemovox-issue7-host-promotion/v1",
+  "utc_run_id": "20261122T031252Z",
+  "repo_id": "fvanevski/nemovox",
+  "issue_number": 7,
+  "deployed_source_sha": "8fee1e177db9742dbdb38c4a22bdd663c20ac80f",
+  "deployed_tree_sha": "2c733a3036443121cc4c1c7c2b7a09bb0d5680a5",
+  "staging_anchor_sha": "4ee68f675e76884b7610ea6bf2cdf1b245396dc4",
+  "collection_method": "systemd --user inspection + curl HTTP probes + Playwright headless system Chromium + Studio API/worker E2E on synthetic media/contract",
+  "redactions": [
+    "Absolute user home/repo paths sanitized to <USER_HOME>/<REPO_ROOT> in text/JSON reports",
+    "Private preimage backup tar/unit/raw smoke JSON retained only on host under outputs/handbacks/host-promo-private-20261122T031252Z/"
+  ],
+  "missingness": {
+    "live_foreign_language_riva_text_e2e": "BLOCKED_BY_ENV (ports 8001 and 8190 not running; external GPU service mutations forbidden)",
+    "screen_reader_audio_output": "UNVERIFIED (DOM ARIA/live-region state verified in headless Chromium; no TTS screen-reader audio captured)"
+  },
+  "members": [
+    {
+      "path": "COMMAND_SHAPE_FRICTION.txt",
+      "bytes": 707,
+      "sha256": "7f2c0376d6bf1a57f2b61186a444d160d79839a4858bd0e6736eaaaa8505bc9a"
+    },
+    {
+      "path": "promotion/deploy_receipt.md",
+      "bytes": 2144,
+      "sha256": "c97cd927730d871b85d82ee04e8661dd627d7232a4ce91d0905d2e58b737f024"
+    },
+    {
+      "path": "promotion/rollback_receipt.md",
+      "bytes": 1049,
+      "sha256": "f336cc6726e91ba6e05699dd3fe2d5e2c5893bc539c0938a7e554e62d585d383"
+    },
+    {
+      "path": "review/acceptance_matrix.md",
+      "bytes": 1705,
+      "sha256": "3d1cb0bcdae2f585f0cc7152ca51b7e8174fcc1c4e8ff7c4b4842a55318d39cb"
+    },
+    {
+      "path": "review/findings.md",
+      "bytes": 1366,
+      "sha256": "4479eb92e9acb37eee45812b498e932d66c62166f09da2b901abd3391e430149"
+    },
+    {
+      "path": "source/installed_identity.json",
+      "bytes": 1880,
+      "sha256": "f468354c418e542aecd4f52ecf03aefb2fe0265a8659ef571250f3db24bb0388"
+    },
+    {
+      "path": "validation/backend_and_glossaries.json",
+      "bytes": 1184,
+      "sha256": "c589b4a3ae8803ac13bea0d252ab8dce1df5f12fb82fccfeafa031d01f6ebb76"
+    },
+    {
+      "path": "validation/browser_gui.md",
+      "bytes": 2648,
+      "sha256": "eda741fcd107f8bd37a8196793c4b4b816c108cbb382876fa40d86ac78c972b9"
+    },
+    {
+      "path": "validation/final_live_readback.md",
+      "bytes": 727,
+      "sha256": "a49260df714763ad552e9243266bfa1f2a26c7b671daa51631b97452494b69f5"
+    },
+    {
+      "path": "validation/job_e2e.md",
+      "bytes": 2540,
+      "sha256": "1689419431567bc37915affb61773c3e3ecddc0ba00e1e865c10b18f064b8c5a"
+    },
+    {
+      "path": "validation/media_tracks.json",
+      "bytes": 1392,
+      "sha256": "0c9b2ddb9b8c14ab9e5b819b450078d633012fb279be901ef7fbc39bb08a3513"
+    },
+    {
+      "path": "validation/production_http.json",
+      "bytes": 987,
+      "sha256": "7bd0491e0248b5c3e4cfaca28850f944587faf9c0eddce43bef5bb29a4ddec53"
+    },
+    {
+      "path": "validation/screenshots/01_configure_combobox_open.png",
+      "bytes": 452405,
+      "sha256": "2a3f9a7c80aa96233b9009c22e6c337719251608fcf38b3a46750c7ec10880c4"
+    },
+    {
+      "path": "validation/screenshots/02_preview_completed_job.png",
+      "bytes": 409067,
+      "sha256": "73da4e3ee705195710091e851ace23cda4cd6adc07df67dac8249ea8c0ec9bb7"
+    }
+  ]
+}

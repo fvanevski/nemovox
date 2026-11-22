@@ -1,0 +1,42 @@
+{
+  "translation_backends_api": {
+    "status": 200,
+    "body": {
+      "riva": {
+        "configured": true,
+        "device": "cuda:0",
+        "detail": "Dedicated Riva translation worker is configured."
+      }
+    },
+    "note": "Configuration readiness check only (no model loaded or inference run)."
+  },
+  "glossaries_api": {
+    "status": 200,
+    "count": 2,
+    "default_selected": null,
+    "entries": [
+      {
+        "name": "A Will Eternal (Mandarin example)",
+        "character_count": 7,
+        "term_count": 16,
+        "has_notes": true
+      },
+      {
+        "name": "Les Mystérieuses Cités d'Or (French example)",
+        "character_count": 14,
+        "term_count": 8,
+        "has_notes": true
+      }
+    ],
+    "ui_preview_verified": {
+      "french_characters_and_terms_rendered": true,
+      "mandarin_characters_and_terms_rendered": true
+    }
+  },
+  "live_foreign_language_inference": {
+    "status": "BLOCKED_BY_ENV",
+    "port_8001_listening": false,
+    "port_8190_listening": false,
+    "reason": "OpenAI-compatible text review server (8001) and ASR server (8190) are not running; starting/modifying external GPU services is forbidden."
+  }
+}
