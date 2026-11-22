@@ -18,8 +18,7 @@ def store(tmp_path: Path):
     root.mkdir()
     outside = tmp_path / "outside"
     outside.mkdir()
-    job = tmp_path / "jobs" / "0" * 0  # replaced with a real job UUID below
-    job = tmp_path / "jobs" / "a" * 32
+    job = tmp_path / "jobs" / ("a" * 32)
     job.mkdir(parents=True)
     (job / "asr").mkdir()
     (job / "output").mkdir()
