@@ -54,6 +54,24 @@ controlled SIGKILL and recovery verification below. Historical PASS evidence
 at `8d6f70f161c9100d4e64fca49da5139c4d109615` is a **comparison
 baseline only**, not proof for changed source.
 
+## Phase A correction: explicit-credential failure classification
+
+At tested source `a0ab446556ab983bdc04be24820a4f12f17df98c`,
+the full non-GPU suite was `1 failed, 218 passed` (focused `1 failed,
+112 passed`): `ResourceConfigError` inherits `ValueError`, and readiness
+misclassified a missing declared `api_key_env` as a transient endpoint
+failure. Historical failed evidence is under
+`staging/issue10/evidence/20261122T062100Z/`.
+Central corrected the **production exception boundary**, not the test:
+credential validation now precedes the network-only recoverable exception
+handler. The prior required fail-closed assertion remains unchanged. New
+regressions cover `inspect()` and `endpoint()` without systemd/HTTP
+side effects, plus the still-soft network-unavailability contract.
+
+Run the whole Phase A suite on the **new exact PR source**, then Phases B/C
+only after all deterministic gates pass. Preserve earlier PASS/FAIL packets
+as source-bound historical records; do not treat them as current-head PASS.
+
 ## Phase A: exact-head inspect, CPU and frontend verification
 
 1. Launch in a fresh OpenCode Build session from the existing Nemovox workspace, typically `/workspace/nvidia-transcribe`. Read repository `AGENTS.md`, `docs/model-resources/LIFECYCLE.md`, `docs/model-resources/CONFIGURATION.md`, `web/README.md` and this exact staging handoff. Read the live PR #11 head, `main` and issue #10. **Fetch the PR branch first** and verify the fetched object matches the remote exact full SHA before creating a clean detached test worktree. Never reset, switch, clean, stash, or fast-forward the operator's production checkout.

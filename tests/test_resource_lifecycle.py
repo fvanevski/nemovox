@@ -129,6 +129,43 @@ def test_missing_explicit_asr_token_remains_fail_closed(asr, monkeypatch):
         lifecycle._models_healthy(selected)
 
 
+
+@pytest.mark.parametrize("surface", ["inspect", "endpoint"])
+def test_missing_explicit_token_blocks_before_host_service_access(
+    manager, asr, monkeypatch, surface,
+):
+    from dataclasses import replace
+    from nvidia_transcribe.model_resources import ResourceConfigError
+
+    token_env = "NEMOVOX_MISSING_AUTH_TOKEN_FOR_TEST"
+    selected = replace(asr, api_key_env=token_env)
+    monkeypatch.delenv(token_env, raising=False)
+    # The legacy fallback must never override a declared but absent key.
+    monkeypatch.setenv("VLLM_API_KEY", "synthetic-legacy-token")
+
+    def forbidden(*_args, **_kwargs):
+        pytest.fail("Invalid explicit credentials must block before service or HTTP access")
+
+    monkeypatch.setattr(lifecycle, "_unit", forbidden)
+    monkeypatch.setattr(lifecycle, "_systemctl", forbidden)
+    monkeypatch.setattr(lifecycle.urllib.request, "urlopen", forbidden)
+
+    with pytest.raises(ResourceConfigError, match=token_env):
+        if surface == "inspect":
+            manager.inspect(selected)
+        else:
+            with manager.endpoint(selected):
+                pytest.fail("Invalid configuration must not admit ASR inference")
+
+
+def test_readiness_network_error_still_reports_unavailable(asr, monkeypatch):
+    def unreachable(*_args, **_kwargs):
+        raise lifecycle.urllib.error.URLError("synthetic unavailable endpoint")
+
+    monkeypatch.delenv("VLLM_API_KEY", raising=False)
+    monkeypatch.setattr(lifecycle.urllib.request, "urlopen", unreachable)
+    assert lifecycle._models_healthy(asr) is False
+
 def test_default_ownership_configuration_and_json_override(tmp_path):
     defaults = lifecycle._service_config()
     assert defaults["asr_local"].unit == "nemovox-asr.service"

@@ -130,17 +130,17 @@ def _models_healthy(resource: ModelResource, timeout: float = 3.0) -> bool:
         return False
     url = resource.endpoint.rstrip("/") + "/models"
     headers = {}
-    # The selected resource's credential is redacted from all status/log text.
+    # Resolve configuration before the fallible network probe: ResourceConfigError
+    # subclasses ValueError, but a missing explicit token is never "unhealthy".
+    # The selected credential must never be written to status or logs.
+    credential = resource.credential()
+    if resource.adapter == "nemotron_ctc" and credential is None:
+        # Match NemotronVLLMClient's legacy VLLM_API_KEY / EMPTY fallback.
+        # A declared api_key_env remains mandatory; text never inherits it.
+        credential = os.environ.get("VLLM_API_KEY") or "EMPTY"
+    if credential:
+        headers["Authorization"] = "Bearer " + credential
     try:
-        credential = resource.credential()
-        if resource.adapter == "nemotron_ctc" and credential is None:
-            # Match NemotronVLLMClient's legacy VLLM_API_KEY / EMPTY
-            # fallback. An explicit api_key_env still takes precedence
-            # (and still fails closed when unset); other adapters never
-            # inherit the ASR token.
-            credential = os.environ.get("VLLM_API_KEY") or "EMPTY"
-        if credential:
-            headers["Authorization"] = "Bearer " + credential
         request = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(request, timeout=timeout) as response:
             if response.status != 200:
