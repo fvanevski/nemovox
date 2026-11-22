@@ -313,9 +313,18 @@ def test_cli_riva_english_contract_does_not_require_local_worker(tmp_path, monke
         "utterances": [{"id": "one", "source_text": "We should go.",
                         "source_start": 1.0, "source_end": 2.0}],
     }), encoding="utf-8")
+    resource_config = tmp_path / "resources.json"
+    resource_config.write_text(json.dumps({
+        "version": 1,
+        "resources": {"riva_local": {
+            "checkpoint_path": str(tmp_path / "definitely-missing-riva-checkpoint"),
+            "worker_python": str(tmp_path / "definitely-missing-riva-python"),
+        }},
+    }), encoding="utf-8")
     status = cli.main([
         "generate-subtitles", "--recording-contract", str(recording),
         "--output-dir", str(tmp_path / "subtitles"),
+        "--model-resources", str(resource_config),
         "--translator", "riva", "--translation-review", "balanced",
         "--formats", "srt",
     ])
