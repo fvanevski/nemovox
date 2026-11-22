@@ -13,6 +13,7 @@ import re
 import signal
 import threading
 import shlex
+import stat
 import subprocess
 import time
 import urllib.error
@@ -216,10 +217,32 @@ class ModelLifecycle:
     @contextmanager
     def _lock(self) -> Iterator[None]:
         self.lock_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        with self.lock_path.open("a+b") as handle:
-            os.chmod(self.lock_path, 0o600)
-            # Different CLI processes cannot overlap GPU stages.
-            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            fd = os.open(self.lock_path,
+                         os.O_RDWR | os.O_CREAT | os.O_CLOEXEC | os.O_NOFOLLOW,
+                         0o600)
+        except OSError as exc:
+            raise ResourceLifecycleError("resource_lock_unavailable", type(exc).__name__) from exc
+        with os.fdopen(fd, "a+b") as handle:
+            st = os.fstat(handle.fileno())
+            if not stat.S_ISREG(st.st_mode) or st.st_uid != os.getuid() or st.st_mode & 0o077:
+                raise ResourceLifecycleError("resource_lock_permissions")
+            # Bounded cross-CLI admission, never an infinite wait on stale work.
+            try:
+                timeout = float(os.environ.get("NEMOVOX_LIFECYCLE_LOCK_TIMEOUT_S", "900"))
+            except ValueError as exc:
+                raise ResourceLifecycleError("invalid_lifecycle_lock_timeout") from exc
+            if not 0.1 <= timeout <= 7200:
+                raise ResourceLifecycleError("invalid_lifecycle_lock_timeout")
+            deadline = time.monotonic() + timeout
+            while True:
+                try:
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except BlockingIOError as exc:
+                    if time.monotonic() >= deadline:
+                        raise ResourceLifecycleError("resource_lease_timeout") from exc
+                    time.sleep(0.25)
             prior_sigterm = None
             restore_signal = threading.current_thread() is threading.main_thread()
             if restore_signal:
