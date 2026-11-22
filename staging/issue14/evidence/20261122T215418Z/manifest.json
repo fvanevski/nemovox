@@ -1,0 +1,100 @@
+{
+  "schema": "nemovox-issue14-ab-manifest/v1",
+  "utc_run_id": "20261122T215418Z",
+  "repo_id": "fvanevski/nemovox",
+  "issue_number": 14,
+  "pr_number": 15,
+  "tested_source_sha": "866aa734a29e609bd9761e1d7365e32aefd2b2f7",
+  "handoff_carrier_sha": "05ac52dbb9c70af34e248c287b5ab4bb1a5fb200",
+  "evidence_branch": "issue/14-longform-timing-boundaries",
+  "evidence_root": "staging/issue14/evidence/20261122T215418Z/",
+  "omissions_for_privacy": [
+    "original_video_webm",
+    "bounded_wav_subclips",
+    "raw_chunk_json_responses",
+    "full_copyrighted_transcripts_and_ass",
+    "absolute_personal_host_paths"
+  ],
+  "members": [
+    {
+      "path": "COMMAND_SHAPE_FRICTION.txt",
+      "bytes": 25,
+      "sha256": "c333f1c530df2dbfa232d903a30c99bb7948f93c3a0e297957efe6c114eb48e9",
+      "criterion": "command_shape_friction",
+      "evidence_class": "public_safe_friction_log",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1415,
+      "sha256": "d420a6f8acd1e89291b7ea7f92a9f70010c9a5d2db997448e9ea415f2f49c19e",
+      "criterion": "packet_index_and_scope",
+      "evidence_class": "public_safe_summary",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "source-identity.json",
+      "bytes": 2314,
+      "sha256": "9eb9c1c1c346a0469d5844c9df9d2e9a2f2641c8c5e3d44ae8c36df31c5f741e",
+      "criterion": "source_branch_and_input_hashes",
+      "evidence_class": "sanitized_source_identity",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "validation/acoustic.md",
+      "bytes": 594,
+      "sha256": "03279e157e0c18801774ce38925dc1383b09fcc2dfd70f1d004916a797a17ad8",
+      "criterion": "acoustic_and_gpu_status",
+      "evidence_class": "public_safe_acoustic_status",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "validation/cases.jsonl",
+      "bytes": 6822,
+      "sha256": "31dca7761f44b64470a221bff630de6cf213235461601104c474b8123d0e6f52",
+      "criterion": "case_level_ab_outcomes",
+      "evidence_class": "sanitized_case_index",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "validation/causal-assessment.md",
+      "bytes": 3314,
+      "sha256": "ab4bdbb5f9f631a6227b16740d46d4f8b907bd1d8a47d12e9bea83687e0cfbc9",
+      "criterion": "threeway_causal_assessment",
+      "evidence_class": "sanitized_causal_assessment",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "validation/commands.md",
+      "bytes": 2071,
+      "sha256": "204128c53d241eaeacd324b02e1297e00a413d6f6bb87293ed49815e7be3a6a2",
+      "criterion": "phase_b_c_commands_and_failure",
+      "evidence_class": "public_safe_test_log",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "validation/metrics.json",
+      "bytes": 3919,
+      "sha256": "8c84d881a42b6dd5e74df5bde3898c810503885e6f92e08f8983f4e09996ad50",
+      "criterion": "threeway_shared_denominator_metrics",
+      "evidence_class": "public_safe_metrics",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "review/acceptance-matrix.md",
+      "bytes": 1434,
+      "sha256": "1eab86e82f18c49250dde2cb689aaf43c336a4bab5279f4a92227249d4b23ad0",
+      "criterion": "acceptance_matrix",
+      "evidence_class": "public_safe_acceptance_matrix",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "review/findings.md",
+      "bytes": 1598,
+      "sha256": "8a6ee58e22cc63ae245b2925669708f5a558ec479f779381945f1e55d0ffd512",
+      "criterion": "blocking_failure_and_remaining_gaps",
+      "evidence_class": "public_safe_findings",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    }
+  ]
+}
