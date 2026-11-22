@@ -17,7 +17,7 @@ from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
 from nvidia_transcribe.refinement import RefinementConfig
 from nvidia_transcribe.subtitle_pipeline import SubtitlePipelineConfig, generate_subtitles
 from nvidia_transcribe.subtitles import SubtitleConfig
-from nvidia_transcribe.translation import TranslationConfig
+from nvidia_transcribe.translation import TranslationConfig, is_english_source_to_english
 from nvidia_transcribe.translation_review import TranslationReviewConfig
 
 
@@ -189,6 +189,18 @@ def main(argv: list[str] | None = None) -> int:
                 speaker_resource = registry.resolve("speaker_embedding")
                 qwen_device = args.qwen_device or qwen_resource.device or "cuda:0"
             if args.command == "generate-subtitles":
+                # Existing English contracts do not need a Riva worker or
+                # a text-model credential merely to render the original ASR.
+                source_for_preflight = args.source_language
+                if not source_for_preflight and args.recording_contract:
+                    try:
+                        contract = json.loads(Path(args.recording_contract).read_text(encoding="utf-8"))
+                        if isinstance(contract, dict):
+                            source_for_preflight = contract.get("source_language")
+                    except (OSError, ValueError, TypeError):
+                        pass  # Normal contract admission owns invalid-input errors.
+                same_language = is_english_source_to_english(
+                    source_for_preflight, args.target_language)
                 text_overrides = {"endpoint": args.text_url, "model": args.text_model}
                 refinement_resource = registry.resolve(
                     "source_refinement", resource_name=args.refinement_resource, **text_overrides)
@@ -199,7 +211,8 @@ def main(argv: list[str] | None = None) -> int:
                 review_resource = registry.resolve(
                     "translation_review", resource_name=args.translation_review_resource, **text_overrides)
                 riva_resource = registry.resolve(
-                    "riva_translation", require_local_paths=args.translator == "riva" and not args.re_render)
+                    "riva_translation", require_local_paths=(
+                        args.translator == "riva" and not args.re_render and not same_language))
             asr_key = asr_resource.credential() if (
                 args.command != "generate-subtitles" or
                 (args.recording_contract is None and not args.re_render)) else None
@@ -212,7 +225,7 @@ def main(argv: list[str] | None = None) -> int:
                                     if args.condense_high_cps and args.translator != "none" and not args.re_render else None)
                 review_key = (review_resource.credential()
                               if args.translation_review != "off" and args.translator == "riva"
-                              and not args.re_render else None)
+                              and not args.re_render and not same_language else None)
         except ResourceConfigError as exc:
             print(json.dumps({"status": "CONFIG_ERROR", "error": str(exc)}), file=sys.stderr)
             return 2
