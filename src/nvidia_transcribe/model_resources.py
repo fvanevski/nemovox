@@ -31,6 +31,15 @@ ROLE_ADAPTERS: dict[str, frozenset[str]] = {
     "speaker_embedding": frozenset({"titanet"}),
 }
 RESOURCE_FIELDS = frozenset({"adapter", "model", "endpoint", "checkpoint_path", "worker_python", "device", "api_key_env"})
+# A field that the selected adapter ignores must be rejected rather than silently
+# suggesting it controls inference (particularly device and credential settings).
+_ADAPTER_FIELDS = {
+    "nemotron_ctc": frozenset({"adapter", "endpoint", "model", "checkpoint_path", "api_key_env"}),
+    "openai_chat": frozenset({"adapter", "endpoint", "model", "api_key_env"}),
+    "riva_worker": frozenset({"adapter", "checkpoint_path", "worker_python", "device"}),
+    "qwen_forced_aligner": frozenset({"adapter", "checkpoint_path", "worker_python", "device"}),
+    "titanet": frozenset({"adapter", "model", "device"}),
+}
 _RESOURCE_DEFAULTS: dict[str, dict[str, str]] = {
     "asr_local": {
         "adapter": "nemotron_ctc",
@@ -107,8 +116,12 @@ def _validate_resource(name: str, spec: Mapping[str, Any]) -> ModelResource:
     if not all(isinstance(v, str) and v.strip() for v in spec.values()):
         raise ResourceConfigError(f"Resource {name!r} fields must be nonempty strings")
     adapter = spec.get("adapter")
-    if adapter not in set().union(*ROLE_ADAPTERS.values()):
+    if adapter not in _ADAPTER_FIELDS:
         raise ResourceConfigError(f"Resource {name!r} has unknown adapter {adapter!r}")
+    unused = set(spec) - _ADAPTER_FIELDS[adapter]
+    if unused:
+        raise ResourceConfigError(
+            f"Resource {name!r} adapter {adapter!r} cannot use fields: {sorted(unused)}")
     endpoint = spec.get("endpoint")
     if endpoint is not None:
         parsed = urlsplit(endpoint)
@@ -130,6 +143,12 @@ def _validate_resource(name: str, spec: Mapping[str, Any]) -> ModelResource:
         raise ResourceConfigError(f"Resource {name!r} api_key_env must name an environment variable")
     if adapter == "qwen_forced_aligner" and spec.get("device", "cuda:0") not in ("cuda:0", "cpu"):
         raise ResourceConfigError("Qwen aligner device must be cuda:0 or explicitly cpu")
+    if adapter == "titanet" and spec.get("device", "cpu") != "cpu":
+        raise ResourceConfigError("NeMo TitaNet speaker embedding runs on CPU only")
+    if adapter == "riva_worker":
+        device = spec.get("device", "auto")
+        if device not in ("auto", "cpu") and not re.fullmatch(r"cuda:\d+", device):
+            raise ResourceConfigError("Riva worker device must be auto, cpu, or cuda:N")
     return ModelResource(name=name, **dict(spec))
 
 

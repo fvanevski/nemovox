@@ -61,7 +61,7 @@ fields:
 | `model` | Served model ID for ASR/text, or NeMo model name for speaker embedding |
 | `checkpoint_path` | Local model checkpoint/directory for applicable adapters |
 | `worker_python` | Python interpreter path for Riva/Qwen worker processes |
-| `device` | Adapter-specific execution target, e.g. `cuda:0` (Qwen) or `auto` (Riva) |
+| `device` | Adapter-specific execution target: Qwen `cuda:0` or explicit `cpu`; Riva `auto`, `cpu`, or `cuda:N`; TitaNet `cpu` only |
 | `api_key_env` | Environment **variable name** holding a token, never the token value |
 
 Example: keep the current SwiftU/NInfer binding for correction, but assign
@@ -194,7 +194,10 @@ cd web && npm test && npm run build
 ```
 
 `src/nvidia_transcribe/model_resources.py` validates known roles, required
-adapter fields, HTTP(S) endpoint syntax and role/adapter compatibility.
+adapter fields, HTTP(S) endpoint syntax, role/adapter compatibility, and
+adapter-specific allowed fields/devices. Unsupported settings are rejected
+rather than accepted and silently ignored (including requesting GPU TitaNet
+speaker embeddings, which currently run on CPU only).
 Required Riva/Qwen worker paths are validated lazily when the CLI requests
 those workers. A file existing on disk does not prove runtime compatibility.
 A missing configured token fails before the applicable inference call.

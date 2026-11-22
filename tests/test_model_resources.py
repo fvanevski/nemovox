@@ -110,3 +110,24 @@ def test_explicit_empty_new_env_does_not_silently_fall_back_to_legacy():
             "SWIFTU_MODEL": "chat",
             "TEXT_MODEL": " ",
         })
+
+
+@pytest.mark.parametrize("adapter,fields", [
+    ("titanet", {"model": "titanet_small", "device": "cuda:0"}),
+    ("titanet", {"model": "titanet_small", "checkpoint_path": "/some/checkpoint"}),
+    ("openai_chat", {"model": "chat", "endpoint": "http://localhost:8001/v1", "device": "cuda:0"}),
+    ("openai_chat", {"model": "chat", "endpoint": "http://localhost:8001/v1", "worker_python": "/tmp/python"}),
+    ("riva_worker", {"checkpoint_path": "/tmp/riva", "worker_python": "/tmp/python", "device": "not-a-device"}),
+    ("qwen_forced_aligner", {"checkpoint_path": "/tmp/qwen", "worker_python": "/tmp/python", "api_key_env": "TOKEN"}),
+    ("nemotron_ctc", {"model": "asr", "endpoint": "http://localhost:8190/v1", "device": "cpu"}),
+])
+def test_rejects_unsupported_adapter_fields_and_silent_device_fallback(tmp_path, adapter, fields):
+    path = _file(tmp_path, {"version": 1, "resources": {"invalid_resource": {"adapter": adapter, **fields}}})
+    with pytest.raises(ResourceConfigError):
+        load_model_resources(path, environ={})
+
+
+def test_configured_cpu_titanet_is_valid(tmp_path):
+    path = _file(tmp_path, {"version": 1, "resources": {
+        "titanet_cpu": {"adapter": "titanet", "model": "titanet_small", "device": "cpu"}}})
+    assert load_model_resources(path, environ={}).resolve("speaker_embedding").device == "cpu"
