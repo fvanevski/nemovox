@@ -129,6 +129,7 @@ export default function App() {
     enabled: !!selectedSource && isLocalMedia, retry: false,
   });
   const translationBackends = useQuery({queryKey: ["translation-backends"], queryFn: studio.translationBackends});
+  const managedResources = useQuery({queryKey: ["resource-status"], queryFn: studio.modelStatus, refetchInterval: 10000});
   const glossaries = useQuery({queryKey: ["glossaries"], queryFn: studio.glossaries});
   const selectedGlossary = glossaries.data?.find(g => g.path === options.glossary);
   const audioTracks = isLocalMedia ? audioInfo.data?.audio_streams : undefined;
@@ -369,6 +370,13 @@ export default function App() {
             <div className="mb-5 flex flex-wrap items-center gap-2"><Pill><Film size={12}/>{source.value.split("/").pop() || "Source not selected"}</Pill>
               <Pill><Activity size={12}/>{TASKS.find(t => t.id === task)?.title}</Pill>
               <Pill>{options.source_language.toUpperCase()} → {options.target_language.toUpperCase()}</Pill>
+            </div>
+            <div className="mb-5 rounded-lg border border-[#344c5f] bg-[#10222c] p-3 text-xs leading-5 text-slate-300" role="status">
+              <p className="font-semibold text-teal-200">On-demand model resources</p>
+              <p>Nemovox acquires each required model when its processing stage begins; a stopped managed service is not an error.</p>
+              <p>ASR: {selectedSource?.kind === "contract" ? "Not needed for this recording contract" : (managedResources.data?.asr.state ?? (managedResources.isError ? "Readiness unavailable" : "Checking…"))}</p>
+              {task !== "transcription" && <p>English review: {englishOnly || options.translation_review === "off" ? "Not required" : (managedResources.data?.translation_review.state ?? "Checking…")}</p>}
+              {managedResources.data?.error && <p className="text-amber-300">Resource configuration needs attention: {managedResources.data.error}</p>}
             </div>
             <div className="grid gap-5 sm:grid-cols-2">
               <Field title="Transcription mode"><ExplainedSelect label="Transcription mode"
