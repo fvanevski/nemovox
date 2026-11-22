@@ -1,0 +1,170 @@
+COMMAND: PYTHONPATH=src .venv/bin/python -m pytest -v tests/test_model_resources.py
+EXIT_CODE: 0
+
+============================= test session starts ==============================
+platform linux -- Python 3.13.15, pytest-9.2.0, pluggy-1.7.0 -- /workspace/nvidia-transcribe/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace/nemovox-pr6-evidence
+configfile: pyproject.toml
+plugins: anyio-4.13.0, hydra-core-1.3.8
+collecting ... collected 26 items
+
+tests/test_model_resources.py::test_default_resource_roles_preserve_current_local_services PASSED [  3%]
+tests/test_model_resources.py::test_host_bindings_support_distinct_text_roles PASSED [  7%]
+tests/test_model_resources.py::test_env_new_overrides_legacy_and_command_override_last PASSED [ 11%]
+tests/test_model_resources.py::test_invalid_resource_config_fails_closed[document0] PASSED [ 15%]
+tests/test_model_resources.py::test_invalid_resource_config_fails_closed[document1] PASSED [ 19%]
+tests/test_model_resources.py::test_invalid_resource_config_fails_closed[document2] PASSED [ 23%]
+tests/test_model_resources.py::test_invalid_resource_config_fails_closed[document3] PASSED [ 26%]
+tests/test_model_resources.py::test_invalid_resource_config_fails_closed[document4] PASSED [ 30%]
+tests/test_model_resources.py::test_invalid_resource_config_fails_closed[document5] PASSED [ 34%]
+tests/test_model_resources.py::test_invalid_resource_config_fails_closed[document6] PASSED [ 38%]
+tests/test_model_resources.py::test_invalid_resource_config_fails_closed[document7] PASSED [ 42%]
+tests/test_model_resources.py::test_invalid_resource_config_fails_closed[document8] PASSED [ 46%]
+tests/test_model_resources.py::test_invalid_resource_config_fails_closed[document9] PASSED [ 50%]
+tests/test_model_resources.py::test_invalid_resource_config_fails_closed[document10] PASSED [ 53%]
+tests/test_model_resources.py::test_local_path_check_is_lazy_and_explicit PASSED [ 57%]
+tests/test_model_resources.py::test_safe_bindings_and_credentials_never_expose_values PASSED [ 61%]
+tests/test_model_resources.py::test_overrides_do_not_mutate_registry PASSED [ 65%]
+tests/test_model_resources.py::test_explicit_empty_new_env_does_not_silently_fall_back_to_legacy PASSED [ 69%]
+tests/test_model_resources.py::test_rejects_unsupported_adapter_fields_and_silent_device_fallback[titanet-fields0] PASSED [ 73%]
+tests/test_model_resources.py::test_rejects_unsupported_adapter_fields_and_silent_device_fallback[titanet-fields1] PASSED [ 76%]
+tests/test_model_resources.py::test_rejects_unsupported_adapter_fields_and_silent_device_fallback[openai_chat-fields2] PASSED [ 80%]
+tests/test_model_resources.py::test_rejects_unsupported_adapter_fields_and_silent_device_fallback[openai_chat-fields3] PASSED [ 84%]
+tests/test_model_resources.py::test_rejects_unsupported_adapter_fields_and_silent_device_fallback[riva_worker-fields4] PASSED [ 88%]
+tests/test_model_resources.py::test_rejects_unsupported_adapter_fields_and_silent_device_fallback[qwen_forced_aligner-fields5] PASSED [ 92%]
+tests/test_model_resources.py::test_rejects_unsupported_adapter_fields_and_silent_device_fallback[nemotron_ctc-fields6] PASSED [ 96%]
+tests/test_model_resources.py::test_configured_cpu_titanet_is_valid PASSED [100%]
+
+=============================== warnings summary ===============================
+../nvidia-transcribe/.venv/lib/python3.13/site-packages/anyio/pytest_plugin.py:14
+  /workspace/nvidia-transcribe/.venv/lib/python3.13/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+  The CallSpec2 alias will be removed in pytest 10.
+  Update imports to use CallSpec instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
+    from _pytest.python import CallSpec2
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 26 passed, 1 warning in 0.11s =========================
+
+=== Direct Adapter-Field & Device Rejection Checks ===
+[
+  {
+    "case": "titanet_gpu_rejected",
+    "status": "REJECTED",
+    "error": "NeMo TitaNet speaker embedding runs on CPU only"
+  },
+  {
+    "case": "titanet_checkpoint_rejected",
+    "status": "REJECTED",
+    "error": "Resource 'speaker' adapter 'titanet' cannot use fields: ['checkpoint_path']"
+  },
+  {
+    "case": "openai_chat_device_rejected",
+    "status": "REJECTED",
+    "error": "Resource 'txt' adapter 'openai_chat' cannot use fields: ['device']"
+  },
+  {
+    "case": "openai_chat_worker_python_rejected",
+    "status": "REJECTED",
+    "error": "Resource 'txt' adapter 'openai_chat' cannot use fields: ['worker_python']"
+  },
+  {
+    "case": "riva_bad_device_rejected",
+    "status": "REJECTED",
+    "error": "Riva worker device must be auto, cpu, or cuda:N"
+  },
+  {
+    "case": "qwen_api_key_env_rejected",
+    "status": "REJECTED",
+    "error": "Resource 'qwen' adapter 'qwen_forced_aligner' cannot use fields: ['api_key_env']"
+  },
+  {
+    "case": "qwen_bad_device_rejected",
+    "status": "REJECTED",
+    "error": "Qwen aligner device must be cuda:0 or explicitly cpu"
+  },
+  {
+    "case": "nemotron_device_rejected",
+    "status": "REJECTED",
+    "error": "Resource 'asr' adapter 'nemotron_ctc' cannot use fields: ['device']"
+  }
+]
+
+=== Valid Example public_bindings() ===
+{
+  "asr": {
+    "resource": "asr_local",
+    "adapter": "nemotron_ctc",
+    "fingerprint": "4952e76413ea"
+  },
+  "source_refinement": {
+    "resource": "text_local",
+    "adapter": "openai_chat",
+    "fingerprint": "7c4ddcaf9e48"
+  },
+  "text_translation": {
+    "resource": "text_local",
+    "adapter": "openai_chat",
+    "fingerprint": "7c4ddcaf9e48"
+  },
+  "subtitle_condensation": {
+    "resource": "text_local",
+    "adapter": "openai_chat",
+    "fingerprint": "7c4ddcaf9e48"
+  },
+  "riva_translation": {
+    "resource": "riva_local",
+    "adapter": "riva_worker",
+    "fingerprint": "3adab2a2aa3b"
+  },
+  "forced_alignment": {
+    "resource": "qwen_local",
+    "adapter": "qwen_forced_aligner",
+    "fingerprint": "72b18920eecb"
+  },
+  "speaker_embedding": {
+    "resource": "titanet_cpu",
+    "adapter": "titanet",
+    "fingerprint": "431f090200ea"
+  }
+}
+
+=== Valid Explicit Device Bindings ===
+{
+  "asr": {
+    "resource": "asr_local",
+    "adapter": "nemotron_ctc",
+    "fingerprint": "4952e76413ea"
+  },
+  "source_refinement": {
+    "resource": "text_local",
+    "adapter": "openai_chat",
+    "fingerprint": "7c4ddcaf9e48"
+  },
+  "text_translation": {
+    "resource": "text_local",
+    "adapter": "openai_chat",
+    "fingerprint": "7c4ddcaf9e48"
+  },
+  "subtitle_condensation": {
+    "resource": "text_local",
+    "adapter": "openai_chat",
+    "fingerprint": "7c4ddcaf9e48"
+  },
+  "riva_translation": {
+    "resource": "riva_cuda",
+    "adapter": "riva_worker",
+    "fingerprint": "b1242c62c638"
+  },
+  "forced_alignment": {
+    "resource": "qwen_cpu",
+    "adapter": "qwen_forced_aligner",
+    "fingerprint": "631da857b886"
+  },
+  "speaker_embedding": {
+    "resource": "titanet_cpu",
+    "adapter": "titanet",
+    "fingerprint": "431f090200ea"
+  }
+}
