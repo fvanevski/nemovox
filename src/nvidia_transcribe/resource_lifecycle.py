@@ -147,6 +147,18 @@ def _free_vram_mb() -> int | None:
     return None
 
 
+def _external_clients(port: int | None) -> bool:
+    """Unknown or failed inspection is not permission to evict clients."""
+    if port is None:
+        return True
+    try:
+        p = subprocess.run(["ss", "-Htn", "state", "established", f"( sport = :{port} )"],
+                           text=True, capture_output=True, timeout=5, check=False)
+        return p.returncode != 0 or bool(p.stdout.strip())
+    except (OSError, subprocess.TimeoutExpired):
+        return True
+
+
 class ModelLifecycle:
     """Serialize local model work and start/release only cooperative resources.
 
@@ -203,37 +215,43 @@ class ModelLifecycle:
                 raise ResourceLifecycleError("owned_service_identity_mismatch",
                                              f"{resource.name}: active unit does not serve configured model")
             started = False
-            if not healthy:
-                if properties.get("ActiveState") not in {"inactive", "failed"}:
-                    raise ResourceLifecycleError("owned_service_busy", resource.name)
-                _systemctl("start", config.unit)
-                started = True
-                deadline = time.monotonic() + config.startup_timeout_s
-                while time.monotonic() < deadline:
-                    if _models_healthy(resource):
-                        break
-                    current = _unit(config.unit)
-                    if not _owned(current, resource.name) or current.get("ActiveState") == "failed":
-                        raise ResourceLifecycleError("managed_start_failed", resource.name)
-                    time.sleep(1.0)
-                else:
-                    raise ResourceLifecycleError("managed_start_timeout", resource.name)
             try:
+                if not healthy:
+                    if properties.get("ActiveState") not in {"inactive", "failed"}:
+                        raise ResourceLifecycleError("owned_service_busy", resource.name)
+                    # Failed startup must enter finally too.
+                    started = True
+                    _systemctl("start", config.unit)
+                    deadline = time.monotonic() + config.startup_timeout_s
+                    while time.monotonic() < deadline:
+                        if _models_healthy(resource):
+                            break
+                        current = _unit(config.unit)
+                        if not _owned(current, resource.name) or current.get("ActiveState") == "failed":
+                            raise ResourceLifecycleError("managed_start_failed", resource.name)
+                        time.sleep(1.0)
+                    else:
+                        raise ResourceLifecycleError("managed_start_timeout", resource.name)
                 yield
             finally:
                 if config.stop_after_stage and (started or active):
-                    # Never stop a renamed/replaced unit or one with unverified ownership.
+                    # Never stop a replaced unit or one with other live clients.
                     current = _unit(config.unit)
                     if not _owned(current, resource.name):
                         raise ResourceLifecycleError("managed_owner_changed", resource.name)
-                    _systemctl("stop", config.unit)
-                    deadline = time.monotonic() + 30
-                    while time.monotonic() < deadline:
-                        if _unit(config.unit).get("ActiveState") == "inactive":
-                            break
-                        time.sleep(0.3)
-                    else:
-                        raise ResourceLifecycleError("managed_stop_unverified", resource.name)
+                    if current.get("ActiveState") == "active":
+                        port = urllib.parse.urlsplit(resource.endpoint or "").port
+                        if _external_clients(port):
+                            raise ResourceLifecycleError("managed_resource_busy",
+                                                         f"{resource.name}: other live clients are connected")
+                        _systemctl("stop", config.unit)
+                        deadline = time.monotonic() + 30
+                        while time.monotonic() < deadline:
+                            if _unit(config.unit).get("ActiveState") in {"inactive", "failed"}:
+                                break
+                            time.sleep(0.3)
+                        else:
+                            raise ResourceLifecycleError("managed_stop_unverified", resource.name)
 
     @contextmanager
     def worker(self, *, resource_name: str, min_free_vram_mb: int = 8500) -> Iterator[None]:
@@ -246,3 +264,40 @@ class ModelLifecycle:
                 raise ResourceLifecycleError("gpu_capacity_blocked",
                                              f"{resource_name}: insufficient free VRAM for explicitly configured CUDA worker")
             yield
+
+
+class _DeferredTextClient:
+    """Acquire a text service at the first uncached inference request."""
+
+    def __init__(self, manager: ModelLifecycle, resource: ModelResource) -> None:
+        self.manager = manager
+        self.resource = resource
+        self._scope = None
+        self._client = None
+
+    def complete(self, **kwargs):
+        if self._scope is None:
+            scope = self.manager.endpoint(self.resource)
+            scope.__enter__()
+            self._scope = scope
+            from nvidia_transcribe.refinement import OpenAIChatTextClient
+            self._client = OpenAIChatTextClient(
+                base_url=self.resource.endpoint or "",
+                model=self.resource.model or "",
+                api_key=self.resource.credential(),
+            )
+        return self._client.complete(**kwargs)
+
+    def close(self) -> None:
+        if self._scope is not None:
+            scope, self._scope = self._scope, None
+            scope.__exit__(None, None, None)
+
+
+@contextmanager
+def managed_text_client(manager: ModelLifecycle, resource: ModelResource) -> Iterator[_DeferredTextClient]:
+    client = _DeferredTextClient(manager, resource)
+    try:
+        yield client
+    finally:
+        client.close()
