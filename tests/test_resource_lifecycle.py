@@ -402,3 +402,62 @@ def test_cached_recording_does_not_acquire_asr_before_first_transcribe(manager, 
         assert client.transcribe("fixture.wav") == "fixture.wav"
         assert client.transcribe("next.wav") == "next.wav"
     assert events == ["start", "transcribe", "transcribe", "stop"]
+
+
+def test_reconcile_idle_owned_reclaims_only_exact_abandoned_unit(manager, monkeypatch):
+    state = {"active": True}
+    calls = []
+
+    def unit(_unit_name):
+        return {**_unit(active=state["active"]),
+                "MainPID": "1009", "InvocationID": "same-invocation"}
+    monkeypatch.setattr(lifecycle, "_unit", unit)
+    monkeypatch.setattr(lifecycle, "_external_clients", lambda _: False)
+    monkeypatch.setattr(lifecycle, "_service_config",
+                        lambda _: {"asr_local": lifecycle.OwnedService("nemovox-asr.service")})
+
+    def command(*args):
+        calls.append(args)
+        assert args == ("stop", "nemovox-asr.service")
+        state["active"] = False
+        return ""
+    monkeypatch.setattr(lifecycle, "_systemctl", command)
+    assert manager.reconcile_idle_owned() == {"asr_local": "recovered"}
+    assert calls == [("stop", "nemovox-asr.service")]
+    assert manager.reconcile_idle_owned() == {"asr_local": "inactive"}
+
+
+def test_reconcile_refuses_unowned_or_mismatched_model_units(manager, monkeypatch):
+    attempts = []
+    monkeypatch.setattr(lifecycle, "_unit", lambda _: _unit(valid=False, active=True))
+    monkeypatch.setattr(lifecycle, "_systemctl", lambda *args: attempts.append(args))
+    monkeypatch.setattr(lifecycle, "_service_config",
+                        lambda _: {"asr_local": lifecycle.OwnedService("nemovox-asr.service")})
+    assert manager.reconcile_idle_owned()["asr_local"] == "unowned_or_identity_mismatch"
+    assert attempts == []
+
+
+def test_reconcile_respects_external_live_clients(manager, monkeypatch):
+    attempts = []
+    monkeypatch.setattr(lifecycle, "_unit", lambda _: _unit(active=True))
+    monkeypatch.setattr(lifecycle, "_external_clients", lambda _: True)
+    monkeypatch.setattr(lifecycle, "_systemctl", lambda *args: attempts.append(args))
+    monkeypatch.setattr(lifecycle, "_service_config",
+                        lambda _: {"asr_local": lifecycle.OwnedService("nemovox-asr.service")})
+    assert manager.reconcile_idle_owned()["asr_local"] == "active_clients"
+    assert attempts == []
+
+
+def test_reconcile_does_not_preempt_another_cli_lease(manager, monkeypatch):
+    import fcntl
+    import os
+    manager.lock_path.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(manager.lock_path, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        monkeypatch.setattr(lifecycle, "_systemctl",
+                            lambda *args: pytest.fail("Recovery may not preempt a running stage"))
+        assert manager.reconcile_idle_owned() == {"status": "active_model_stage"}
+    finally:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        os.close(fd)
