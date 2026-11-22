@@ -7,8 +7,8 @@ This is ONE bounded OpenCode Build evidence campaign. Central has already author
 REPO_ID=fvanevski/nemovox
 ISSUE_NUMBER=14
 BRANCH=issue/14-longform-timing-boundaries
-TESTED_SOURCE_SHA=88c94cf4ce7b8a2bbeb10aa53d0e6b7d4bdfd4a8
-TESTED_SOURCE_TREE=fa64eb3434060759f3280e796ee6a5d9f1ecb4c2
+TESTED_SOURCE_SHA=50b1408f73f3738f2f2ff5e59bbb421e4cb52e2f
+TESTED_SOURCE_TREE=a0731a2b3440118795397cb96fa5fb79dc0d87d7
 BASE_MAIN_SHA=8f6c03cbc70e84bf1970ba364207a02c9fe22b44
 BASE_MAIN_TREE=21ae1c6d1b682f1061ae36f6896cd0ac87db1580
 DIAGNOSTIC_SOURCE=5bf6f37d173cfcc160fdf03b60b051cd0f5e7dea:staging/quality-audit/mcog-s04e01/evidence/20261122T205259Z
@@ -29,7 +29,7 @@ NEW_PR=forbidden; NEW_ISSUE=forbidden; CODEX_REVIEW=not_yet
 
 ## Phase A: host/source admission
 
-1. Re-fetch the GitHub main, issue branch and relevant immutable commits, prove full SHA/tree and Issue #14 state. The instruction-only carrier may be a direct child of TESTED_SOURCE_SHA; confirm changed files since that SHA are only this handoff and later explicitly permitted evidence/meaning-preserving mechanical changes. A stale main/branch is STOP.
+1. Re-fetch the GitHub main, issue branch and relevant immutable commits, prove full SHA/tree and Issue #14 state. The final handoff/instruction carrier is expected to be a direct child of TESTED_SOURCE_SHA; confirm changed files since that SHA are only instruction/evidence content or later explicitly permitted meaning-preserving mechanical changes. A stale main/branch is STOP.
 2. Prepare one freshly named collision-safe isolated worktree under /workspace for the source branch. Use a fresh git fetch BEFORE local object/ref proof; do not reset, clean, switch or modify the existing production checkout, even if it is dirty. Distinguish remote authority from same-name local branches.
 3. Read project AGENTS.md; verify source imports actually resolve into the isolated candidate src, using installed compatible interpreter at /workspace/nvidia-transcribe/.venv/bin/python. Studio tests may use /workspace/nvidia-transcribe/.venv-studio/bin/python. Do not reinstall or upgrade either venv. Inspect original manifest, contracts, video and private baseline digests. Historical original-job execution SHA is UNVERIFIED: never claim it came from new source.
 4. Snapshot live Studio PID, InvocationID and health, the production checkout identity and dirty state, current running jobs and GPU/model unit status before and after. No live Studio write/API job, restarts, checkpoint downloads or third-party service eviction. No original media/job changes.
