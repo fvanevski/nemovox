@@ -210,7 +210,13 @@ class ModelLifecycle:
         if healthy:
             return {"state": "ready_managed", "ready": True,
                     "managed": True, "startable": True}
-        status = "startable" if state.get("ActiveState") in {"inactive", "failed"} else "managed_model_mismatch"
+        unit_state = state.get("ActiveState")
+        if unit_state == "activating":
+            status = "starting"
+        elif unit_state in {"inactive", "failed"}:
+            status = "startable"
+        else:
+            status = "managed_model_mismatch"
         return {"state": status, "ready": False, "managed": True,
                 "startable": status == "startable"}
 
