@@ -461,3 +461,15 @@ def test_reconcile_does_not_preempt_another_cli_lease(manager, asr, monkeypatch)
     finally:
         fcntl.flock(fd, fcntl.LOCK_UN)
         os.close(fd)
+
+
+
+def test_reconcile_requires_verified_unit_invocation_identity(manager, asr, monkeypatch):
+    events = []
+    monkeypatch.setattr(lifecycle, "_unit", lambda _: _unit(active=True))
+    monkeypatch.setattr(lifecycle, "_external_clients", lambda _: False)
+    monkeypatch.setattr(lifecycle, "_systemctl", lambda *args: events.append(args))
+    monkeypatch.setattr(lifecycle, "_service_config",
+                        lambda _: {"asr_local": lifecycle.OwnedService("nemovox-asr.service")})
+    assert manager.reconcile_idle_owned(resources={"asr_local": asr})["asr_local"] == "unit_identity_unavailable"
+    assert events == []

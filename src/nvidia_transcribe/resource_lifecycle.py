@@ -309,6 +309,13 @@ class ModelLifecycle:
                     if before.get("ActiveState") != "active":
                         results[name] = "inactive"
                         continue
+                    # A loaded unit marker alone does not prove which
+                    # invocation this controller would terminate.
+                    if (not before.get("InvocationID")
+                            or not before.get("MainPID")
+                            or before.get("MainPID") == "0"):
+                        results[name] = "unit_identity_unavailable"
+                        continue
                     try:
                         port = urllib.parse.urlsplit(resource.endpoint or "").port
                     except ValueError:
