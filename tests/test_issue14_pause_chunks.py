@@ -32,6 +32,39 @@ def test_pause_aware_cores_choose_real_pauses_and_cover_entire_episode():
     assert any(39 <= d["at_s"] <= 40 for d in diag["boundary_decisions"])
 
 
+def test_strong_pause_just_before_minimum_core_is_not_skipped():
+    # Source-backed W01 layout: a 1.32s pause at 64.24s was 0.58s
+    # below min_core=22 after a 42.82s preceding cut. The legacy
+    # selector skipped it and spanned W01b and W01d across SFX.
+    pauses = [
+        (42.365521, 43.278687),
+        (63.581104, 64.901750),
+        (83.166833, 84.409854),
+        (125.2, 126.2),
+    ]
+    chunks, diag = plan_pause_aware_chunks(165.0, pauses)
+    decisions = diag["boundary_decisions"]
+    assert decisions[0]["at_s"] == pytest.approx(42.822104, abs=0.001)
+    assert decisions[1]["at_s"] == pytest.approx(64.241427, abs=0.001)
+    assert decisions[1]["reason"] == "detected_pause_early_long"
+    assert diag["early_long_pause_count"] >= 1
+    assert all(a.core_end_s == b.core_start_s for a, b in zip(chunks, chunks[1:]))
+    assert all(c.infer_start_s <= c.core_start_s < c.core_end_s <= c.infer_end_s
+               for c in chunks)
+    assert all(c.infer_duration_s <= 54.0 for c in chunks)
+
+
+def test_short_weak_gap_does_not_override_minimum_core():
+    pauses = [
+        (42.365521, 43.278687),
+        (63.8, 64.5),  # <1s: not a strong speech-island separator
+        (83.166833, 84.409854),
+    ]
+    chunks, diag = plan_pause_aware_chunks(165.0, pauses)
+    assert diag["early_long_pause_count"] == 0
+    assert chunks[1].core_end_s == pytest.approx(83.788343, abs=0.001)
+
+
 def test_undetected_pauses_force_cuts_but_do_not_fake_speech_boundaries():
     chunks, diag = plan_pause_aware_chunks(
         140.0, [], max_requested_core_s=90, requested_context_s=10,

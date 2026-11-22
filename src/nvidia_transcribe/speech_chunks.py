@@ -127,6 +127,19 @@ def plan_pause_aware_chunks(
         low = cursor + min_core_s
         high = min(cursor + max_core, total - max_tail_slack_s)
         desired = min(cursor + target, high)
+        # Long observed pauses just before the minimum-core boundary are
+        # valuable acoustic separators. Do not skip a >=1s pause merely
+        # because its midpoint is <=1s earlier than the soft core minimum:
+        # the skipped W01 64.24s pause otherwise joined speech islands
+        # across SFX/silence. This is NOT a waiver for weak/noisy gaps.
+        grace = min(1.0, 0.05 * min_core_s)
+        early_long_pauses = [
+            (-(hi - lo), abs((lo + hi) / 2 - low), (lo + hi) / 2)
+            for lo, hi in good_pauses
+            if hi - lo >= 1.0
+            and low - grace <= (lo + hi) / 2 < low
+            and (lo + hi) / 2 <= high
+        ]
         options = []
         for lo, hi in good_pauses:
             mid = (lo + hi) / 2
@@ -135,7 +148,10 @@ def plan_pause_aware_chunks(
                 # detected pauses, but never beyond the legal core window.
                 options.append((abs(mid - desired) - min(hi - lo, 4.0) * 0.5,
                                 -min(hi - lo, 4.0), mid))
-        if options:
+        if early_long_pauses:
+            chosen = min(early_long_pauses)[2]
+            why = "detected_pause_early_long"
+        elif options:
             chosen = min(options)[2]
             why = "detected_pause"
         else:
@@ -162,7 +178,10 @@ def plan_pause_aware_chunks(
         "target_core_s": target, "min_core_s": min_core_s,
         "max_core_s": max_core, "effective_context_s": context,
         "detected_pause_count": len(good_pauses),
-        "selected_pause_count": sum(s["reason"] == "detected_pause" for s in selections),
+        "selected_pause_count": sum(s["reason"].startswith("detected_pause") for s in selections),
+        "early_long_pause_count": sum(s["reason"] == "detected_pause_early_long" for s in selections),
+        "early_long_pause_min_duration_s": 1.0,
+        "early_core_grace_s": min(1.0, 0.05 * min_core_s),
         "forced_cut_count": sum(s["reason"].startswith("forced") for s in selections),
         "boundary_decisions": selections,
         "max_actual_infer_s": round(max(s.infer_duration_s for s in chunks), 6),
