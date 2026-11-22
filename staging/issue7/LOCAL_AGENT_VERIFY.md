@@ -1,5 +1,11 @@
 # PR #8: Exact-source host qualification and UI verification
 
+**Supersedes the earlier issue #7 qualification handoff:** the operator's
+architecture clarification removed source-language text correction from the
+normal pipeline. Earlier production-source SHAs and verification conclusions
+must not be reused. This handoff is bound to the new full production SHA
+below and covers the revised single English review pass.
+
 ## Local-agent kickoff
 
 Work in `fvanevski/nemovox` on issue #7 / PR #8, **not** merged issue #5.
@@ -13,7 +19,7 @@ REPO_ID=fvanevski/nemovox
 ISSUE_NUMBER=7
 PR_NUMBER=8
 TARGET_BRANCH=issue/7-studio-subtitle-workflow
-TESTED_SOURCE_SHA=f38a1f734642cf361bbb64f3020a9711f10e9b3a
+TESTED_SOURCE_SHA=9de11ef89894414a4a8ed7c4fe0a3987d9b1a5d1
 BASE_MAIN_SHA=8205d7783230272c39a669c3f51d89bca50669e6
 LOCAL_AGENT_PRIMARY=evidence
 LOCAL_AGENT_FALLBACK=build (only when the actual harness forbids test/scratch execution, with explicit role boundary)
@@ -31,7 +37,7 @@ GPU_INTENSIVE_VALIDATION=optional read-only/available-only, never required for C
 
 Fetch the branch without rebasing, resetting, force-pushing, or modifying an
 existing operator worktree. Create a clean detached worktree at
-`f38a1f734642cf361bbb64f3020a9711f10e9b3a` (suggested scratch `/workspace/nemovox-issue7-evidence`).
+`9de11ef89894414a4a8ed7c4fe0a3987d9b1a5d1` (suggested scratch `/workspace/nemovox-issue7-evidence`).
 Prove full `git rev-parse HEAD`, `git status --porcelain=v1`, and module
 import paths. A single evidence-only commit after qualification may advance
 the issue branch; before such a commit, establish tree equivalence of all
@@ -74,9 +80,13 @@ or project settings to obtain PASS. Local tests must not touch models/services.
 Validate, using deterministic fake clients and controlled metadata:
 
 - `studio_api.Options` retains old persisted-job compatibility but the
-  frontend's new default is `translator=riva`,
-  `translation_review=balanced`; CLI legacy
-  `openai_chat|swiftu` remains explicit and functional.
+  frontend's new defaults are `refinement=off`,
+  `translator=riva`, `translation_review=balanced`, and
+  `condense_high_cps=false`. The Studio API also defaults to source
+  refinement off and rejects new non-off refinement requests.
+  CLI source-language correction requires an explicit non-off
+  `--refinement` option; legacy `openai_chat|swiftu`
+  primary translation remains an explicit compatibility path.
 - `process-media` and Studio media selection use **audio-only** ordinal
   indices. FFprobe reports actual tracks, languages, titles and channels
   for authorized local/uploaded files; no spurious 0..3 list. Invalid
@@ -86,7 +96,14 @@ Validate, using deterministic fake clients and controlled metadata:
   a recording contract does not request an audio stream.
 - Riva primary translation must precede the target-language text-model
   review; `SwiftU`/NInfer is not invoked as the **primary** translator on the
-  GUI's normal path. Source-language refinement remains separate.
+  GUI's normal path. **No text-model call may edit or paraphrase source
+  ASR before translation**, and raw source text must be forwarded intact
+  to Riva. Historical source-language correction is CLI-only opt-in.
+- The English reviewer must receive unchanged `source_text` and the **original
+  machine_translated_text** for target cues and surrounding context; it must
+  not use a modified `refined_text` hypothesis or previously edited English
+  as input evidence. Every cue should be independently eligible for no-change;
+  localization preferences alone are not a reason to rewrite.
 - Raw Riva English survives in `machine_translated_text`; review can modify
   only final target text with validated per-ID status/reason. Source text,
   speaker IDs, timing and utterance IDs are invariant. Malformed/incomplete
@@ -97,6 +114,8 @@ Validate, using deterministic fake clients and controlled metadata:
   contract and makes no model calls.
 - Localization style affects the English **post-edit**, not raw Riva MT.
   A disabled post-edit is clearly indicated as rendering style ineffective.
+  Extra model-based high-CPS condensation is a separate opt-in and **off
+  by default**. One text-model English review pass, not two, is the normal path.
 - Configuration help covers all four actual ASR modes with tradeoffs.
   Menu descriptions work for hover, keyboard, and touch-visible
   selection. The optional French/Mandarin example glossaries display
