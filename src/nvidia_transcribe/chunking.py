@@ -6,6 +6,11 @@ import math
 from dataclasses import dataclass
 from typing import Any
 
+from nvidia_transcribe.boundary_evidence import (
+    reconcile_displaced_sequences,
+    recover_extended_right_context,
+)
+
 
 @dataclass(frozen=True)
 class ChunkConfig:
@@ -398,6 +403,15 @@ def reconcile_chunk_boundaries(
                         }
                     )
 
+    # Evidence-gated multiword reconciliation handles displaced lexical echoes
+    # and more complete neighboring observations that the narrow token matcher
+    # cannot see. Recovery outside the historical 1.5s cap requires an entire
+    # coherent missing phrase and a neighboring-coverage check.
+    sequence_diag = reconcile_displaced_sequences(tagged_by_chunk, chunks)
+    extended_diag = recover_extended_right_context(tagged_by_chunk, chunks)
+    dedup_count += sequence_diag["sequence_deduplicated_units"]
+    recovered_count += extended_diag["extended_recovered_units"]
+
     chunk_core_starts = {s.chunk_index: s.core_start_s for s in chunks}
     retained_raw: list[dict[str, Any]] = []
     untimed_boundary_count = 0
@@ -423,7 +437,7 @@ def reconcile_chunk_boundaries(
     for u in retained_raw:
         clean_u = {k: v for k, v in u.items() if not k.startswith("_")}
         if u["_recovered"]:
-            clean_u["boundary_provenance"] = "boundary_recovered"
+            clean_u["boundary_provenance"] = u.get("_recovery_kind") or "boundary_recovered"
         elif u["_in_core"]:
             clean_u["boundary_provenance"] = "core"
         else:
@@ -436,4 +450,6 @@ def reconcile_chunk_boundaries(
         "untimed_preserved_units": untimed_boundary_count,
         "ambiguities": ambiguities,
         "dedup_examples": dedup_examples,
+        "sequence_evidence": sequence_diag,
+        "extended_recovery": extended_diag,
     }

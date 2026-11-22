@@ -32,6 +32,7 @@ from nvidia_transcribe.speakers import (
     reconcile_speakers,
 )
 from nvidia_transcribe.utterances import reconstruct_speaker_utterances
+from nvidia_transcribe.timing_evidence import audit_ctc_timing_units
 
 
 @dataclass(frozen=True)
@@ -524,7 +525,23 @@ def process_media(
                     "localized_spans": plan[1],
                 }
 
-    # Phase 2: normalize speakers and build final utterances only after the
+    # Phase 2: audit CTC timing against actual inference excerpt bounds and
+    # local lexical sequence before trusting any words for global chronology.
+    # The raw responses, checkpoints and original wording are immutable.
+    for idx, rec in enumerate(native_records):
+        audited, timing_diag = audit_ctc_timing_units(
+            rec["units"],
+            infer_start_s=chunks[idx].infer_start_s,
+            infer_end_s=chunks[idx].infer_end_s,
+        )
+        rec["units"] = audited
+        rec["diagnostic"]["timing_evidence"] = timing_diag
+        if timing_diag["quarantined_units"]:
+            rec["diagnostic"]["status_before_timing_audit"] = rec["diagnostic"].get("status")
+            rec["diagnostic"]["status"] = "partial_timing_suspect"
+            rec["alignment_status"] = "partial_timing_suspect"
+
+    # Phase 3: normalize speakers and build final utterances only after the
     # Qwen session has been torn down and ASR restoration verified.
     for idx, rec in enumerate(native_records):
         alignment_diagnostics.append(rec["diagnostic"])
