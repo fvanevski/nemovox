@@ -10,6 +10,8 @@ import fcntl
 import json
 import os
 import re
+import signal
+import threading
 import shlex
 import subprocess
 import time
@@ -218,10 +220,25 @@ class ModelLifecycle:
             os.chmod(self.lock_path, 0o600)
             # Different CLI processes cannot overlap GPU stages.
             fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            prior_sigterm = None
+            restore_signal = threading.current_thread() is threading.main_thread()
+            if restore_signal:
+                prior_sigterm = signal.getsignal(signal.SIGTERM)
+
+                def _on_sigterm(_signum, _frame):
+                    # Studio cancellation sends TERM to the CLI's process
+                    # group. Raising in Python unwinds owned-unit cleanup.
+                    raise KeyboardInterrupt("Nemovox model-stage cancelled by SIGTERM")
+
+                signal.signal(signal.SIGTERM, _on_sigterm)
             try:
                 yield
             finally:
-                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+                try:
+                    if restore_signal:
+                        signal.signal(signal.SIGTERM, prior_sigterm)
+                finally:
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
     @contextmanager
     def endpoint(self, resource: ModelResource) -> Iterator[None]:
