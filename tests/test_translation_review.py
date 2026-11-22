@@ -242,3 +242,83 @@ def test_reviewer_uses_original_asr_and_uncorrected_english_neighbors_not_legacy
     assert "Only edit TARGET translated English cues" in instructions
     assert "NOT a fresh translation request" in instructions
     assert "Stylistic preferences alone do not justify edits" in instructions
+
+
+def test_english_source_skips_riva_worker_and_text_review(tmp_path, monkeypatch):
+    """No en→en translation or source/English-review rewrite in default subtitle jobs."""
+    from pathlib import Path
+    from nvidia_transcribe import translation
+    from nvidia_transcribe.subtitle_pipeline import SubtitlePipelineConfig, generate_subtitles
+    from nvidia_transcribe.translation import TranslationConfig, is_english_source_to_english
+
+    assert is_english_source_to_english("en-US", "en")
+    assert is_english_source_to_english("eng", "English")
+    assert not is_english_source_to_english("fr", "en")
+    assert not is_english_source_to_english(None, "en")
+
+    def forbidden_worker(*args, **kwargs):
+        raise AssertionError("Already-English speech must never invoke Riva")
+    monkeypatch.setattr(translation.subprocess, "run", forbidden_worker)
+
+    class ForbiddenTextClient:
+        def complete(self, **kwargs):
+            raise AssertionError("Already-English speech must not invoke a text model")
+
+    record = tmp_path / "recording.contract.json"
+    record.write_text(json.dumps({
+        "source_language": "en", "source": {"path": "/sample/english.mkv", "duration_s": 6.0},
+        "utterances": [{"id": "eng-1", "source_text": "I can tell you what happened.",
+                        "source_start": 1.0, "source_end": 3.0,
+                        "speaker_id": "SPK_00"}],
+    }), encoding="utf-8")
+    outdir = tmp_path / "english-output"
+    config = SubtitlePipelineConfig(
+        translation=TranslationConfig(backend="riva"),
+        translation_review=_cfg(),
+        formats=("srt",),
+    )
+    meta = generate_subtitles(
+        recording_contract_path=record, output_dir=outdir,
+        config=config, text_client=ForbiddenTextClient(),
+    )
+    assert meta["translation"]["status"] == "bypassed_same_language"
+    assert meta["translation_review"]["status"] == "skipped_same_language"
+    assert meta["condensation"]["status"] == "disabled"
+    contract = json.loads((outdir / "translated.contract.json").read_text(encoding="utf-8"))
+    u = contract["utterances"][0]
+    assert u["source_text"] == u["translated_text"] == "I can tell you what happened."
+    assert u["translation_status"] == "bypassed_same_language"
+    assert u["translation_review_status"] == "skipped_same_language"
+    assert "machine_translated_text" not in u
+    assert "I can tell you what happened." in Path(meta["files"]["srt"]).read_text(encoding="utf-8")
+    offline = generate_subtitles(output_dir=outdir, config=SubtitlePipelineConfig(
+        re_render_only=True, formats=("srt",),
+    ))
+    assert offline["subtitles"]["renderable_cues"] == 1
+
+
+def test_cli_riva_english_contract_does_not_require_local_worker(tmp_path, monkeypatch, capsys):
+    """Riva path preflight cannot reject an English contract with a missing worker."""
+    from nvidia_transcribe import cli
+    from nvidia_transcribe import translation
+
+    def forbidden_worker(*args, **kwargs):
+        raise AssertionError("English contract must not invoke a Riva subprocess")
+    monkeypatch.setattr(translation.subprocess, "run", forbidden_worker)
+    # The standard resource registry's Riva checkpoint is intentionally not
+    # required. No configured text-model credentials or live endpoint are used.
+    recording = tmp_path / "recording.contract.json"
+    recording.write_text(json.dumps({
+        "source_language": "eng", "source": {"path": "/example/en.webm", "duration_s": 5.0},
+        "utterances": [{"id": "one", "source_text": "We should go.",
+                        "source_start": 1.0, "source_end": 2.0}],
+    }), encoding="utf-8")
+    status = cli.main([
+        "generate-subtitles", "--recording-contract", str(recording),
+        "--output-dir", str(tmp_path / "subtitles"),
+        "--translator", "riva", "--translation-review", "balanced",
+        "--formats", "srt",
+    ])
+    assert status == 0, capsys.readouterr().err
+    contract = json.loads((tmp_path / "subtitles" / "translated.contract.json").read_text())
+    assert contract["translation"]["status"] == "bypassed_same_language"

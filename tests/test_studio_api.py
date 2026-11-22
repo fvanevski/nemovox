@@ -581,3 +581,49 @@ def test_yaml_glossary_dependency_is_declared_for_cli_and_studio():
     metadata = tomllib.loads(manifest.read_text(encoding="utf-8"))
     requirements = metadata["project"]["dependencies"]
     assert any(item.lower().replace("-", "").startswith("pyyaml") for item in requirements)
+
+
+def test_english_studio_subtitles_do_not_require_riva_checkpoint(client, monkeypatch):
+    """Same-language subtitles do not depend on an unused Riva resource."""
+    c, media, _secret, _settings = client
+
+    def forbidden_resource_probe():
+        raise AssertionError("English-to-English job does not require Riva")
+
+    monkeypatch.setattr("nvidia_transcribe.studio_api.load_model_resources", forbidden_resource_probe)
+    result = c.post("/api/jobs", json={
+        "source": {"kind": "path", "value": str(media / "sample.webm")},
+        "task": "subtitles",
+        "options": {"source_language": "en", "target_language": "en",
+                    "translator": "riva", "translation_review": "balanced"},
+    })
+    assert result.status_code == 202, result.text
+
+
+def test_invalid_glossaries_do_not_disable_valid_entries(client, monkeypatch, tmp_path):
+    """One malformed optional glossary must not turn all discovery into HTTP 500."""
+    from nvidia_transcribe import studio_api
+    from nvidia_transcribe.refinement import load_glossary
+
+    root = tmp_path / "configs" / "glossaries"
+    root.mkdir(parents=True)
+    (root / "good.json").write_text(json.dumps({
+        "title": "Valid Example", "characters": ["Esteban"],
+        "terms": ["Golden Condor"], "notes": "A valid example",
+    }), encoding="utf-8")
+    (root / "bad-null.json").write_text("null", encoding="utf-8")
+    (root / "bad-scalar.json").write_text("42", encoding="utf-8")
+    (root / "bad-list-shape.yaml").write_text("characters: not-a-list\n", encoding="utf-8")
+    (root / "bad-syntax.yaml").write_text("characters: [unfinished\n", encoding="utf-8")
+    monkeypatch.setattr(studio_api, "PROJECT", tmp_path)
+
+    c, _media, _secret, _settings = client
+    response = c.get("/api/glossaries")
+    assert response.status_code == 200, response.text
+    records = response.json()
+    assert len(records) == 1 and records[0]["name"] == "Valid Example"
+    assert records[0]["characters"] == ["Esteban"]
+    with pytest.raises(ValueError, match="must contain a mapping or list"):
+        load_glossary(root / "bad-null.json")
+    with pytest.raises(ValueError, match="character and term fields must be lists"):
+        load_glossary(root / "bad-list-shape.yaml")

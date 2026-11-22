@@ -74,3 +74,19 @@ and report unavailable inference as \`UNVERIFIED\`.
 
 Check interfaces and smoke prerequisites on the actual host before claiming
 successful interactive use.
+
+
+## English-to-English subtitle tasks
+
+When the ASR recording contract identifies English (including auto-detected
+English) and the requested output is English, no machine translation is
+required. The pipeline renders the original ASR text with its original IDs,
+speaker labels and timing, marking translation as
+`bypassed_same_language` and English translation review as
+`skipped_same_language`. This avoids a spurious unsupported Riva `en→en`
+language pair and avoids rewriting English source dialogue. Explicitly selected
+English sources do not need a configured Riva worker. Unknown/auto-language
+media still require Riva readiness for potentially non-English speech.
+
+Glossary discovery skips malformed optional YAML/JSON entries independently,
+so one invalid file does not prevent other glossary examples appearing.
