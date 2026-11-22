@@ -1,0 +1,31 @@
+{
+  "schema": "nemovox-issue14-edge-recovery-identity/v1",
+  "utc_run_id": "20261122T231624Z",
+  "repo_id": "fvanevski/nemovox",
+  "issue_number": 14,
+  "pr_number": 15,
+  "branch": "issue/14-longform-timing-boundaries",
+  "exact_tested_source_sha": "4c32acf659891fe999d2ae6e15f59ccb5750d92f",
+  "exact_tested_source_tree_sha": "a4e866f53899fe159c99793ff8a78326a10b26f5",
+  "handoff_carrier_sha": "2d6d0624e4a4a640ee82603f5f346bfcb378918f",
+  "base_main_sha": "8f6c03cbc70e84bf1970ba364207a02c9fe22b44",
+  "previous_full_episode_source": "81704133cfec54e284f39adb8ad99b7cd1587bcb",
+  "previous_full_episode_evidence": "a1812212f6e5c7a82bcd0a27769130fda420a3d3:staging/issue14/evidence/20261122T225739Z/",
+  "baseline_evidence": "5bf6f37d173cfcc160fdf03b60b051cd0f5e7dea:staging/quality-audit/mcog-s04e01/evidence/20261122T205259Z/",
+  "web_diff_since_previous_full": "empty (reusing 81704133 web 14 tests + Vite build PASS)",
+  "host_and_input_invariance": {
+    "production_checkout": "<PROD_CHECKOUT> (main @ 8f6c03cbc70e84bf1970ba364207a02c9fe22b44, clean)",
+    "studio_service": "nemovox-studio.service (active, MainPID=1121444, InvocationID=6cd5cf36a6774b0693d37a196c088464)",
+    "asr_unit": "nemovox-asr.service (startable/inactive before and after probes)",
+    "text_review_unit": "nemovox-text-review.service (inactive, unused)",
+    "gpu_before": "NVIDIA GeForce RTX 5090, 3105 MiB used / 29022 MiB free",
+    "gpu_after": "NVIDIA GeForce RTX 5090, 3106 MiB used / 29021 MiB free",
+    "video_sha256": "0e77ce3c809e498b97ffe48b53575c29e10d8b08a039b78e2150cd0c845c81b0",
+    "job_json_sha256": "f23ed8e42a6eb3643edea1157164c6cb1c4386c507b0eb9d8ebd49ac3cbe5fec",
+    "asr_manifest_sha256": "cea5a72b529136dcdfd747adbb82fb46d45777543f8740aab18f9993c59d8a88",
+    "recording_contract_sha256": "f0f444dcb0db95c332c08c0c72387ac9c3fef080035a722f918da9972af90f8e",
+    "ass_sha256": "7dc2c54d715fcaea977e87ecf3655ebad8403a776a51a12afbb1a4a0b1fcbbbb",
+    "prev_35chunk_manifest_sha256": "62f226721f70fa1c06a649b89b334e3338a0905087787ceddf5813d8cc02867a",
+    "prev_35chunk_recording_contract_sha256": "e1abbe572e46fb12c98c02d20e0c741a26c299019f83c184589b1419d5a3fe92"
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "schema": "nemovox-issue14-edge-recovery-manifest/v1",
+  "utc_run_id": "20261122T231624Z",
+  "repo_id": "fvanevski/nemovox",
+  "issue_number": 14,
+  "pr_number": 15,
+  "exact_tested_source_sha": "4c32acf659891fe999d2ae6e15f59ccb5750d92f",
+  "handoff_carrier_sha": "2d6d0624e4a4a640ee82603f5f346bfcb378918f",
+  "evidence_branch": "issue/14-longform-timing-boundaries",
+  "evidence_root": "staging/issue14/evidence/20261122T231624Z/",
+  "omissions_for_privacy": [
+    "original_video_webm",
+    "probe_wav_clips",
+    "raw_asr_chunk_json_and_probe_responses",
+    "full_copyrighted_transcripts_and_ass_srt",
+    "absolute_personal_host_paths"
+  ],
+  "members": [
+    {
+      "path": "COMMAND_SHAPE_FRICTION.txt",
+      "bytes": 25,
+      "sha256": "c333f1c530df2dbfa232d903a30c99bb7948f93c3a0e297957efe6c114eb48e9"
+    },
+    {
+      "path": "README.md",
+      "bytes": 941,
+      "sha256": "d6a6a9511bad98c4aa77eea3d0596d58dcade28d9004181a78dcdbb94dd5d0d6"
+    },
+    {
+      "path": "review/acceptance-matrix.md",
+      "bytes": 1613,
+      "sha256": "730a3cb4cb655446b98709f1edf96217dd264eed17a8c785ac53a2ea12b9756c"
+    },
+    {
+      "path": "review/findings.md",
+      "bytes": 1422,
+      "sha256": "e3bbb1f8e17815956f5a1370e4f00d49c4a0cf680ba4bc7e1408c03d89ca9a13"
+    },
+    {
+      "path": "source-identity.json",
+      "bytes": 2178,
+      "sha256": "eba6d22082db5f1927b75863d005287dfd5cc873e8da5fcb21ac2935270641ae"
+    },
+    {
+      "path": "validation/asr-recovery-probes.jsonl",
+      "bytes": 64947,
+      "sha256": "2e18a189d4fb1fa5d817571311f7ef716213e057dc619d84e030224a4ecf849d"
+    },
+    {
+      "path": "validation/original-failures.json",
+      "bytes": 4843,
+      "sha256": "a286a2a8857f06b2b246f4bf81752e03f027f533d17c81ba4989da091402a21c"
+    },
+    {
+      "path": "validation/source-recovery-decision.md",
+      "bytes": 3079,
+      "sha256": "a6b85f4150724dc03ca2a0196825a4cb303a63504e6438bc490fabae241e5d4b"
+    },
+    {
+      "path": "validation/speaker-limits.md",
+      "bytes": 1444,
+      "sha256": "ffa1d0b11b4fc8fc43218702786fef1b249c189ab9221bfe3304718206bb7aa8"
+    },
+    {
+      "path": "validation/tests.md",
+      "bytes": 2150,
+      "sha256": "dd5687cdc9bc1695c4ab53c75708c87e25e3f0b370047177e06021003e787dba"
+    }
+  ]
+}

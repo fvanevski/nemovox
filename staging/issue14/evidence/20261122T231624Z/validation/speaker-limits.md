@@ -1,0 +1,7 @@
+# Speaker Diarization vs Sparse Tag Collapse (`W02b` & `S05`)
+
+- **`W02b` (`full_run c05`, `172.83..226.83s`):** Raw CTC diarization detected distinct alternating segments for `diar_spk=1` (`196.70–214.67`, `215.70–218.11`, `218.77–225.30`, `226.03–226.56s`) and `diar_spk=2` (`212.83–215.64`, `221.66–226.75s`), while LLM ASR emitted only `spk_map={'0': 1}`. Independently supported by prior acoustic inspection (`214–220s` alternating male/female dialogue).
+- **`S05` (`full_run c34` vs New Probes `P6` & `F3`):**
+  - In `full_run c34` (`1340.12..1379.90s`), raw diarization separated `diar_spk=1` at `[1352.63..1353.81]` (`W05a`) AND `[1371.52..1374.33]` (`S05` Pichu), yet `c34` collapsed `<spk:0>` (`spk_map={'0': 0}`).
+  - In BOTH **`P6_w05a_late`** (`1345..1379.9s`) and **`F3_w05a_c34plus`** (`1338..1379.9s`), Nemotron spontaneously emitted **distinct alternating speaker tags** matching `[1371.52..1374.33]` (`1371.76–1374.22s` `<spk:0>` vs `<spk:1>` in `P6`; `1371.69–1374.24s` `<spk:1>` vs `<spk:0>` in `F3`), aligning with prior acoustic spot-check of distinct narrator vs high-pitched parrot voices.
+- **Boundary Limit:** Local integer tag numbers (`<spk:0>`, `<spk:1>`) are per-request only (e.g. `P6` assigned narrator=`1`/Pichu=`0` whereas `F3` assigned narrator=`0`/Pichu=`1`); global identity across windows requires temporal/embedding reconciliation and full-episode true speaker count remains unverified.

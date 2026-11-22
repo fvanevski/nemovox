@@ -1,0 +1,7 @@
+# Technical Findings for Central Recovery Implementation (`4c32acf6`)
+
+1. **New Fail-Closed ASR Integrity Gate Qualified (`PASS`):** `audit_asr_generation` + `recording.py` reliably catches `finish=length` (`c28` pattern) and `>=2048`-char pathological loops even on replay of legacy checkpoints, preserves rejected raw in `chunks/rejected/<sha>.raw.json`, prevents stale `recording.contract.json` overwrite, resumes healthy neighbor chunks safely, and preserves short genuine repeats (`Non! Non! Non!`, `C2`).
+2. **Deterministic Trigger + Recovery Window Geometry:**
+   - **Unpopulated Diarization Turn Detector (`W05a`, `c28`):** Every failed/sparse window (`c34` `[1352.63..1353.81] spk=1`, `c28` `[1110..1154]`) exhibited `>=1s` diarization spans with `0` aligned words.
+   - **Clean Boundary Context Matters:** `P2` (`1123..1156s`), `P4` (`1242..1274s`), `P6` (`1345..1379.9s`), and `F3` (`1338..1379.9s`) succeeded because cuts fell in silent gaps with `>=8s` post-target context (`P4` vs `P3`/`F2`).
+3. **Critical Acceptance Guardrails (Prevent False Recovery Acceptance):** `P1` (`2` words / `6` diar spans) and `F1` (`1` word / `7` diar spans) returned `finish=stop` with almost empty text across active diarization spans. Automatic retry selection MUST enforce minimum lexical density over populated diarization spans, chronological CTC order, and neighbor-overlap parity — never trusting `finish=stop` alone.
