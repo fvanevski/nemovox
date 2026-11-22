@@ -1,0 +1,180 @@
+"""CPU-only tests for Studio export routes, structured stages, logs and history."""
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+
+pytest.importorskip("fastapi")
+from fastapi.testclient import TestClient
+
+from nvidia_transcribe.studio_api import JobRunner, StudioConfig, create_app
+
+
+@pytest.fixture
+def live(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    media = tmp_path / "media"
+    media.mkdir()
+    clip = media / "test.wav"
+    clip.write_bytes(b"mock-audio")
+    export_root = tmp_path / "exports"
+    export_root.mkdir()
+    settings = StudioConfig(
+        job_root=tmp_path / "jobs", upload_root=tmp_path / "uploads",
+        media_roots=(media,), python="python",
+        export_roots=(export_root,),
+    )
+    monkeypatch.setattr(JobRunner, "_reconcile_idle_models", staticmethod(lambda: None))
+    monkeypatch.setattr("nvidia_transcribe.studio_api.inspect_audio_streams",
+                        lambda _path: [{"index": 0, "codec": "pcm_s16le"}])
+    app = create_app(settings)
+    monkeypatch.setattr(app.state.runner.executor, "submit", lambda *args, **kwargs: None)
+    with TestClient(app) as client:
+        yield client, settings, clip, export_root
+    app.state.runner.executor.shutdown(wait=False, cancel_futures=True)
+
+
+def make_job(client: TestClient, clip: Path, export_root: Path, **plan):
+    response = client.post("/api/jobs", json={
+        "source": {"kind": "path", "value": str(clip)},
+        "task": "transcription",
+        "export": {"destination": str(export_root),
+                   "artifacts": ["source_transcript"], **plan},
+    })
+    assert response.status_code == 202, response.text
+    return response.json()["id"]
+
+
+def test_authorized_destinations_and_rejected_paths(live, tmp_path: Path):
+    client, _settings, clip, root = live
+    listed = client.get("/api/export-directories")
+    assert listed.status_code == 200
+    assert listed.json()["default"] == str(root)
+    child = root / "chosen"
+    child.mkdir()
+    inside = client.get("/api/export-directories", params={"path": str(root)})
+    assert inside.json()["directories"] == [{"name": "chosen", "path": str(child)}]
+    outside = tmp_path / "unauthorized"
+    outside.mkdir()
+    assert client.get("/api/export-directories", params={"path": str(outside)}).status_code == 403
+    assert client.post("/api/jobs", json={
+        "source": {"kind": "path", "value": str(clip)},
+        "task": "transcription",
+        "export": {"destination": str(outside), "artifacts": ["source_transcript"]},
+    }).status_code == 422
+    assert client.post("/api/jobs", json={
+        "source": {"kind": "path", "value": str(clip)},
+        "task": "transcription",
+        "export": {"destination": None, "artifacts": ["source_transcript"]},
+    }).status_code == 422
+
+
+def test_legacy_request_remains_valid_and_default_export_is_disabled(live):
+    client, _settings, clip, _root = live
+    response = client.post("/api/jobs", json={
+        "source": {"kind": "path", "value": str(clip)},
+        "task": "transcription",
+    })
+    assert response.status_code == 202, response.text
+    record = response.json()
+    assert record["request"]["export"]["destination"] is None
+    assert record["export_report"]["status"] == "disabled"
+
+
+def test_invalid_task_and_remote_media_export_selection(live):
+    client, _settings, clip, root = live
+    base = {"source": {"kind": "path", "value": str(clip)},
+            "task": "transcription"}
+    response = client.post("/api/jobs", json={
+        **base, "export": {"destination": str(root), "artifacts": ["ass"]},
+    })
+    assert response.status_code == 422
+    response = client.post("/api/jobs", json={
+        **base, "export": {"destination": str(root), "save_remote_media": True},
+    })
+    assert response.status_code == 422
+
+
+def test_typed_milestone_lines_and_monotonic_progress(live):
+    client, settings, clip, root = live
+    job_id = make_job(client, clip, root)
+    job_root = settings.job_root / job_id
+    journal = job_root / "execution.log"
+    payload = "\n".join([
+        "ordinary log",
+        'NEMOVOX_EVENT {"schema":"nemovox-progress/v1","stage":"translation","status":"running","detail":""}',
+        'NEMOVOX_EVENT {"schema":"nemovox-progress/v1","stage":"translation","status":"complete","detail":"uncached"}',
+        'NEMOVOX_EVENT {"schema":"nemovox-progress/v1","stage":"review","status":"running","detail":""}',
+        'NEMOVOX_EVENT {"schema":"nemovox-progress/v1","stage":"review","status":"complete","detail":"completed"}',
+        'NEMOVOX_EVENT {"schema":"nemovox-progress/v1","stage":"render","status":"running","detail":""}',
+        'NEMOVOX_EVENT {"schema":"nemovox-progress/v1","stage":"render","status":"complete","detail":""}',
+        'NEMOVOX_EVENT {"schema":"nemovox-progress/v1","stage":"arbitrary","status":"running","detail":"no"}',
+        "",
+    ])
+    journal.write_text(payload, encoding="utf-8")
+    offset = client.app.state.runner._read_stage_events(job_id, journal, 0)
+    assert offset == journal.stat().st_size
+    state = client.get("/api/jobs/" + job_id).json()
+    assert [(item["id"], item["status"]) for item in state["stage_history"]] == [
+        ("translation", "complete"), ("review", "complete"), ("render", "complete"),
+    ]
+    assert state["progress"] >= 90
+    assert all(item.get("started_at") and item.get("finished_at")
+               for item in state["stage_history"])
+    assert client.app.state.runner._read_stage_events(job_id, journal, offset) == offset
+
+
+def test_failure_marks_active_stage_and_does_not_mark_job_complete(live):
+    client, settings, clip, root = live
+    job_id = make_job(client, clip, root)
+    runner = client.app.state.runner
+    runner._stage_event(job_id, "translation", "running")
+    runner._finish_active_stage(job_id, "failed")
+    event = runner.get(job_id)["stage_history"][0]
+    assert event["status"] == "failed"
+    assert runner.get(job_id)["state"] == "queued"
+
+
+def test_large_utf8_log_pages_and_download_survive_completion(live):
+    client, settings, clip, root = live
+    job_id = make_job(client, clip, root)
+    log = settings.job_root / job_id / "execution.log"
+    original = ("abcdefg" + "日本語" + "\n") * 6000
+    log.write_text(original, encoding="utf-8")
+    client.app.state.runner.update(job_id, state="complete", progress=100)
+    out, offset = "", 0
+    for _ in range(30):
+        response = client.get(f"/api/jobs/{job_id}/log/chunk",
+                              params={"offset": offset, "limit": 7001})
+        assert response.status_code == 200
+        page = response.json()
+        out += page["text"]
+        if page["complete"]:
+            break
+        assert page["next_offset"] > offset
+        offset = page["next_offset"]
+    assert out == original
+    response = client.get(f"/api/jobs/{job_id}/log/download")
+    assert response.status_code == 200
+    assert response.content == original.encode("utf-8")
+    tail = client.get(f"/api/jobs/{job_id}/logs").json()
+    assert tail["lines"]
+
+
+def test_older_jobs_are_paginated_beyond_legacy_fifty(live):
+    client, settings, clip, root = live
+    for i in range(56):
+        job_id = f"{i:032x}"
+        record_path = settings.job_root / job_id / "job.json"
+        record_path.parent.mkdir(parents=True)
+        record_path.write_text(json.dumps({
+            "id": job_id, "state": "complete", "stage": "Complete",
+            "created_at": i + 1, "request": {"source": {"kind": "path", "value": str(clip)},
+            "task": "transcription", "options": {}},
+        }))
+    assert len(client.get("/api/jobs").json()) == 50
+    page = client.get("/api/job-history", params={"offset": 50, "limit": 20}).json()
+    assert page["total"] == 56
+    assert len(page["items"]) == 6
+    assert page["next_offset"] is None
