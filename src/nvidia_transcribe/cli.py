@@ -12,7 +12,7 @@ from nvidia_transcribe.client import InferenceRequestConfig, NemotronVLLMClient
 from nvidia_transcribe.gpu_handoff import ManagedASRBlocked, ManagedASRConfig, recover_pending_managed_asr
 from nvidia_transcribe.media import MediaInspectionError
 from nvidia_transcribe.model_resources import ResourceConfigError, load_model_resources
-from nvidia_transcribe.resource_lifecycle import ModelLifecycle
+from nvidia_transcribe.resource_lifecycle import ModelLifecycle, ResourceLifecycleError
 from nvidia_transcribe.parser import CTCMetadataError
 from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
 from nvidia_transcribe.refinement import RefinementConfig
@@ -247,7 +247,9 @@ def main(argv: list[str] | None = None) -> int:
             with ModelLifecycle().endpoint(asr_resource):
                 result = client.transcribe(args.audio, cfg)
         except (FileNotFoundError, CTCMetadataError, RuntimeError) as exc:
-            print(json.dumps({"status": "ERROR", "error": str(exc)}, indent=2), file=sys.stderr)
+            print(json.dumps({"status": "RESOURCE_BLOCKED" if isinstance(exc, ResourceLifecycleError) else "ERROR",
+                              "reason": exc.status if isinstance(exc, ResourceLifecycleError) else None,
+                              "error": str(exc)}, indent=2), file=sys.stderr)
             return 1
 
         if args.out_raw:
@@ -290,7 +292,9 @@ def main(argv: list[str] | None = None) -> int:
             with ModelLifecycle().endpoint(asr_resource):
                 out = process_media(args.media, output_dir=args.output_dir, client=client, config=rcfg)
         except (FileNotFoundError, MediaInspectionError, ValueError, RuntimeError) as exc:
-            print(json.dumps({"status": "ERROR", "error": str(exc)}, indent=2), file=sys.stderr)
+            print(json.dumps({"status": "RESOURCE_BLOCKED" if isinstance(exc, ResourceLifecycleError) else "ERROR",
+                              "reason": exc.status if isinstance(exc, ResourceLifecycleError) else None,
+                              "error": str(exc)}, indent=2), file=sys.stderr)
             return 1
 
         c = out["contract"]
@@ -416,7 +420,9 @@ def main(argv: list[str] | None = None) -> int:
                 },
             )
         except (FileExistsError, FileNotFoundError, MediaInspectionError, ValueError, RuntimeError) as exc:
-            print(json.dumps({"status": "ERROR", "error": str(exc)}, indent=2), file=sys.stderr)
+            print(json.dumps({"status": "RESOURCE_BLOCKED" if isinstance(exc, ResourceLifecycleError) else "ERROR",
+                              "reason": exc.status if isinstance(exc, ResourceLifecycleError) else None,
+                              "error": str(exc)}, indent=2), file=sys.stderr)
             return 1
         print(json.dumps({"status": "OK", **res}, ensure_ascii=False, indent=2))
         return 0
