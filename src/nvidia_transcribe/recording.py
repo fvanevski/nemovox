@@ -389,6 +389,10 @@ def process_media(
         # Persist incremental manifest atomically after every chunk so interruption can safely resume.
         manifest_state = {
             "config_signature": sig,
+            "asr_run_status": (
+                "incomplete_generation" if integrity["status"] == "incomplete"
+                else "in_progress"
+            ),
             "media": media.to_dict(),
             "model": client.model,
             "chunk_config": {**chunk_cfg.to_dict(), "chunk_policy": cfg.chunk_policy},
@@ -400,7 +404,8 @@ def process_media(
             raise IncompleteASRGeneration(
                 f"Chunk {spec.chunk_index} ASR generation incomplete "
                 f"({integrity['reason']}); rejected raw response retained at {rejected_path}. "
-                "No recording contract or subtitles were produced from this incomplete chunk. "
+                "No replacement recording contract or subtitles were produced by this attempt. "
+                "Prior files, if present, are stale and must not be treated as current. "
                 "Use a source-verified bounded retry/rechunk, not the loop-cleaned fragment."
             )
 
@@ -711,6 +716,8 @@ def process_media(
     transcript_path = out_dir / "transcript.txt"
     _atomic_write_text(contract_path, json.dumps(contract, ensure_ascii=False, indent=2))
     _atomic_write_text(transcript_path, _format_transcript_txt(contract))
+    manifest_state["asr_run_status"] = "completed"
+    _atomic_write_text(manifest_path, json.dumps(manifest_state, ensure_ascii=False, indent=2))
 
     return {
         "contract": contract,
