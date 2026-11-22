@@ -239,5 +239,6 @@ def test_reviewer_uses_original_asr_and_uncorrected_english_neighbors_not_legacy
     assert "Invented altered source-language hypothesis" not in client.calls[0]["messages"][1]["content"]
     assert "Another invented hypothesis" not in client.calls[0]["messages"][1]["content"]
     instructions = client.calls[0]["messages"][0]["content"]
-    assert "only edit TARGET translated English cues" in instructions
-    assert "not a blanket" in instructions
+    assert "Only edit TARGET translated English cues" in instructions
+    assert "NOT a fresh translation request" in instructions
+    assert "Stylistic preferences alone do not justify edits" in instructions
