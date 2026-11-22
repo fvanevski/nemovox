@@ -61,7 +61,11 @@ def test_long_displaced_duplicate_from_adjacent_excerpts_is_not_rendered_twice()
     assert [u["text"] for u in merged] == phrase
     assert diag["sequence_evidence"]["sequence_deduplicated_units"] == len(phrase)
     assert diag["sequence_evidence"]["matches"][0]["relative_ctc_shift_s"] > 30
-    assert all(u["timing_evidence_status"] == "displaced_sequence_ctc_unverified" for u in merged)
+    assert all(
+        u["timing_evidence_status"] == "cross_chunk_ctc_disagreement"
+        and u["timing_evidence_reason"] == "relative_sequence_shift_unverified"
+        for u in merged
+    )
 
 
 def test_more_complete_right_excerpt_replaces_truncated_core_without_losing_tail() -> None:
