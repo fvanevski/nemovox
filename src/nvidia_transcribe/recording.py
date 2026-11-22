@@ -42,7 +42,7 @@ class RecordingPipelineConfig:
     mode: str = "speaker"
     chunk_seconds: float = 90.0
     context_seconds: float = 10.0
-    chunk_policy: str = "pause_aware"  # "pause_aware" | "fixed"
+    chunk_policy: str = "fixed"  # "fixed" legacy/resume | opt-in "pause_aware"
     min_tail_seconds: float = 15.0
     audio_stream_index: int = 0
     speaker_embeddings: str = "titanet"  # "titanet" | "none"
@@ -114,11 +114,17 @@ def _config_signature(
         "source_language": normalize_language_code(cfg.source_language) or "auto",
         "chunk_seconds": cfg.chunk_seconds,
         "context_seconds": cfg.context_seconds,
-        "chunk_policy": cfg.chunk_policy,
-        "chunk_plan": [s.to_dict() for s in chunks] if chunks is not None else None,
-        "chunk_plan_metadata": plan_metadata,
         "min_tail_seconds": cfg.min_tail_seconds,
     }
+    # Preserve the exact legacy signature for fixed-plan checkpoint resume.
+    # An opt-in pause-aware run binds its *actual* variable boundaries and
+    # detector decisions to a distinct signature; no accidental old-cache reuse.
+    if cfg.chunk_policy != "fixed":
+        payload.update({
+            "chunk_policy": cfg.chunk_policy,
+            "chunk_plan": [s.to_dict() for s in chunks] if chunks is not None else None,
+            "chunk_plan_metadata": plan_metadata,
+        })
     return _sha256_text(json.dumps(payload, sort_keys=True))
 
 

@@ -38,7 +38,7 @@ class SubtitlePipelineConfig:
     asr_mode: str = "speaker"
     chunk_seconds: float = 90.0
     context_seconds: float = 10.0
-    chunk_policy: str = "pause_aware"
+    chunk_policy: str = "fixed"  # opt in to pause_aware after qualification
     min_tail_seconds: float = 15.0
     audio_stream_index: int = 0
     alignment_fallback: str = "off"

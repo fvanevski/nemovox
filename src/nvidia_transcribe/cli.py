@@ -59,7 +59,7 @@ def build_parser() -> argparse.ArgumentParser:
     pm.add_argument("--source-language", default=None, help="Explicit source language (e.g. 'fr', 'zh') or omit for auto.")
     pm.add_argument("--mode", default="speaker", choices=["speaker", "multispeaker_sot", "rich", "verbatim"])
     pm.add_argument("--chunk-seconds", type=float, default=90.0)
-    pm.add_argument("--chunk-policy", choices=["pause_aware", "fixed"], default="pause_aware",
+    pm.add_argument("--chunk-policy", choices=["pause_aware", "fixed"], default="fixed",
                     help="Pause-aware inference cores or legacy fixed-size cores.")
     pm.add_argument("--context-seconds", type=float, default=10.0)
     pm.add_argument("--min-tail-seconds", type=float, default=15.0)
@@ -97,7 +97,7 @@ def build_parser() -> argparse.ArgumentParser:
     gs.add_argument("--model", default=None, help="Explicit served ASR model override.")
     gs.add_argument("--alignment-fallback", default="off", choices=["off", "qwen"])
     gs.add_argument("--chunk-seconds", type=float, default=90.0)
-    gs.add_argument("--chunk-policy", choices=["pause_aware", "fixed"], default="pause_aware",
+    gs.add_argument("--chunk-policy", choices=["pause_aware", "fixed"], default="fixed",
                     help="Pause-aware ~39–46s inference cores or legacy fixed-size cores.")
     gs.add_argument("--context-seconds", type=float, default=10.0)
     gs.add_argument("--min-tail-seconds", type=float, default=15.0)

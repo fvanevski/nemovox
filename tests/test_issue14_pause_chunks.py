@@ -56,6 +56,11 @@ def test_short_media_and_fixed_compatibility():
         "generate-subtitles", "--output-dir", "unused", "--chunk-policy", "fixed",
     ])
     assert args.chunk_policy == "fixed"
+    default_args = build_parser().parse_args([
+        "generate-subtitles", "--output-dir", "unused",
+    ])
+    assert default_args.chunk_policy == "fixed"
+    assert RecordingPipelineConfig().chunk_policy == "fixed"
 
 
 def test_detector_parses_stream_bound_silence_intervals_without_file_writes(monkeypatch):
@@ -109,6 +114,10 @@ def test_plan_fingerprint_changes_on_chunk_policy_and_boundaries():
     adaptive_sig = _config_signature(**kwargs, cfg=adaptive_cfg, chunks=adaptive_plan,
                                      plan_metadata=diag)
     assert fixed_sig != adaptive_sig
+    # Fixed-policy source identity must not depend on new planner diagnostics.
+    fixed_sig2 = _config_signature(**kwargs, cfg=fixed_cfg, chunks=adaptive_plan,
+                                    plan_metadata={"forced_cut_count": 99})
+    assert fixed_sig2 == fixed_sig
     altered = _config_signature(**kwargs, cfg=adaptive_cfg, chunks=adaptive_plan,
                                 plan_metadata={**diag, "forced_cut_count": 77})
     assert adaptive_sig != altered
