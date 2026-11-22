@@ -35,6 +35,7 @@ from fastapi.responses import FileResponse
 from nvidia_transcribe.media import MediaInspectionError, inspect_audio_streams
 from nvidia_transcribe.translation import is_english_source_to_english
 from nvidia_transcribe.model_resources import ResourceConfigError, load_model_resources
+from nvidia_transcribe.resource_lifecycle import ModelLifecycle, ResourceLifecycleError
 from nvidia_transcribe.refinement import load_glossary
 from pydantic import BaseModel, Field
 
@@ -201,6 +202,8 @@ class JobRunner:
                 ) from exc
             try:
                 self._reconcile_previous_jobs()
+                # Startup is an admitted ownership boundary, not a status read.
+                self._reconcile_idle_models()
                 yield
             finally:
                 fcntl.flock(owner.fileno(), fcntl.LOCK_UN)
@@ -219,6 +222,19 @@ class JobRunner:
                     _atomic_json(path, record)
             except (OSError, ValueError):
                 continue
+
+    @staticmethod
+    def _reconcile_idle_models() -> None:
+        """Recover owned model units; never overwrite a completed job result."""
+        try:
+            result = ModelLifecycle().reconcile_idle_owned()
+            if any(status in {"unit_changed", "active_clients", "unit_unavailable"}
+                   for status in result.values()):
+                print("[nemovox] model recovery skipped unsafe service state: "
+                      + ",".join(sorted(set(result.values()))), file=sys.stderr)
+        except (ResourceConfigError, ResourceLifecycleError, OSError) as exc:
+            print("[nemovox] owned model recovery unavailable: "
+                  + type(exc).__name__, file=sys.stderr)
 
     def path(self, job_id: str) -> Path:
         if not JOB_ID.fullmatch(job_id):
@@ -383,13 +399,20 @@ class JobRunner:
                 if job_id in self._cancelled:
                     raise InterruptedError("Cancelled")
                 if process.returncode != 0:
+                    tail = path.read_text(encoding="utf-8", errors="replace")[-8192:]
+                    match = re.search(r'"status"\s*:\s*"RESOURCE_BLOCKED".*?"reason"\s*:\s*"([^"]+)"', tail, re.DOTALL)
+                    if match:
+                        raise RuntimeError(stage + " blocked by model resource (" + match.group(1) + "); see execution.log")
                     raise RuntimeError(stage + " failed (exit " + str(process.returncode) + "); see execution.log")
             finally:
                 try:
                     self._terminate_process_group(process)
                 finally:
-                    with self._lock:
-                        self._processes.pop(job_id, None)
+                    try:
+                        self._reconcile_idle_models()
+                    finally:
+                        with self._lock:
+                            self._processes.pop(job_id, None)
 
     def _download(self, job_id: str, url: str) -> Path:
         if job_id in self._cancelled:
@@ -611,6 +634,20 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
                 # An invalid optional glossary must not disable valid neighbors.
                 continue
         return records
+
+    @app.get("/api/resource-status")
+    def resource_status() -> dict:
+        """Availability display only; job/CLI owns acquisition."""
+        try:
+            resources = load_model_resources()
+            manager = ModelLifecycle()
+            return {
+                "asr": manager.inspect(resources.resolve("asr")),
+                "translation_review": manager.inspect(resources.resolve("translation_review")),
+            }
+        except (ResourceConfigError, ResourceLifecycleError) as exc:
+            return {"error": type(exc).__name__, "asr": {"state": "configuration_error", "ready": False, "startable": False},
+                    "translation_review": {"state": "configuration_error", "ready": False, "startable": False}}
 
     @app.get("/api/translation-backends")
     def translation_backends() -> dict:

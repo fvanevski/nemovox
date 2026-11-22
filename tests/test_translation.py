@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 import json
+
+import pytest
 from pathlib import Path
 from typing import Any
 
+from nvidia_transcribe import translation as translation_module
 from nvidia_transcribe.cli import build_parser
 from nvidia_transcribe.refinement import GlossaryConfig, RefinementConfig
 from nvidia_transcribe.subtitle_pipeline import SubtitlePipelineConfig, generate_subtitles
@@ -31,6 +35,104 @@ def test_map_language_for_riva() -> None:
     assert map_language_for_riva("zh-TW") == "zh-tw-en"
     assert map_language_for_riva("ja") == "ja-en"
     assert map_language_for_riva("unknown-lang") is None
+
+
+
+@pytest.mark.parametrize(
+    ("device", "requires_lease"),
+    [("auto", True), ("cuda:0", True), ("cpu", False)],
+)
+def test_riva_worker_admission_spans_auto_device_selection(monkeypatch, device, requires_lease):
+    """An auto device can become CUDA only after the shared lease is acquired."""
+    events = []
+
+    class TracedLifecycle:
+        @contextmanager
+        def worker(self, *, resource_name):
+            assert resource_name == "riva_local"
+            events.append("lease_enter")
+            try:
+                yield
+            finally:
+                events.append("lease_exit")
+
+    def run_worker(command, **kwargs):
+        assert command[-1] == str(translation_module.RIVA_WORKER_SCRIPT)
+        assert json.loads(kwargs["input"])["device"] == device
+        events.append("worker")
+        return type("Completed", (), {
+            "returncode": 0,
+            "stdout": json.dumps({
+                "status": "ok",
+                "device_used": "cpu" if device == "cpu" else "cuda:0",
+                "results": [{"utterance_id": "u1", "translated_text": "Hello"}],
+            }),
+            "stderr": "",
+        })()
+
+    monkeypatch.setattr(translation_module.subprocess, "run", run_worker)
+    result, summary = translate_utterances(
+        [{"utterance_id": "u1", "source_text": "Bonjour"}],
+        source_language="fr",
+        config=TranslationConfig(backend="riva", riva_device=device),
+        lifecycle=TracedLifecycle(),
+    )
+    assert result[0]["translated_text"] == "Hello"
+    assert summary["backend"] == "riva"
+    assert events == (
+        ["lease_enter", "worker", "lease_exit"] if requires_lease else ["worker"]
+    )
+
+
+def test_riva_auto_rejected_lease_prevents_worker_spawn(monkeypatch):
+    from nvidia_transcribe.resource_lifecycle import ResourceLifecycleError
+
+    class RejectedLifecycle:
+        @contextmanager
+        def worker(self, *, resource_name):
+            assert resource_name == "riva_local"
+            raise ResourceLifecycleError("resource_lease_timeout")
+            yield  # Keep this a contextmanager; admission must fail on entry.
+
+    monkeypatch.setattr(
+        translation_module.subprocess, "run",
+        lambda *args, **kwargs: pytest.fail("Riva worker spawned without admission"),
+    )
+    with pytest.raises(ResourceLifecycleError) as exc:
+        translate_utterances(
+            [{"utterance_id": "u1", "source_text": "Bonjour"}],
+            source_language="fr",
+            config=TranslationConfig(backend="riva", riva_device="auto"),
+            lifecycle=RejectedLifecycle(),
+        )
+    assert exc.value.status == "resource_lease_timeout"
+
+
+def test_riva_auto_releases_lease_when_worker_fails(monkeypatch):
+    events = []
+
+    class TracedLifecycle:
+        @contextmanager
+        def worker(self, *, resource_name):
+            events.append("lease_enter")
+            try:
+                yield
+            finally:
+                events.append("lease_exit")
+
+    def fail_worker(*args, **kwargs):
+        events.append("worker")
+        raise RuntimeError("simulated subprocess failure")
+
+    monkeypatch.setattr(translation_module.subprocess, "run", fail_worker)
+    with pytest.raises(RuntimeError, match="simulated subprocess failure"):
+        translate_utterances(
+            [{"utterance_id": "u1", "source_text": "Bonjour"}],
+            source_language="fr",
+            config=TranslationConfig(backend="riva", riva_device="auto"),
+            lifecycle=TracedLifecycle(),
+        )
+    assert events == ["lease_enter", "worker", "lease_exit"]
 
 
 def test_translate_utterances_preserves_ids_glossary_and_never_merges_distinct_speakers() -> None:

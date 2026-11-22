@@ -1,0 +1,80 @@
+{
+  "schema": "nemovox-pr11-issue10-evidence/v1",
+  "utc_run_id": "20261122T035837Z",
+  "repo_id": "fvanevski/nemovox",
+  "issue_number": 10,
+  "pr_number": 11,
+  "branch": "issue/10-auto-model-resources",
+  "tested_source_sha": "ea64f4e33f25e2a71413fcba1655e1b513290f92",
+  "base_main_sha": "8fee1e177db9742dbdb38c4a22bdd663c20ac80f",
+  "worktree": "/workspace/nemovox-issue10-verify",
+  "source_edited": false,
+  "result": "FAIL",
+  "members": [
+    {
+      "path": "COMMAND_SHAPE_FRICTION.txt",
+      "bytes": 1350,
+      "sha256": "15f815f2d3e02f8204b5d82f90d072c0fbadfbbef56f0b0317a98c89cbf1c970"
+    },
+    {
+      "path": "promotion/rollback.md",
+      "bytes": 277,
+      "sha256": "830455a90307647bfa500f544e08d608d3908445c4dec3809d2de5e99783751e"
+    },
+    {
+      "path": "promotion/unit-configuration.md",
+      "bytes": 985,
+      "sha256": "b3310e72b010aa142665bfb9dd5382b778c314ba1552c21aba7c2e37e37f8f31"
+    },
+    {
+      "path": "review/acceptance-matrix.md",
+      "bytes": 952,
+      "sha256": "76c520b5f0f9e66ff7cc6c22292a27ca54aa7771203e2f6a028a9d8ddd248bf7"
+    },
+    {
+      "path": "review/findings.md",
+      "bytes": 2346,
+      "sha256": "843b817380e32c7b6eed0b07be55d4d85b0d73420f74736ef69c69d9359e678b"
+    },
+    {
+      "path": "source/identity.json",
+      "bytes": 704,
+      "sha256": "c2f3203b7ac2edeb7db3014152cbd4643ea11271584b1f7778796841aacbef4b"
+    },
+    {
+      "path": "validation/cancellation-and-recovery.md",
+      "bytes": 282,
+      "sha256": "1061fb39a4b90de115b7f240ec96b76d31ac6d14681a4b059742cae2f0284eea"
+    },
+    {
+      "path": "validation/cpu-tests.md",
+      "bytes": 3066,
+      "sha256": "9484d7f49aa61dc915cbeb2858bf1935e0fc5e8b6778ef46896b1ff3139dc4b5"
+    },
+    {
+      "path": "validation/gpu-usage.md",
+      "bytes": 190,
+      "sha256": "34763e9c82c8eb6914828f4d279d0730d92f8c850d016727e55b9823009b8bde"
+    },
+    {
+      "path": "validation/live-stage-transitions.md",
+      "bytes": 241,
+      "sha256": "d74a038c8dab7f845aadc6388dfc1763f01ece896d484d5e937d7516f90e1ca9"
+    },
+    {
+      "path": "validation/negative-ownership.md",
+      "bytes": 343,
+      "sha256": "264bf20e889091df34b90ea9ac0de127486871922871e997f112fb98314d7de7"
+    },
+    {
+      "path": "validation/studio-and-cli-e2e.md",
+      "bytes": 173,
+      "sha256": "9491a88e93fb298ba50ec1f9d15ed1e0a435a2becc16e0eb75820023527ecdc6"
+    },
+    {
+      "path": "validation/web-tests.md",
+      "bytes": 1507,
+      "sha256": "3d1e6c59576042e894aeba425e2ef5c734fdf7a95180cc5ebee0216aa07415e4"
+    }
+  ]
+}

@@ -233,9 +233,30 @@ def test_condensation_rejects_specialized_riva_adapter():
             [], source_language="fr", config=TranslationConfig(backend="riva"))
 
 
-def test_single_clip_asr_role_default_and_legacy_explicit_endpoint(monkeypatch, capsys):
-    for key in ("ASR_BASE_URL", "ASR_MODEL", "NEMOVOX_MODEL_RESOURCES"):
+def test_single_clip_asr_role_default_and_legacy_explicit_endpoint(tmp_path, monkeypatch, capsys):
+    from nvidia_transcribe import resource_lifecycle
+
+    for key in ("ASR_BASE_URL", "ASR_MODEL", "NEMOVOX_MODEL_RESOURCES",
+                "NEMOVOX_LIFECYCLE_CONFIG"):
         monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("NEMOVOX_LIFECYCLE_LOCK", str(tmp_path / "model-stage.lock"))
+
+    # This CPU case tests resource-binding precedence, not GPU inference.
+    # Simulate an exact-model, healthy *unowned* endpoint at the HTTP
+    # readiness boundary. The real lifecycle must borrow, never start/stop,
+    # and still reject unavailable endpoints in the negative test below.
+    readiness = []
+    def healthy(resource):
+        readiness.append((resource.name, resource.endpoint, resource.model))
+        return True
+
+    monkeypatch.setattr(resource_lifecycle, "_models_healthy", healthy)
+    monkeypatch.setattr(resource_lifecycle, "_unit", lambda _unit: {
+        "LoadState": "not-found", "FragmentPath": "", "Environment": "",
+        "ActiveState": "inactive",
+    })
+    monkeypatch.setattr(resource_lifecycle, "_systemctl",
+                        lambda *args: pytest.fail("Unowned resource must never be mutated"))
     constructed = []
 
     class FakeASR:
@@ -258,6 +279,39 @@ def test_single_clip_asr_role_default_and_legacy_explicit_endpoint(monkeypatch, 
         "--base-url", "http://127.0.0.1:8000/v1", "--model", legacy_model,
     ]) == 0, capsys.readouterr()
     assert constructed[-1] == ("http://127.0.0.1:8000/v1", legacy_model)
+    assert readiness == [
+        ("asr_local", "http://127.0.0.1:8190/v1",
+         "nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4"),
+        ("asr_local", "http://127.0.0.1:8000/v1", legacy_model),
+    ]
+
+
+def test_single_clip_cli_rejects_unavailable_unowned_asr(tmp_path, monkeypatch, capsys):
+    from nvidia_transcribe import resource_lifecycle
+
+    for key in ("ASR_BASE_URL", "ASR_MODEL", "NEMOVOX_MODEL_RESOURCES",
+                "NEMOVOX_LIFECYCLE_CONFIG"):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("NEMOVOX_LIFECYCLE_LOCK", str(tmp_path / "model-stage.lock"))
+    monkeypatch.setattr(resource_lifecycle, "_models_healthy", lambda _resource: False)
+    monkeypatch.setattr(resource_lifecycle, "_unit", lambda _unit: {
+        "LoadState": "not-found", "FragmentPath": "", "Environment": "",
+        "ActiveState": "inactive",
+    })
+    monkeypatch.setattr(resource_lifecycle, "_systemctl",
+                        lambda *args: pytest.fail("Unowned service must not be started"))
+
+    class FakeASR:
+        def __init__(self, *, base_url, model, api_key=None):
+            pass
+        def transcribe(self, audio, config):
+            pytest.fail("Inference must never run before resource acquisition")
+
+    monkeypatch.setattr(cli, "NemotronVLLMClient", FakeASR)
+    assert cli.main(["transcribe", "synthetic.wav"]) == 1
+    error = json.loads(capsys.readouterr().err)
+    assert error["status"] == "RESOURCE_BLOCKED"
+    assert error["reason"] == "managed_unit_not_configured"
 
 
 def test_alternative_asr_checkpoint_is_not_fabricated_in_cli_configs(tmp_path, monkeypatch, capsys):

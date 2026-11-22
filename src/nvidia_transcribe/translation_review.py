@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from nvidia_transcribe.resource_lifecycle import ResourceLifecycleError
 from nvidia_transcribe.refinement import GlossaryConfig, OpenAIChatTextClient
 
 VALID_REVIEW_PROFILES = ("off", "conservative", "balanced", "expressive")
@@ -130,12 +131,17 @@ def review_translated_utterances(
         timeout_s=cfg.timeout_s, reasoning_effort=cfg.reasoning_effort,
     )
     errors: list[str] = []
+    blocked_reason: str | None = None
     calls = hits = changed_count = reviewed_count = 0
     started = time.perf_counter()
     n = len(out)
     batch = max(1, int(cfg.batch_size))
     for start in range(0, n, batch):
         end = min(n, start + batch)
+        if blocked_reason is not None:
+            for i in range(start, end):
+                out[i]["translation_review_status"] = "review_error_preserved_machine_translation"
+            continue
         before = [_entry(out[i], i) for i in range(max(0, start - cfg.context_utterances_before), start)]
         targets = [_entry(out[i], i) for i in range(start, end)]
         after = [_entry(out[i], i) for i in range(end, min(n, end + cfg.context_utterances_after))]
@@ -201,6 +207,10 @@ def review_translated_utterances(
                 if set(entries) != set(ids):
                     raise ValueError("Incomplete review IDs")
             except Exception as exc:
+                if isinstance(exc, ResourceLifecycleError):
+                    # Do not repeatedly attempt a blocked model acquisition on
+                    # subsequent batches. Still preserve all original Riva MT.
+                    blocked_reason = exc.status
                 errors.append(f"batch[{start}:{end}]:{type(exc).__name__}:{exc}")
                 for i in range(start, end):
                     out[i]["translation_review_status"] = "review_error_preserved_machine_translation"
@@ -242,5 +252,6 @@ def review_translated_utterances(
         "resource_fingerprint": cfg.resource_fingerprint,
         "reviewed": reviewed_count, "changed": changed_count,
         "cache_hits": hits, "api_calls": calls, "errors": errors,
+        "resource_blocked_reason": blocked_reason,
         "elapsed_s": round(time.perf_counter() - started, 3),
     }

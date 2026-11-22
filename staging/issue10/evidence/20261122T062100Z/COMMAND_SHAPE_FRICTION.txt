@@ -1,0 +1,14 @@
+COMMAND_SHAPE_FRICTION:
+  encountered=yes
+  events:
+    - requested: "python -m compileall / pytest -q ..."
+      effective: "PYTHONPATH=/workspace/nemovox-issue10-verify3/src /workspace/nvidia-transcribe/.venv/bin/python -m ..."
+      reason: "Host .venv editable install resolves nvidia_transcribe to /workspace/nvidia-transcribe/src unless PYTHONPATH overrides it to the isolated detached worktree src."
+      effect: "Verified imported nvidia_transcribe.__file__ == /workspace/nemovox-issue10-verify3/src/nvidia_transcribe/__init__.py; zero changes to .venv or main checkout."
+      status: recovered_after_retry
+    - requested: "cd /workspace/nemovox-issue10-verify3/web && npm test && npm run build"
+      effective: "Temporarily symlinked /workspace/nvidia-transcribe/web/node_modules into /workspace/nemovox-issue10-verify3/web/node_modules, ran npm test && npm run build, then removed the symlink."
+      reason: "Detached worktree lacks untracked web/node_modules and .gitignore pattern 'web/node_modules/' does not ignore a file symlink in git status."
+      effect: "Ran exact committed web/package.json tests and build without modifying package.json, package-lock.json, or /workspace/nvidia-transcribe/web/node_modules; worktree left clean."
+      status: recovered_after_retry
+  omitted_sensitive_values: yes

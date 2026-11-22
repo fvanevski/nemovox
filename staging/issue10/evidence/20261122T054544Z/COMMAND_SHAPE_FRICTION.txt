@@ -1,0 +1,29 @@
+COMMAND_SHAPE_FRICTION:
+  encountered=yes
+  events:
+    - requested: "python -m compileall / pytest -q ... (Phase A & Phase C CLI)"
+      effective: "PYTHONPATH=/workspace/nemovox-issue10-verify2/src /workspace/nvidia-transcribe/.venv/bin/python -m ..."
+      reason: "Host .venv editable install resolves nvidia_transcribe to /workspace/nvidia-transcribe/src unless PYTHONPATH overrides it to the isolated detached worktree src."
+      effect: "Verified imported nvidia_transcribe.__file__ == /workspace/nemovox-issue10-verify2/src/nvidia_transcribe/__init__.py; zero changes to .venv or main checkout."
+      status: recovered_after_retry
+    - requested: "cd /workspace/nemovox-issue10-verify2/web && npm test && npm run build"
+      effective: "Temporarily symlinked /workspace/nvidia-transcribe/web/node_modules into /workspace/nemovox-issue10-verify2/web/node_modules, ran npm test && npm run build, then removed the symlink."
+      reason: "Detached worktree lacks untracked web/node_modules and .gitignore pattern 'web/node_modules/' does not ignore a symlink file in git status."
+      effect: "Ran exact committed web/package.json tests and build without mutating package.json, package-lock.json, or /workspace/nvidia-transcribe/web/node_modules; worktree left clean."
+      status: recovered_after_retry
+    - requested: "Launch candidate Studio on 127.0.0.1:8766 (Phase B)"
+      effective: "Launched candidate Studio on 127.0.0.1:8767 while keeping production Studio untouched on 127.0.0.1:8765."
+      reason: "127.0.0.1:8766 was already bound by an unrelated existing host service (/workspace/mcp_servers/graph, PID 12704)."
+      effect: "Zero collision with existing services or production Studio (nemovox-studio.service MainPID 2922624 on 127.0.0.1:8765 remained active HTTP 200)."
+      status: recovered_after_retry
+    - requested: "Candidate Studio French E2E with built-in asr_local default (without api_key_env)"
+      effective: "Added 'api_key_env': 'VLLM_API_KEY' on asr_local in the isolated host-only NEMOVOX_MODEL_RESOURCES test JSON (modeled on configs/model-resources.example.json)."
+      reason: "On this host VLLM_API_KEY is present in both user shell and systemd --user environment, so vllm serve enforces Bearer auth on GET /v1/models, whereas ModelLifecycle._models_healthy() only checks resource.credential() without NemotronVLLMClient's legacy VLLM_API_KEY fallback. First attempt (job 4d0c3f21f3fc495bab3ea3babcf693af) hit 401 on /v1/models and cleanly exited with managed_start_timeout at 300s."
+      effect: "Verified both actionable managed_start_timeout release and full end-to-end authenticated Studio/CLI runs (recorded as non-blocking finding F-01 in review/findings.md)."
+      status: recovered_after_retry
+    - requested: "Playwright Chromium launch and Studio polling in monitor script"
+      effective: "Passed executable_path='/usr/bin/chromium' to Playwright, clicked '.media-row' for directory navigation, and checked terminal state set ('complete', 'completed', 'failed', 'cancelled')."
+      reason: "uv Playwright cache lacked headless shell binary, sidebar recent-job button matched bare filename text, and initial monitor checked 'completed' instead of Studio API's 'complete' while job 0b4da9e0eb6148c1aefabc9c7f2b846a had already completed."
+      effect: "Captured clean screenshots, UI DOM checks, artifact downloads, and live status verification without altering tracked source."
+      status: recovered_after_retry
+  omitted_sensitive_values: yes (VLLM_API_KEY secret value never logged or committed; only variable name and non-empty boolean presence referenced)

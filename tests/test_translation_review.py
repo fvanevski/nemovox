@@ -331,3 +331,97 @@ def test_cli_riva_english_contract_does_not_require_local_worker(tmp_path, monke
     assert status == 0, capsys.readouterr().err
     contract = json.loads((tmp_path / "subtitles" / "translated.contract.json").read_text())
     assert contract["translation"]["status"] == "bypassed_same_language"
+
+
+
+def test_required_review_endpoint_failure_is_not_a_successful_studio_job(tmp_path, monkeypatch):
+    """Intermediate Riva MT survives a failed required English post-edit."""
+    import pytest
+    from types import SimpleNamespace
+    from nvidia_transcribe import translation
+    from nvidia_transcribe.translation import TranslationConfig
+    from nvidia_transcribe.subtitle_pipeline import SubtitlePipelineConfig, generate_subtitles
+
+    contract = {
+        "schema_version": "nemotron-recording-contract/v1",
+        "source": {"path": "/synthetic/french.webm", "duration_s": 4.0},
+        "source_language": "fr",
+        "utterances": [{"id": "utt-0000", "speaker_id": "SPK_00",
+                        "source_start": 0.1, "source_end": 1.8,
+                        "source_text": "Bonjour."}],
+    }
+    source = tmp_path / "recording.contract.json"
+    source.write_text(json.dumps(contract), encoding="utf-8")
+
+    def fake_riva(_command, **_kwargs):
+        return SimpleNamespace(returncode=0, stderr="", stdout=json.dumps({
+            "status": "ok", "device_used": "cuda:0",
+            "results": [{"utterance_id": "utt-0000", "translated_text": "Hello."}],
+        }))
+    monkeypatch.setattr(translation.subprocess, "run", fake_riva)
+    output = tmp_path / "output"
+    with pytest.raises(RuntimeError, match="Required contextual English review did not complete"):
+        generate_subtitles(
+            recording_contract_path=source, output_dir=output,
+            config=SubtitlePipelineConfig(
+                source_language="fr",
+                translation=TranslationConfig(backend="riva", riva_device="cuda:0"),
+                translation_review=_cfg(), formats=("srt", "ass"),
+            ),
+            text_client=FakeClient(RuntimeError("review endpoint connection refused")),
+        )
+    saved = json.loads((output / "translated.contract.json").read_text(encoding="utf-8"))
+    assert saved["translation_review"]["status"] == "completed_with_errors"
+    assert saved["utterances"][0]["machine_translated_text"] == "Hello."
+    assert saved["utterances"][0]["translated_text"] == "Hello."
+    assert not list(output.glob("*.srt"))
+
+
+
+def test_blocked_review_resource_preserves_all_mt_and_propagates_typed_failure(tmp_path, monkeypatch):
+    import pytest
+    from types import SimpleNamespace
+    from nvidia_transcribe import translation
+    from nvidia_transcribe.translation import TranslationConfig
+    from nvidia_transcribe.resource_lifecycle import ResourceLifecycleError
+    from nvidia_transcribe.subtitle_pipeline import SubtitlePipelineConfig, generate_subtitles
+
+    utterances = [{"id": f"utt-{i:04d}", "speaker_id": "SPK_A",
+                   "source_start": float(i), "source_end": float(i) + .6,
+                   "source_text": "Bonjour."} for i in range(7)]
+    contract = {
+        "schema_version": "nemotron-recording-contract/v1",
+        "source": {"path": "/synthetic/french.webm", "duration_s": 10.0},
+        "source_language": "fr", "utterances": utterances,
+    }
+    source = tmp_path / "recording.contract.json"
+    source.write_text(json.dumps(contract), encoding="utf-8")
+
+    def riva_worker(_command, **kwargs):
+        requested = json.loads(kwargs["input"])
+        return SimpleNamespace(returncode=0, stderr="", stdout=json.dumps({
+            "status": "ok", "device_used": "cuda:0",
+            "results": [{"utterance_id": row["utterance_id"], "translated_text": "Hello."}
+                        for row in requested["items"]],
+        }))
+    monkeypatch.setattr(translation.subprocess, "run", riva_worker)
+
+    blocked = FakeClient(ResourceLifecycleError("managed_unit_not_configured"))
+    output = tmp_path / "output"
+    with pytest.raises(ResourceLifecycleError) as error:
+        generate_subtitles(
+            recording_contract_path=source, output_dir=output,
+            config=SubtitlePipelineConfig(
+                source_language="fr",
+                translation=TranslationConfig(backend="riva", riva_device="cuda:0"),
+                translation_review=_cfg(), formats=("srt", "ass"),
+            ),
+            text_client=blocked,
+        )
+    assert error.value.status == "managed_unit_not_configured"
+    saved = json.loads((output / "translated.contract.json").read_text(encoding="utf-8"))
+    assert saved["translation_review"]["resource_blocked_reason"] == "managed_unit_not_configured"
+    assert len(saved["utterances"]) == 7
+    assert all(u["machine_translated_text"] == "Hello." for u in saved["utterances"])
+    assert all(u["translated_text"] == "Hello." for u in saved["utterances"])
+    assert len(blocked.calls) == 1  # no seven-batch startup retry storm

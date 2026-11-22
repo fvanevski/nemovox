@@ -69,7 +69,8 @@ required for English translation review. Optional legacy source refinement and e
 The Studio readiness UI checks that Riva checkpoint/worker paths exist; that
 is **not proof** of load success, language support, speed, quality or available
 VRAM. No model is installed, downloaded, started, stopped or evicted by
-selecting options. Test live Riva, text and ASR only when host ownership allows,
+selecting options. At execution time the CLI automatically acquires and
+releases only explicitly owned model resources under the [lifecycle contract](../model-resources/LIFECYCLE.md). Test live Riva, text and ASR only when host ownership allows,
 and report unavailable inference as \`UNVERIFIED\`.
 
 Check interfaces and smoke prerequisites on the actual host before claiming

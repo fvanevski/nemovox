@@ -28,6 +28,17 @@ export interface AudioStream {
   channels: number | null;
   sample_rate_hz: number | null;
 }
+export interface ModelReadiness {
+  state: string;
+  ready: boolean;
+  managed?: boolean;
+  startable: boolean;
+}
+export interface ManagedModelStatus {
+  asr: ModelReadiness;
+  translation_review: ModelReadiness;
+  error?: string;
+}
 export interface TranslationBackendStatus {
   riva: {configured: boolean; device: string | null; detail: string};
 }
@@ -97,6 +108,7 @@ export const studio = {
     method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(source),
   }),
   translationBackends: () => json<TranslationBackendStatus>("/translation-backends"),
+  modelStatus: () => json<ManagedModelStatus>("/resource-status"),
   jobs: () => json<Job[]>("/jobs"),
   job: (id: string) => json<Job>("/jobs/" + id),
   preview: (id: string) => json<Preview>("/jobs/" + id + "/preview"),

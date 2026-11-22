@@ -6,12 +6,14 @@ import hashlib
 import json
 import re
 import subprocess
+from contextlib import nullcontext
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from nvidia_transcribe.refinement import GlossaryConfig, OpenAIChatTextClient
+from nvidia_transcribe.resource_lifecycle import ModelLifecycle
 
 VALID_TRANSLATION_BACKENDS = ("openai_chat", "swiftu", "riva", "none")
 VALID_TRANSLATION_STYLES = ("natural", "literal", "expressive")
@@ -427,6 +429,8 @@ def translate_utterances(
     config: TranslationConfig | None = None,
     glossary: GlossaryConfig | None = None,
     text_client: Any = None,
+    lifecycle: ModelLifecycle | None = None,
+    riva_resource_name: str = "riva_local",
     checkpoint_path: str | Path | None = None,
     resume: bool = True,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
@@ -522,16 +526,21 @@ def translate_utterances(
 
         riva_meta: dict[str, Any] = {}
         if pending_items:
-            proc = subprocess.run(
-                [cfg.riva_python, str(RIVA_WORKER_SCRIPT)],
-                input=json.dumps(
-                    {"model_path": cfg.riva_model_path, "items": pending_items, "device": cfg.riva_device},
-                    ensure_ascii=False,
-                ),
-                capture_output=True,
-                text=True,
-                timeout=max(cfg.timeout_s, len(pending_items) * 15.0),
-            )
+            # "auto" may choose CUDA inside the subprocess. Admit it before
+            # device selection so the worker never bypasses the shared GPU lease.
+            with (lifecycle.worker(resource_name=riva_resource_name)
+                  if lifecycle is not None and (cfg.riva_device == "auto" or cfg.riva_device.startswith("cuda"))
+                  else nullcontext()):
+                proc = subprocess.run(
+                    [cfg.riva_python, str(RIVA_WORKER_SCRIPT)],
+                    input=json.dumps(
+                        {"model_path": cfg.riva_model_path, "items": pending_items, "device": cfg.riva_device},
+                        ensure_ascii=False,
+                    ),
+                    capture_output=True,
+                    text=True,
+                    timeout=max(cfg.timeout_s, len(pending_items) * 15.0),
+                )
             if proc.returncode != 0:
                 raise RuntimeError(f"Riva worker failed ({proc.returncode}): {proc.stderr[-500:]}")
             resp = json.loads(proc.stdout.strip().splitlines()[-1])

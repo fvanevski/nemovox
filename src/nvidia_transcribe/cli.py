@@ -12,6 +12,7 @@ from nvidia_transcribe.client import InferenceRequestConfig, NemotronVLLMClient
 from nvidia_transcribe.gpu_handoff import ManagedASRBlocked, ManagedASRConfig, recover_pending_managed_asr
 from nvidia_transcribe.media import MediaInspectionError
 from nvidia_transcribe.model_resources import ResourceConfigError, load_model_resources
+from nvidia_transcribe.resource_lifecycle import ModelLifecycle, ResourceLifecycleError, managed_asr_client
 from nvidia_transcribe.parser import CTCMetadataError
 from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
 from nvidia_transcribe.refinement import RefinementConfig
@@ -243,9 +244,12 @@ def main(argv: list[str] | None = None) -> int:
         client = NemotronVLLMClient(base_url=asr_resource.endpoint, model=asr_resource.model,
                                     api_key=asr_key)
         try:
-            result = client.transcribe(args.audio, cfg)
+            with ModelLifecycle().endpoint(asr_resource):
+                result = client.transcribe(args.audio, cfg)
         except (FileNotFoundError, CTCMetadataError, RuntimeError) as exc:
-            print(json.dumps({"status": "ERROR", "error": str(exc)}, indent=2), file=sys.stderr)
+            print(json.dumps({"status": "RESOURCE_BLOCKED" if isinstance(exc, ResourceLifecycleError) else "ERROR",
+                              "reason": exc.status if isinstance(exc, ResourceLifecycleError) else None,
+                              "error": str(exc)}, indent=2), file=sys.stderr)
             return 1
 
         if args.out_raw:
@@ -285,9 +289,12 @@ def main(argv: list[str] | None = None) -> int:
             speaker_embedding_model=speaker_resource.model or "titanet_small",
         )
         try:
-            out = process_media(args.media, output_dir=args.output_dir, client=client, config=rcfg)
+            with managed_asr_client(ModelLifecycle(), asr_resource, client) as stage_client:
+                out = process_media(args.media, output_dir=args.output_dir, client=stage_client, config=rcfg)
         except (FileNotFoundError, MediaInspectionError, ValueError, RuntimeError) as exc:
-            print(json.dumps({"status": "ERROR", "error": str(exc)}, indent=2), file=sys.stderr)
+            print(json.dumps({"status": "RESOURCE_BLOCKED" if isinstance(exc, ResourceLifecycleError) else "ERROR",
+                              "reason": exc.status if isinstance(exc, ResourceLifecycleError) else None,
+                              "error": str(exc)}, indent=2), file=sys.stderr)
             return 1
 
         c = out["contract"]
@@ -405,9 +412,17 @@ def main(argv: list[str] | None = None) -> int:
                 config=scfg,
                 glossary=args.glossary,
                 progress_callback=lambda msg: print(f"[nvidia-transcribe] {msg}", file=sys.stderr, flush=True),
+                lifecycle=ModelLifecycle(),
+                lifecycle_resources={
+                    "asr": asr_resource, "source_refinement": refinement_resource,
+                    "text_translation": translation_resource, "riva_translation": riva_resource,
+                    "translation_review": review_resource, "subtitle_condensation": condensation_resource,
+                },
             )
         except (FileExistsError, FileNotFoundError, MediaInspectionError, ValueError, RuntimeError) as exc:
-            print(json.dumps({"status": "ERROR", "error": str(exc)}, indent=2), file=sys.stderr)
+            print(json.dumps({"status": "RESOURCE_BLOCKED" if isinstance(exc, ResourceLifecycleError) else "ERROR",
+                              "reason": exc.status if isinstance(exc, ResourceLifecycleError) else None,
+                              "error": str(exc)}, indent=2), file=sys.stderr)
             return 1
         print(json.dumps({"status": "OK", **res}, ensure_ascii=False, indent=2))
         return 0

@@ -1,0 +1,15 @@
+# Example: copy and adapt as ~/.config/systemd/user/nemovox-asr.service
+# Do NOT enable at boot: Nemovox starts it automatically for ASR stages.
+[Unit]
+Description=Nemovox explicitly managed ASR model
+[Service]
+Type=exec
+WorkingDirectory=/workspace/nvidia-transcribe
+Environment=NEMOVOX_MANAGED_RESOURCE=1
+Environment=NEMOVOX_RESOURCE_NAME=asr_local
+Environment=NEMOVOX_RESOURCE_MODEL=nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4
+Environment=NEMOVOX_RESOURCE_ENDPOINT=http://127.0.0.1:8190/v1
+ExecStart=/workspace/nvidia-transcribe/scripts/start_vllm_server.sh
+KillMode=control-group
+Restart=no
+TimeoutStopSec=30

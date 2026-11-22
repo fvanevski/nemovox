@@ -11,7 +11,7 @@ process-media (recording.contract.json) → generate-subtitles (unchanged ASR tr
 
 There must be only ONE owner of ASR, diarization, translation, text refinement and subtitle rendering: the existing Python source modules. The web layer only validates and configures requests, submits CLI jobs, retrieves output contracts, and visualizes results.
 
-Use a separate HTTP Studio environment and NEMOVOX_CLI_PYTHON to invoke the model-compatible interpreter. Do not import vLLM into the web process. Do not auto-restart external services.
+Use a separate HTTP Studio environment and NEMOVOX_CLI_PYTHON to invoke the model-compatible interpreter. Do not import vLLM into the web process. The CLI worker automatically starts/releases only exactly identified Nemovox-owned model units; never restart unrelated external services. See [lifecycle contract](../model-resources/LIFECYCLE.md).
 
 ## HTTP endpoints
 
@@ -22,6 +22,7 @@ Use a separate HTTP Studio environment and NEMOVOX_CLI_PYTHON to invoke the mode
 | POST /api/media/upload | Browser upload into local Studio uploads |
 | POST /api/media/inspect | Inspect allowed local/uploaded file with FFprobe; return real audio-only tracks |
 | GET /api/translation-backends | Read-only Riva checkpoint/worker configuration availability; no live GPU probe |
+| GET /api/resource-status | Read-only ASR/text model readiness and managed-unit startability; never starts a model |
 | GET /api/glossaries | Optional glossary names, terms, characters and context notes |
 | POST /api/jobs | Create validated queued task |
 | GET /api/jobs | Recent job history |
@@ -56,4 +57,4 @@ Design aims for a contemporary media workstation, not a generic enterprise dashb
 - Public-service URL hardening.
 - Re-encoding entire episodes for browser preview.
 
-Keep API and GUI modifications focused on local media workflows; model service startup and GPU resource management remain outside Studio's responsibility.
+Keep GUI/API code focused on local media workflows: the *shared CLI-owned* job lifecycle manager acquires and releases verified Nemovox-owned services and serializes model stages. UI only displays resource status, never mutates systemd services directly.

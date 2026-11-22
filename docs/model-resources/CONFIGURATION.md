@@ -49,7 +49,7 @@ text-model primary translation**. For the normal Studio workflow, `riva_translat
 supplies a dedicated machine-translation worker. `--translation-review balanced`
 then asks the text model to correct supported English errors *after* Riva, using
 source text, neighboring utterances and optional glossary. Original MT is retained
-separately in `machine_translated_text`. No live model is automatically started;
+separately in `machine_translated_text`. Model resource resolution is read-only; required model services are automatically started for job stages by the separate [lifecycle manager](LIFECYCLE.md), when explicitly cooperatively owned;
 Nemotron CTC, Qwen alignment, Riva and NeMo embeddings retain specialized adapters.
 
 ## Resource schema
@@ -96,7 +96,7 @@ independent locally hosted models for translation and condensation:
 ```
 
 The ports and model IDs in this example are **illustrative**, not verified
-services. A compatible server must already be available. Other roles retain
+services. A compatible endpoint must be available or startable by the job-owned lifecycle manager. Other roles retain
 their built-in bindings unless overridden. The `resources` object merges
 settings into shipped named resources or defines new resources; `roles` binds
 each functional task to a resource name. All roles are validated at load time.
@@ -243,8 +243,7 @@ A Riva-specific `TranslationConfig` is not an OpenAI chat model; the pipeline
 rejects ambiguous implicit reuse. `--translator none` skips condensation
 even if `--condense-high-cps` was specified.
 
-Configuration alone does not start/stop, load/unload, or download any model,
-and must not change another service's GPU allocation. Qwen's optional
+Reading configuration never starts, stops, loads, unloads or downloads a model. An actual CLI/Studio processing stage now automatically acquires/releases *verified Nemovox-owned* user units, but never changes an unrelated service's GPU allocation. See [model lifecycle](LIFECYCLE.md). Qwen's optional
 managed-ASR flow still requires explicit ownership/lease admission. Do not
 use production/private media for smoke testing without authorization.
 
