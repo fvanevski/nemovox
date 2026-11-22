@@ -150,6 +150,10 @@ def export_selected(
         candidates = sorted((job_root / "output").glob("*." + kind)) if kind in ("srt", "ass") \
             else [job_root / ARTIFACT_PATHS[kind]] if kind in ARTIFACT_PATHS \
             else [remote_media] if remote_media is not None else []
+        # Imported recording contracts skip process-media, but the subtitle
+        # pipeline still writes the unchanged source-language transcript here.
+        if kind == "source_transcript" and not any(p.is_file() for p in candidates):
+            candidates = [job_root / "output/raw_source_transcript.txt"]
         if kind == "remote_media" and not plan.get("save_remote_media"):
             continue
         if not candidates or not candidates[0] or not candidates[0].is_file():

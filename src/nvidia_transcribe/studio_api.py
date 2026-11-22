@@ -283,8 +283,10 @@ class JobRunner:
             "created_at": time.time(),
             "updated_at": time.time(),
             "error": None,
-            "export_report": {"status": "pending" if request.export.destination else "disabled",
-                              "directory": None, "items": []},
+            "export_report": {"status": "pending" if (
+                request.export.destination and
+                (request.export.artifacts or request.export.save_remote_media)
+            ) else "disabled", "directory": None, "items": []},
             "stage_history": [],
         }
         _atomic_json(dest / "job.json", record)

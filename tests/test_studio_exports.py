@@ -81,6 +81,22 @@ def test_selected_files_export_while_full_job_files_remain(store):
     assert json.loads((job / "exports.json").read_text())["status"] == "complete"
 
 
+def test_imported_recording_contract_source_transcript_export(store):
+    root, _outside, job = store
+    # Subtitle generation from an existing recording contract skips ASR
+    # but still generates the faithful source transcript in output/.
+    source = job / "asr" / "transcript.txt"
+    source.unlink()
+    transcript = job / "output" / "raw_source_transcript.txt"
+    transcript.write_text("Unchanged source-language dialogue", encoding="utf-8")
+    report = export_selected(job, job.name, plan(root, "source_transcript"), (root,))
+    assert report["status"] == "complete"
+    assert report["items"][0]["source"] == "output/raw_source_transcript.txt"
+    assert (root / ("nemovox-" + job.name) / transcript.name).read_bytes() == transcript.read_bytes()
+    assert export_selected(job, job.name, plan(root, "source_transcript"), (root,))[
+        "items"][0]["status"] == "already_saved"
+
+
 def test_retry_is_idempotent_and_collision_refuses_overwrite(store):
     root, _outside, job = store
     first = export_selected(job, job.name, plan(root, "srt"), (root,))

@@ -82,6 +82,17 @@ def test_legacy_request_remains_valid_and_default_export_is_disabled(live):
     assert record["export_report"]["status"] == "disabled"
 
 
+def test_empty_export_selection_is_disabled_even_with_folder(live):
+    client, _settings, clip, root = live
+    response = client.post("/api/jobs", json={
+        "source": {"kind": "path", "value": str(clip)},
+        "task": "transcription",
+        "export": {"destination": str(root), "artifacts": [], "save_remote_media": False},
+    })
+    assert response.status_code == 202, response.text
+    assert response.json()["export_report"]["status"] == "disabled"
+
+
 def test_invalid_task_and_remote_media_export_selection(live):
     client, _settings, clip, root = live
     base = {"source": {"kind": "path", "value": str(clip)},
