@@ -146,8 +146,8 @@ def test_imported_contract_processing_keeps_adjacent_reconstruction_sidecars(
     original.write_text(json.dumps(source_contract), encoding="utf-8")
     manifest = original.parent / "manifest.json"
     manifest.write_text(json.dumps({"chunks": [
-        {"chunk_index": 0, "start": 0.0, "end": 300.0},
-        {"chunk_index": 1, "start": 290.0, "end": 610.0},
+        {"chunk_index": 0, "infer_start_s": 0.0, "infer_end_s": 300.0},
+        {"chunk_index": 1, "infer_start_s": 290.0, "infer_end_s": 610.0},
     ]}), encoding="utf-8")
     chunks = original.parent / "chunks"
     chunks.mkdir()
@@ -173,7 +173,7 @@ def test_imported_contract_processing_keeps_adjacent_reconstruction_sidecars(
         invoked.append(path)
         # Untimed-order reconstruction reads these files via path.parent.
         assert path == original
-        assert json.loads((path.parent / "manifest.json").read_text())["chunks"][1]["end"] == 610.0
+        assert json.loads((path.parent / "manifest.json").read_text())["chunks"][1]["infer_end_s"] == 610.0
         assert (path.parent / "chunks" / sidecar.name).read_bytes() == sidecar.read_bytes()
         (settings.job_root / job_id / "output").mkdir(exist_ok=True)
 
