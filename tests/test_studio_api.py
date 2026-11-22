@@ -627,3 +627,56 @@ def test_invalid_glossaries_do_not_disable_valid_entries(client, monkeypatch, tm
         load_glossary(root / "bad-null.json")
     with pytest.raises(ValueError, match="character and term fields must be lists"):
         load_glossary(root / "bad-list-shape.yaml")
+
+
+
+def test_studio_reconciliation_occurs_only_after_owner_start(tmp_path, monkeypatch):
+    """Constructing a secondary app must not mutate model service state."""
+    observed = []
+    monkeypatch.setattr(JobRunner, "_reconcile_idle_models",
+                        staticmethod(lambda: observed.append("recover")))
+    settings = StudioConfig(job_root=tmp_path / "jobs", upload_root=tmp_path / "uploads",
+                            media_roots=(tmp_path,), python=sys.executable)
+    app = create_app(settings)
+    assert observed == []
+    with TestClient(app) as c:
+        assert c.get("/api/health").status_code == 200
+        assert observed == ["recover"]
+    app.state.runner.executor.shutdown(wait=True)
+
+
+def test_studio_reconciles_owned_units_after_abrupt_cli_exit(tmp_path, monkeypatch):
+    """SIGKILLed child leaves its own unit; supervisor must reconcile."""
+    from nvidia_transcribe import studio_api
+
+    observed = []
+    monkeypatch.setattr(JobRunner, "_reconcile_idle_models",
+                        staticmethod(lambda: observed.append("recover")))
+    monkeypatch.setattr(JobRunner, "_terminate_process_group",
+                        staticmethod(lambda _process: observed.append("group_cleaned")))
+
+    class DeadCLI:
+        pid = 424242
+        returncode = -signal.SIGKILL
+        def poll(self):
+            return self.returncode
+
+    monkeypatch.setattr(studio_api.subprocess, "Popen", lambda *a, **kw: DeadCLI())
+    settings = StudioConfig(job_root=tmp_path / "jobs", upload_root=tmp_path / "uploads",
+                            media_roots=(tmp_path,), python=sys.executable)
+    runner = JobRunner(settings)
+    job_id = "a" * 32
+    root = settings.job_root / job_id
+    root.mkdir()
+    (root / "job.json").write_text(json.dumps({
+        "id": job_id, "state": "running", "stage": "ASR", "progress": 8,
+        "error": None, "created_at": 0.0, "updated_at": 0.0,
+    }), encoding="utf-8")
+    try:
+        with pytest.raises(RuntimeError, match="failed \\(exit -9\\)"):
+            runner._command(job_id, ["process-media", "synthetic.wav"],
+                            "Transcribing audio and speakers", 8)
+        assert observed == ["group_cleaned", "recover"]
+        assert runner._processes == {}
+    finally:
+        runner.executor.shutdown(wait=True)
