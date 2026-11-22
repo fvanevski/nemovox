@@ -608,6 +608,9 @@ export default function App() {
             <button className="btn btn-primary" onClick={() => setStep("media")}>Choose media</button>
           </div>}
           {jobId && <>
+            {selectedJob.isError && <div role="alert" className="panel p-5 text-rose-300">
+              Could not load this job. It may have been removed or the service is unavailable.
+            </div>}
             <section className="panel p-5">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
@@ -626,11 +629,26 @@ export default function App() {
               <div className="progress-track"><div className="progress-fill" style={{width: String(currentJob?.progress || 0) + "%"}}/></div>
               <div className="mt-2 flex justify-between text-xs muted"><span>{currentJob?.progress || 0}% recorded stage progress</span><span>{currentJob?.state === "complete" ? "Ready to review" : "Long-running tasks stay on the host"}</span></div>
               {currentJob?.error && <div className="mt-4 text-sm text-rose-300">{currentJob.error}</div>}
-              {(currentJob?.state === "running" || currentJob?.state === "failed" || currentJob?.state === "cancelled" || currentJob?.state === "interrupted") && !!logs.data?.lines.length &&
-                <details className="mt-4 rounded-lg border border-[#2c3c50] bg-[#0b131d] p-3">
-                  <summary className="cursor-pointer text-xs font-semibold muted">Processing log</summary>
-                  <pre className="scrollbar mt-3 max-h-40 overflow-auto whitespace-pre-wrap text-[11px] leading-5 text-slate-400">{logs.data.lines.join("\n")}</pre>
-                </details>}
+              {!!currentJob?.stage_history?.length && <div className="mt-4 rounded-xl border border-[#2c3c50] p-3">
+                <p className="mb-2 text-xs font-semibold">Processing stages</p>
+                <ol className="space-y-2">{currentJob.stage_history.map(event => <li key={event.id} className="flex gap-3 text-xs">
+                  <span className={event.status === "complete" ? "text-teal-300" : event.status === "failed" ? "text-rose-300" : "text-slate-400"}>{event.status}</span>
+                  <span className="font-semibold">{event.id === "review" ? "English review" : event.id === "render" ? "Render subtitles" :
+                    event.id === "translation" ? "Primary translation" : event.id}</span>
+                  {event.detail && <span className="muted">{event.detail}</span>}
+                </li>)}</ol>
+              </div>}
+              <details className="mt-4 rounded-lg border border-[#2c3c50] bg-[#0b131d] p-3">
+                <summary className="cursor-pointer text-xs font-semibold muted">Processing log (retained after completion)</summary>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button className="btn btn-ghost !min-h-8" onClick={() => void navigator.clipboard.writeText(logs.data?.lines.join("\n") ?? "")
+                    .then(() => setLogCopyMessage("Visible log copied."), () => setLogCopyMessage("Clipboard unavailable."))}>Copy visible</button>
+                  <button className="btn btn-ghost !min-h-8" onClick={() => void copyFullLog()}>Copy full log</button>
+                  <a className="btn btn-ghost !min-h-8" href={studio.logDownload(jobId)}>Download full log</a>
+                  {logCopyMessage && <span role="status" className="text-xs muted">{logCopyMessage}</span>}
+                </div>
+                <pre className="scrollbar mt-3 max-h-56 overflow-auto whitespace-pre-wrap text-[11px] leading-5 text-slate-400">{logs.data?.lines.join("\n") || "No log lines yet."}</pre>
+              </details>
             </section>
             <div className="grid gap-5 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,.7fr)]">
               <section className="panel min-w-0 overflow-hidden">
@@ -663,11 +681,21 @@ export default function App() {
                   </div>}
                 </div>
                 <div className="border-t border-[#2a3b4b] p-4">
-                  <div className="mb-2 flex items-center justify-between"><span className="text-xs font-bold text-slate-200">Export results</span><span className="text-[11px] muted">Files stay on your host</span></div>
-                  <div className="flex flex-wrap gap-2">
-                    {artifacts.data?.map(item => <a key={item.path} href={item.url} download={item.name} className="btn btn-secondary !min-h-9 !px-3"><Download size={13}/>{item.name}</a>)}
-                    {!artifacts.data?.length && <span className="text-xs muted">Exports will appear when processing finishes.</span>}
-                  </div>
+                  <div className="mb-2 flex items-center justify-between"><span className="text-xs font-bold text-slate-200">Saved files</span><span className="text-[11px] muted">Automatic host-side exports</span></div>
+                  <p className="break-all text-xs muted">Folder: {exportsReport.data?.directory || currentJob?.request.export?.destination || "Internal job archive only"}</p>
+                  <p className={"mt-2 text-xs " + (["partial", "failed"].includes(exportsReport.data?.status || "") ? "text-rose-300" : "text-teal-300")}>
+                    Export status: {exportsReport.data?.status || "checking"} · {exportsReport.data?.items.filter(x => x.status === "saved" || x.status === "already_saved").length || 0} saved
+                  </p>
+                  {exportsReport.data?.items.map(item => <p key={item.type} className="mt-1 text-xs">
+                    {item.type}: {item.status}{item.error && <span className="text-rose-300"> · {item.error}</span>}
+                  </p>)}
+                  <details className="mt-3 rounded-lg border border-[#304052] p-3">
+                    <summary className="cursor-pointer text-xs muted">Advanced: all retained job artifacts</summary>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {artifacts.data?.map(item => <a key={item.path} href={item.url} download={item.name} className="btn btn-secondary !min-h-9 !px-3"><Download size={13}/>{item.name}</a>)}
+                      {!artifacts.data?.length && <span className="text-xs muted">No internal artifacts yet.</span>}
+                    </div>
+                  </details>
                 </div>
               </section>
               <section className="panel flex min-h-[470px] min-w-0 flex-col overflow-hidden">
