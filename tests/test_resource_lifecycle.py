@@ -26,6 +26,8 @@ def _unit(*, active=False, name="asr_local", valid=True):
         "FragmentPath": "/home/operator/.config/systemd/user/nemovox-asr.service",
         "Environment": (
             "NEMOVOX_MANAGED_RESOURCE=1 NEMOVOX_RESOURCE_NAME=" + name
+            + " NEMOVOX_RESOURCE_MODEL=nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4"
+            + " NEMOVOX_RESOURCE_ENDPOINT=http://127.0.0.1:8190/v1"
             if valid else "UNRELATED_SERVICE=1"
         ),
         "ActiveState": "active" if active else "inactive",
@@ -181,3 +183,32 @@ def test_systemd_transport_unavailable_does_not_block_healthy_external_endpoint(
     monkeypatch.setattr(lifecycle, "_unit", inaccessible)
     with manager.endpoint(asr):
         pass
+
+
+def test_owned_unit_wrong_model_marker_cannot_start(manager, asr, monkeypatch):
+    marker = _unit()
+    marker["Environment"] = marker["Environment"].replace(
+        "NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4", "different-model"
+    )
+    monkeypatch.setattr(lifecycle, "_unit", lambda _: marker)
+    monkeypatch.setattr(lifecycle, "_models_healthy", lambda _: False)
+    attempts = []
+    monkeypatch.setattr(lifecycle, "_systemctl", lambda *args: attempts.append(args))
+    with pytest.raises(lifecycle.ResourceLifecycleError) as error:
+        with manager.endpoint(asr):
+            pass
+    assert error.value.status == "managed_unit_not_configured"
+    assert attempts == []
+
+
+def test_owned_asr_start_requires_reported_capacity(manager, asr, monkeypatch):
+    monkeypatch.setattr(lifecycle, "_unit", lambda _: _unit())
+    monkeypatch.setattr(lifecycle, "_models_healthy", lambda _: False)
+    monkeypatch.setattr(lifecycle, "_free_vram_mb", lambda: 2000)
+    attempts = []
+    monkeypatch.setattr(lifecycle, "_systemctl", lambda *args: attempts.append(args))
+    with pytest.raises(lifecycle.ResourceLifecycleError) as error:
+        with manager.endpoint(asr):
+            pass
+    assert error.value.status == "gpu_capacity_blocked"
+    assert attempts == []
