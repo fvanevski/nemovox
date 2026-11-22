@@ -139,8 +139,10 @@ def export_selected(
     }
     destination_base = validate_destination(str(plan["destination"]), roots)
     destination = destination_base / ("nemovox-" + job_id)
-    requested = (["remote_media"] if plan.get("save_remote_media") and remote_media is not None else []) \
-        if media_only else list(plan.get("artifacts", []))
+    remote_requested = ["remote_media"] if (
+        plan.get("save_remote_media") and remote_media is not None) else []
+    # Recheck remote export on finalization, in case the initial copy failed.
+    requested = remote_requested if media_only else list(plan.get("artifacts", [])) + remote_requested
     for kind in requested:
         if kind not in EXPORT_TYPES and kind != "remote_media":
             entries[kind] = {"type": kind, "status": "failed", "error": "Unknown artifact type."}
