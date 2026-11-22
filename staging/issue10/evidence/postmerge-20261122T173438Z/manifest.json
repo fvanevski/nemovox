@@ -1,0 +1,92 @@
+{
+  "schema": "nemovox-issue10-postmerge-evidence/v1",
+  "utc_run_id": "postmerge-20261122T173438Z",
+  "repo_id": "fvanevski/nemovox",
+  "issue_number": 10,
+  "pr_number": 11,
+  "deployed_branch": "main",
+  "merged_main_commit": "332a99697edcc0b72fcc842168d5b1f57782e203",
+  "merged_main_tree": "6f1b41c26f8439d9eb1c5a4aff11b64e4c40afaa",
+  "prior_live_commit": "8fee1e177db9742dbdb38c4a22bdd663c20ac80f",
+  "prior_live_tree": "2c733a3036443121cc4c1c7c2b7a09bb0d5680a5",
+  "result": "PASS",
+  "members": [
+    {
+      "path": "COMMAND_SHAPE_FRICTION.txt",
+      "bytes": 1945,
+      "sha256": "2459e707de0a195f104b73dc8c07c29d8524d50ac50e5bf9d254ed4ebe652c9e",
+      "criterion": "command_shape_friction_record",
+      "evidence_class": "public_safe_friction_log"
+    },
+    {
+      "path": "deployment/activation-and-rollback.md",
+      "bytes": 1361,
+      "sha256": "c733603bb179f86e60c03b765de5cc66cd9c513c3820d6deca45de7c0ff1657f",
+      "criterion": "controlled_promotion_and_rollback_disposition",
+      "evidence_class": "sanitized_activation_record"
+    },
+    {
+      "path": "deployment/plan-and-backups.md",
+      "bytes": 1571,
+      "sha256": "ff974478c8810173a0117ef48ee60578f9a74ebc147c96263190f3ba155f8f33",
+      "criterion": "preflight_and_private_rollback_plan",
+      "evidence_class": "sanitized_deployment_plan"
+    },
+    {
+      "path": "review/acceptance-matrix.md",
+      "bytes": 1550,
+      "sha256": "88b6b44ff732f6c55b53bd7075af0a95525ecea9e5d7d8b3f1994ebf2a897ba4",
+      "criterion": "postmerge_acceptance_matrix",
+      "evidence_class": "public_safe_acceptance_matrix"
+    },
+    {
+      "path": "review/findings.md",
+      "bytes": 791,
+      "sha256": "ef2aca1af728634c1337f4ca1eed6b56ed7fb154e92648930d34fc54c37fad78",
+      "criterion": "postmerge_findings_and_disposition",
+      "evidence_class": "public_safe_review_summary"
+    },
+    {
+      "path": "source/identity.json",
+      "bytes": 1411,
+      "sha256": "da42ab100b509e346e6cbc91bcbfca826f854bf073533f3ab78153ab55c41ae2",
+      "criterion": "merged_main_and_runtime_identity",
+      "evidence_class": "public_safe_source_identity"
+    },
+    {
+      "path": "validation/cpu-frontend.txt",
+      "bytes": 1530,
+      "sha256": "b19329f68b4d34a25b7e11d9e0c8e5d1cca1c74a165c09f7e8de4f58d082822c",
+      "criterion": "staging_preflight_and_prod_build",
+      "evidence_class": "public_safe_test_and_build_log"
+    },
+    {
+      "path": "validation/direct-cli-parity.md",
+      "bytes": 1686,
+      "sha256": "b7f098c2a32a1d8433152eaa3b6cbf52ed4833c36ce769163842906c72aaca77",
+      "criterion": "direct_cli_parity_and_no_start_checks",
+      "evidence_class": "sanitized_cli_observation"
+    },
+    {
+      "path": "validation/french-studio-e2e.md",
+      "bytes": 3153,
+      "sha256": "2bd9ad72d42671c85f12e2ed77568874ee758c0a5800403690efd660f45b84b3",
+      "criterion": "live_production_french_studio_e2e",
+      "evidence_class": "sanitized_e2e_observation"
+    },
+    {
+      "path": "validation/service-gpu-cleanup.md",
+      "bytes": 1308,
+      "sha256": "21c8350456fb5da2ea96dfcf8e8aafaf4b1fdea3bcd0030462a9c7607e59260a",
+      "criterion": "final_cleanup_and_external_invariance",
+      "evidence_class": "sanitized_host_invariance"
+    },
+    {
+      "path": "validation/studio-fresh-process.md",
+      "bytes": 981,
+      "sha256": "511283fcda97b7b9bd7667e9bab6a2ae0cdc8d26430dbc1ed60f4990b4ed3499",
+      "criterion": "fresh_production_studio_process",
+      "evidence_class": "sanitized_systemd_and_api_readback"
+    }
+  ]
+}

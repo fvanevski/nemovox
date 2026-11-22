@@ -1,0 +1,27 @@
+{
+  "repo_id": "fvanevski/nemovox",
+  "issue_number": 10,
+  "pr_number": 11,
+  "deployed_branch": "main",
+  "merged_main_commit": "332a99697edcc0b72fcc842168d5b1f57782e203",
+  "merged_main_tree": "6f1b41c26f8439d9eb1c5a4aff11b64e4c40afaa",
+  "prior_live_commit": "8fee1e177db9742dbdb38c4a22bdd663c20ac80f",
+  "prior_live_tree": "2c733a3036443121cc4c1c7c2b7a09bb0d5680a5",
+  "reviewed_pr_head": "f547e8971876d2744ac70e4fb9f764b4a2f2a4fb",
+  "live_checkout": "/workspace/nvidia-transcribe",
+  "python_executable": "/workspace/nvidia-transcribe/.venv/bin/python",
+  "studio_python_executable": "/workspace/nvidia-transcribe/.venv-studio/bin/python",
+  "imported_venv_package": "/workspace/nvidia-transcribe/src/nvidia_transcribe/__init__.py",
+  "imported_venv_lifecycle": "/workspace/nvidia-transcribe/src/nvidia_transcribe/resource_lifecycle.py",
+  "imported_studio_package": "/workspace/nvidia-transcribe/src/nvidia_transcribe/__init__.py",
+  "imported_studio_api": "/workspace/nvidia-transcribe/src/nvidia_transcribe/studio_api.py",
+  "production_studio_unit": "nemovox-studio.service",
+  "production_studio_bind": "127.0.0.1:8765",
+  "production_studio_env_overrides": {
+    "NEMOVOX_MODEL_RESOURCES": null,
+    "NEMOVOX_LIFECYCLE_CONFIG": null,
+    "NEMOVOX_LIFECYCLE_LOCK": null
+  },
+  "canonical_lifecycle_lock": "~/.local/state/nemovox/model-lifecycle.lock",
+  "utc_run_id": "postmerge-20261122T173438Z"
+}

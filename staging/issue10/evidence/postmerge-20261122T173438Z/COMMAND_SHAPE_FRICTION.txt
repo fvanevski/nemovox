@@ -1,0 +1,28 @@
+COMMAND_SHAPE_FRICTION:
+  encountered=yes
+  events:
+    - scenario=staging_worktree_cpu_and_web_preflight
+      requested_shape="Run compileall, pytest, npm test, npm run build in detached staging worktree /workspace/nemovox-issue10-main-stage"
+      effective_shape="PYTHONPATH=/workspace/nemovox-issue10-main-stage/src /workspace/nvidia-transcribe/.venv/bin/python -m ...; temporary symlink /workspace/nvidia-transcribe/web/node_modules -> /workspace/nemovox-issue10-main-stage/web/node_modules during npm test && npm run build"
+      rewrite_provenance=none
+      event_kind=runtime_misbinding
+      execution_effect=recovered_after_retry
+      correction_or_annotation="Editable .venv targets /workspace/nvidia-transcribe/src and detached staging worktree lacks untracked web/node_modules; isolated staging preflight bound imports via PYTHONPATH and temporarily symlinked existing node_modules (cleaned before removal)."
+      replacement_shape="PYTHONPATH=<staging>/src and temporary node_modules symlink in detached staging worktree"
+      recipe_reference=none
+      resource_reference=none
+      contract_conflict=no
+      durable_gap_candidate=no
+    - scenario=production_studio_playwright_smoke
+      requested_shape="Verify live production Studio UI at http://127.0.0.1:8765/ with headless Chromium"
+      effective_shape="/home/filip/.local/share/uv/tools/playwright/bin/python with executable_path='/usr/bin/chromium'"
+      rewrite_provenance=none
+      event_kind=interface_discovery
+      execution_effect=executed_succeeded
+      correction_or_annotation=".venv and .venv-studio do not install playwright; used host uv playwright tool with /usr/bin/chromium."
+      replacement_shape="/home/filip/.local/share/uv/tools/playwright/bin/python + executable_path='/usr/bin/chromium'"
+      recipe_reference=none
+      resource_reference=none
+      contract_conflict=no
+      durable_gap_candidate=no
+  omitted_sensitive_values=yes

@@ -1,0 +1,31 @@
+# Phase 2 Preflight: Clean Detached Merged-Main Staging Worktree (postmerge-20261122T173438Z)
+STAGING_WORKTREE=/workspace/nemovox-issue10-main-stage
+COMMIT=332a99697edcc0b72fcc842168d5b1f57782e203
+TREE=6f1b41c26f8439d9eb1c5a4aff11b64e4c40afaa
+
+[1] Imported Source Identity
+COMMAND: PYTHONPATH=/workspace/nemovox-issue10-main-stage/src /workspace/nvidia-transcribe/.venv/bin/python -c "import nvidia_transcribe; print('STAGE_PKG:', nvidia_transcribe.__file__)"
+OUTPUT: STAGE_PKG: /workspace/nemovox-issue10-main-stage/src/nvidia_transcribe/__init__.py
+EXIT_CODE: 0
+
+[2] Bytecode Compile
+COMMAND: PYTHONPATH=/workspace/nemovox-issue10-main-stage/src /workspace/nvidia-transcribe/.venv/bin/python -m compileall -q src tests experiments
+EXIT_CODE: 0
+
+[3] Full Non-GPU Pytest Suite
+COMMAND: PYTHONPATH=/workspace/nemovox-issue10-main-stage/src /workspace/nvidia-transcribe/.venv/bin/python -m pytest -q -m 'not gpu'
+OUTPUT: 227 passed, 1 warning in 9.48s (PytestRemovedIn10Warning from anyio/pytest_plugin.py:14)
+EXIT_CODE: 0
+
+[4] Frontend Vitest & Vite Build (Staging)
+COMMAND: cd /workspace/nemovox-issue10-main-stage/web && npm test && npm run build
+OUTPUT:
+  Test Files  5 passed (5)
+       Tests  11 passed (11) (305ms)
+  tsc --noEmit && vite build -> dist/assets/index-62Ntthch.js (452.33 kB), built in 575ms
+EXIT_CODE: 0
+
+[5] Production Frontend Build (/workspace/nvidia-transcribe/web)
+COMMAND: cd /workspace/nvidia-transcribe/web && npm run build
+OUTPUT: dist/assets/index-62Ntthch.js (452.33 kB), built in 576ms
+EXIT_CODE: 0
