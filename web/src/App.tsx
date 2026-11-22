@@ -408,7 +408,7 @@ export default function App() {
                     value={options.style} items={LOCALIZATION_STYLES}
                     onChange={v => option("style", v as JobOptions["style"])}/>
                 </Field>
-                <Field title="Character / terminology glossary" hint="Optional series-specific names and terms for source correction and English post-editing. No example glossary is applied automatically.">
+                <Field title="Character / terminology glossary" hint="Optional series-specific names and terms for context-aware English translation review. The source-language ASR transcript is never rewritten in Studio. No example glossary is applied automatically.">
                   <Select value={options.glossary || ""} onChange={v => option("glossary", v || null)}>
                     <option value="">No glossary (default)</option>
                     {(glossaries.data || []).map((g: Glossary) => <option value={g.path} key={g.path}>{g.name}</option>)}

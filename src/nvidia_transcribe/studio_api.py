@@ -137,7 +137,7 @@ class Options(BaseModel):
     glossary: str | None = Field(default=None, max_length=512)
     ass_layout: Literal["standard", "raised_main"] = "standard"
     ass_max_lanes: Literal[2, 3] = 3
-    condense_high_cps: bool = True
+    condense_high_cps: bool = False
     formats: list[Literal["srt", "ass"]] = Field(default_factory=lambda: ["srt", "ass"])
 
 
@@ -489,7 +489,7 @@ class JobRunner:
                     args.append("--condense-high-cps")
                 if opt.glossary:
                     args.extend(["--glossary", opt.glossary])
-                self._command(job_id, args, "Refining, translating and rendering", 60)
+                self._command(job_id, args, "Translating, reviewing English and rendering", 60)
             self._complete_if_not_cancelled(job_id)
         except InterruptedError:
             self.update(job_id, state="cancelled", stage="Cancelled", finished_at=time.time())

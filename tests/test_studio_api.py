@@ -544,3 +544,40 @@ def test_studio_keeps_source_asr_uncorrected(client):
     payload["options"]["refinement"] = "off"
     permitted = c.post("/api/jobs", json=payload)
     assert permitted.status_code == 202
+
+
+
+def test_condensation_is_opt_in_for_api_and_persisted_job_options(client):
+    """Omitted API options must not enable an unexpected second text-model pass."""
+    from nvidia_transcribe.studio_api import JobRequest, Options
+
+    assert Options().condense_high_cps is False
+    assert Options(condense_high_cps=True).condense_high_cps is True
+
+    c, media, _secret, settings = client
+    request = {
+        "source": {"kind": "contract", "value": str(media / "recording.contract.json")},
+        "task": "subtitles",
+        "options": {"translator": "openai_chat"},
+    }
+    parsed = JobRequest.model_validate(request)
+    assert parsed.options.refinement == "off"
+    assert parsed.options.condense_high_cps is False
+    response = c.post("/api/jobs", json=request)
+    assert response.status_code == 202, response.text
+    persisted = json.loads((settings.job_root / response.json()["id"] / "job.json").read_text(encoding="utf-8"))
+    assert persisted["request"]["options"]["condense_high_cps"] is False
+
+    # Existing jobs that explicitly opted in must retain that request.
+    request["options"]["condense_high_cps"] = True
+    assert JobRequest.model_validate(request).options.condense_high_cps is True
+
+
+def test_yaml_glossary_dependency_is_declared_for_cli_and_studio():
+    """Clean installs must supply the YAML reader used by both runtime surfaces."""
+    import tomllib
+
+    manifest = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    metadata = tomllib.loads(manifest.read_text(encoding="utf-8"))
+    requirements = metadata["project"]["dependencies"]
+    assert any(item.lower().replace("-", "").startswith("pyyaml") for item in requirements)
