@@ -1,0 +1,36 @@
+{
+  "schema": "nemovox-issue14-probe-source-identity/v1",
+  "utc_run_id": "20261122T221348Z",
+  "repo_id": "fvanevski/nemovox",
+  "issue_number": 14,
+  "pr_number": 15,
+  "branch": "issue/14-longform-timing-boundaries",
+  "exact_tested_source_sha": "66275bdb512977182ed52fddbb022f2fbac2e670",
+  "exact_tested_tree_sha": "343075870237fe39c7ee813cbcbb1d6e5032769f",
+  "handoff_carrier_sha": "b3aa3846682b3f1636fea500fb5a001c63d0ccd7",
+  "authoritative_main_sha": "8f6c03cbc70e84bf1970ba364207a02c9fe22b44",
+  "authoritative_main_tree_sha": "21ae1c6d1b682f1061ae36f6896cd0ac87db1580",
+  "previous_host_tested_source_sha": "866aa734a29e609bd9761e1d7365e32aefd2b2f7",
+  "previous_host_evidence": "99dce3f8bfa1a93670b28473209dbf8bd924a54e:staging/issue14/evidence/20261122T215418Z/",
+  "diagnostic_baseline": "5bf6f37d173cfcc160fdf03b60b051cd0f5e7dea:staging/quality-audit/mcog-s04e01/evidence/20261122T205259Z/",
+  "diff_prev_vs_exact_src_only": "empty (zero changes under src/)",
+  "diff_prev_vs_exact_tests_only": "tests/test_issue14_timing_boundaries.py:64 assertion updated to cross_chunk_ctc_disagreement + relative_sequence_shift_unverified",
+  "diff_exact_vs_handoff": "staging/issue14/HANDOFF_CTC_TIMING_PROBES.md only",
+  "production_and_host_invariance": {
+    "production_checkout": "<PROD_CHECKOUT> (main @ 8f6c03cbc70e84bf1970ba364207a02c9fe22b44, clean)",
+    "studio_service": "nemovox-studio.service (active, MainPID=1121444, InvocationID=6cd5cf36a6774b0693d37a196c088464)",
+    "asr_unit": "nemovox-asr.service (startable/inactive before and after probes; ModelLifecycle managed)",
+    "text_review_unit": "nemovox-text-review.service (startable/inactive before and after probes)",
+    "gpu_baseline_before": "NVIDIA GeForce RTX 5090, 3105 MiB used / 29022 MiB free",
+    "gpu_baseline_after": "NVIDIA GeForce RTX 5090, 3104 MiB used / 29023 MiB free"
+  },
+  "original_inputs_digests": {
+    "job_id": "980af31f014245c4b200e0af8b33ebca",
+    "historical_job_execution_sha": "UNVERIFIED",
+    "video_sha256": "0e77ce3c809e498b97ffe48b53575c29e10d8b08a039b78e2150cd0c845c81b0",
+    "job_json_sha256": "f23ed8e42a6eb3643edea1157164c6cb1c4386c507b0eb9d8ebd49ac3cbe5fec",
+    "asr_manifest_sha256": "cea5a72b529136dcdfd747adbb82fb46d45777543f8740aab18f9993c59d8a88",
+    "recording_contract_sha256": "f0f444dcb0db95c332c08c0c72387ac9c3fef080035a722f918da9972af90f8e",
+    "ass_sha256": "7dc2c54d715fcaea977e87ecf3655ebad8403a776a51a12afbb1a4a0b1fcbbbb"
+  }
+}
