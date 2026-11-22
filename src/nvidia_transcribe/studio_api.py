@@ -1020,8 +1020,9 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
             root / "output/subtitles.metadata.json",
             *sorted((root / "output").glob("*.srt")),
             *sorted((root / "output").glob("*.ass")),
-            *sorted(p for p in (root / "remote").glob("*") if p.is_file() and p.suffix.lower() in MEDIA_EXTENSIONS)
-                if (root / "remote").is_dir() else [],
+            *(sorted(p for p in (root / "remote").glob("*")
+                      if p.is_file() and p.suffix.lower() in MEDIA_EXTENSIONS)
+              if (root / "remote").is_dir() else []),
         ]
         return [{
             "name": p.name, "path": str(p.relative_to(root)),
