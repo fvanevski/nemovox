@@ -439,7 +439,12 @@ def test_reconcile_refuses_unowned_or_mismatched_model_units(manager, asr, monke
 
 def test_reconcile_respects_external_live_clients(manager, asr, monkeypatch):
     attempts = []
-    monkeypatch.setattr(lifecycle, "_unit", lambda _: _unit(active=True))
+    # A properly identified owned unit is still untouchable while someone
+    # else has an established client connection.
+    monkeypatch.setattr(lifecycle, "_unit", lambda _: {
+        **_unit(active=True), "MainPID": "1009",
+        "InvocationID": "known-invocation",
+    })
     monkeypatch.setattr(lifecycle, "_external_clients", lambda _: True)
     monkeypatch.setattr(lifecycle, "_systemctl", lambda *args: attempts.append(args))
     monkeypatch.setattr(lifecycle, "_service_config",
