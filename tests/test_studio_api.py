@@ -21,6 +21,11 @@ from nvidia_transcribe.media import MediaInspectionError
 
 @pytest.fixture(autouse=True)
 def fake_media_probe(monkeypatch: pytest.MonkeyPatch):
+    # Studio startup now reconciles real systemd units. This is a CPU-only
+    # TestClient suite: no test may query or mutate host systemd resources.
+    # Individual supervisor-wiring tests override the stub explicitly.
+    monkeypatch.setattr(JobRunner, "_reconcile_idle_models",
+                        staticmethod(lambda: None))
     # The existing Studio tests use synthetic files. Explicit media-probe tests
     # below independently exercise the real ffprobe parser and API validation.
     monkeypatch.setattr(
