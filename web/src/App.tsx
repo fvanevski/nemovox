@@ -10,7 +10,7 @@ import {
   Square, UploadCloud, Waves, X
 } from "lucide-react";
 import { studio, secondsLabel, type Cue, type Glossary, type Job, type JobOptions, type JobRequest, type MediaKind, type Step, type TaskKind } from "./api";
-import { ASR_MODES, TRANSLATION_REVIEW, LOCALIZATION_STYLES, hasAudioIndex, normalizeAudioIndex, streamLabel, INITIAL_OPTIONS } from "./config-options";
+import { ASR_MODES, TRANSLATION_REVIEW, LOCALIZATION_STYLES, hasAudioIndex, normalizeAudioIndex, streamLabel, isEnglishSourceToEnglish, INITIAL_OPTIONS } from "./config-options";
 import { ExplainedSelect } from "./ExplainedSelect";
 import { emptySource, sourceForSubmission, uploadResponseIsCurrent, type SourceMethod } from "./source-selection";
 import { mediaPreviewState, resultQueryKey } from "./job-display";
@@ -132,6 +132,7 @@ export default function App() {
   const glossaries = useQuery({queryKey: ["glossaries"], queryFn: studio.glossaries});
   const selectedGlossary = glossaries.data?.find(g => g.path === options.glossary);
   const audioTracks = isLocalMedia ? audioInfo.data?.audio_streams : undefined;
+  const englishOnly = isEnglishSourceToEnglish(options.source_language, options.target_language);
   const audioValid = !isLocalMedia || hasAudioIndex(audioTracks, options.audio_stream);
   useEffect(() => {
     if (isLocalMedia && audioTracks?.length) {
@@ -185,7 +186,7 @@ export default function App() {
   function start() {
     if (!selectedSource) {setError("Select a media file, upload a file, or enter a URL."); setStep("media"); return;}
     if (!audioValid) {setError("Wait for audio inspection or select an available audio track."); return;}
-    if (task !== "transcription" && options.translator === "riva" &&
+    if (task !== "transcription" && options.translator === "riva" && !englishOnly &&
         translationBackends.data?.riva.configured !== true) {
       setError(translationBackends.data?.riva.detail || "Dedicated Riva translation availability is not confirmed.");
       return;
@@ -388,13 +389,15 @@ export default function App() {
               {task !== "transcription" && <>
                 <Field title="Primary translation engine">
                   <div className="rounded-lg border border-[#335867] bg-[#122a32] p-3 text-sm">
-                    <strong className="text-teal-200">Riva Translate · dedicated translation model</strong>
-                    <p className="mt-1 text-xs leading-5 muted">Translates the original ASR transcript directly into English without text-model rewriting of the source. Context-aware review operates on the resulting English cues.</p>
-                    <p className={"mt-2 text-xs " + (translationBackends.data?.riva.configured ? "text-teal-300" : "text-amber-300")}>
+                    <strong className="text-teal-200">{englishOnly ? "English source · translation bypassed" : "Riva Translate · dedicated translation model"}</strong>
+                    <p className="mt-1 text-xs leading-5 muted">{englishOnly
+                      ? "Already-English source dialogue is preserved as subtitles. No Riva translation or text-model translation review is performed."
+                      : "Translates the original ASR transcript directly into English without text-model rewriting of the source. Context-aware review operates on the resulting English cues."}</p>
+                    {!englishOnly && <p className={"mt-2 text-xs " + (translationBackends.data?.riva.configured ? "text-teal-300" : "text-amber-300")}>
                       {translationBackends.isPending ? "Checking local Riva files…"
                         : translationBackends.isError ? "Unable to verify Riva configuration."
                         : translationBackends.data?.riva.detail}
-                    </p>
+                    </p>}
                   </div>
                 </Field>
                 <Field title="English translation review"><ExplainedSelect label="English translation review"
@@ -466,7 +469,7 @@ export default function App() {
             <button className="btn btn-secondary" onClick={() => setStep("media")}><ChevronLeft size={16}/> Back</button>
             <button className="btn btn-primary" onClick={start}
               disabled={!ready || submit.isPending || !audioValid ||
-                (task !== "transcription" && options.translator === "riva" &&
+                (task !== "transcription" && options.translator === "riva" && !englishOnly &&
                  translationBackends.data?.riva.configured !== true)}>
               {submit.isPending ? <LoaderCircle className="animate-spin" size={16}/> : <Play size={16}/>}
               {submit.isPending ? "Creating job…" : "Start processing"}

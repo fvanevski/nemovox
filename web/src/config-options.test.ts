@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { INITIAL_OPTIONS, ASR_MODES, TRANSLATION_REVIEW, LOCALIZATION_STYLES,
-  hasAudioIndex, normalizeAudioIndex, streamLabel } from "./config-options";
+  hasAudioIndex, normalizeAudioIndex, streamLabel, isEnglishSourceToEnglish } from "./config-options";
 import type { AudioStream } from "./api";
 
 const tracks: AudioStream[] = [
@@ -23,6 +23,11 @@ describe("Studio configuration guidance", () => {
     expect(INITIAL_OPTIONS.translator).toBe("riva");
     expect(INITIAL_OPTIONS.translation_review).toBe("balanced");
     expect(INITIAL_OPTIONS.condense_high_cps).toBe(false);
+    expect(isEnglishSourceToEnglish("en", "en")).toBe(true);
+    expect(isEnglishSourceToEnglish("en-US", "English")).toBe(true);
+    expect(isEnglishSourceToEnglish("eng", "en")).toBe(true);
+    expect(isEnglishSourceToEnglish("auto", "en")).toBe(false);
+    expect(isEnglishSourceToEnglish("fr", "en")).toBe(false);
   });
   it("never invents audio tracks or preserves indices from a different file", () => {
     expect(tracks.map(x => x.index)).toEqual([0, 1]);

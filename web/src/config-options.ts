@@ -1,5 +1,12 @@
 import type { AudioStream, JobOptions } from "./api";
 
+/** English-source subtitles need no MT or source-language text correction. */
+export function isEnglishSourceToEnglish(source: string, target: string): boolean {
+  const base = (language: string) => language.trim().toLowerCase().replaceAll("_", "-").split("-")[0];
+  return ["en", "eng", "english"].includes(base(source)) &&
+    ["en", "eng", "english"].includes(base(target));
+}
+
 export const INITIAL_OPTIONS: JobOptions = {
   source_language: "auto", target_language: "en", asr_mode: "speaker",
   audio_stream: 0, chunk_seconds: 90, context_seconds: 10,
