@@ -82,6 +82,14 @@ from exact current source, including the newly corrected default ASR
 `VLLM_API_KEY` readiness path **without** `api_key_env` on the isolated
 ASR binding. Keep the existing production Studio on port 8765 untouched.
 
+When testing real systemd units, share **one canonical model-lifecycle lock**
+between every Studio/CLI controller that can manage the same services. An
+isolated candidate job root does NOT authorize a distinct model-stage lock
+while any other controller uses a different path for those units. Separate
+locks are allowed only for mock-only CPU tests that do not mutate systemd.
+If live controllers cannot share the same lease path and ownership identity,
+stop host validation and report a precise blocker rather than bypassing it.
+
 Under safe isolated Studio ownership, run one **controlled SIGKILL of only
 the candidate CLI subprocess** while a managed Nemotron or text unit is
 active. Do not SIGKILL the systemd model unit, GPU driver, production Studio,

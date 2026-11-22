@@ -22,7 +22,7 @@ import urllib.request
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, Mapping
 
 from nvidia_transcribe.model_resources import ModelResource
 
@@ -279,7 +279,9 @@ class ModelLifecycle:
                 finally:
                     fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
-    def reconcile_idle_owned(self) -> dict[str, str]:
+    def reconcile_idle_owned(
+        self, *, resources: Mapping[str, ModelResource] | None = None,
+    ) -> dict[str, str]:
         """Reclaim orphaned owned units after a CLI subprocess dies.
 
         Caller must be a trusted Studio controller at startup or after a
@@ -289,10 +291,10 @@ class ModelLifecycle:
             with self._lock(timeout_override_s=0.0):
                 from nvidia_transcribe.model_resources import load_model_resources
 
-                registry = load_model_resources()
+                resolved = resources if resources is not None else load_model_resources().resources
                 results: dict[str, str] = {}
                 for name, configured in self.services.items():
-                    resource = registry.resources.get(name)
+                    resource = resolved.get(name)
                     if not configured.stop_after_stage or resource is None:
                         results[name] = "not_recoverable"
                         continue
