@@ -120,6 +120,8 @@ def generate_subtitles(
     """
     t0 = time.perf_counter()
     cfg = config or SubtitlePipelineConfig()
+    if cfg.translation_review.profile != "off" and cfg.translation.backend != "riva":
+        raise ValueError("Contextual English post-edit requires dedicated Riva primary translation")
     if (cfg.condense_high_cps and cfg.translation.backend == "riva"
             and cfg.condensation is None and not cfg.re_render_only):
         raise ValueError(

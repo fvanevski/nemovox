@@ -106,3 +106,18 @@ def test_off_does_not_contact_text_model():
     result, summary = review_translated_utterances(_utts(), source_language="fr")
     assert summary["status"] == "disabled"
     assert result[0]["translated_text"] == result[0]["machine_translated_text"]
+
+
+
+def test_programmatic_postedit_rejects_legacy_primary_translator(tmp_path):
+    import pytest
+    from nvidia_transcribe.subtitle_pipeline import SubtitlePipelineConfig, generate_subtitles
+    from nvidia_transcribe.translation import TranslationConfig
+    config = SubtitlePipelineConfig(
+        translation=TranslationConfig(backend="openai_chat"),
+        translation_review=TranslationReviewConfig(profile="balanced"),
+    )
+    with pytest.raises(ValueError, match="requires dedicated Riva"):
+        generate_subtitles(recording_contract_path=tmp_path / "not-needed",
+                           output_dir=tmp_path / "new-output", config=config)
+    assert not (tmp_path / "new-output").exists()

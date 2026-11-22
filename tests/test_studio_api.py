@@ -514,3 +514,15 @@ def test_audio_stream_parser_uses_audio_only_indices(monkeypatch, tmp_path):
     assert [x["index"] for x in records] == [0, 1]
     assert [x["container_index"] for x in records] == [1, 3]
     assert records[0]["language"] == "fra"
+
+
+
+def test_studio_rejects_legacy_text_translation_with_riva_only_review(client):
+    c, media, _secret, _settings = client
+    response = c.post("/api/jobs", json={
+        "source": {"kind": "contract", "value": str(media / "recording.contract.json")},
+        "task": "subtitles", "options": {
+            "translator": "openai_chat", "translation_review": "balanced",
+        },
+    })
+    assert response.status_code == 422

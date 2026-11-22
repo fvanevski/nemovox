@@ -480,6 +480,8 @@ def translate_utterances(
     cache_hits = 0
 
     if cfg.backend == "riva":
+        if cfg.target_language.strip().lower() not in ("en", "english"):
+            raise ValueError("Riva primary translation currently supports an English target only")
         lang_pair = map_language_for_riva(source_language)
         if lang_pair is None:
             raise ValueError(f"Riva-Translate-4B-Instruct-v2 does not support source_language={source_language!r}")
@@ -515,8 +517,27 @@ def translate_utterances(
             if proc.returncode != 0:
                 raise RuntimeError(f"Riva worker failed ({proc.returncode}): {proc.stderr[-500:]}")
             resp = json.loads(proc.stdout.strip().splitlines()[-1])
+            if resp.get("status") != "ok":
+                raise RuntimeError("Riva worker did not report a successful translation")
+            if cfg.riva_device != "auto" and resp.get("device_used") != cfg.riva_device:
+                raise RuntimeError("Riva worker reported a different device than explicitly configured")
             riva_meta = {k: resp.get(k) for k in ("device_used", "dtype", "load_s", "infer_s", "peak_vram_mib")}
-            by_uid = {r["utterance_id"]: r["translated_text"] for r in (resp.get("results") or [])}
+            expected_uids = {item["utterance_id"] for item in pending_items}
+            rows = resp.get("results")
+            if not isinstance(rows, list):
+                raise RuntimeError("Riva worker response is missing translation results")
+            by_uid: dict[str, str] = {}
+            for row in rows:
+                if (not isinstance(row, dict) or row.get("utterance_id") not in expected_uids
+                        or row["utterance_id"] in by_uid
+                        or not isinstance(row.get("translated_text"), str)):
+                    raise RuntimeError("Riva worker returned invalid or duplicate utterance IDs")
+                by_uid[row["utterance_id"]] = row["translated_text"]
+            if set(by_uid) != expected_uids or any(
+                not by_uid[item["utterance_id"]].strip() and item["text"].strip()
+                for item in pending_items
+            ):
+                raise RuntimeError("Riva worker returned missing or empty translations")
             for i, u in enumerate(out_utts):
                 uid = str(u.get("utterance_id") or u.get("id") or f"utt-{i:04d}")
                 if uid in by_uid:

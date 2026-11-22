@@ -656,6 +656,9 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
     def submit(request: JobRequest) -> dict:
         if request.task != "transcription" and request.options.translator == "none":
             raise HTTPException(422, "Select a translation backend for this task.")
+        if (request.task != "transcription" and request.options.translation_review != "off"
+                and request.options.translator != "riva"):
+            raise HTTPException(422, "English post-edit requires dedicated Riva translation.")
         if request.options.glossary:
             glossary = Path(request.options.glossary).resolve()
             if not _within(glossary, (PROJECT / "configs" / "glossaries",)) or not glossary.is_file():

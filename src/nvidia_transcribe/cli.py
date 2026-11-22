@@ -296,6 +296,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "generate-subtitles":
+        if args.translation_review != "off" and args.translator != "riva":
+            print(json.dumps({"status": "CONFIG_ERROR",
+                              "error": "English translation review requires --translator riva"}), file=sys.stderr)
+            return 2
         formats = tuple(x.strip().lower() for x in str(args.formats).split(",") if x.strip())
         ref_cfg = RefinementConfig(
             backend="off" if args.refinement == "off" else "openai_chat",
