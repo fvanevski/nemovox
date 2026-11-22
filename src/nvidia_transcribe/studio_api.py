@@ -151,6 +151,7 @@ class Options(BaseModel):
     audio_stream: int = Field(default=0, ge=0, le=15)
     chunk_seconds: int = Field(default=90, ge=30, le=300)
     context_seconds: int = Field(default=10, ge=0, le=30)
+    chunk_policy: Literal["fixed", "pause_aware"] = "fixed"
     speaker_embeddings: Literal["titanet", "none"] = "titanet"
     alignment_fallback: Literal["off", "qwen"] = "off"
     refinement: Literal["off", "conservative", "balanced", "expressive"] = "off"
@@ -649,6 +650,7 @@ class JobRunner:
                     "--mode", opt.asr_mode, "--audio-stream", str(opt.audio_stream),
                     "--chunk-seconds", str(opt.chunk_seconds),
                     "--context-seconds", str(opt.context_seconds),
+                    "--chunk-policy", opt.chunk_policy,
                     "--speaker-embeddings", opt.speaker_embeddings,
                     "--alignment-fallback", opt.alignment_fallback,
                 ]

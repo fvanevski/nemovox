@@ -76,6 +76,7 @@ export interface JobOptions {
   audio_stream: number;
   chunk_seconds: number;
   context_seconds: number;
+  chunk_policy: "fixed" | "pause_aware";
   speaker_embeddings: "titanet" | "none";
   alignment_fallback: "off" | "qwen";
   refinement: "off" | "conservative" | "balanced" | "expressive";

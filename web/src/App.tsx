@@ -572,6 +572,11 @@ export default function App() {
               <ChevronRight className={"transition-transform " + (advanced ? "rotate-90" : "")} size={18}/>
             </button>
             {advanced && <div className="mt-6 grid gap-5 border-t border-[#2b3b4c] pt-6 sm:grid-cols-2">
+              <Field title="ASR chunk strategy" hint="Fixed uses the legacy 90-second windows. Pause-aware is experimental: finds low-energy boundaries near 39 seconds (up to 46), keeps overlap context, and logs forced cuts. Existing jobs remain fixed unless you select it.">
+                <Select value={options.chunk_policy} onChange={v => option("chunk_policy", v as JobOptions["chunk_policy"])}>
+                  <option value="fixed">Fixed windows (compatible)</option>
+                  <option value="pause_aware">Pause-aware (experimental)</option>
+                </Select></Field>
               <Field title="ASR window (seconds)"><input type="number" className="control" min={30} max={300} value={options.chunk_seconds}
                 onChange={e => option("chunk_seconds", Number(e.target.value))}/></Field>
               <Field title="Context overlap (seconds)"><input type="number" className="control" min={0} max={30} value={options.context_seconds}
