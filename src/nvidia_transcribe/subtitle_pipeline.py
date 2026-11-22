@@ -5,11 +5,14 @@ from __future__ import annotations
 import json
 import os
 import time
+from contextlib import nullcontext
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 from nvidia_transcribe.client import NemotronVLLMClient
+from nvidia_transcribe.model_resources import ModelResource
+from nvidia_transcribe.resource_lifecycle import ModelLifecycle, managed_text_client
 from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
 from nvidia_transcribe.refinement import (
     GlossaryConfig,
@@ -112,6 +115,8 @@ def generate_subtitles(
     asr_client: NemotronVLLMClient | None = None,
     text_client: Any = None,
     progress_callback: Callable[[str], None] | None = None,
+    lifecycle: ModelLifecycle | None = None,
+    lifecycle_resources: Mapping[str, ModelResource] | None = None,
 ) -> dict[str, Any]:
     """Run staged ASR -> primary translation -> optional English review -> subtitle rendering.
 
@@ -136,6 +141,12 @@ def generate_subtitles(
     def _log(msg: str) -> None:
         if progress_callback is not None:
             progress_callback(msg)
+
+    def _text_stage(role: str):
+        if lifecycle is None or text_client is not None or not lifecycle_resources:
+            return nullcontext(text_client)
+        resource = lifecycle_resources.get(role)
+        return managed_text_client(lifecycle, resource) if resource else nullcontext(text_client)
 
     translated_path = out_dir / "translated.contract.json"
     refined_path = out_dir / "refined.contract.json"
@@ -179,32 +190,34 @@ def generate_subtitles(
             _log(f"Stage 1/4: Transcribing media via Nemotron chunked core: {m_path.name}")
             client = asr_client or NemotronVLLMClient(base_url=cfg.asr_base_url, model=cfg.asr_model,
                                                    api_key=cfg.asr_api_key, timeout_s=900.0)
-            asr_res = process_media(
-                m_path,
-                output_dir=out_dir / "asr",
-                client=client,
-                config=RecordingPipelineConfig(
-                    source_language=cfg.source_language,
-                    mode=cfg.asr_mode,
-                    chunk_seconds=cfg.chunk_seconds,
-                    context_seconds=cfg.context_seconds,
-                    min_tail_seconds=cfg.min_tail_seconds,
-                    audio_stream_index=cfg.audio_stream_index,
-                    alignment_fallback=cfg.alignment_fallback,
-                    qwen_policy=cfg.qwen_policy,
-                    qwen_device=cfg.qwen_device,
-                    qwen_model_path=cfg.qwen_model_path,
-                    qwen_worker_python=cfg.qwen_worker_python,
-                    qwen_gpu_mode=cfg.qwen_gpu_mode,
-                    qwen_owned_asr_unit=cfg.qwen_owned_asr_unit,
-                    qwen_asr_lease_path=cfg.qwen_asr_lease_path,
-                    speaker_embeddings=cfg.speaker_embeddings,
-                    speaker_embedding_model=cfg.speaker_embedding_model,
-                    asr_resource_fingerprint=cfg.asr_resource_fingerprint,
-                    model_path=cfg.asr_model_path,
-                    resume=cfg.resume,
-                ),
-            )
+            with (lifecycle.endpoint(lifecycle_resources["asr"])
+                  if lifecycle and lifecycle_resources else nullcontext()):
+                asr_res = process_media(
+                    m_path,
+                    output_dir=out_dir / "asr",
+                    client=client,
+                    config=RecordingPipelineConfig(
+                        source_language=cfg.source_language,
+                        mode=cfg.asr_mode,
+                        chunk_seconds=cfg.chunk_seconds,
+                        context_seconds=cfg.context_seconds,
+                        min_tail_seconds=cfg.min_tail_seconds,
+                        audio_stream_index=cfg.audio_stream_index,
+                        alignment_fallback=cfg.alignment_fallback,
+                        qwen_policy=cfg.qwen_policy,
+                        qwen_device=cfg.qwen_device,
+                        qwen_model_path=cfg.qwen_model_path,
+                        qwen_worker_python=cfg.qwen_worker_python,
+                        qwen_gpu_mode=cfg.qwen_gpu_mode,
+                        qwen_owned_asr_unit=cfg.qwen_owned_asr_unit,
+                        qwen_asr_lease_path=cfg.qwen_asr_lease_path,
+                        speaker_embeddings=cfg.speaker_embeddings,
+                        speaker_embedding_model=cfg.speaker_embedding_model,
+                        asr_resource_fingerprint=cfg.asr_resource_fingerprint,
+                        model_path=cfg.asr_model_path,
+                        resume=cfg.resume,
+                    ),
+                )
             contract = asr_res["contract"]
             default_stem = m_path.stem
 
@@ -218,15 +231,16 @@ def generate_subtitles(
             _log("Stage 2/4: Preserving raw ASR transcript (source correction disabled)")
         else:
             _log(f"Stage 2/4: Explicit legacy source correction (profile={cfg.refinement.profile})")
-        refined_utts, ref_summary = refine_utterances_with_text_model(
-            raw_utterances,
-            source_language=src_lang,
-            config=cfg.refinement,
-            glossary=gl,
-            text_client=text_client,
-            checkpoint_path=out_dir / "refinement.checkpoint.json",
-            resume=cfg.resume_refinement,
-        )
+        with _text_stage("source_refinement") as stage_client:
+            refined_utts, ref_summary = refine_utterances_with_text_model(
+                raw_utterances,
+                source_language=src_lang,
+                config=cfg.refinement,
+                glossary=gl,
+                text_client=stage_client,
+                checkpoint_path=out_dir / "refinement.checkpoint.json",
+                resume=cfg.resume_refinement,
+            )
         refined_contract = {
             **contract,
             "utterances": refined_utts,
@@ -236,15 +250,17 @@ def generate_subtitles(
 
         # Stage 3: Dedicated machine translation of unchanged ASR by default
         _log(f"Stage 3/4: Translation ({src_lang} -> {cfg.target_language}, backend={cfg.translation.backend}, style={cfg.translation.style})")
-        translated_utts, trans_summary = translate_utterances(
-            refined_utts,
-            source_language=src_lang,
-            config=cfg.translation,
-            glossary=gl,
-            text_client=text_client,
-            checkpoint_path=out_dir / "translation.checkpoint.json",
-            resume=cfg.resume_translation,
-        )
+        with _text_stage("text_translation") as stage_client:
+            translated_utts, trans_summary = translate_utterances(
+                refined_utts,
+                source_language=src_lang,
+                config=cfg.translation,
+                glossary=gl,
+                text_client=stage_client,
+                lifecycle=lifecycle,
+                checkpoint_path=out_dir / "translation.checkpoint.json",
+                resume=cfg.resume_translation,
+            )
         # Retain the first-stage MT independently of all text-model edits.
         if (cfg.translation.backend == "riva"
                 and is_english_source_to_english(src_lang, cfg.target_language)):
@@ -257,26 +273,28 @@ def generate_subtitles(
             }
         elif cfg.translation.backend == "riva":
             _log(f"Stage 3b/4: Contextual English post-edit (profile={cfg.translation_review.profile})")
-            translated_utts, review_summary = review_translated_utterances(
-                translated_utts, source_language=src_lang, config=cfg.translation_review,
-                glossary=gl, text_client=text_client,
-                checkpoint_path=out_dir / "translation-review.checkpoint.json",
-                resume=cfg.resume_translation_review,
-            )
+            with _text_stage("translation_review") as stage_client:
+                translated_utts, review_summary = review_translated_utterances(
+                    translated_utts, source_language=src_lang, config=cfg.translation_review,
+                    glossary=gl, text_client=stage_client,
+                    checkpoint_path=out_dir / "translation-review.checkpoint.json",
+                    resume=cfg.resume_translation_review,
+                )
         else:
             review_summary = {"status": "not_applicable_legacy_translation"}
         if cfg.condense_high_cps and cfg.translation.backend != "none":
             _log(f"Stage 3c/4: Selective condensation (> {cfg.condense_cps_threshold} CPS)")
-            translated_utts, condense_summary = condense_high_cps_cues_with_text_model(
-                translated_utts,
-                source_language=src_lang,
-                config=cfg.condensation or cfg.translation,
-                cps_threshold=cfg.condense_cps_threshold,
-                target_cps=cfg.subtitles.target_cps,
-                text_client=text_client,
-                checkpoint_path=out_dir / "condensation.checkpoint.json",
-                resume=cfg.resume_condensation,
-            )
+            with _text_stage("subtitle_condensation") as stage_client:
+                translated_utts, condense_summary = condense_high_cps_cues_with_text_model(
+                    translated_utts,
+                    source_language=src_lang,
+                    config=cfg.condensation or cfg.translation,
+                    cps_threshold=cfg.condense_cps_threshold,
+                    target_cps=cfg.subtitles.target_cps,
+                    text_client=stage_client,
+                    checkpoint_path=out_dir / "condensation.checkpoint.json",
+                    resume=cfg.resume_condensation,
+                )
         else:
             condense_summary = {"status": "disabled", "candidate_count": 0, "condensed_count": 0}
         translated_contract = {
@@ -288,6 +306,9 @@ def generate_subtitles(
             "condensation": condense_summary,
         }
         _atomic_write(translated_path, json.dumps(translated_contract, ensure_ascii=False, indent=2))
+        if cfg.translation_review.profile != "off" and review_summary.get("status") == "completed_with_errors":
+            raise RuntimeError("Required contextual English review did not complete; "
+                               "machine translations were preserved in translated.contract.json")
         _atomic_write(out_dir / "raw_source_transcript.txt", _format_utterance_transcript_lines(translated_utts, "raw_source_text", "source_text"))
         _atomic_write(out_dir / "refined_source_transcript.txt", _format_utterance_transcript_lines(translated_utts, "refined_text", "source_text"))
         _atomic_write(out_dir / "final_english_subtitles.txt", _format_utterance_transcript_lines(translated_utts, "translated_text"))
