@@ -8,8 +8,8 @@ Repository: fvanevski/nemovox
 Issue: #14 OPEN
 Draft PR: #15 OPEN/DRAFT
 Branch: issue/14-longform-timing-boundaries
-EXACT_TESTED_SOURCE_SHA: 4c6c7ac5719fc70b8db3a671e2970409a9a11e29
-EXACT_TESTED_TREE: a9b08e87ea5d5ef3e57e41381b56b0388565e126
+EXACT_TESTED_SOURCE_SHA: 81704133cfec54e284f39adb8ad99b7cd1587bcb
+EXACT_TESTED_TREE: 606a303be0394c4db62f828564ba5179f8dc6823
 BASE_MAIN_SHA: 8f6c03cbc70e84bf1970ba364207a02c9fe22b44
 SOURCE_EVIDENCE: d50a81f6f74b70fef52bbd7b9f39b470019a4e8e:staging/issue14/evidence/20261122T221348Z/
 BASELINE_EVIDENCE: 5bf6f37d173cfcc160fdf03b60b051cd0f5e7dea:staging/quality-audit/mcog-s04e01/evidence/20261122T205259Z/
@@ -40,6 +40,19 @@ D) translation_review.py: if source French AND independent primary Riva English 
 
 E) Studio API, web App and config: advanced ASR chunk strategy with explicit fixed default and pause_aware opt-in; the real JobRunner passes --chunk-policy to process-media. Frontend tests plus Studio schema regression enforce compatibility. Fixed policy remains the default in Studio and CLI until explicit rollout.
 F) CPU tests/test_issue14_pause_chunks.py, tests/test_issue14_speaker_review_guards.py and Studio tests: model-free unit tests. Existing W/C/S boundary and Mandarin controls must remain intact. Source/MT and raw CTC provenance stay inspectable. Renderer Issue #9 unchanged.
+
+## New corrective qualification required at this exact source
+
+The 20261122T223253Z handback on carrier 312af11dd37fa52f1be5aea6b04db881b8ecfa2d stopped Phase A before GPU: focused 2 failed / 55 passed, non-GPU 2 failed / 285 passed, Studio 50 passed, Web 14 passed + Vite build PASS. These are historical results, NOT qualification of the new SHA.
+
+Central has repaired both failures WITHOUT bypassing any test:
+- Speaker epsilon/quantization: similarity 0.70 at threshold 0.65 + margin 0.05 is OUTSIDE the ambiguous interval, whereas 0.6999, 0.6637 and 0.6536 stay ambiguous. Check tests/test_issue14_speaker_review_guards.py exact boundary and adjacent cases.
+- Legacy fixed planner: 200s with 90s core and 15s min tail naturally produces [0,90], [90,180], [180,200]. The test now asserts the three exact cores; unchanged fixed behavior is still protected.
+- Real pause-plan advisory promoted to a scoped regression: the detected 63.581104..64.901750s pause midpoint (64.241427s), >=1.3s long and just 0.58s below c01's minimum core boundary, should no longer be discarded merely due to the soft minimum. New reason detected_pause_early_long is limited to >=1.0s observed gaps within <=1.0s (5% core minimum) before the regular floor. Short weak gaps remain excluded. This is a SIGNAL-based candidate, not acoustically validated speech ownership. CPU test protects exact c01 behavior and weak-pause control.
+
+Phase B MUST re-read the exact episode's complete read-only pause plan using the NEW planner and compare to the previous 35-chunk plan (87 detected silences, 23 selected pauses, 11 forced cuts, as archived). Record new counts and W01 early cut, plus any shifted downstream boundaries. Do NOT reuse the old plan digest as if unchanged. In particular inspect C1 forced 695.35s, W02c/W03b/W04a and any newly forced cuts for speech loss; the selected >1s pause must not shorten an entire question/reply into model-unsafe context. Keep original host media and Studio service unchanged.
+
+After CPU and read-only planner gates both pass, PROCEED TO the same bounded GPU pilot and, only if the pilot has no source-loss blocker, the one qualified episode run. No additional evidence-only Phase A handoff is required for a clean run. The agent may repair private harness/execution issues without changing source, tests or acceptance criteria.
 
 ## Phase A: authenticate immutable source and run CPU gates
 
@@ -85,8 +98,8 @@ Keep original and newly generated media/English/French subtitles and raw model r
 
 LOCAL_AGENT_HANDBACK:
  RESULT=PASS|PARTIAL|FAIL|BLOCKED
- EXACT_TESTED_SOURCE_SHA=4c6c7ac5719fc70b8db3a671e2970409a9a11e29
- EXACT_TESTED_TREE=a9b08e87ea5d5ef3e57e41381b56b0388565e126
+ EXACT_TESTED_SOURCE_SHA=81704133cfec54e284f39adb8ad99b7cd1587bcb
+ EXACT_TESTED_TREE=606a303be0394c4db62f828564ba5179f8dc6823
  CURRENT_MAIN_SHA=<full SHA>
  PR_HEAD_CARRIER=<full evidence SHA>
  SOURCE_AND_PRODUCTION_ISOLATION=PASS|FAIL
