@@ -8,8 +8,8 @@ Repository: fvanevski/nemovox
 Issue: #14 OPEN
 Draft PR: #15 OPEN/DRAFT
 Branch: issue/14-longform-timing-boundaries
-EXACT_TESTED_SOURCE_SHA: a63d02ee4cb4589380ce8dfd67e7153a857c4d0a
-EXACT_TESTED_TREE: 0220b862620e973d5924f53ae5ef17d583f193a3
+EXACT_TESTED_SOURCE_SHA: 4c6c7ac5719fc70b8db3a671e2970409a9a11e29
+EXACT_TESTED_TREE: a9b08e87ea5d5ef3e57e41381b56b0388565e126
 BASE_MAIN_SHA: 8f6c03cbc70e84bf1970ba364207a02c9fe22b44
 SOURCE_EVIDENCE: d50a81f6f74b70fef52bbd7b9f39b470019a4e8e:staging/issue14/evidence/20261122T221348Z/
 BASELINE_EVIDENCE: 5bf6f37d173cfcc160fdf03b60b051cd0f5e7dea:staging/quality-audit/mcog-s04e01/evidence/20261122T205259Z/
@@ -38,14 +38,15 @@ C) speakers.py: a single TitaNet candidate barely above configured threshold is 
 
 D) translation_review.py: if source French AND independent primary Riva English support negation, reject a Qwen candidate that loses lexical negation, preserving original English MT and recording review-rejection reason. Equivalent negative rephrasings and positive corrections must remain eligible. This is a narrow polarity guard, not a semantic universal verifier or replacement for the source-time repair.
 
-E) CPU tests/test_issue14_pause_chunks.py and tests/test_issue14_speaker_review_guards.py: model-free unit tests of the above. Existing W/C/S boundary and Mandarin controls must remain intact. Source/MT and raw CTC provenance stay inspectable. Renderer Issue #9 unchanged.
+E) Studio API, web App and config: advanced ASR chunk strategy with explicit fixed default and pause_aware opt-in; the real JobRunner passes --chunk-policy to process-media. Frontend tests plus Studio schema regression enforce compatibility. Fixed policy remains the default in Studio and CLI until explicit rollout.
+F) CPU tests/test_issue14_pause_chunks.py, tests/test_issue14_speaker_review_guards.py and Studio tests: model-free unit tests. Existing W/C/S boundary and Mandarin controls must remain intact. Source/MT and raw CTC provenance stay inspectable. Renderer Issue #9 unchanged.
 
 ## Phase A: authenticate immutable source and run CPU gates
 
 1. Authenticate fresh GitHub main, PR head, draft state, Issue #14; require main BASE_MAIN_SHA and branch descendant of EXACT_TESTED_SOURCE_SHA with no substantive unapproved edits. Create a NEW collision-safe isolated worktree from exact SHA (do NOT reset/clean/stash production). Verify commit tree, AGENTS.md, changed-file inventory, source import paths, and effective CLI --chunk-policy parse.
 2. Verify original video and job hashes against BASELINE_EVIDENCE; check 16 raw chunk identities, production git and Studio PID/InvocationID, active Studio jobs, Nemovox owned model units, other GPU usage and lease ownership. Never modify originals, venvs, model configs or running jobs.
-3. Run python -m compileall -q src tests scripts, focused pytest of new pause/speaker-review tests plus prior timing, chunking, review, speaker, recording, Studio smoke; full .venv pytest -q -m 'not gpu'; .venv-studio pytest for Studio APIs; record exact counts, warnings, skips, exits and source imports. Test with PYTHONPATH bound to isolated candidate src. A failure from production semantics is a STOP and exact reproducer, not license to modify tests or source.
-4. Verify fixed-policy DEFAULT backward compatibility and resume: identical fixed config does not reuse a pause-aware signature, and two runs with the same adaptive plan may resume matching completed chunks. Confirm the manifest includes actual plan metadata and forced-boundary flags. Never delete or overwrite baseline outputs to test resume; use disposable fixture outputs.
+3. Run python -m compileall -q src tests scripts, focused pytest of new pause/speaker-review tests plus prior timing, chunking, review, speaker, recording, Studio smoke; full .venv pytest -q -m 'not gpu'; .venv-studio pytest for Studio APIs; web npm test and npm run build (TypeScript and Vite); record exact counts, warnings, skips, exits and source imports. Test with PYTHONPATH bound to isolated candidate src. A failure from production semantics is a STOP and exact reproducer, not license to modify tests or source.
+4. Verify fixed-policy DEFAULT backward compatibility and resume: identical fixed config does not reuse a pause-aware signature, and two runs with the same adaptive plan may resume matching completed chunks. Confirm the manifest includes actual plan metadata and forced-boundary flags. Verify Studio options accept pause_aware, reject unsupported values, and generate the exact --chunk-policy argument. Default Studio and CLI remain fixed. Never delete or overwrite baseline outputs to test resume; use disposable fixture outputs.
 5. Source-only boundary reconciliation evidence from previous host replay can be REUSED for unchanged boundary_evidence.py, but changed speaker merge and chunk planning must be freshly tested. Do NOT call reused evidence a new inference run.
 
 ## Phase B: inspect full-episode pause plan BEFORE GPU
@@ -84,13 +85,14 @@ Keep original and newly generated media/English/French subtitles and raw model r
 
 LOCAL_AGENT_HANDBACK:
  RESULT=PASS|PARTIAL|FAIL|BLOCKED
- EXACT_TESTED_SOURCE_SHA=a63d02ee4cb4589380ce8dfd67e7153a857c4d0a
- EXACT_TESTED_TREE=0220b862620e973d5924f53ae5ef17d583f193a3
+ EXACT_TESTED_SOURCE_SHA=4c6c7ac5719fc70b8db3a671e2970409a9a11e29
+ EXACT_TESTED_TREE=a9b08e87ea5d5ef3e57e41381b56b0388565e126
  CURRENT_MAIN_SHA=<full SHA>
  PR_HEAD_CARRIER=<full evidence SHA>
  SOURCE_AND_PRODUCTION_ISOLATION=PASS|FAIL
- COMPILEALL_FOCUSED_NON_GPU_STUDIO=<actual tests, exits, skips/warnings>
+ COMPILEALL_FOCUSED_NON_GPU_STUDIO_FRONTEND=<actual tests, exits, skips/warnings>
  FIXED_MODE_AND_RESUME_ISOLATION=PASS|FAIL
+ STUDIO_CHUNK_POLICY_UI_API_CLI=PASS|FAIL
  PLAN_SILENCES_PAUSE_CUTS_FORCED_CUTS=<counts, max infer, plan digest, detector status>
  PILOT_ASR_CTC=<case IDs, lexical coverage, errors, speaker/repeat controls>
  FULL_EPISODE_RUN=<performed|blocked/not needed; exact reason and source-bound job ID>
