@@ -227,7 +227,7 @@ class ModelLifecycle:
                 "startable": status == "startable"}
 
     @contextmanager
-    def _lock(self) -> Iterator[None]:
+    def _lock(self, *, timeout_override_s: float | None = None) -> Iterator[None]:
         self.lock_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         try:
             fd = os.open(self.lock_path,
@@ -246,6 +246,10 @@ class ModelLifecycle:
                 raise ResourceLifecycleError("invalid_lifecycle_lock_timeout") from exc
             if not 0.1 <= timeout <= 7200:
                 raise ResourceLifecycleError("invalid_lifecycle_lock_timeout")
+            if timeout_override_s is not None:
+                if timeout_override_s != 0.0:
+                    raise ResourceLifecycleError("invalid_lifecycle_lock_timeout")
+                timeout = 0.0  # Never wait behind a live CLI during recovery.
             deadline = time.monotonic() + timeout
             while True:
                 try:
@@ -274,6 +278,65 @@ class ModelLifecycle:
                         signal.signal(signal.SIGTERM, prior_sigterm)
                 finally:
                     fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+    def reconcile_idle_owned(self) -> dict[str, str]:
+        """Reclaim orphaned owned units after a CLI subprocess dies.
+
+        Caller must be a trusted Studio controller at startup or after a
+        subprocess exits, never a passive status endpoint. No lock preemption.
+        """
+        try:
+            with self._lock(timeout_override_s=0.0):
+                from nvidia_transcribe.model_resources import load_model_resources
+
+                registry = load_model_resources()
+                results: dict[str, str] = {}
+                for name, configured in self.services.items():
+                    resource = registry.resources.get(name)
+                    if not configured.stop_after_stage or resource is None:
+                        results[name] = "not_recoverable"
+                        continue
+                    try:
+                        before = _unit(configured.unit)
+                    except ResourceLifecycleError:
+                        results[name] = "unit_unavailable"
+                        continue
+                    if not _owned(before, resource):
+                        results[name] = "unowned_or_identity_mismatch"
+                        continue
+                    if before.get("ActiveState") != "active":
+                        results[name] = "inactive"
+                        continue
+                    try:
+                        port = urllib.parse.urlsplit(resource.endpoint or "").port
+                    except ValueError:
+                        results[name] = "invalid_endpoint"
+                        continue
+                    if _external_clients(port):
+                        results[name] = "active_clients"
+                        continue
+                    # Re-read invocation identity before touching systemd.
+                    current = _unit(configured.unit)
+                    if (not _owned(current, resource)
+                            or current.get("ActiveState") != "active"
+                            or current.get("MainPID") != before.get("MainPID")
+                            or current.get("InvocationID") != before.get("InvocationID")):
+                        results[name] = "unit_changed"
+                        continue
+                    _systemctl("stop", configured.unit)
+                    deadline = time.monotonic() + 30.0
+                    while time.monotonic() < deadline:
+                        if _unit(configured.unit).get("ActiveState") in {"inactive", "failed"}:
+                            results[name] = "recovered"
+                            break
+                        time.sleep(0.3)
+                    else:
+                        raise ResourceLifecycleError("orphan_recovery_stop_unverified", name)
+                return results
+        except ResourceLifecycleError as exc:
+            if exc.status == "resource_lease_timeout":
+                return {"status": "active_model_stage"}
+            raise
 
     @contextmanager
     def endpoint(self, resource: ModelResource) -> Iterator[None]:

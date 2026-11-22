@@ -202,6 +202,8 @@ class JobRunner:
                 ) from exc
             try:
                 self._reconcile_previous_jobs()
+                # Startup is an admitted ownership boundary, not a status read.
+                self._reconcile_idle_models()
                 yield
             finally:
                 fcntl.flock(owner.fileno(), fcntl.LOCK_UN)
@@ -220,6 +222,19 @@ class JobRunner:
                     _atomic_json(path, record)
             except (OSError, ValueError):
                 continue
+
+    @staticmethod
+    def _reconcile_idle_models() -> None:
+        """Recover owned model units; never overwrite a completed job result."""
+        try:
+            result = ModelLifecycle().reconcile_idle_owned()
+            if any(status in {"unit_changed", "active_clients", "unit_unavailable"}
+                   for status in result.values()):
+                print("[nemovox] model recovery skipped unsafe service state: "
+                      + ",".join(sorted(set(result.values()))), file=sys.stderr)
+        except (ResourceConfigError, ResourceLifecycleError, OSError) as exc:
+            print("[nemovox] owned model recovery unavailable: "
+                  + type(exc).__name__, file=sys.stderr)
 
     def path(self, job_id: str) -> Path:
         if not JOB_ID.fullmatch(job_id):
@@ -393,8 +408,11 @@ class JobRunner:
                 try:
                     self._terminate_process_group(process)
                 finally:
-                    with self._lock:
-                        self._processes.pop(job_id, None)
+                    try:
+                        self._reconcile_idle_models()
+                    finally:
+                        with self._lock:
+                            self._processes.pop(job_id, None)
 
     def _download(self, job_id: str, url: str) -> Path:
         if job_id in self._cancelled:
