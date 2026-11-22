@@ -14,6 +14,7 @@ import { ASR_MODES, TRANSLATION_REVIEW, LOCALIZATION_STYLES, hasAudioIndex, norm
 import { ExplainedSelect } from "./ExplainedSelect";
 import { emptySource, sourceForSubmission, uploadResponseIsCurrent, type SourceMethod } from "./source-selection";
 import { mediaPreviewState, resultQueryKey } from "./job-display";
+import { availableArtifacts, selectedArtifacts, type ExportArtifactType } from "./export-options";
 
 const TASKS: {id: TaskKind; title: string; description: string; icon: typeof FileAudio2}[] = [
   {id: "transcription", title: "Transcribe", description: "Source-language transcript with speakers and timing.", icon: AudioLines},
@@ -103,6 +104,16 @@ export default function App() {
   const [cueSearch, setCueSearch] = useState("");
   const [assPreviewReady, setAssPreviewReady] = useState(false);
   const [videoError, setVideoError] = useState(false);
+  const [outputFolder, setOutputFolder] = useState("");
+  const [exportSelection, setExportSelection] = useState<ExportArtifactType[]>([
+    "source_transcript", "final_english", "srt", "ass",
+  ]);
+  const [saveRemoteMedia, setSaveRemoteMedia] = useState(false);
+  const [exportBrowseDir, setExportBrowseDir] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyOffset, setHistoryOffset] = useState(0);
+  const [logCopyMessage, setLogCopyMessage] = useState("");
+  const [logSearch, setLogSearch] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -121,6 +132,13 @@ export default function App() {
   const jobs = useQuery({queryKey: ["jobs"], queryFn: studio.jobs, refetchInterval: 4000});
   const health = useQuery({queryKey: ["health"], queryFn: studio.health, refetchInterval: 30000});
   const listing = useQuery({queryKey: ["media", browserDir], queryFn: () => studio.browse(browserDir), enabled: sourceMethod === "browse"});
+  const exportFolders = useQuery({queryKey: ["export-directories", exportBrowseDir],
+    queryFn: () => studio.exportDirectories(exportBrowseDir), retry: false});
+  useEffect(() => {
+    if (!outputFolder && exportFolders.data?.default) setOutputFolder(exportFolders.data.default);
+  }, [outputFolder, exportFolders.data?.default]);
+  const history = useQuery({queryKey: ["job-history", historyOffset],
+    queryFn: () => studio.history(historyOffset), enabled: showHistory});
   const selectedSource = sourceForSubmission(sourceMethod, source);
   const isLocalMedia = selectedSource?.kind === "path" || selectedSource?.kind === "upload";
   const audioInfo = useQuery({
@@ -150,8 +168,14 @@ export default function App() {
     queryFn: () => studio.artifacts(jobId!), enabled: !!jobId,
     refetchInterval: currentJob?.state === "complete" ? false : 5000});
   const assUrl = artifacts.data?.find(item => item.name.endsWith(".ass"))?.url;
-  const logs = useQuery({queryKey: ["logs", jobId], queryFn: () => studio.logs(jobId!), enabled: !!jobId,
-    refetchInterval: selectedJob.data?.state === "running" ? 3000 : false});
+  // Terminal-state cache keys guarantee fresh logs and exports after finalization.
+  const terminal = !!currentJob && !["running", "queued"].includes(currentJob.state);
+  const logs = useQuery({queryKey: ["logs", jobId, terminal ? "terminal" : "active"],
+    queryFn: () => studio.logs(jobId!), enabled: !!jobId,
+    refetchInterval: !terminal ? 3000 : false});
+  const exportsReport = useQuery({queryKey: ["exports", jobId, terminal ? "terminal" : "active"],
+    queryFn: () => studio.exports(jobId!), enabled: !!jobId,
+    refetchInterval: !terminal ? 4000 : false});
 
   const submit = useMutation({
     mutationFn: studio.submit,
@@ -192,9 +216,37 @@ export default function App() {
       setError(translationBackends.data?.riva.detail || "Dedicated Riva translation availability is not confirmed.");
       return;
     }
-    const req: JobRequest = {source: selectedSource, task, options: {...options, formats: task === "subtitles" ? ["srt", "ass"] : ["srt"]}};
+    if (!outputFolder.trim()) {
+      setError("Select an output folder on the processing host."); setStep("media"); return;
+    }
+    const req: JobRequest = {
+      source: selectedSource, task,
+      options: {...options, formats: task === "subtitles" ? ["srt", "ass"] : ["srt"]},
+      export: {destination: outputFolder.trim(), artifacts: selectedArtifacts(task, exportSelection),
+        save_remote_media: selectedSource.kind === "url" && saveRemoteMedia},
+    };
     setError("");
     submit.mutate(req);
+  }
+  async function copyFullLog() {
+    if (!jobId) return;
+    try {
+      let offset = 0;
+      let value = "";
+      for (let pages = 0; pages < 33; pages++) {
+        const part = await studio.logChunk(jobId, offset, 65536);
+        value += part.text;
+        if (value.length > 2_000_000) throw new Error("Large log: use Download full log.");
+        if (part.complete) {
+          await navigator.clipboard.writeText(value);
+          setLogCopyMessage("Full log copied.");
+          return;
+        }
+        if (part.next_offset <= offset) throw new Error("Log reader made no progress.");
+        offset = part.next_offset;
+      }
+      throw new Error("Log exceeds copy limit: download full log.");
+    } catch (exc) {setLogCopyMessage((exc as Error).message);}
   }
   const ready = selectedSource !== null;
   const cues = preview.data?.cues || [];
@@ -266,6 +318,28 @@ export default function App() {
                 </span>
               </button>)}
           </div>
+        </div>
+        <div className="panel p-4">
+          <button className="btn btn-secondary w-full" onClick={() => setShowHistory(v => !v)}>
+            {showHistory ? "Hide all runs" : "Browse all runs"}
+          </button>
+          {showHistory && <div className="mt-3 space-y-2 border-t border-[#314154] pt-3">
+            {history.isError && <p role="alert" className="text-xs text-rose-300">Could not load job history.</p>}
+            {history.data?.items.map(j => <button key={j.id}
+              onClick={() => {setJobId(j.id); setStep("preview");}}
+              className="block w-full rounded-lg border border-[#304052] p-2 text-left text-xs hover:bg-[#223343]">
+              <span className="block truncate">{j.request.source.value.split("/").pop() || j.id}</span>
+              <span className="muted">{j.request.task} · {j.state} · {new Date(j.created_at * 1000).toLocaleDateString()}</span>
+            </button>)}
+            {history.data?.total === 0 && <p className="text-xs muted">No saved runs.</p>}
+            <div className="flex items-center justify-between gap-2">
+              <button className="btn btn-ghost !min-h-8" disabled={historyOffset === 0}
+                onClick={() => setHistoryOffset(v => Math.max(0, v - 20))}>Previous</button>
+              <span className="text-xs muted">{history.data?.total ? historyOffset + 1 : 0}–{history.data ? historyOffset + history.data.items.length : 0} of {history.data?.total ?? "…"}</span>
+              <button className="btn btn-ghost !min-h-8" disabled={history.data?.next_offset == null}
+                onClick={() => setHistoryOffset(history.data?.next_offset ?? historyOffset)}>Next</button>
+            </div>
+          </div>}
         </div>
         <div className="px-2 text-xs leading-6 text-slate-500">
           Default resources use local ASR and configurable text models. Model endpoints are defined on the processing host.
@@ -346,6 +420,45 @@ export default function App() {
           </section>
 
           <section className="panel p-6">
+            <SectionTitle eyebrow="Output / Destination" title="Where should files be saved?"
+              sub="Choose a folder on the Garuda processing host, not the browser's Downloads folder. Every job also keeps its full internal archive."/>
+            <Field title="Host output folder" hint="Must be inside NEMOVOX_EXPORT_ROOTS (or the built-in outputs/exports root). Each run uses a unique nemovox-job directory.">
+              <input className="control" type="text" value={outputFolder}
+                onChange={e => setOutputFolder(e.target.value)} placeholder="/workspace/nvidia-transcribe/outputs/exports"/>
+            </Field>
+            {exportFolders.isError && <p role="alert" className="mt-3 text-xs text-rose-300">Output folder listing unavailable or outside approved roots.</p>}
+            <div className="mt-3 flex flex-wrap gap-2">
+              {exportFolders.data?.roots.map(root => <button key={root} className="btn btn-ghost !min-h-8"
+                onClick={() => {setExportBrowseDir(root); setOutputFolder(root);}}><Folder size={13}/>{root}</button>)}
+              {exportFolders.data?.parent && <button className="btn btn-ghost !min-h-8"
+                onClick={() => setExportBrowseDir(exportFolders.data?.parent || null)}><ChevronLeft size={13}/>Up</button>}
+            </div>
+            {!!exportFolders.data?.directories.length && <div className="scrollbar mt-3 max-h-36 overflow-auto rounded-lg border border-[#314154] p-2">
+              {exportFolders.data.directories.map(item => <button key={item.path} className="media-row"
+                onClick={() => {setOutputFolder(item.path); setExportBrowseDir(item.path);}}>
+                <Folder size={14}/><span className="truncate">{item.name}</span>
+              </button>)}
+            </div>}
+            <h3 className="mb-2 mt-6 text-sm font-semibold">Save these finished files</h3>
+            <p className="mb-3 text-xs muted">Only checked files are copied to your output folder. All generated artifacts remain in the internal job archive.</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {availableArtifacts(task).map(item => <label key={item.id}
+                className="flex items-center gap-2 rounded-lg border border-[#314154] bg-[#101925] p-3 text-xs">
+                <input type="checkbox" className="h-4 w-4 accent-teal-400"
+                  checked={exportSelection.includes(item.id)}
+                  onChange={e => setExportSelection(prev => e.target.checked
+                    ? [...prev, item.id] : prev.filter(v => v !== item.id))}/>
+                <span>{item.label}</span>
+              </label>)}
+            </div>
+            {sourceMethod === "url" && <label className="mt-3 flex items-center gap-3 rounded-lg border border-teal-700/40 p-3 text-sm">
+              <input type="checkbox" className="h-4 w-4 accent-teal-400" checked={saveRemoteMedia}
+                onChange={e => setSaveRemoteMedia(e.target.checked)}/>
+              <span>Also save downloaded original media, even if later processing fails</span>
+            </label>}
+          </section>
+
+          <section className="panel p-6">
             <SectionTitle eyebrow="02 / Objective" title="What would you like to create?" sub="The interface adjusts processing and output options to match the task."/>
             <div className="grid gap-3 md:grid-cols-3">{TASKS.map(t => <TaskCard key={t.id} task={t} active={task === t.id} onClick={() => setTask(t.id)}/>)}</div>
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -370,6 +483,8 @@ export default function App() {
             <div className="mb-5 flex flex-wrap items-center gap-2"><Pill><Film size={12}/>{source.value.split("/").pop() || "Source not selected"}</Pill>
               <Pill><Activity size={12}/>{TASKS.find(t => t.id === task)?.title}</Pill>
               <Pill>{options.source_language.toUpperCase()} → {options.target_language.toUpperCase()}</Pill>
+              <Pill><Folder size={12}/>{outputFolder || "No output folder"}</Pill>
+              <Pill>{selectedArtifacts(task, exportSelection).length} selected exports</Pill>
             </div>
             <div className="mb-5 rounded-lg border border-[#344c5f] bg-[#10222c] p-3 text-xs leading-5 text-slate-300" role="status">
               <p className="font-semibold text-teal-200">On-demand model resources</p>
@@ -494,6 +609,9 @@ export default function App() {
             <button className="btn btn-primary" onClick={() => setStep("media")}>Choose media</button>
           </div>}
           {jobId && <>
+            {selectedJob.isError && <div role="alert" className="panel p-5 text-rose-300">
+              Could not load this job. It may have been removed or the service is unavailable.
+            </div>}
             <section className="panel p-5">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
@@ -512,11 +630,32 @@ export default function App() {
               <div className="progress-track"><div className="progress-fill" style={{width: String(currentJob?.progress || 0) + "%"}}/></div>
               <div className="mt-2 flex justify-between text-xs muted"><span>{currentJob?.progress || 0}% recorded stage progress</span><span>{currentJob?.state === "complete" ? "Ready to review" : "Long-running tasks stay on the host"}</span></div>
               {currentJob?.error && <div className="mt-4 text-sm text-rose-300">{currentJob.error}</div>}
-              {(currentJob?.state === "running" || currentJob?.state === "failed" || currentJob?.state === "cancelled" || currentJob?.state === "interrupted") && !!logs.data?.lines.length &&
-                <details className="mt-4 rounded-lg border border-[#2c3c50] bg-[#0b131d] p-3">
-                  <summary className="cursor-pointer text-xs font-semibold muted">Processing log</summary>
-                  <pre className="scrollbar mt-3 max-h-40 overflow-auto whitespace-pre-wrap text-[11px] leading-5 text-slate-400">{logs.data.lines.join("\n")}</pre>
-                </details>}
+              {!!currentJob?.stage_history?.length && <div className="mt-4 rounded-xl border border-[#2c3c50] p-3">
+                <p className="mb-2 text-xs font-semibold">Processing stages</p>
+                <ol className="space-y-2">{currentJob.stage_history.map(event => <li key={event.id} className="flex gap-3 text-xs">
+                  <span className={event.status === "complete" ? "text-teal-300" : event.status === "failed" ? "text-rose-300" : "text-slate-400"}>{event.status}</span>
+                  <span className="font-semibold">{event.id === "review" ? "English review" : event.id === "render" ? "Render subtitles" :
+                    event.id === "translation" ? "Primary translation" : event.id}</span>
+                  {event.detail && <span className="muted">{event.detail}</span>}
+                </li>)}</ol>
+              </div>}
+              <details className="mt-4 rounded-lg border border-[#2c3c50] bg-[#0b131d] p-3">
+                <summary className="cursor-pointer text-xs font-semibold muted">Processing log (retained after completion)</summary>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button className="btn btn-ghost !min-h-8" onClick={() => void navigator.clipboard.writeText(
+                    logs.data?.lines.filter(line => line.toLowerCase().includes(logSearch.toLowerCase())).join("\n") ?? ""
+                  ).then(() => setLogCopyMessage("Visible log copied."), () => setLogCopyMessage("Clipboard unavailable."))}>Copy visible</button>
+                  <button className="btn btn-ghost !min-h-8" onClick={() => void copyFullLog()}>Copy full log</button>
+                  <a className="btn btn-ghost !min-h-8" href={studio.logDownload(jobId)}>Download full log</a>
+                  {logCopyMessage && <span role="status" className="text-xs muted">{logCopyMessage}</span>}
+                </div>
+                <input className="control mt-3 !min-h-9 !text-xs" aria-label="Filter recent log lines"
+                  placeholder="Search recent log lines…" value={logSearch}
+                  onChange={e => setLogSearch(e.target.value)}/>
+                <pre className="scrollbar mt-3 max-h-56 overflow-auto whitespace-pre-wrap text-[11px] leading-5 text-slate-400">{logs.data?.lines.filter(
+                  line => line.toLowerCase().includes(logSearch.toLowerCase())
+                ).join("\n") || (logSearch ? "No matching recent log lines." : "No log lines yet.")}</pre>
+              </details>
             </section>
             <div className="grid gap-5 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,.7fr)]">
               <section className="panel min-w-0 overflow-hidden">
@@ -549,11 +688,21 @@ export default function App() {
                   </div>}
                 </div>
                 <div className="border-t border-[#2a3b4b] p-4">
-                  <div className="mb-2 flex items-center justify-between"><span className="text-xs font-bold text-slate-200">Export results</span><span className="text-[11px] muted">Files stay on your host</span></div>
-                  <div className="flex flex-wrap gap-2">
-                    {artifacts.data?.map(item => <a key={item.path} href={item.url} download={item.name} className="btn btn-secondary !min-h-9 !px-3"><Download size={13}/>{item.name}</a>)}
-                    {!artifacts.data?.length && <span className="text-xs muted">Exports will appear when processing finishes.</span>}
-                  </div>
+                  <div className="mb-2 flex items-center justify-between"><span className="text-xs font-bold text-slate-200">Saved files</span><span className="text-[11px] muted">Automatic host-side exports</span></div>
+                  <p className="break-all text-xs muted">Folder: {exportsReport.data?.directory || currentJob?.request.export?.destination || "Internal job archive only"}</p>
+                  <p className={"mt-2 text-xs " + (["partial", "failed"].includes(exportsReport.data?.status || "") ? "text-rose-300" : "text-teal-300")}>
+                    Export status: {exportsReport.data?.status || "checking"} · {exportsReport.data?.items.filter(x => x.status === "saved" || x.status === "already_saved").length || 0} saved
+                  </p>
+                  {exportsReport.data?.items.map(item => <p key={item.type} className="mt-1 text-xs">
+                    {item.type}: {item.status}{item.error && <span className="text-rose-300"> · {item.error}</span>}
+                  </p>)}
+                  <details className="mt-3 rounded-lg border border-[#304052] p-3">
+                    <summary className="cursor-pointer text-xs muted">Advanced: all retained job artifacts</summary>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {artifacts.data?.map(item => <a key={item.path} href={item.url} download={item.name} className="btn btn-secondary !min-h-9 !px-3"><Download size={13}/>{item.name}</a>)}
+                      {!artifacts.data?.length && <span className="text-xs muted">No internal artifacts yet.</span>}
+                    </div>
+                  </details>
                 </div>
               </section>
               <section className="panel flex min-h-[470px] min-w-0 flex-col overflow-hidden">

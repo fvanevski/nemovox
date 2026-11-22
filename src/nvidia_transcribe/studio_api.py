@@ -37,6 +37,8 @@ from nvidia_transcribe.translation import is_english_source_to_english
 from nvidia_transcribe.model_resources import ResourceConfigError, load_model_resources
 from nvidia_transcribe.resource_lifecycle import ModelLifecycle, ResourceLifecycleError
 from nvidia_transcribe.refinement import load_glossary
+from nvidia_transcribe.studio_exports import (browse_destinations, export_roots,
+                                             export_selected, validate_destination)
 from pydantic import BaseModel, Field
 
 PROJECT = Path(__file__).resolve().parents[2]
@@ -52,6 +54,17 @@ def _atomic_json(path: Path, payload: dict) -> None:
     tmp = path.with_name("." + path.name + "." + uuid.uuid4().hex + ".tmp")
     try:
         tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def _atomic_bytes(path: Path, payload: bytes) -> None:
+    """Atomically archive validated input without reserializing its bytes."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name("." + path.name + "." + uuid.uuid4().hex + ".tmp")
+    try:
+        tmp.write_bytes(payload)
         os.replace(tmp, path)
     finally:
         tmp.unlink(missing_ok=True)
@@ -82,10 +95,11 @@ def _remote_url(url: str) -> str:
     return url
 
 
-def _read_transcription_contract(path: Path) -> dict:
-    """Validate source utterances before importing a prior recording transcription."""
+def _read_transcription_contract_snapshot(path: Path) -> tuple[dict, bytes]:
+    """Validate and capture the same exact input bytes for job-owned archival."""
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
+        raw = path.read_bytes()
+        value = json.loads(raw.decode("utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise ValueError("Recording contract is not readable JSON.") from exc
     if not isinstance(value, dict) or not isinstance(value.get("utterances"), list):
@@ -93,6 +107,12 @@ def _read_transcription_contract(path: Path) -> dict:
     if any(not isinstance(item, dict) or not isinstance(item.get("source_text"), str)
            for item in value["utterances"]):
         raise ValueError("Every contract utterance must contain source_text.")
+    return value, raw
+
+
+def _read_transcription_contract(path: Path) -> dict:
+    """Validate source utterances before importing a prior recording transcription."""
+    value, _ = _read_transcription_contract_snapshot(path)
     return value
 
 
@@ -144,10 +164,21 @@ class Options(BaseModel):
     formats: list[Literal["srt", "ass"]] = Field(default_factory=lambda: ["srt", "ass"])
 
 
+class ExportPlan(BaseModel):
+    destination: str | None = None
+    artifacts: list[Literal[
+        "source_transcript", "recording_contract", "refined_contract",
+        "translated_contract", "raw_source_transcript", "refined_source_transcript",
+        "final_english", "subtitle_metadata", "srt", "ass",
+    ]] = Field(default_factory=list)
+    save_remote_media: bool = False
+
+
 class JobRequest(BaseModel):
     source: Source
     task: Literal["transcription", "translation", "subtitles"] = "subtitles"
     options: Options = Field(default_factory=Options)
+    export: ExportPlan = Field(default_factory=ExportPlan)
 
 
 @dataclass(frozen=True)
@@ -156,6 +187,7 @@ class StudioConfig:
     upload_root: Path
     media_roots: tuple[Path, ...]
     python: str = sys.executable
+    export_roots: tuple[Path, ...] | None = None
 
     @classmethod
     def from_env(cls) -> "StudioConfig":
@@ -173,6 +205,7 @@ class StudioConfig:
             upload_root=Path(os.getenv("NEMOVOX_STUDIO_UPLOADS", PROJECT / "outputs/studio/uploads")).resolve(),
             media_roots=existing,
             python=os.environ.get("NEMOVOX_CLI_PYTHON", str(PROJECT / ".venv/bin/python") if (PROJECT / ".venv/bin/python").is_file() else sys.executable),
+            export_roots=export_roots(PROJECT),
         )
 
 
@@ -268,6 +301,11 @@ class JobRunner:
             "created_at": time.time(),
             "updated_at": time.time(),
             "error": None,
+            "export_report": {"status": "pending" if (
+                request.export.destination and
+                (request.export.artifacts or request.export.save_remote_media)
+            ) else "disabled", "directory": None, "items": []},
+            "stage_history": [],
         }
         _atomic_json(dest / "job.json", record)
         self.executor.submit(self._run, job_id)
@@ -373,6 +411,113 @@ class JobRunner:
             )
             _atomic_json(path, value)
 
+
+    def _stage_event(self, job_id: str, name: str, status: str, detail: str = "") -> None:
+        """Record only known typed CLI milestones, preserving arrival order."""
+        if name not in {"download", "asr", "translation", "review", "condensation", "render", "export"}:
+            return
+        if status not in {"running", "complete", "skipped", "failed", "cancelled"}:
+            return
+        with self._lock:
+            path = self.config.job_root / job_id / "job.json"
+            record = json.loads(path.read_text(encoding="utf-8"))
+            stages = list(record.get("stage_history") or [])
+            now = time.time()
+            event = {"id": name, "status": status, "at": now, "detail": detail[:240]}
+            for index, item in enumerate(stages):
+                if item.get("id") == name:
+                    if item.get("started_at") is not None:
+                        event["started_at"] = item["started_at"]
+                    if status in {"complete", "skipped", "failed", "cancelled"}:
+                        event["finished_at"] = now
+                    stages[index] = event
+                    break
+            else:
+                if status == "running":
+                    event["started_at"] = now
+                elif status in {"complete", "skipped", "failed", "cancelled"}:
+                    event["finished_at"] = now
+                stages.append(event)
+            record["stage_history"] = stages
+            if status == "running":
+                progress = {"download": 4, "asr": 8, "translation": 60,
+                            "review": 76, "condensation": 83, "render": 90, "export": 96}[name]
+                record["stage"] = {"download": "Downloading remote media",
+                                   "asr": "Transcribing audio and speakers",
+                                   "translation": "Translating to English",
+                                   "review": "Reviewing English translation",
+                                   "condensation": "Condensing high-CPS cues",
+                                   "render": "Rendering subtitles",
+                                   "export": "Saving selected files"}[name]
+                record["progress"] = max(record.get("progress", 0), progress)
+            record["updated_at"] = time.time()
+            _atomic_json(path, record)
+
+    def _finish_active_stage(self, job_id: str, status: str) -> None:
+        record = self.get(job_id)
+        active = next((item for item in reversed(record.get("stage_history") or [])
+                       if item.get("status") == "running"), None)
+        if active is not None:
+            self._stage_event(job_id, active["id"], status, "Job " + status)
+
+    def _read_stage_events(self, job_id: str, path: Path, offset: int) -> int:
+        if not path.is_file():
+            return offset
+        with path.open("rb") as stream:
+            stream.seek(offset)
+            data = stream.read(256 * 1024)
+        if not data:
+            return offset
+        complete_end = data.rfind(b"\n")
+        if complete_end < 0:
+            return offset
+        for raw in data[:complete_end + 1].splitlines():
+            if not raw.startswith(b"NEMOVOX_EVENT "):
+                continue
+            try:
+                event = json.loads(raw[len(b"NEMOVOX_EVENT "):])
+                if isinstance(event, dict) and event.get("schema") == "nemovox-progress/v1":
+                    self._stage_event(job_id, str(event.get("stage")),
+                                      str(event.get("status")), str(event.get("detail", "")))
+            except (ValueError, UnicodeError):
+                continue
+        return offset + complete_end + 1
+
+    def _drain_stage_events(self, job_id: str, path: Path, offset: int) -> int:
+        """Consume all complete event lines, including large final log bursts.
+
+        One live poll reads at most 256 KiB. A completed CLI can already have
+        written several such chunks; a single final read would silently lose
+        later translation/review/render milestones.
+        """
+        while True:
+            next_offset = self._read_stage_events(job_id, path, offset)
+            if next_offset <= offset:
+                return offset
+            offset = next_offset
+
+    def _export(self, job_id: str, *, media_only: bool = False) -> dict:
+        record = self.get(job_id)
+        request = record["request"]
+        plan = request.get("export") or {}
+        if not plan.get("destination"):
+            return {"status": "disabled", "directory": None, "items": []}
+        source_path = Path(record["source_path"]) if record.get("source_path") and \
+            request["source"]["kind"] == "url" else None
+        try:
+            report = export_selected(
+                self.config.job_root / job_id, job_id, plan,
+                self.config.export_roots or export_roots(PROJECT),
+                remote_media=source_path, media_only=media_only,
+            )
+        except (OSError, ValueError) as exc:
+            # An export failure is not a translation/ASR failure. Preserve job files.
+            report = {"status": "failed", "directory": plan.get("destination"),
+                      "items": [{"type": "export", "status": "failed", "error": str(exc)}],
+                      "updated_at": time.time()}
+        self.update(job_id, export_report=report)
+        return report
+
     def _command(self, job_id: str, args: list[str], stage: str, progress: int) -> None:
         if job_id in self._cancelled:
             raise InterruptedError("Cancelled")
@@ -391,11 +536,14 @@ class JobRunner:
             )
             with self._lock:
                 self._processes[job_id] = process
+            offset = 0
             try:
                 while process.poll() is None:
+                    offset = self._read_stage_events(job_id, path, offset)
                     if job_id in self._cancelled:
                         raise InterruptedError("Cancelled")
                     time.sleep(0.4)
+                offset = self._drain_stage_events(job_id, path, offset)
                 if job_id in self._cancelled:
                     raise InterruptedError("Cancelled")
                 if process.returncode != 0:
@@ -421,7 +569,7 @@ class JobRunner:
             raise RuntimeError("Install yt-dlp to process remote media URLs.")
         root = self.config.job_root / job_id / "remote"
         root.mkdir(exist_ok=True)
-        self.update(job_id, stage="Downloading remote media", progress=4)
+        self._stage_event(job_id, "download", "running")
         target = root / "source.%(ext)s"
         cmd = [
             "yt-dlp", "--no-playlist", "--no-progress", "--restrict-filenames",
@@ -453,6 +601,7 @@ class JobRunner:
         candidates = [p for p in root.iterdir() if p.is_file() and p.suffix.lower() in MEDIA_EXTENSIONS]
         if not candidates:
             raise RuntimeError("Downloader completed without a supported media file.")
+        self._stage_event(job_id, "download", "complete")
         return max(candidates, key=lambda p: p.stat().st_size)
 
     def _run(self, job_id: str) -> None:
@@ -469,21 +618,31 @@ class JobRunner:
             else:
                 source = Path(value["source_path"])
             self.update(job_id, source_path=str(source))
+            if spec.source.kind == "url" and spec.export.save_remote_media:
+                self._export(job_id, media_only=True)  # retained even if ASR later fails
 
             # The CLI resolves NEMOVOX_MODEL_RESOURCES and text/ASR env in its
             # child environment. Studio must not elevate env to CLI overrides.
 
             if spec.source.kind == "contract":
-                contract = source
-                if spec.task == "transcription":
-                    value = _read_transcription_contract(source)
-                    imported = root / "asr"
-                    imported.mkdir(parents=True, exist_ok=True)
-                    _atomic_json(imported / "recording.contract.json", value)
-                    (imported / "transcript.txt").write_text(
-                        _format_existing_transcript(value), encoding="utf-8"
-                    )
-                    contract = imported / "recording.contract.json"
+                self._stage_event(job_id, "asr", "skipped", "Using an existing recording contract")
+                # Regardless of task, import the existing source once into
+                # this job's retained archive so both default transcript and
+                # optional recording-contract exports have real source files.
+                value, source_contract_bytes = _read_transcription_contract_snapshot(source)
+                imported = root / "asr"
+                imported.mkdir(parents=True, exist_ok=True)
+                contract = imported / "recording.contract.json"
+                _atomic_bytes(contract, source_contract_bytes)
+                (imported / "transcript.txt").write_text(
+                    _format_existing_transcript(value), encoding="utf-8"
+                )
+                if spec.task != "transcription":
+                    # Keep the original input directory as the reconstruction
+                    # authority: subtitle_pipeline reads manifest.json and
+                    # chunks/*.raw.json adjacent to recording.contract.json.
+                    # The job-owned copy above remains available for export.
+                    contract = source
             else:
                 args = [
                     "process-media", str(source), "--output-dir", str(root / "asr"),
@@ -495,7 +654,9 @@ class JobRunner:
                 ]
                 if opt.source_language != "auto":
                     args.extend(["--source-language", opt.source_language])
+                self._stage_event(job_id, "asr", "running")
                 self._command(job_id, args, "Transcribing audio and speakers", 8)
+                self._stage_event(job_id, "asr", "complete")
                 contract = root / "asr" / "recording.contract.json"
             if spec.task != "transcription":
                 args = [
@@ -514,11 +675,19 @@ class JobRunner:
                     args.append("--condense-high-cps")
                 if opt.glossary:
                     args.extend(["--glossary", opt.glossary])
-                self._command(job_id, args, "Translating, reviewing English and rendering", 60)
+                self._command(job_id, args, "Generating English outputs", 55)
+            if spec.export.destination and (spec.export.artifacts or spec.export.save_remote_media):
+                self._stage_event(job_id, "export", "running")
+                report = self._export(job_id)
+                self._stage_event(job_id, "export",
+                                  "failed" if report["status"] in ("failed", "partial") else "complete",
+                                  report["status"])
             self._complete_if_not_cancelled(job_id)
         except InterruptedError:
+            self._finish_active_stage(job_id, "cancelled")
             self.update(job_id, state="cancelled", stage="Cancelled", finished_at=time.time())
         except Exception as exc:
+            self._finish_active_stage(job_id, "failed")
             self.update(job_id, state="failed", stage="Failed", error=str(exc), finished_at=time.time())
         finally:
             with self._lock:
@@ -571,6 +740,13 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
             "ytdlp": shutil.which("yt-dlp") is not None,
             "media_roots": [str(p) for p in settings.media_roots],
         }
+
+    @app.get("/api/export-directories")
+    def export_directories(path: str | None = Query(default=None)) -> dict:
+        try:
+            return browse_destinations(settings.export_roots or export_roots(PROJECT), path)
+        except (ValueError, OSError) as exc:
+            raise HTTPException(403, str(exc)) from exc
 
     @app.get("/api/media")
     def media(path: str | None = Query(default=None)) -> dict:
@@ -737,6 +913,20 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
                     raise HTTPException(422, "Selected audio track is not present in this file.")
         if request.source.kind == "url" and request.options.audio_stream != 0:
             raise HTTPException(422, "Remote audio tracks are unknown until download; use track 0.")
+        plan = request.export
+        if plan.destination:
+            try:
+                validate_destination(plan.destination, settings.export_roots or export_roots(PROJECT))
+            except ValueError as exc:
+                raise HTTPException(422, str(exc)) from exc
+        elif plan.artifacts or plan.save_remote_media:
+            raise HTTPException(422, "Select an output destination for requested exports.")
+        if plan.save_remote_media and request.source.kind != "url":
+            raise HTTPException(422, "Remote media export requires a URL source.")
+        if "ass" in plan.artifacts and request.task != "subtitles":
+            raise HTTPException(422, "ASS export requires a subtitles task.")
+        if "srt" in plan.artifacts and request.task == "transcription":
+            raise HTTPException(422, "SRT export requires translation or subtitles.")
         if (request.task != "transcription" and request.options.translator == "riva"
                 and not is_english_source_to_english(
                     request.options.source_language, request.options.target_language)):
@@ -745,6 +935,19 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
             except ResourceConfigError as exc:
                 raise HTTPException(422, f"Dedicated Riva translation is not available: {exc}") from exc
         return runner.submit(request, source)
+
+    @app.get("/api/job-history")
+    def job_history(offset: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=100)) -> dict:
+        # Unlike the legacy /api/jobs, history covers all retained jobs.
+        records = []
+        for path in settings.job_root.glob("*/job.json"):
+            try:
+                records.append(json.loads(path.read_text(encoding="utf-8")))
+            except (OSError, ValueError):
+                continue
+        records.sort(key=lambda record: record.get("created_at", 0), reverse=True)
+        return {"items": records[offset:offset + limit], "total": len(records),
+                "next_offset": offset + limit if offset + limit < len(records) else None}
 
     @app.get("/api/jobs")
     def jobs() -> list[dict]:
@@ -773,6 +976,54 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
             fp.seek(max(0, path.stat().st_size - 24000))
             value = fp.read().decode("utf-8", errors="replace")
         return {"lines": value.splitlines()[-100:]}
+
+    @app.get("/api/jobs/{job_id}/log/chunk")
+    def log_chunk(job_id: str, offset: int = Query(0, ge=0),
+                  limit: int = Query(65536, ge=1, le=131072)) -> dict:
+        path = runner.path(job_id) / "execution.log"
+        if not path.is_file():
+            return {"text": "", "next_offset": 0, "total": 0, "complete": True}
+        total = path.stat().st_size
+        if offset > total:
+            raise HTTPException(416, "Log offset exceeds file length.")
+        with path.open("rb") as handle:
+            handle.seek(offset)
+            data = handle.read(limit)
+            # Include at most three continuation bytes for a split UTF-8 codepoint.
+            for _ in range(3):
+                try:
+                    decoded = data.decode("utf-8")
+                    break
+                except UnicodeDecodeError as exc:
+                    if exc.reason != "unexpected end of data":
+                        decoded = data.decode("utf-8", errors="replace")
+                        break
+                    extra = handle.read(1)
+                    if not extra:
+                        decoded = data.decode("utf-8", errors="replace")
+                        break
+                    data += extra
+            else:
+                decoded = data.decode("utf-8", errors="replace")
+        end = offset + len(data)
+        return {"text": decoded, "next_offset": end,
+                "total": total, "complete": end >= total}
+
+    @app.get("/api/jobs/{job_id}/log/download")
+    def log_download(job_id: str):
+        path = runner.path(job_id) / "execution.log"
+        if not path.is_file():
+            raise HTTPException(404, "No job log found.")
+        return FileResponse(path, filename="nemovox-" + job_id + ".log", media_type="text/plain")
+
+    @app.get("/api/jobs/{job_id}/exports")
+    def job_exports(job_id: str) -> dict:
+        job_root = runner.path(job_id)
+        path = job_root / "exports.json"
+        if path.is_file():
+            return json.loads(path.read_text(encoding="utf-8"))
+        return runner.get(job_id).get("export_report") or {
+            "status": "disabled", "directory": None, "items": []}
 
     @app.get("/api/jobs/{job_id}/preview")
     def preview(job_id: str) -> dict:
@@ -809,6 +1060,9 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
             root / "output/subtitles.metadata.json",
             *sorted((root / "output").glob("*.srt")),
             *sorted((root / "output").glob("*.ass")),
+            *(sorted(p for p in (root / "remote").glob("*")
+                      if p.is_file() and p.suffix.lower() in MEDIA_EXTENSIONS)
+              if (root / "remote").is_dir() else []),
         ]
         return [{
             "name": p.name, "path": str(p.relative_to(root)),
@@ -819,9 +1073,12 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
     def artifact(job_id: str, path: str):
         root = runner.path(job_id)
         candidate = (root / path).resolve()
-        if not candidate.is_file() or not _within(candidate, (root / "asr", root / "output")):
+        if not candidate.is_file() or not _within(candidate, (root / "asr", root / "output", root / "remote")):
             raise HTTPException(404, "Artifact not found.")
-        if candidate.suffix not in {".json", ".txt", ".srt", ".ass"}:
+        if candidate.is_relative_to((root / "remote").resolve()):
+            if candidate.suffix.lower() not in MEDIA_EXTENSIONS:
+                raise HTTPException(403, "Remote media artifact type not permitted.")
+        elif candidate.suffix not in {".json", ".txt", ".srt", ".ass"}:
             raise HTTPException(403, "Artifact type not permitted.")
         return FileResponse(candidate, filename=candidate.name)
 

@@ -1,0 +1,32 @@
+{
+  "repo_id": "fvanevski/nemovox",
+  "issue_number": 12,
+  "pr_number": 13,
+  "branch": "issue/12-studio-output-workflow",
+  "base_main_sha": "332a99697edcc0b72fcc842168d5b1f57782e203",
+  "prior_evidence_sha_historical": "e4adb206a5a815003b7285cf6dc14dbb85fb07dc",
+  "tested_source_sha": "1eaf682262dea4b286db111fcb1b728c980d2e4c",
+  "tested_tree_sha": "6ffee8186223354eabbb26445d5750e135da5694",
+  "source_edited": false,
+  "delta_since_prior_evidence": [
+    "src/nvidia_transcribe/studio_api.py",
+    "tests/test_studio_export_api.py"
+  ],
+  "worktree": "/workspace/nemovox-issue12-verify",
+  "git_status_before_evidence": [
+    "## HEAD (no branch)"
+  ],
+  "python_executable": "/workspace/nvidia-transcribe/.venv/bin/python",
+  "python_version": "Python 3.13.15",
+  "studio_python_executable": "/workspace/nvidia-transcribe/.venv-studio/bin/python",
+  "studio_python_version": "Python 3.13.15",
+  "imported_modules_verified": {
+    "nvidia_transcribe": "/workspace/nemovox-issue12-verify/src/nvidia_transcribe/__init__.py",
+    "studio_api": "/workspace/nemovox-issue12-verify/src/nvidia_transcribe/studio_api.py",
+    "studio_exports": "/workspace/nemovox-issue12-verify/src/nvidia_transcribe/studio_exports.py"
+  },
+  "node_version": "v26.13.1",
+  "npm_version": "12.2.3",
+  "chromium_executable": "/usr/bin/chromium",
+  "utc_run_id": "20261122T191255Z"
+}

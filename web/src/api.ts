@@ -1,6 +1,33 @@
 export type MediaKind = "path" | "upload" | "url" | "contract";
 export type TaskKind = "transcription" | "translation" | "subtitles";
 export type Step = "media" | "configure" | "preview";
+import type { ExportArtifactType } from "./export-options";
+export type { ExportArtifactType } from "./export-options";
+
+export interface ExportPlan {
+  destination: string | null;
+  artifacts: ExportArtifactType[];
+  save_remote_media: boolean;
+}
+export interface ExportReport {
+  status: "disabled" | "pending" | "complete" | "partial" | "failed";
+  directory: string | null;
+  items: {type: string; status: string; source?: string; destination?: string; error?: string; sha256?: string}[];
+  updated_at?: number;
+}
+export interface StageEvent {
+  id: string;
+  status: "running" | "complete" | "skipped" | "failed" | "cancelled";
+  at: number;
+  detail: string;
+}
+export interface ExportDirectoryListing {
+  roots: string[];
+  default: string;
+  directory: string;
+  parent: string | null;
+  directories: {name: string; path: string}[];
+}
 
 export interface MediaEntry {
   name: string;
@@ -65,6 +92,7 @@ export interface JobRequest {
   source: { kind: MediaKind; value: string };
   task: TaskKind;
   options: JobOptions;
+  export?: ExportPlan;
 }
 export interface Job {
   id: string;
@@ -76,6 +104,8 @@ export interface Job {
   created_at: number;
   updated_at: number;
   error: string | null;
+  export_report?: ExportReport;
+  stage_history?: StageEvent[];
 }
 export interface Cue {
   start: number | null;
@@ -103,6 +133,10 @@ async function json<T>(route: string, init?: RequestInit): Promise<T> {
 export const studio = {
   health: () => json<{status: string; ffmpeg: boolean; ytdlp: boolean; media_roots: string[]}>("/health"),
   browse: (path?: string | null) => json<MediaListing>("/media" + (path ? "?path=" + encodeURIComponent(path) : "")),
+  exportDirectories: (path?: string | null) => json<ExportDirectoryListing>(
+    "/export-directories" + (path ? "?path=" + encodeURIComponent(path) : "")),
+  history: (offset = 0, limit = 20) => json<{items: Job[]; total: number; next_offset: number | null}>(
+    "/job-history?offset=" + offset + "&limit=" + limit),
   glossaries: () => json<Glossary[]>("/glossaries"),
   inspect: (source: JobRequest["source"]) => json<{audio_streams: AudioStream[]}>("/media/inspect", {
     method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(source),
@@ -114,6 +148,11 @@ export const studio = {
   preview: (id: string) => json<Preview>("/jobs/" + id + "/preview"),
   artifacts: (id: string) => json<Artifact[]>("/jobs/" + id + "/artifacts"),
   logs: (id: string) => json<{lines: string[]}>("/jobs/" + id + "/logs"),
+  logChunk: (id: string, offset: number, limit = 65536) => json<{
+    text: string; next_offset: number; total: number; complete: boolean;
+  }>("/jobs/" + id + "/log/chunk?offset=" + offset + "&limit=" + limit),
+  logDownload: (id: string) => "/api/jobs/" + id + "/log/download",
+  exports: (id: string) => json<ExportReport>("/jobs/" + id + "/exports"),
   submit: (body: JobRequest) => json<Job>("/jobs", {
     method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body),
   }),

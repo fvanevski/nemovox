@@ -1,0 +1,72 @@
+{
+  "schema": "nemovox-pr13-issue12-byte-archive-evidence/v1",
+  "utc_run_id": "20261122T193928Z",
+  "repo_id": "fvanevski/nemovox",
+  "issue_number": 12,
+  "pr_number": 13,
+  "branch": "issue/12-studio-output-workflow",
+  "tested_source_sha": "51f59f65249ff4fb9705bc1f67638abb521d9062",
+  "tested_tree_sha": "cb11b80b8ca4b900c44f83964fa5516f0443dc4d",
+  "base_main_sha": "332a99697edcc0b72fcc842168d5b1f57782e203",
+  "worktree": "/workspace/nemovox-issue12-verify",
+  "source_edited": false,
+  "result": "PASS",
+  "members": [
+    {
+      "path": "COMMAND_SHAPE_FRICTION.txt",
+      "bytes": 26,
+      "sha256": "ef01f6074896151b309060594a0942fa2e404f1eb9b0888885f89b4c30c9eb32",
+      "criterion": "command_shape_friction",
+      "evidence_class": "public_safe_friction_log"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1741,
+      "sha256": "7d0c0f516f79994cfa49dcd0ff0521a000512b5533d7487dd722af44e1d12647",
+      "criterion": "evidence_packet_index",
+      "evidence_class": "public_safe_summary"
+    },
+    {
+      "path": "review/acceptance-matrix.md",
+      "bytes": 917,
+      "sha256": "9721c267967851984a69586865ff74046bcd6e18f5981720d9bc2e0ba97ab86a",
+      "criterion": "consolidated_acceptance_mapping",
+      "evidence_class": "public_safe_acceptance_matrix"
+    },
+    {
+      "path": "review/findings.md",
+      "bytes": 353,
+      "sha256": "924034c5941d5c389eb14934e6aec479af0e62e738cb90969d1c70fc6e36962a",
+      "criterion": "blocking_findings",
+      "evidence_class": "public_safe_review_summary"
+    },
+    {
+      "path": "source/identity.json",
+      "bytes": 1293,
+      "sha256": "ae9a3b52d0479602465eb895b5e04e95aa5faec4dfaa950b971b7efc8611a42e",
+      "criterion": "exact_tested_source_no_drift",
+      "evidence_class": "public_safe_source_identity"
+    },
+    {
+      "path": "validation/contract-byte-and-sidecar-check.md",
+      "bytes": 2228,
+      "sha256": "68c645a9f47f75358d567cdbd9c1d866cbc52d9737be0d3b228796b4ec3047f7",
+      "criterion": "all_three_import_tasks_bytes_and_sidecars",
+      "evidence_class": "sanitized_api_fs_observation"
+    },
+    {
+      "path": "validation/cpu-tests.txt",
+      "bytes": 2226,
+      "sha256": "7504814a0d3beb448aa8db08994a3deb0766863040bbe0ac1f49bdda4b930a28",
+      "criterion": "compileall_studio_and_full_non_gpu",
+      "evidence_class": "public_safe_test_log"
+    },
+    {
+      "path": "validation/service-and-production-invariance.md",
+      "bytes": 622,
+      "sha256": "c34b6cf1880a70bb546e9c1ce24e248c14bb64dd0f40e3966d6ccc94ab36239b",
+      "criterion": "production_and_main_invariance",
+      "evidence_class": "sanitized_host_invariance"
+    }
+  ]
+}

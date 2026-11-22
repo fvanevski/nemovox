@@ -1,0 +1,107 @@
+{
+  "schema": "nemovox-pr13-issue12-evidence/v1",
+  "utc_run_id": "20261122T183941Z",
+  "repo_id": "fvanevski/nemovox",
+  "issue_number": 12,
+  "pr_number": 13,
+  "branch": "issue/12-studio-output-workflow",
+  "tested_source_sha": "99a3abce9cf8e8e5d894892f91a899c46e71a508",
+  "tested_tree_sha": "78ef20bc6add3984767df36e781419434cf7305c",
+  "base_main_sha": "332a99697edcc0b72fcc842168d5b1f57782e203",
+  "worktree": "/workspace/nemovox-issue12-verify",
+  "source_edited": false,
+  "result": "PASS",
+  "members": [
+    {
+      "path": "COMMAND_SHAPE_FRICTION.txt",
+      "bytes": 26,
+      "sha256": "ef01f6074896151b309060594a0942fa2e404f1eb9b0888885f89b4c30c9eb32",
+      "criterion": "command_shape_friction",
+      "evidence_class": "public_safe_friction_log"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1069,
+      "sha256": "57f308c2ccf0ffecee78246d2716b70c3d7b5725c8ecb43c51b3ab76f8f70b9a",
+      "criterion": "evidence_packet_index",
+      "evidence_class": "public_safe_summary"
+    },
+    {
+      "path": "review/acceptance-matrix.md",
+      "bytes": 1752,
+      "sha256": "1319147c41b56fd0ea00f6c95f91502b47a8ba202dba89cf489097895df33a33",
+      "criterion": "consolidated_acceptance_mapping",
+      "evidence_class": "public_safe_acceptance_matrix"
+    },
+    {
+      "path": "review/findings.md",
+      "bytes": 1015,
+      "sha256": "4f3f4c59c50f4bb2044d4baf756f5cbce0c1dd2687c6ac2e6e06d004c7981d1f",
+      "criterion": "blocking_findings_and_observations",
+      "evidence_class": "public_safe_review_summary"
+    },
+    {
+      "path": "source/identity.json",
+      "bytes": 1723,
+      "sha256": "f6f2fa50eb08a7d0bc643075fc07edca43fe2f8cadc3220a25d172959fca7d39",
+      "criterion": "exact_tested_source_no_drift",
+      "evidence_class": "public_safe_source_identity"
+    },
+    {
+      "path": "validation/cpu-tests.txt",
+      "bytes": 2240,
+      "sha256": "276fdc0d80ffa57f03218558c0f4571c9d9e716626d187001abe5ba570eab4b3",
+      "criterion": "deterministic_cpu_and_compile_tests",
+      "evidence_class": "public_safe_test_log"
+    },
+    {
+      "path": "validation/export-paths-and-collisions.md",
+      "bytes": 2471,
+      "sha256": "b4a1ad370e6c6d9bdac9223db65bc4d248dbb5c8321f3a667bc53879ba0a503f",
+      "criterion": "output_root_authorization_and_collisions",
+      "evidence_class": "sanitized_api_fs_observation"
+    },
+    {
+      "path": "validation/french-gpu-studio-e2e.md",
+      "bytes": 3971,
+      "sha256": "a8725019fed859e9e7d8ff2ace14232637ac4193ecabcbf44a9cd5383d9bf147",
+      "criterion": "french_riva_cuda_e2e",
+      "evidence_class": "sanitized_host_gpu_observation"
+    },
+    {
+      "path": "validation/isolated-studio-browser.md",
+      "bytes": 2679,
+      "sha256": "b551b29c83b12482c169bff4587119d4c72febd83a1580598fcff1b33e29ad7d",
+      "criterion": "isolated_gui_browser_acceptance",
+      "evidence_class": "sanitized_browser_observation"
+    },
+    {
+      "path": "validation/remote-source-retention.md",
+      "bytes": 1336,
+      "sha256": "bf1e4ae9efafaaf884e084d37060b05cb92e0b313a5f8bd739a101078a1b386d",
+      "criterion": "remote_media_retention_and_guardrails",
+      "evidence_class": "sanitized_stubbed_observation"
+    },
+    {
+      "path": "validation/service-and-production-invariance.md",
+      "bytes": 1278,
+      "sha256": "f2a1627d585f3108e8a2842e107305cd7b2092e5c035dfad67744c1e8a04e8dc",
+      "criterion": "model_resource_and_production_isolation",
+      "evidence_class": "sanitized_host_invariance"
+    },
+    {
+      "path": "validation/stage-event-and-log-contract.md",
+      "bytes": 2935,
+      "sha256": "05f64c03281666b6c465e4cc278ff52b8e0d80a0ed90212e1fd4190e046674ca",
+      "criterion": "stage_events_single_cli_and_utf8_logs",
+      "evidence_class": "sanitized_execution_trace"
+    },
+    {
+      "path": "validation/web-tests.txt",
+      "bytes": 1570,
+      "sha256": "71b8c94356ccf40c3c9e3265f14aaed33f1f02de0fcbc8b4078200ac7310b8a6",
+      "criterion": "frontend_vitest_and_vite_build",
+      "evidence_class": "public_safe_build_and_test_log"
+    }
+  ]
+}

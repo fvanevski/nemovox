@@ -55,3 +55,11 @@ FFmpeg/ffprobe are required for media processing; yt-dlp is required for remote/
 - Remote ingestion is intended for a trusted local operator. Keep the API bound to loopback; it is not ready for public deployment.
 
 Current architecture: [Studio architecture](../docs/gui/ARCHITECTURE.md). The original [Antigravity integration handoff](../docs/gui/ANTIGRAVITY_HANDOFF.md) is historical and should not override current source.
+
+
+## Host output destinations and retained job records
+
+See [Studio output/export and log behavior](../docs/gui/STUDIO_OUTPUTS.md) for the
+host export-root configuration, task-specific artifact choices, collision-safe
+copies, persistent logs, typed progress and full job history. Selecting a host
+folder does not change the browser download directory or the CLI runtime.
