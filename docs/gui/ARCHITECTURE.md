@@ -7,7 +7,7 @@ For development and review, use the live repository source and exact Git branch/
 ## Processing boundary
 
 React/Vite Studio → FastAPI local HTTP → one-job subprocess worker → existing Nemovox Python CLI:
-process-media (recording.contract.json) → generate-subtitles (refined and translated contracts, SRT/ASS).
+process-media (recording.contract.json) → generate-subtitles (source correction → Riva primary machine translation → optional independent source-aware English post-edit → optional cue condensation → SRT/ASS). Legacy CLI direct OpenAI-chat translation remains explicitly supported.
 
 There must be only ONE owner of ASR, diarization, translation, text refinement and subtitle rendering: the existing Python source modules. The web layer only validates and configures requests, submits CLI jobs, retrieves output contracts, and visualizes results.
 
@@ -20,7 +20,9 @@ Use a separate HTTP Studio environment and NEMOVOX_CLI_PYTHON to invoke the mode
 | GET /api/health | Backend and local tool availability |
 | GET /api/media | Browse allowed server-local media roots |
 | POST /api/media/upload | Browser upload into local Studio uploads |
-| GET /api/glossaries | Existing local glossary configurations |
+| POST /api/media/inspect | Inspect allowed local/uploaded file with FFprobe; return real audio-only tracks |
+| GET /api/translation-backends | Read-only Riva checkpoint/worker configuration availability; no live GPU probe |
+| GET /api/glossaries | Optional glossary names, terms, characters and context notes |
 | POST /api/jobs | Create validated queued task |
 | GET /api/jobs | Recent job history |
 | GET /api/jobs/{id} | Job stage and state |
@@ -40,7 +42,7 @@ Media browsing is limited to explicit roots, without arbitrary host-path executi
 ## UX
 
 - Media & task: browse host paths, upload from browser, remote URL, source language, task.
-- Configure: dynamic task options, glossary and names, generic text-refinement profile/style, translation adapter, ASS layout and acoustic controls. Resource identities and task-role bindings are set in host configuration rather than the current GUI.
+- Configure: detailed accessible in-menu and selected-option explanations for ASR, source refinement, English translation review and style. Local source audio choices are dynamically probed and validated against the selected file; URL audio tracks are unknown until download. Dedicated Riva primary translation and text-model post-edit appear as distinct steps. Example glossaries are off by default and show names/terms/context when chosen. Resource identities and role bindings remain host-configured.
 - Process & preview: progress/history, output file access, synchronized dialogue search/click-to-seek, browser JASSUB where available, HTML overlay fallback.
 
 Design aims for a contemporary media workstation, not a generic enterprise dashboard: clear typography, progressive disclosure, dark subdued palette, responsive controls, easily accessible task state.

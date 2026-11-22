@@ -32,19 +32,21 @@ npm run dev
 
 Then open http://127.0.0.1:5173. The frontend proxies /api to the Python backend. A production build (npm run build) is served by the same backend from web/dist.
 
-The backend does not start/stop model services. Studio runs the existing CLI, which resolves host-configured ASR and text-inference resources, including the default SwiftU/NInfer text binding. Export `NEMOVOX_MODEL_RESOURCES` before starting the Studio server; per-job model-resource selection is currently configured on the host, not exposed as a Studio UI selector. See [resource configuration](../docs/model-resources/CONFIGURATION.md).
+The backend does not start/stop model services. Studio uses existing CLI stages with **Riva-Translate for primary translation** and a separate configured OpenAI-compatible text model (e.g. SwiftU/NInfer) for source ASR correction and English translation review. The default Riva binding requests `cuda:0`, without silently falling back to CPU. Verify model availability and GPU headroom on the host; the UI reports only configured checkpoint/worker file availability, not a successful inference session. Export `NEMOVOX_MODEL_RESOURCES` before starting Studio; resource identities are configured on the host rather than selected by a model marketplace in the UI. See [resource configuration](../docs/model-resources/CONFIGURATION.md).
 
 FFmpeg/ffprobe are required for media processing; yt-dlp is required for remote/YouTube URLs. All model weights continue under /workspace/models.
 
 ## Three tabs
 
 1. Media & task: host directory browsing, browser file upload, remote URL, language choice, transcription/translation/subtitle tasks.
-2. Configure: task-specific contextual text refinement, selected translation adapter (configured text model or Riva), glossary, style, ASS display, speaker/alignment options.
+2. Configure: accessible explanations for ASR/refinement/review/style settings; **actual FFprobe audio tracks for a local selected file** (not hard-coded 0–3 choices); dedicated Riva translation followed by optional context-aware English post-edit; descriptive optional glossary previews; ASS layout and speaker/alignment settings. The shipped GUI selects Riva rather than legacy text-model primary translation.
 3. Process & preview: job status/history, logs, video where browser-compatible, synchronized cues, ASS preview and downloads.
 
 ## Expected limitations of this foundation
 
 - The app indexes new Studio jobs. Historical CLI outputs are not yet automatically included in the GUI job library.
+- Selected local/uploaded media are inspected for real audio-only stream indices. Remote URL tracks cannot be shown before download, so track 0 is used. A preexisting recording contract needs no audio track selection.
+- Two example series glossaries are included for demonstration but **not selected automatically**; glossary entries are contextual guidance, not enforced replacements.
 - WebM typically plays in current Firefox/Chromium; MKV or unsupported codecs may require a future short FFmpeg preview proxy.
 - Percent shown is a coarse workflow milestone, not per-chunk completion.
 - In-flight jobs are marked interrupted if the Studio process restarts. Re-submission is possible; automated cross-job cache reuse is not implemented.
