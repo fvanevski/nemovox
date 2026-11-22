@@ -12,7 +12,7 @@ from typing import Any, Callable, Mapping, Sequence
 
 from nvidia_transcribe.client import NemotronVLLMClient
 from nvidia_transcribe.model_resources import ModelResource
-from nvidia_transcribe.resource_lifecycle import ModelLifecycle, managed_text_client
+from nvidia_transcribe.resource_lifecycle import ModelLifecycle, ResourceLifecycleError, managed_text_client
 from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
 from nvidia_transcribe.refinement import (
     GlossaryConfig,
@@ -321,6 +321,12 @@ def generate_subtitles(
         }
         _atomic_write(translated_path, json.dumps(translated_contract, ensure_ascii=False, indent=2))
         if cfg.translation_review.profile != "off" and review_summary.get("status") == "completed_with_errors":
+            if review_summary.get("resource_blocked_reason"):
+                raise ResourceLifecycleError(
+                    review_summary["resource_blocked_reason"],
+                    "Required English review model unavailable; "
+                    "machine translations preserved in translated.contract.json",
+                )
             raise RuntimeError("Required contextual English review did not complete; "
                                "machine translations were preserved in translated.contract.json")
         _atomic_write(out_dir / "raw_source_transcript.txt", _format_utterance_transcript_lines(translated_utts, "raw_source_text", "source_text"))
