@@ -1,0 +1,14 @@
+# PR #11 / Issue #10 Findings (`20261122T054544Z`)
+
+- **Result:** `PASS` against exact source SHA `8d6f70f161c9100d4e64fca49da5139c4d109615` (`origin/issue/10-auto-model-resources`).
+- **Blocking Findings:** `[]` (none). The Phase A blocker reported under `20261122T035837Z` (`test_single_clip_asr_role_default_and_legacy_explicit_endpoint`) is verified resolved (`207 passed, 1 warning` in `pytest -q -m "not gpu"`).
+
+## Non-Blocking Findings & Operational Notes for Central
+- **F-01 (`NON-BLOCKING` with `api_key_env` host config; recommended documentation / parity polish): `ModelLifecycle._models_healthy()` vs `VLLM_API_KEY` environment auth.**
+  - **Observed behavior:** On this Garuda host, `VLLM_API_KEY` is exported in both the user shell and `systemd --user show-environment`. When `nemovox-asr.service` launches `scripts/start_vllm_server.sh` (`vllm serve`), `vllm` reads `VLLM_API_KEY` and requires Bearer auth on `GET /v1/models`. Because `asr_local` defaults (`_RESOURCE_DEFAULTS` and `configs/model-resources.example.json`) omit `"api_key_env"`, `ModelLifecycle._models_healthy()` (`src/nvidia_transcribe/resource_lifecycle.py:128-146`) only reads `resource.credential()` and sends unauthenticated `GET /v1/models`, receiving `HTTP 401 Unauthorized` every second until `managed_start_timeout` (observed in initial job `4d0c3f21f3fc495bab3ea3babcf693af`), whereas `NemotronVLLMClient` (`src/nvidia_transcribe/client.py:110`) falls back to `os.environ.get("VLLM_API_KEY")`.
+  - **Resolution used in Phase C (documented host configuration):** Set `"api_key_env": "VLLM_API_KEY"` on `asr_local` inside the host-only `NEMOVOX_MODEL_RESOURCES` JSON (as documented in `docs/model-resources/CONFIGURATION.md:107-109`), after which Studio E2E, CLI parity, and cancellation all passed cleanly.
+  - **Recommendation:** Central may wish to either mention `"api_key_env": "VLLM_API_KEY"` prominently in `docs/model-resources/LIFECYCLE.md` when `VLLM_API_KEY` is present in `systemd --user`, or align `_models_healthy()` with `NemotronVLLMClient`'s `VLLM_API_KEY` fallback (or `UnsetEnvironment=VLLM_API_KEY` in `systemd-user/nemovox-asr.service.example` if local loopback health checks are meant to be unauthenticated).
+
+## Provenance Classification Note
+- All Phase A (`cpu-tests.md`, `web-tests.md`), Phase B (`unit-configuration.md`, `rollback.md`), and Phase C (`live-stage-transitions.md`, `gpu-usage.md`, `studio-and-cli-e2e.md`, `cancellation-and-recovery.md`, `negative-ownership.md`) results are backed by direct command/HTTP/systemd/journal outputs observed cleanly after source SHA `8d6f70f161c9100d4e64fca49da5139c4d109615`.
+- No source files or tests were modified (`source_edited: false`). Complete sanitized packet is published to `staging/issue10/evidence/20261122T054544Z/`; private archive upload is not needed.
