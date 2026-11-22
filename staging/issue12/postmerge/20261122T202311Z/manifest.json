@@ -1,0 +1,112 @@
+{
+  "schema": "nemovox-issue12-postmerge-evidence/v1",
+  "utc_run_id": "20261122T202311Z",
+  "repo_id": "fvanevski/nemovox",
+  "issue_number": 12,
+  "pr_number": 13,
+  "merged_main_sha": "8f6c03cbc70e84bf1970ba364207a02c9fe22b44",
+  "merged_main_tree_sha": "21ae1c6d1b682f1061ae36f6896cd0ac87db1580",
+  "prior_live_sha": "332a99697edcc0b72fcc842168d5b1f57782e203",
+  "evidence_branch": "issue/12-studio-output-workflow",
+  "result": "PASS",
+  "members": [
+    {
+      "path": "COMMAND_SHAPE_FRICTION.txt",
+      "bytes": 26,
+      "sha256": "ef01f6074896151b309060594a0942fa2e404f1eb9b0888885f89b4c30c9eb32",
+      "criterion": "command_shape_friction",
+      "evidence_class": "public_safe_friction_log"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1857,
+      "sha256": "5bda72cf1621cf981b2dda7d982192b00b777e9883f3da24c6690bd2b6f66942",
+      "criterion": "evidence_packet_index",
+      "evidence_class": "public_safe_summary"
+    },
+    {
+      "path": "deployment/preflight.md",
+      "bytes": 1570,
+      "sha256": "8aa19daee2d439a5b03a245c344f51a23f770be9ed6ff17aa75161706760e792",
+      "criterion": "preflight_admission_and_preimages",
+      "evidence_class": "public_safe_deployment_preflight"
+    },
+    {
+      "path": "deployment/promotion-receipt.md",
+      "bytes": 1532,
+      "sha256": "f3b45f9f945dd5aca85a2c34db2b76fda92e2d5815af5631798869af91dc2167",
+      "criterion": "promotion_and_fresh_activation",
+      "evidence_class": "public_safe_promotion_receipt"
+    },
+    {
+      "path": "deployment/rollback-readiness.md",
+      "bytes": 901,
+      "sha256": "74489fc6b6ba9ba00ad3bee1660445a64898d97f0f246579d8305bb6e5ca905d",
+      "criterion": "rollback_readiness_and_private_backup",
+      "evidence_class": "public_safe_rollback_receipt"
+    },
+    {
+      "path": "review/acceptance-matrix.md",
+      "bytes": 1219,
+      "sha256": "8dbe134c7277e99c8082503e59ff54e00d54c242caff8d922c6bc0c4a563ed10",
+      "criterion": "consolidated_acceptance_mapping",
+      "evidence_class": "public_safe_acceptance_matrix"
+    },
+    {
+      "path": "review/findings.md",
+      "bytes": 298,
+      "sha256": "39c9a4eca99739f0195bf97a5a7787739562a6d30d9a7873fcb1612621dc87c5",
+      "criterion": "blocking_findings",
+      "evidence_class": "public_safe_review_summary"
+    },
+    {
+      "path": "source/source-and-tree-identity.json",
+      "bytes": 1625,
+      "sha256": "a4b023f48e31e6cc09230394ac959d8f481a1971dbfacc416e2a2dea2541433d",
+      "criterion": "source_and_loaded_module_identity",
+      "evidence_class": "public_safe_source_identity"
+    },
+    {
+      "path": "validation/fresh-studio-browser.md",
+      "bytes": 2541,
+      "sha256": "ce6ecfb4d59cea72b10aa0a99ebf64e616497d698725eead6a53e2bbaf5f033e",
+      "criterion": "live_browser_and_contract_acceptance",
+      "evidence_class": "sanitized_browser_observation"
+    },
+    {
+      "path": "validation/real-french-job.md",
+      "bytes": 3538,
+      "sha256": "426ec6076ae108ae95fb2f5feb34522d8a1fe5c43644f762e0ba8e1a29d1f02a",
+      "criterion": "live_french_asr_riva_review_render",
+      "evidence_class": "sanitized_host_gpu_observation"
+    },
+    {
+      "path": "validation/sanitized-tab1-exports.png",
+      "bytes": 131740,
+      "sha256": "f1d55829d6f93869ef02c7c5d28233be0a9fbd555e66d208ca40da5ca21edaff",
+      "criterion": "live_browser_output_chooser_screenshot",
+      "evidence_class": "sanitized_screenshot"
+    },
+    {
+      "path": "validation/sanitized-tab3-synthetic.png",
+      "bytes": 367811,
+      "sha256": "6b8c3fe78b4ab7314e3c4a7bd452a9d3f4b91989050d9281a1de2cbdb3f48c66",
+      "criterion": "live_browser_stage_log_export_screenshot",
+      "evidence_class": "sanitized_screenshot"
+    },
+    {
+      "path": "validation/synthetic-and-failure-tests.md",
+      "bytes": 1529,
+      "sha256": "701ac83e0abc2e50f61f6ffaf1a36baea0ebf9e69cc6c7ea3ce44677bc5ef0a5",
+      "criterion": "isolated_negative_and_compatibility_tests",
+      "evidence_class": "sanitized_negative_observation"
+    },
+    {
+      "path": "validation/tests.txt",
+      "bytes": 1478,
+      "sha256": "e2c2913ae8addff234f40564f1d64b6fe64f6b19d5ea64c96d2371c4a3219c61",
+      "criterion": "compileall_cpu_studio_frontend_suites",
+      "evidence_class": "public_safe_test_log"
+    }
+  ]
+}

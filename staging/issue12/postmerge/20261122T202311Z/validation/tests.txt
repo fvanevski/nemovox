@@ -1,0 +1,37 @@
+
+=== Staged Exact Merged Main (/workspace/nemovox-issue12-main-stage @ 8f6c03cbc70e84bf1970ba364207a02c9fe22b44) ===
+
+Compileall (.venv):
+$ PYTHONPATH=/workspace/nemovox-issue12-main-stage/src /workspace/nvidia-transcribe/.venv/bin/python -m compileall -q src tests experiments
+exit=0
+
+Full Non-GPU Pytest (.venv):
+$ PYTHONPATH=/workspace/nemovox-issue12-main-stage/src /workspace/nvidia-transcribe/.venv/bin/python -m pytest -q -m 'not gpu'
+257 passed, 1 warning in 9.72s
+exit=0
+(0 skipped; 1 anyio PytestRemovedIn10Warning CallSpec2)
+
+Studio Pytest (.venv-studio):
+$ PYTHONPATH=/workspace/nemovox-issue12-main-stage/src /workspace/nvidia-transcribe/.venv-studio/bin/python -m pytest -q tests/test_studio_exports.py tests/test_studio_export_api.py tests/test_studio_api.py
+49 passed in 3.55s
+exit=0
+
+Frontend Vitest + Build (web/):
+$ cd /workspace/nemovox-issue12-main-stage/web && npm test
+Test Files  6 passed (6)
+     Tests  14 passed (14)
+  Duration  292ms
+exit=0
+
+$ cd /workspace/nemovox-issue12-main-stage/web && npm run build
+> tsc --noEmit && vite build
+✓ 2040 modules transformed.
+✓ built in 775ms
+exit=0
+
+=== Live Production Import Origin Verification (/workspace/nvidia-transcribe @ 8f6c03cbc70e84bf1970ba364207a02c9fe22b44) ===
+.venv-studio:
+  /workspace/nvidia-transcribe/src/nvidia_transcribe/studio_api.py
+  /workspace/nvidia-transcribe/src/nvidia_transcribe/studio_exports.py
+.venv:
+  /workspace/nvidia-transcribe/src/nvidia_transcribe/subtitle_pipeline.py

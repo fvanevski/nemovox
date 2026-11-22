@@ -1,0 +1,33 @@
+{
+  "repo_id": "fvanevski/nemovox",
+  "issue_number": 12,
+  "issue_state": "OPEN",
+  "pr_number": 13,
+  "pr_state": "MERGED",
+  "merged_main_sha": "8f6c03cbc70e84bf1970ba364207a02c9fe22b44",
+  "merged_main_tree_sha": "21ae1c6d1b682f1061ae36f6896cd0ac87db1580",
+  "prior_live_sha": "332a99697edcc0b72fcc842168d5b1f57782e203",
+  "prior_live_tree_sha": "6f1b41c26f8439d9eb1c5a4aff11b64e4c40afaa",
+  "staged_source_sha": "8f6c03cbc70e84bf1970ba364207a02c9fe22b44",
+  "staged_source_tree_sha": "21ae1c6d1b682f1061ae36f6896cd0ac87db1580",
+  "deployed_checkout": "/workspace/nvidia-transcribe",
+  "deployed_source_sha": "8f6c03cbc70e84bf1970ba364207a02c9fe22b44",
+  "deployed_source_tree_sha": "21ae1c6d1b682f1061ae36f6896cd0ac87db1580",
+  "loaded_module_paths": {
+    "studio_api": "/workspace/nvidia-transcribe/src/nvidia_transcribe/studio_api.py",
+    "studio_api_sha256": "0bc1db5d69476f1a22a75647ce4285405f147ef1014f1138f2a6514911548caf",
+    "studio_exports": "/workspace/nvidia-transcribe/src/nvidia_transcribe/studio_exports.py",
+    "studio_exports_sha256": "c8452eb6ba2ba682f6901d6b08b34afcaef42bb51e02a6024c92b92f809b486e",
+    "subtitle_pipeline": "/workspace/nvidia-transcribe/src/nvidia_transcribe/subtitle_pipeline.py"
+  },
+  "live_process": {
+    "unit": "nemovox-studio.service",
+    "main_pid": 1121444,
+    "invocation_id": "6cd5cf36a6774b0693d37a196c088464",
+    "cwd": "/workspace/nvidia-transcribe",
+    "python": "/workspace/nvidia-transcribe/.venv-studio/bin/python",
+    "cli_python": "/workspace/nvidia-transcribe/.venv/bin/python",
+    "listen": "127.0.0.1:8765"
+  },
+  "utc_run_id": "20261122T202311Z"
+}
