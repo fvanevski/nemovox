@@ -1,0 +1,86 @@
+{
+  "schema": "nemovox-pr13-issue12-final-evidence/v1",
+  "utc_run_id": "20261122T191255Z",
+  "repo_id": "fvanevski/nemovox",
+  "issue_number": 12,
+  "pr_number": 13,
+  "branch": "issue/12-studio-output-workflow",
+  "tested_source_sha": "1eaf682262dea4b286db111fcb1b728c980d2e4c",
+  "tested_tree_sha": "6ffee8186223354eabbb26445d5750e135da5694",
+  "base_main_sha": "332a99697edcc0b72fcc842168d5b1f57782e203",
+  "worktree": "/workspace/nemovox-issue12-verify",
+  "source_edited": false,
+  "result": "PASS",
+  "members": [
+    {
+      "path": "COMMAND_SHAPE_FRICTION.txt",
+      "bytes": 26,
+      "sha256": "ef01f6074896151b309060594a0942fa2e404f1eb9b0888885f89b4c30c9eb32",
+      "criterion": "command_shape_friction",
+      "evidence_class": "public_safe_friction_log"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1642,
+      "sha256": "3d7341e55bbee9a0531b42a27e6bcd02d63dcabd65b82e9716b2685615bd7454",
+      "criterion": "evidence_packet_index",
+      "evidence_class": "public_safe_summary"
+    },
+    {
+      "path": "review/acceptance-matrix.md",
+      "bytes": 911,
+      "sha256": "4fe1c390e419538a303e2b936f8e2fb4c45bd7668108c5207924d3be50b3bb73",
+      "criterion": "consolidated_acceptance_mapping",
+      "evidence_class": "public_safe_acceptance_matrix"
+    },
+    {
+      "path": "review/findings.md",
+      "bytes": 270,
+      "sha256": "69d943c05b94e6bed53ad7364f5fe47b79aeba1ede3329a0bceee74e66acb01f",
+      "criterion": "blocking_findings",
+      "evidence_class": "public_safe_review_summary"
+    },
+    {
+      "path": "source/identity.json",
+      "bytes": 1364,
+      "sha256": "c4f075c73977e6034b91537aa42379763e0c5c1c7f70002ba6758765592ee7aa",
+      "criterion": "exact_tested_source_no_drift",
+      "evidence_class": "public_safe_source_identity"
+    },
+    {
+      "path": "validation/cpu-tests.txt",
+      "bytes": 1879,
+      "sha256": "0430f6320ad257281353a4145591ac952765b45fd7740d06f96b9af9064ae1dc",
+      "criterion": "large_log_drain_schema_rejection_and_cpu_suites",
+      "evidence_class": "public_safe_test_log"
+    },
+    {
+      "path": "validation/french-gpu-studio-e2e.md",
+      "bytes": 2900,
+      "sha256": "94c71316c6a0cfeb746fc06dcfd79f59fc61b3c65e26aa3456a64ee087401dd8",
+      "criterion": "short_french_cuda_e2e",
+      "evidence_class": "sanitized_host_gpu_observation"
+    },
+    {
+      "path": "validation/isolated-studio-browser.md",
+      "bytes": 1811,
+      "sha256": "957c9c5228d80ef9757ce0acd21606464adb05f7b07046f512966bddf5ba63a4",
+      "criterion": "isolated_studio_browser_verification",
+      "evidence_class": "sanitized_browser_observation"
+    },
+    {
+      "path": "validation/service-and-production-invariance.md",
+      "bytes": 736,
+      "sha256": "4591706dfb80c88d502af04c6b81623b464571f2dd373283c1905dda4abbc41b",
+      "criterion": "production_main_and_gpu_isolation",
+      "evidence_class": "sanitized_host_invariance"
+    },
+    {
+      "path": "validation/web-tests.txt",
+      "bytes": 1564,
+      "sha256": "69d1acabbee353f1ede37d88a76d6343560d6d4e4a5eb56a8b7395ce3e35d1d3",
+      "criterion": "frontend_vitest_and_vite_build",
+      "evidence_class": "public_safe_build_and_test_log"
+    }
+  ]
+}
