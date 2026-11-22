@@ -1,0 +1,26 @@
+
+=== Import Origin & Compileall ===
+$ cd /workspace/nemovox-issue12-verify && PYTHONPATH=/workspace/nemovox-issue12-verify/src /workspace/nvidia-transcribe/.venv/bin/python -c "import nvidia_transcribe, nvidia_transcribe.studio_exports, nvidia_transcribe.studio_api; print(nvidia_transcribe.__file__); print(nvidia_transcribe.studio_exports.__file__); print(nvidia_transcribe.studio_api.__file__)"
+/workspace/nemovox-issue12-verify/src/nvidia_transcribe/__init__.py
+/workspace/nemovox-issue12-verify/src/nvidia_transcribe/studio_exports.py
+/workspace/nemovox-issue12-verify/src/nvidia_transcribe/studio_api.py
+
+$ cd /workspace/nemovox-issue12-verify && PYTHONPATH=/workspace/nemovox-issue12-verify/src /workspace/nvidia-transcribe/.venv/bin/python -m compileall -q src tests experiments
+exit=0
+
+=== Focused CPU Pytest (.venv) ===
+$ cd /workspace/nemovox-issue12-verify && PYTHONPATH=/workspace/nemovox-issue12-verify/src /workspace/nvidia-transcribe/.venv/bin/python -m pytest -q tests/test_studio_exports.py tests/test_studio_export_api.py tests/test_studio_api.py tests/test_resource_integration.py tests/test_translation.py tests/test_translation_review.py tests/test_subtitles.py
+86 passed, 1 warning in 3.59s
+exit=0
+(warning: anyio/pytest_plugin.py PytestRemovedIn10Warning CallSpec2)
+
+=== Focused Studio Pytest (.venv-studio) ===
+$ cd /workspace/nemovox-issue12-verify && PYTHONPATH=/workspace/nemovox-issue12-verify/src /workspace/nvidia-transcribe/.venv-studio/bin/python -m pytest -q tests/test_studio_exports.py tests/test_studio_export_api.py tests/test_studio_api.py
+45 passed in 3.62s
+exit=0
+
+=== Full Non-GPU Pytest (.venv) ===
+$ cd /workspace/nemovox-issue12-verify && PYTHONPATH=/workspace/nemovox-issue12-verify/src /workspace/nvidia-transcribe/.venv/bin/python -m pytest -q -m 'not gpu'
+247 passed, 1 warning in 9.38s
+exit=0
+(0 skipped; 1 anyio PytestRemovedIn10Warning)
