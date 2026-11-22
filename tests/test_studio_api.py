@@ -15,7 +15,7 @@ import pytest
 fastapi = pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
-from nvidia_transcribe.studio_api import JobRunner, StudioConfig, _remote_url, _srt_cues, create_app
+from nvidia_transcribe.studio_api import JobRunner, Options, StudioConfig, _remote_url, _srt_cues, create_app
 from nvidia_transcribe.media import MediaInspectionError
 
 
@@ -51,6 +51,14 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     with TestClient(app) as c:
         yield c, media, secret, settings
     app.state.runner.executor.shutdown(wait=False, cancel_futures=True)
+
+
+def test_chunk_policy_option_is_explicit_and_backwards_compatible():
+    assert Options().chunk_policy == "fixed"
+    assert Options(chunk_policy="pause_aware").chunk_policy == "pause_aware"
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):
+        Options(chunk_policy="not-a-policy")
 
 
 def test_health_and_media_roots(client):
