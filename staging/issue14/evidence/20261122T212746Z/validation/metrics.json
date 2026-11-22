@@ -1,0 +1,92 @@
+{
+  "schema": "nemovox-issue14-replay-metrics/v1",
+  "tested_source_sha": "50b1408f73f3738f2f2ff5e59bbb421e4cb52e2f",
+  "replay_chunk_count": 16,
+  "raw_units_input": 2415,
+  "timing_audit": {
+    "audited_units": 2415,
+    "quarantined_units": 0,
+    "reasons": {},
+    "large_gap_count": 63
+  },
+  "boundary_reconciliation": {
+    "baseline": {
+      "total_deduplicated_units": 53,
+      "legacy_token_dedup_units": 53,
+      "sequence_deduplicated_units": 0,
+      "sequence_promoted_units": 0,
+      "total_recovered_boundary_units": 4,
+      "legacy_1_5s_recovered_units": 4,
+      "extended_recovered_units": 0,
+      "sequence_ambiguities": 0,
+      "extended_ambiguities": 0
+    },
+    "candidate": {
+      "total_deduplicated_units": 154,
+      "legacy_token_dedup_units": 53,
+      "sequence_deduplicated_units": 101,
+      "sequence_promoted_units": 48,
+      "total_recovered_boundary_units": 4,
+      "legacy_1_5s_recovered_units": -44,
+      "extended_recovered_units": 0,
+      "sequence_ambiguities": 7,
+      "extended_ambiguities": 12
+    }
+  },
+  "utterance_metrics_shared_denominators": {
+    "baseline": {
+      "utterances_total": 234,
+      "total_units": 2051,
+      "total_lexical_words": 2051,
+      "untimed_utterances": 0,
+      "partial_timing_utterances": 0,
+      "untimed_units_in_utterances": 0,
+      "duration_le_0_60s": 63,
+      "words_le_2_space_split": 87,
+      "words_le_2_lexical": 87,
+      "micro_union_dur_le_0_60_or_words_le_2_space": 90,
+      "micro_union_dur_le_0_60_or_words_le_2_lexical": 90,
+      "single_lexical_word_utterances": 61,
+      "fragments_0_19s_to_0_24s": 49,
+      "distinct_global_speakers_in_utts": 23
+    },
+    "candidate": {
+      "utterances_total": 233,
+      "total_units": 2052,
+      "total_lexical_words": 2052,
+      "untimed_utterances": 0,
+      "partial_timing_utterances": 0,
+      "untimed_units_in_utterances": 0,
+      "duration_le_0_60s": 62,
+      "words_le_2_space_split": 86,
+      "words_le_2_lexical": 86,
+      "micro_union_dur_le_0_60_or_words_le_2_space": 89,
+      "micro_union_dur_le_0_60_or_words_le_2_lexical": 89,
+      "single_lexical_word_utterances": 60,
+      "fragments_0_19s_to_0_24s": 48,
+      "distinct_global_speakers_in_utts": 23
+    },
+    "deltas": {
+      "utterances_total": -1,
+      "total_units": 1,
+      "total_lexical_words": 1,
+      "untimed_utterances": 0,
+      "micro_union_dur_le_0_60_or_words_le_2_lexical": -1,
+      "fragments_0_19s_to_0_24s": -1
+    }
+  },
+  "priority_defect_windows_resolved": {
+    "W01_to_W05_resolved_count": 0,
+    "W01_to_W05_total_subcases": 15,
+    "controls_preserved_intact": [
+      "C1",
+      "C2",
+      "C_1327_1329_Alerte"
+    ],
+    "candidate_regressions_observed": [
+      "W04c_1264s_lost_leading_token",
+      "c12_c13_clipped_tail_token_promoted",
+      "c03_c04_asr_insertion_promoted"
+    ]
+  }
+}

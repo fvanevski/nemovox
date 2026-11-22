@@ -1,0 +1,40 @@
+{
+  "schema": "nemovox-issue14-source-identity/v1",
+  "utc_run_id": "20261122T212746Z",
+  "repo_id": "fvanevski/nemovox",
+  "issue_number": 14,
+  "pr_number": 15,
+  "branch": "issue/14-longform-timing-boundaries",
+  "tested_source_sha": "50b1408f73f3738f2f2ff5e59bbb421e4cb52e2f",
+  "tested_source_tree_sha": "a0731a2b3440118795397cb96fa5fb79dc0d87d7",
+  "handoff_head_sha": "6986cf5a4efa33a08564afd8cc02ed5951af827f",
+  "handoff_head_tree_sha": "929370c981d1df16caf9b7e9dfa8976065393a0e",
+  "diff_handoff_vs_tested_src_tests": "empty (only staging/issue14/HANDOFF_FIRST_SLICE.md updated)",
+  "authoritative_main_sha": "8f6c03cbc70e84bf1970ba364207a02c9fe22b44",
+  "authoritative_main_tree_sha": "21ae1c6d1b682f1061ae36f6896cd0ac87db1580",
+  "diagnostic_baseline_ref": "5bf6f37d173cfcc160fdf03b60b051cd0f5e7dea:staging/quality-audit/mcog-s04e01/evidence/20261122T205259Z",
+  "candidate_import_origin": "<ISOLATED_WORKTREE>/src/nvidia_transcribe/{timing_evidence,boundary_evidence,chunking,utterances}.py",
+  "production_state": {
+    "checkout": "<PROD_CHECKOUT> (main @ 8f6c03cbc70e84bf1970ba364207a02c9fe22b44, clean)",
+    "studio_service": "nemovox-studio.service (active, MainPID=1121444, InvocationID=6cd5cf36a6774b0693d37a196c088464)",
+    "model_units": {
+      "nemovox-asr.service": "inactive (dead)",
+      "nemovox-text-review.service": "inactive (dead)"
+    },
+    "gpu_memory": "NVIDIA GeForce RTX 5090, 3104 MiB used / 29023 MiB free (unchanged)"
+  },
+  "original_job_epoch": {
+    "job_id": "980af31f014245c4b200e0af8b33ebca",
+    "historical_source_sha": "UNVERIFIED",
+    "original_job_sha256": "f23ed8e42a6eb3643edea1157164c6cb1c4386c507b0eb9d8ebd49ac3cbe5fec",
+    "manifest_sha256": "cea5a72b529136dcdfd747adbb82fb46d45777543f8740aab18f9993c59d8a88",
+    "recording_contract_sha256": "f0f444dcb0db95c332c08c0c72387ac9c3fef080035a722f918da9972af90f8e"
+  },
+  "input_digests": {
+    "video_sha256": "0e77ce3c809e498b97ffe48b53575c29e10d8b08a039b78e2150cd0c845c81b0",
+    "video_bytes": 313494885,
+    "ass_sha256": "7dc2c54d715fcaea977e87ecf3655ebad8403a776a51a12afbb1a4a0b1fcbbbb",
+    "catalog_sha256": "c34aa180222557332149b6c74c49f1945f7bc9f7001649fe0de2c7aea0c4da74",
+    "chunks_sha_verified": 16
+  }
+}

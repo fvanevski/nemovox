@@ -1,0 +1,101 @@
+{
+  "schema": "nemovox-issue14-evidence-manifest/v1",
+  "utc_run_id": "20261122T212746Z",
+  "repo_id": "fvanevski/nemovox",
+  "issue_number": 14,
+  "pr_number": 15,
+  "authoritative_main_sha": "8f6c03cbc70e84bf1970ba364207a02c9fe22b44",
+  "tested_source_sha": "50b1408f73f3738f2f2ff5e59bbb421e4cb52e2f",
+  "handoff_head_sha": "6986cf5a4efa33a08564afd8cc02ed5951af827f",
+  "evidence_branch": "issue/14-longform-timing-boundaries",
+  "evidence_root": "staging/issue14/evidence/20261122T212746Z/",
+  "omissions_for_privacy": [
+    "original_video_webm",
+    "bounded_wav_subclips",
+    "raw_chunk_json_responses",
+    "full_copyrighted_transcripts_and_ass",
+    "absolute_personal_host_paths"
+  ],
+  "members": [
+    {
+      "path": "COMMAND_SHAPE_FRICTION.txt",
+      "bytes": 25,
+      "sha256": "c333f1c530df2dbfa232d903a30c99bb7948f93c3a0e297957efe6c114eb48e9",
+      "criterion": "command_shape_friction",
+      "evidence_class": "public_safe_friction_log",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2283,
+      "sha256": "c5b381cd937097a924503b8c9502a749eb34f729fee4a9b9675258871930e950",
+      "criterion": "packet_index_and_scope",
+      "evidence_class": "public_safe_summary",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "source-identity.json",
+      "bytes": 2228,
+      "sha256": "fcac19bdf17df03d4632498b9b8120bf1a5a8f71bbf57c52cf547e15b8a6b50b",
+      "criterion": "source_branch_and_input_hashes",
+      "evidence_class": "sanitized_source_identity",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "validation/acoustic.md",
+      "bytes": 862,
+      "sha256": "3a2a10dcbdd58b582d574189f357741df5829b7a897d284651ea0735bf82cbd9",
+      "criterion": "acoustic_and_gpu_lease_status",
+      "evidence_class": "public_safe_acoustic_status",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "validation/cases.jsonl",
+      "bytes": 8008,
+      "sha256": "1e03c2d611e0b121eedbc29342a39bbd25db996315121929a4157b5ba262f375",
+      "criterion": "case_level_outcomes_w01_to_w05_controls",
+      "evidence_class": "sanitized_case_index",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "validation/causal-assessment.md",
+      "bytes": 4451,
+      "sha256": "48a139a2a42cf19d76176744c748c5f8b1dd0cc1a104010993a36609d5285c04",
+      "criterion": "mechanistic_ab_evaluation",
+      "evidence_class": "sanitized_causal_assessment",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "validation/commands.md",
+      "bytes": 1994,
+      "sha256": "8edea1330cb4cd2afd4a0dd24159a7e157d85c27c1951ec4cc40ec667ed4d350",
+      "criterion": "executable_suite_results",
+      "evidence_class": "public_safe_test_log",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "validation/metrics.json",
+      "bytes": 2870,
+      "sha256": "70e72f51c0c33d8b4d3afb42291ce8d693f792e6e925107c829c038c54cc1961",
+      "criterion": "baseline_vs_candidate_metrics",
+      "evidence_class": "public_safe_metrics",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "review/acceptance-matrix.md",
+      "bytes": 1547,
+      "sha256": "634d18c2d908323d776589f5cd765c74d110fa7884529820e5ebdb93022cf052",
+      "criterion": "consolidated_acceptance_matrix",
+      "evidence_class": "public_safe_acceptance_matrix",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "review/findings.md",
+      "bytes": 2106,
+      "sha256": "b591d6f831d3081bd9b33c2229a597c96e6bfdc835834b11bd9c5a7b7cab12b2",
+      "criterion": "findings_and_uncovered_risks",
+      "evidence_class": "public_safe_findings",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    }
+  ]
+}
