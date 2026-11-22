@@ -1,0 +1,70 @@
+{
+  "schema": "nemovox-pr8-issue7-codex-requal-evidence/v1",
+  "utc_run_id": "20261122T024407Z",
+  "repo_id": "fvanevski/nemovox",
+  "issue_number": 7,
+  "pr_number": 8,
+  "branch": "issue/7-studio-subtitle-workflow",
+  "tested_source_sha": "15101b37ae970e5c5ec6711343abe728701ecd30",
+  "codex_reviewed_old_head": "31a3459b3d5a32bcaef72ebaea00fc1b2e8ae997",
+  "base_main_sha": "8205d7783230272c39a669c3f51d89bca50669e6",
+  "worktree": "/workspace/nemovox-issue7-codex-requal",
+  "source_edits": false,
+  "members": [
+    {
+      "path": "COMMAND_SHAPE_FRICTION.txt",
+      "bytes": 1370,
+      "sha256": "a9689a25cac03b010e5ba19bff285cdb704d5f71f4bdff4b126f7b7ef408f345"
+    },
+    {
+      "path": "review/acceptance_matrix.md",
+      "bytes": 2800,
+      "sha256": "e865f5b6c789527383c98a0e4de242ddfd73ba8ee0c0f71fa4bc569b77c71ad9"
+    },
+    {
+      "path": "review/findings.md",
+      "bytes": 2206,
+      "sha256": "e20be303d6c8136213bdb234df007fab608dcc16501b166486a471b74e80dc2b"
+    },
+    {
+      "path": "source/identity.json",
+      "bytes": 1022,
+      "sha256": "e3eea5dad8fadf8a1346aed4e1490f0ae534301666c36c4385080de1d76b820e"
+    },
+    {
+      "path": "validation/codex_remediation_probes.txt",
+      "bytes": 2352,
+      "sha256": "71b5306202f96c0142279e83fa9ead23186ab327d1b76a0063b3338111a862e6"
+    },
+    {
+      "path": "validation/compileall.txt",
+      "bytes": 107,
+      "sha256": "579ce8b8eb338d51ed8fe5e429f1985554e73f22dddf55ca15cf2a937c6f1a3c"
+    },
+    {
+      "path": "validation/cpu_focused.txt",
+      "bytes": 1041,
+      "sha256": "acfc748a8bdc88809dc357d5cc5fa14617855830f7c6096b972a45d6dcd18386"
+    },
+    {
+      "path": "validation/cpu_full.txt",
+      "bytes": 986,
+      "sha256": "64e804a5f874ae78caad1140efd65528dbfcda9316d3809c09d31601a8eb0e85"
+    },
+    {
+      "path": "validation/import_and_pyyaml.txt",
+      "bytes": 236,
+      "sha256": "7f08e7aacf05fb630894fdf535e7b90cc34b757920dc032c2cc15c342bfb2859"
+    },
+    {
+      "path": "validation/web_build.txt",
+      "bytes": 1056,
+      "sha256": "13588fce285b6114d01746d0ac83b4e1f92753d568be194027a67722a57be1df"
+    },
+    {
+      "path": "validation/web_test.txt",
+      "bytes": 594,
+      "sha256": "93c365cfc59094c88e2e60d2e0b89e0c1c5756d0741aae8162e964633e8ff086"
+    }
+  ]
+}
