@@ -74,6 +74,12 @@ def _consistent_runs(
     return runs
 
 
+def _same_voice_within(units: Sequence[dict[str, Any]]) -> bool:
+    """Unknowns are never proof of one voice; known IDs must agree."""
+    speakers = {_speaker(unit) for unit in units}
+    return len(speakers) == 1 and None not in speakers
+
+
 def _right_continuation(
     stream: list[dict[str, Any]], end: int,
     matched_last: dict[str, Any],
