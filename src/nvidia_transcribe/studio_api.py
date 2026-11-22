@@ -595,16 +595,17 @@ class JobRunner:
 
             if spec.source.kind == "contract":
                 self._stage_event(job_id, "asr", "skipped", "Using an existing recording contract")
-                contract = source
-                if spec.task == "transcription":
-                    value = _read_transcription_contract(source)
-                    imported = root / "asr"
-                    imported.mkdir(parents=True, exist_ok=True)
-                    _atomic_json(imported / "recording.contract.json", value)
-                    (imported / "transcript.txt").write_text(
-                        _format_existing_transcript(value), encoding="utf-8"
-                    )
-                    contract = imported / "recording.contract.json"
+                # Regardless of task, import the existing source once into
+                # this job's retained archive so both default transcript and
+                # optional recording-contract exports have real source files.
+                value = _read_transcription_contract(source)
+                imported = root / "asr"
+                imported.mkdir(parents=True, exist_ok=True)
+                contract = imported / "recording.contract.json"
+                _atomic_json(contract, value)
+                (imported / "transcript.txt").write_text(
+                    _format_existing_transcript(value), encoding="utf-8"
+                )
             else:
                 args = [
                     "process-media", str(source), "--output-dir", str(root / "asr"),

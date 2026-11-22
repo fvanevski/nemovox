@@ -113,6 +113,7 @@ export default function App() {
   const [showHistory, setShowHistory] = useState(false);
   const [historyOffset, setHistoryOffset] = useState(0);
   const [logCopyMessage, setLogCopyMessage] = useState("");
+  const [logSearch, setLogSearch] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -641,13 +642,19 @@ export default function App() {
               <details className="mt-4 rounded-lg border border-[#2c3c50] bg-[#0b131d] p-3">
                 <summary className="cursor-pointer text-xs font-semibold muted">Processing log (retained after completion)</summary>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <button className="btn btn-ghost !min-h-8" onClick={() => void navigator.clipboard.writeText(logs.data?.lines.join("\n") ?? "")
-                    .then(() => setLogCopyMessage("Visible log copied."), () => setLogCopyMessage("Clipboard unavailable."))}>Copy visible</button>
+                  <button className="btn btn-ghost !min-h-8" onClick={() => void navigator.clipboard.writeText(
+                    logs.data?.lines.filter(line => line.toLowerCase().includes(logSearch.toLowerCase())).join("\n") ?? ""
+                  ).then(() => setLogCopyMessage("Visible log copied."), () => setLogCopyMessage("Clipboard unavailable."))}>Copy visible</button>
                   <button className="btn btn-ghost !min-h-8" onClick={() => void copyFullLog()}>Copy full log</button>
                   <a className="btn btn-ghost !min-h-8" href={studio.logDownload(jobId)}>Download full log</a>
                   {logCopyMessage && <span role="status" className="text-xs muted">{logCopyMessage}</span>}
                 </div>
-                <pre className="scrollbar mt-3 max-h-56 overflow-auto whitespace-pre-wrap text-[11px] leading-5 text-slate-400">{logs.data?.lines.join("\n") || "No log lines yet."}</pre>
+                <input className="control mt-3 !min-h-9 !text-xs" aria-label="Filter recent log lines"
+                  placeholder="Search recent log lines…" value={logSearch}
+                  onChange={e => setLogSearch(e.target.value)}/>
+                <pre className="scrollbar mt-3 max-h-56 overflow-auto whitespace-pre-wrap text-[11px] leading-5 text-slate-400">{logs.data?.lines.filter(
+                  line => line.toLowerCase().includes(logSearch.toLowerCase())
+                ).join("\n") || (logSearch ? "No matching recent log lines." : "No log lines yet.")}</pre>
               </details>
             </section>
             <div className="grid gap-5 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,.7fr)]">

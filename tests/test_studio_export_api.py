@@ -93,6 +93,41 @@ def test_empty_export_selection_is_disabled_even_with_folder(live):
     assert response.json()["export_report"]["status"] == "disabled"
 
 
+def test_subtitles_imported_contract_has_source_exports(live, tmp_path: Path, monkeypatch):
+    client, settings, _clip, root = live
+    contract = settings.media_roots[0] / "recording.contract.json"
+    contract.write_text(json.dumps({
+        "source_language": "fr",
+        "utterances": [{"source_text": "Une phrase.", "source_start": 0.2, "source_end": 1.2}],
+    }), encoding="utf-8")
+    response = client.post("/api/jobs", json={
+        "source": {"kind": "contract", "value": str(contract)},
+        "task": "subtitles",
+        "options": {"translator": "swiftu", "translation_review": "off"},
+        "export": {"destination": str(root),
+                   "artifacts": ["source_transcript", "recording_contract"]},
+    })
+    assert response.status_code == 202, response.text
+    job_id = response.json()["id"]
+    runner = client.app.state.runner
+
+    def fake_generate(job: str, args: list[str], stage: str, progress: int) -> None:
+        assert job == job_id
+        output = settings.job_root / job_id / "output"
+        output.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(runner, "_command", fake_generate)
+    runner._run(job_id)
+    result = runner.get(job_id)
+    assert result["state"] == "complete", result
+    assert result["export_report"]["status"] == "complete"
+    saved = root / ("nemovox-" + job_id)
+    assert (saved / "transcript.txt").is_file()
+    assert "Une phrase." in (saved / "transcript.txt").read_text(encoding="utf-8")
+    assert json.loads((saved / "recording.contract.json").read_text())[
+        "utterances"][0]["source_text"] == "Une phrase."
+
+
 def test_invalid_task_and_remote_media_export_selection(live):
     client, _settings, clip, root = live
     base = {"source": {"kind": "path", "value": str(clip)},
