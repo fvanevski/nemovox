@@ -8,8 +8,8 @@ Repository: fvanevski/nemovox
 Issue: #14 OPEN
 Draft PR: #15 OPEN/DRAFT
 Branch: issue/14-longform-timing-boundaries
-EXACT_TESTED_SOURCE_SHA: 6ba618a465f8459e3b3c10eee72275da98770882
-EXACT_TESTED_TREE: 833a2d992d03392ce9444f4c0978ec224b494074
+EXACT_TESTED_SOURCE_SHA: a63d02ee4cb4589380ce8dfd67e7153a857c4d0a
+EXACT_TESTED_TREE: 0220b862620e973d5924f53ae5ef17d583f193a3
 BASE_MAIN_SHA: 8f6c03cbc70e84bf1970ba364207a02c9fe22b44
 SOURCE_EVIDENCE: d50a81f6f74b70fef52bbd7b9f39b470019a4e8e:staging/issue14/evidence/20261122T221348Z/
 BASELINE_EVIDENCE: 5bf6f37d173cfcc160fdf03b60b051cd0f5e7dea:staging/quality-audit/mcog-s04e01/evidence/20261122T205259Z/
@@ -30,7 +30,7 @@ Original historical job execution Git SHA is UNVERIFIED. Exact source requalifie
 
 ## Central-authored production changes to verify
 
-A) New speech_chunks.py: FFmpeg silencedetect on the SELECTED audio stream proposes mid-pause boundaries. Core partition is exact and gap-free. Default policy pause_aware favors ~39s cores up to 46s, context capped at 4s, allowing a bounded <=54s tail; forced cuts without eligible pauses are EXPLICITLY logged. The alternative CLI --chunk-policy fixed preserves original fixed behavior. Detector failures are recorded, never represented as confirmed pauses.
+A) New speech_chunks.py: FFmpeg silencedetect on the SELECTED audio stream proposes mid-pause boundaries. Core partition is exact and gap-free. Policy pause_aware is an EXPLICIT opt-in for this candidate, favoring ~39s cores up to 46s with context capped at 4s and bounded tail slack. The default remains fixed to preserve older 90s jobs and legacy checkpoint signatures until qualification and an explicit rollout decision. Use --chunk-policy pause_aware in all candidate pilot/full-run commands. Forced cuts without eligible pauses are EXPLICITLY logged. Detector failures are recorded, never represented as confirmed pauses.
 
 B) recording.py / subtitle_pipeline.py / cli.py: policy wired into both CLI and Studio-launched generation, exact chunk plan plus detector status are included in checkpoint config signatures, and plan metadata is persisted. New plan may NOT resume old 90s raw chunk responses under the same manifest signature. Do not claim a silence boundary guarantees true word/speaker boundary. The defaults are experimental until this host report qualifies them.
 
@@ -45,7 +45,7 @@ E) CPU tests/test_issue14_pause_chunks.py and tests/test_issue14_speaker_review_
 1. Authenticate fresh GitHub main, PR head, draft state, Issue #14; require main BASE_MAIN_SHA and branch descendant of EXACT_TESTED_SOURCE_SHA with no substantive unapproved edits. Create a NEW collision-safe isolated worktree from exact SHA (do NOT reset/clean/stash production). Verify commit tree, AGENTS.md, changed-file inventory, source import paths, and effective CLI --chunk-policy parse.
 2. Verify original video and job hashes against BASELINE_EVIDENCE; check 16 raw chunk identities, production git and Studio PID/InvocationID, active Studio jobs, Nemovox owned model units, other GPU usage and lease ownership. Never modify originals, venvs, model configs or running jobs.
 3. Run python -m compileall -q src tests scripts, focused pytest of new pause/speaker-review tests plus prior timing, chunking, review, speaker, recording, Studio smoke; full .venv pytest -q -m 'not gpu'; .venv-studio pytest for Studio APIs; record exact counts, warnings, skips, exits and source imports. Test with PYTHONPATH bound to isolated candidate src. A failure from production semantics is a STOP and exact reproducer, not license to modify tests or source.
-4. Verify fixed-policy backward compatibility and resume: identical fixed config does not reuse a pause-aware signature, and two runs with the same adaptive plan may resume matching completed chunks. Confirm the manifest includes actual plan metadata and forced-boundary flags. Never delete or overwrite baseline outputs to test resume; use disposable fixture outputs.
+4. Verify fixed-policy DEFAULT backward compatibility and resume: identical fixed config does not reuse a pause-aware signature, and two runs with the same adaptive plan may resume matching completed chunks. Confirm the manifest includes actual plan metadata and forced-boundary flags. Never delete or overwrite baseline outputs to test resume; use disposable fixture outputs.
 5. Source-only boundary reconciliation evidence from previous host replay can be REUSED for unchanged boundary_evidence.py, but changed speaker merge and chunk planning must be freshly tested. Do NOT call reused evidence a new inference run.
 
 ## Phase B: inspect full-episode pause plan BEFORE GPU
@@ -60,7 +60,7 @@ E) CPU tests/test_issue14_pause_chunks.py and tests/test_issue14_speaker_review_
 1. Only after CPU PASS and planner/admission pass, acquire existing Nemovox-owned ASR/Riva/review resources through ModelLifecycle as appropriate, with exact resource fingerprint, checkpoint/CTC, language fr, speaker mode, quantization and request parity. Never start/stop unrelated models. Reuse PRIVATE verified clips where useful; no checkpoint download or global service edits.
 2. First pilot up to 8 candidate inference excerpts from the new episode plan covering W01a/b/d, W02a, W03b, W04a and clean/repetition C1/C2. Use actual planned infer bounds rather than manually recutting to known-good 45s probes. Record raw CTC privately and publish hash-bound per-case source coverage, alignment error to VERIFIED acoustic anchors, diarization speakers, omitted words, duplicate/source replacements, and pilot latency. Inspect forced-cut cases carefully. Previously shown 16–24s omission of W04a's entire 18-word reply MUST NOT recur unnoticed; C1 29 clean words and C2 8-token genuine repeat/simultaneous voice remain controls. W01a singing may remain acoustically unsupported: do not invent it.
 3. Pilot stop if: source is lost in a clean control, a correct W04a reply vanishes, major new false speaker merges occur, unowned GPU resources are affected, or model admission is unsafe. If a pilot reveals an unanticipated failure in the Central algorithm, return that reproducer; do not optimize cut thresholds locally.
-4. If pilot demonstrates improvement and no blocking source/control loss, run exactly ONE full 23-minute source episode end-to-end via the exact candidate CLI in a NEW isolated output root. Allow actual Nemotron ASR+CTC, TitaNet, Riva fr-en, Qwen balanced post-review and SRT/ASS render; preserve original media and old job/ASS. No Studio production installation or restart. Use current host-managed model resources and existing safe lease choreography. This is a private qualification run, not a replacement of the user's existing subtitles.
+4. If pilot demonstrates improvement and no blocking source/control loss, run exactly ONE full 23-minute source episode end-to-end via the exact candidate CLI with EXPLICIT --chunk-policy pause_aware in a NEW isolated output root. Allow actual Nemotron ASR+CTC, TitaNet, Riva fr-en, Qwen balanced post-review and SRT/ASS render; preserve original media and old job/ASS. No Studio production installation or restart. Use current host-managed model resources and existing safe lease choreography. This is a private qualification run, not a replacement of the user's existing subtitles.
 5. Evaluate complete new output relative to original baselines: word coverage on W01..W05/S01/S02/S05 and controls, source timing vs acoustic anchors, duplicate fragments, recovery counts, uncertain speaker links, 0.21s micro-utterances, total true/unknown speakers (do not target a fixed count), source->Riva->review lineages, S02 polarity, beneficial Qwen repairs, number of cues, and 18/22 CPS (diagnostic only; Issue #9 owns renderer). Report whether W02c/W03a 10/7 residual duplicate fragments persist and whether W05a's 6 recovered words remain. Record the effective chunk policy and exact plan digest in the full run.
 6. Verify original files/hashes again and ASR/Riva/Qwen services released with GPU returning to operator baseline. Preserve a private rollback/no-mutation ledger. A blocked model service or pilot failure is a partial handback, not a manufactured PASS. A full episode is not mandatory if an earlier gate fails.
 
@@ -84,8 +84,8 @@ Keep original and newly generated media/English/French subtitles and raw model r
 
 LOCAL_AGENT_HANDBACK:
  RESULT=PASS|PARTIAL|FAIL|BLOCKED
- EXACT_TESTED_SOURCE_SHA=6ba618a465f8459e3b3c10eee72275da98770882
- EXACT_TESTED_TREE=833a2d992d03392ce9444f4c0978ec224b494074
+ EXACT_TESTED_SOURCE_SHA=a63d02ee4cb4589380ce8dfd67e7153a857c4d0a
+ EXACT_TESTED_TREE=0220b862620e973d5924f53ae5ef17d583f193a3
  CURRENT_MAIN_SHA=<full SHA>
  PR_HEAD_CARRIER=<full evidence SHA>
  SOURCE_AND_PRODUCTION_ISOLATION=PASS|FAIL
