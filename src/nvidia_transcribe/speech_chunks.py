@@ -109,8 +109,8 @@ def plan_pause_aware_chunks(
             and math.isfinite(requested_context_s) and requested_context_s >= 0):
         raise ValueError("invalid requested core/context")
     max_core = min(max_requested_core_s, max_core_s)
-    if max_core < min_core_s:
-        raise ValueError("pause-aware chunking requires max requested core >= minimum")
+    # Keep small explicit user chunk limits valid, with proportional min cores.
+    min_core_s = min(min_core_s, max_core * 0.60)
     target = min(target_core_s, max_core)
     context = min(requested_context_s, max_context_s)
     total = round(float(total_duration_s), 6)

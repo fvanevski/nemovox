@@ -87,7 +87,7 @@ def _entry(u: dict[str, Any], i: int) -> dict[str, Any]:
 
 
 _FRENCH_NEGATIVE = re.compile(
-    r"(?i)(?:\b(?:pas|jamais|rien|personne|aucun|aucune|sans)\b|(?:^|\W)n['’])"
+    r"(?i)(?:\b(?:pas|jamais|rien|personne|aucun|aucune|sans)\b|(?:^|\W)n['’]|\bne\b(?:\W+\w+){0,5}\W+plus\b)"
 )
 _ENGLISH_NEGATIVE = re.compile(
     r"(?i)(?:\b(?:not|never|no|none|nobody|nothing|neither|nor|without|cannot)\b|n['’]t\b)"
