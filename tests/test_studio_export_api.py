@@ -252,6 +252,33 @@ def test_typed_milestone_lines_and_monotonic_progress(live):
     assert client.app.state.runner._read_stage_events(job_id, journal, offset) == offset
 
 
+def test_degraded_translation_event_survives_completed_job(live):
+    client, settings, clip, root = live
+    job_id = make_job(client, clip, root)
+    runner = client.app.state.runner
+    journal = settings.job_root / job_id / "execution.log"
+    detail = "completed_with_errors: 1 translation error(s); fallback source text retained"
+    events = [
+        {"schema": "nemovox-progress/v1", "stage": "translation", "status": "running"},
+        {"schema": "nemovox-progress/v1", "stage": "translation",
+         "status": "failed", "detail": detail},
+        {"schema": "nemovox-progress/v1", "stage": "render", "status": "running"},
+        {"schema": "nemovox-progress/v1", "stage": "render", "status": "complete"},
+    ]
+    journal.write_text("".join("NEMOVOX_EVENT " + json.dumps(event) + "\n"
+                               for event in events), encoding="utf-8")
+    assert runner._read_stage_events(job_id, journal, 0) == journal.stat().st_size
+    runner.update(job_id, state="complete", progress=100)
+    job = client.get("/api/jobs/" + job_id).json()
+    assert job["state"] == "complete"
+    assert [(event["id"], event["status"]) for event in job["stage_history"]] == [
+        ("translation", "failed"), ("render", "complete"),
+    ]
+    assert job["stage_history"][0]["detail"] == detail
+    assert job["stage_history"][0]["finished_at"]
+    assert job["stage_history"][1]["finished_at"]
+
+
 def test_completed_cli_drains_all_stage_events_after_large_final_log(live, monkeypatch):
     client, settings, clip, root = live
     job_id = make_job(client, clip, root)
