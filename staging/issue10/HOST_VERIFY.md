@@ -33,7 +33,7 @@ that test. Central has now aligned ASR readiness with
 `NemotronVLLMClient`'s `VLLM_API_KEY` fallback, without altering
 explicit credential enforcement or text-model authorization.
 
-The candidate **source SHA changes**; rerun Phase A completely and confirm
+The candidate **source SHA changes** (both credential parity and crash-recovery controller); rerun Phase A completely and confirm
 new credential regressions: ASR default key, no key/EMPTY parity, explicit
 ASR override precedence, missing explicit token fail-closed, and no leak to
 the text review endpoint. Continue Phases B/C safely, but **do not**
@@ -45,10 +45,7 @@ probe from both initially stopped unit and exact candidate CLI, **without**
 available to the candidate and the ASR unit. Verify successful credentialed
 `/v1/models`, exact served-model ID, one short ASR request with CTC timings,
 proper unit release, no unrelated service mutation, and healthy final state.
-Reuse the earlier packet only for unchanged Riva/reviewer/presentation code
-and only after independently proving source diff limited to credential
-readiness/tests/docs. If changes beyond that are necessary, exercise the
-full foreign-language E2E again. Capture both the original failure and
+Source changes now include supervised SIGKILL recovery in Studio and lifecycle, so a **fresh full foreign-language Studio E2E is required**. Reuse the earlier evidence only as comparative baseline, never as new source-bound qualification. Capture both the original failure and
 new successful automatic startup, distinguish host-only credentials from
 tracked configuration, and preserve old PASS evidence as historical rather
 than pretending it is source-bound to the new SHA.
@@ -75,6 +72,31 @@ than pretending it is source-bound to the new SHA.
 4. Independently inspect the running candidate Studio UI in Chromium/Firedragon if available, with an actual preview and `/api/resource-status` showing stop/start changes; check that resource blocks are actionable rather than generic `exit 1`, and required review failures do not appear `complete`.
 5. **If real GPU services cannot be safely provisioned or tests show a source bug, do not declare success.** Retain evidence and return a complete classified blocker; do not introduce an extra development PR or silently downgrade models. Do not promote candidate source into production 8765 under this premerge qualification campaign.
 
+## Phase C required: supervised SIGKILL/orphan-recovery check
+
+This candidate also changes the Studio supervisor's resource cleanup and the
+shared lifecycle lock. Thus the earlier French E2E and CLI parity evidence
+at source `8d6f70f161c9100d4e64fca49da5139c4d109615` is historical.
+Run complete Phase A and fresh Phase C French Studio ASR -> Riva -> review
+from exact current source, including the newly corrected default ASR
+`VLLM_API_KEY` readiness path **without** `api_key_env` on the isolated
+ASR binding. Keep the existing production Studio on port 8765 untouched.
+
+Under safe isolated Studio ownership, run one **controlled SIGKILL of only
+the candidate CLI subprocess** while a managed Nemotron or text unit is
+active. Do not SIGKILL the systemd model unit, GPU driver, production Studio,
+or unrelated services. The Studio controller must detect child exit,
+automatically reconcile the idle exact-owned unit, return GPU memory to
+baseline, and report the job as failed/interrupted rather than complete.
+Also confirm a fresh candidate Studio startup reconciles a deliberately
+abandoned *owned* model unit, while mismatched markers, external clients,
+and an actively held stage lease prevent any stop. Inspect controller logs
+for unrecovered errors or orphaned PIDs. If this cannot be tested safely,
+report UNVERIFIED; do not declare full crash recovery PASS.
+
+Standalone direct CLI SIGKILL has no independent always-running controller:
+immediate reclaim is explicitly unverified/not guaranteed until a Studio
+supervisor starts and reconciles. Verify the actual bounded behavior.
 ## Phase D: review-ready evidence publication
 
 Publish a single sanitized packet under `staging/issue10/evidence/<UTC_RUN_ID>/` on the SAME existing issue branch, using a non-force exact-head precondition. A branch-head move invalidates prior source-bound qualification; rebind comparison to exact source SHA and ensure the evidence commit contains ONLY staging files. Preserve all earlier evidence.

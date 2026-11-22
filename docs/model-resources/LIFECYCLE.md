@@ -116,3 +116,30 @@ Prove exact model/CTC and host process identity, finite resource transition
 times, cancellation/recovery, GPU reservations, output semantics, reuse, and
 that unrelated GPU services remain unchanged. Publish sanitized evidence
 on GitHub and revalidate again after promoting a reviewed/merged source.
+
+## Recovery after an unclean model-worker exit
+
+A Python SIGTERM cancellation unwinds managed service cleanup. SIGKILL
+cannot execute Python finally blocks and previously could strand an ASR
+or English-review systemd service, consuming GPU memory until manual repair.
+
+At startup, and after every supervised CLI subprocess exits, the owning
+Studio controller now invokes ModelLifecycle.reconcile_idle_owned().
+The reconciler takes the shared stage lock non-blockingly; a concurrently
+running CLI keeps its lease and cannot be preempted. The reconciler checks
+the currently configured resource name, model, endpoint and exact Nemovox
+ownership markers, rechecks systemd MainPID/InvocationID, and refuses to stop
+a unit with active external clients. Only owned units configured with
+`stop_after_stage=true` are eligible for automatic idle cleanup.
+
+`GET /api/resource-status` remains read-only and does not perform recovery.
+This protects passive GUI queries from causing resource mutations.
+
+A direct standalone CLI that is itself SIGKILLed without a running Studio
+controller cannot instantly reclaim its service: no external watchdog is
+installed. The next admitted Studio startup/reconciliation can recover such
+an abandoned idle unit. Do not claim immediate standalone SIGKILL recovery.
+
+Verify the supervised SIGKILL path on the host with a short synthetic
+model job, and verify recovery is skipped while another CLI owns the lease,
+while external clients are connected or when unit markers change.
