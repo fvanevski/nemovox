@@ -42,6 +42,11 @@ def test_undetected_pauses_force_cuts_but_do_not_fake_speech_boundaries():
     assert all(d["reason"] == "forced_max_core_no_eligible_pause"
                for d in diag["boundary_decisions"])
     assert chunks[-1].core_end_s == 140
+    small, _ = plan_pause_aware_chunks(
+        60.0, [], max_requested_core_s=16, requested_context_s=3,
+    )
+    assert all(c.core_duration_s <= 25 for c in small)
+    assert small[-1].core_end_s == 60
 
 
 def test_short_media_and_fixed_compatibility():

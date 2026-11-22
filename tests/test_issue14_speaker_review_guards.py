@@ -67,6 +67,15 @@ def test_semantically_equivalent_negative_rephrasing_is_allowed():
     assert summary["changed"] == 1 and summary["rejected_polarity"] == 0
 
 
+def test_french_ne_plus_negative_is_preserved():
+    _, after, summary = _review(
+        "I will continue going.", "Je ne veux plus partir.",
+        "I do not want to go anymore.",
+    )
+    assert after["translated_text"] == "I do not want to go anymore."
+    assert summary["changed"] == 0 and summary["rejected_polarity"] == 1
+
+
 def test_positive_sentence_can_receive_supported_review():
     _, after, summary = _review(
         "They reached the city.", "Ils ont atteint la cité.",
