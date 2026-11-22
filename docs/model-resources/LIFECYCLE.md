@@ -68,7 +68,16 @@ The manager serializes local model stages through a file lock
 them: ASR for transcription; Riva's isolated worker for uncached MT; text model
 **lazily** on the first uncached refinement/legacy translation/review/optional
 condensation request. Unit readiness requires `/v1/models` advertising
-the exact selected ID; port openness alone is insufficient.
+the exact selected ID; port openness alone is insufficient. For Nemotron ASR,
+health readiness and inference use the **same** credentials: if the ASR
+resource explicitly declares `api_key_env`, that environment variable is
+required; otherwise both inherit the legacy `VLLM_API_KEY` value (or the
+client's `EMPTY` placeholder when unset). This fallback applies **only**
+to the `nemotron_ctc` adapter; it is never sent to the English-review
+endpoint. When the ASR service inherits `VLLM_API_KEY` from the systemd user
+manager, ensure the CLI/Studio child can access the same secret via a
+protected host environment or explicitly set `api_key_env` on the ASR
+resource. Do not store secret values in repository configuration or evidence.
 
 On stage exit the manager stops only an owned, identity-matching unit whose
 policy says `stop_after_stage=true`, after checking for other active TCP clients.

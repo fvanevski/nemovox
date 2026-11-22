@@ -34,6 +34,101 @@ def _unit(*, active=False, name="asr_local", valid=True):
     }
 
 
+
+@pytest.mark.parametrize("token", ["secret-for-test", None])
+def test_asr_readiness_auth_matches_legacy_inference_client(asr, monkeypatch, token):
+    """Readiness and real ASR requests must use the same fallback credentials."""
+    import os
+    from nvidia_transcribe.client import NemotronVLLMClient
+
+    if token is None:
+        monkeypatch.delenv("VLLM_API_KEY", raising=False)
+    else:
+        monkeypatch.setenv("VLLM_API_KEY", token)
+    seen = []
+
+    class Response:
+        status = 200
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self, maximum):
+            assert maximum == 250_000
+            return json.dumps({"data": [{"id": asr.model}]}).encode()
+
+    def fake_urlopen(request, *, timeout):
+        assert timeout == 3.0
+        seen.append((request.full_url, request.get_header("Authorization")))
+        return Response()
+
+    monkeypatch.setattr(lifecycle.urllib.request, "urlopen", fake_urlopen)
+    assert lifecycle._models_healthy(asr)
+    inference = NemotronVLLMClient(base_url=asr.endpoint, model=asr.model)
+    assert seen == [(asr.endpoint + "/models", inference._headers()["Authorization"])]
+    assert seen[0][1] == "Bearer " + (token or "EMPTY")
+
+
+def test_asr_explicit_credential_overrides_legacy_fallback(asr, monkeypatch):
+    from dataclasses import replace
+
+    monkeypatch.setenv("VLLM_API_KEY", "legacy-token")
+    monkeypatch.setenv("NEMOVOX_ASR_TOKEN_FOR_TEST", "explicit-token")
+    selected = replace(asr, api_key_env="NEMOVOX_ASR_TOKEN_FOR_TEST")
+    seen = []
+
+    class Response:
+        status = 200
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self, limit):
+            return json.dumps({"data": [{"id": selected.model}]}).encode()
+
+    def fake_urlopen(request, *, timeout):
+        seen.append(request.get_header("Authorization"))
+        return Response()
+
+    monkeypatch.setattr(lifecycle.urllib.request, "urlopen", fake_urlopen)
+    assert lifecycle._models_healthy(selected)
+    assert seen == ["Bearer explicit-token"]
+
+
+def test_legacy_asr_token_does_not_leak_to_text_readiness(monkeypatch):
+    resource = load_model_resources(environ={}).resolve("translation_review")
+    monkeypatch.setenv("VLLM_API_KEY", "legacy-asr-only")
+    seen = []
+
+    class Response:
+        status = 200
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self, limit):
+            return json.dumps({"data": [{"id": resource.model}]}).encode()
+
+    def fake_urlopen(request, *, timeout):
+        seen.append(request.get_header("Authorization"))
+        return Response()
+
+    monkeypatch.setattr(lifecycle.urllib.request, "urlopen", fake_urlopen)
+    assert lifecycle._models_healthy(resource)
+    assert seen == [None]
+
+
+def test_missing_explicit_asr_token_remains_fail_closed(asr, monkeypatch):
+    from dataclasses import replace
+    from nvidia_transcribe.model_resources import ResourceConfigError
+
+    selected = replace(asr, api_key_env="NEMOVOX_ABSENT_ASR_TOKEN_FOR_TEST")
+    monkeypatch.delenv("NEMOVOX_ABSENT_ASR_TOKEN_FOR_TEST", raising=False)
+    monkeypatch.setenv("VLLM_API_KEY", "legacy-must-not-override-explicit")
+    with pytest.raises(ResourceConfigError, match="NEMOVOX_ABSENT_ASR_TOKEN_FOR_TEST"):
+        lifecycle._models_healthy(selected)
+
+
 def test_default_ownership_configuration_and_json_override(tmp_path):
     defaults = lifecycle._service_config()
     assert defaults["asr_local"].unit == "nemovox-asr.service"

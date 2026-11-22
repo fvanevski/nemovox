@@ -22,6 +22,37 @@ PR_MERGE=forbidden
 ISSUE_CLOSURE=forbidden
 ```
 
+## F-01 credential parity remediation (requalification of changed source)
+
+Previously qualified source `8d6f70f161c9100d4e64fca49da5139c4d109615`
+passed 207 CPU tests, 11 frontend tests/build and isolated French Studio/CLI
+on-demand ASR -> Riva -> English-review E2E. Its live probe initially received
+HTTP 401 on ASR `/v1/models` when the host's `VLLM_API_KEY` was present but
+the ASR resource lacked `api_key_env`. A host-only explicit setting resolved
+that test. Central has now aligned ASR readiness with
+`NemotronVLLMClient`'s `VLLM_API_KEY` fallback, without altering
+explicit credential enforcement or text-model authorization.
+
+The candidate **source SHA changes**; rerun Phase A completely and confirm
+new credential regressions: ASR default key, no key/EMPTY parity, explicit
+ASR override precedence, missing explicit token fail-closed, and no leak to
+the text review endpoint. Continue Phases B/C safely, but **do not**
+unnecessarily repeat the entire long foreign-language E2E if exact fresh
+evidence already proves every pipeline dependency other than the changed ASR
+readiness header: execute a targeted authenticated ASR start/readiness/CTC
+probe from both initially stopped unit and exact candidate CLI, **without**
+`api_key_env` in the isolated ASR mapping while `VLLM_API_KEY` is
+available to the candidate and the ASR unit. Verify successful credentialed
+`/v1/models`, exact served-model ID, one short ASR request with CTC timings,
+proper unit release, no unrelated service mutation, and healthy final state.
+Reuse the earlier packet only for unchanged Riva/reviewer/presentation code
+and only after independently proving source diff limited to credential
+readiness/tests/docs. If changes beyond that are necessary, exercise the
+full foreign-language E2E again. Capture both the original failure and
+new successful automatic startup, distinguish host-only credentials from
+tracked configuration, and preserve old PASS evidence as historical rather
+than pretending it is source-bound to the new SHA.
+
 ## Phase A: exact-head inspect, CPU and frontend verification
 
 1. Launch in a fresh OpenCode Build session from the existing Nemovox workspace, typically `/workspace/nvidia-transcribe`. Read repository `AGENTS.md`, `docs/model-resources/LIFECYCLE.md`, `docs/model-resources/CONFIGURATION.md`, `web/README.md` and this exact staging handoff. Read the live PR #11 head, `main` and issue #10. **Fetch the PR branch first** and verify the fetched object matches the remote exact full SHA before creating a clean detached test worktree. Never reset, switch, clean, stash, or fast-forward the operator's production checkout.
