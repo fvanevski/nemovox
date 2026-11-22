@@ -56,7 +56,11 @@ def test_short_media_and_fixed_compatibility():
     assert len(specs) == 1 and specs[0].infer_end_s == 10.2
     assert diag["forced_cut_count"] == 0
     fixed = plan_chunks(200, ChunkConfig(chunk_seconds=90, context_seconds=10))
-    assert len(fixed) == 2
+    # A 20s remainder is above min_tail_seconds=15, so the original
+    # fixed planner must retain three contiguous cores, not merge the tail.
+    assert [(c.core_start_s, c.core_end_s) for c in fixed] == [
+        (0.0, 90.0), (90.0, 180.0), (180.0, 200.0),
+    ]
     args = build_parser().parse_args([
         "generate-subtitles", "--output-dir", "unused", "--chunk-policy", "fixed",
     ])

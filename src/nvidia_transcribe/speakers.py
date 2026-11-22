@@ -307,8 +307,16 @@ def _best_bipartite_assignment(
 def _near_threshold_single_embedding_candidate(
     similarity: float, threshold: float, ambiguity_margin: float = 0.05,
 ) -> bool:
-    """A sole barely admissible cosine score is not positive voice identity proof."""
-    return threshold <= similarity < threshold + ambiguity_margin
+    """A sole barely admissible cosine score is not positive voice identity proof.
+
+    Similarities are recorded at four decimal places. Round the distance
+    before comparing it with the ambiguity margin so an exact 0.70 score
+    is not incorrectly treated as below 0.65 + 0.05 in binary64.
+    """
+    return (
+        similarity >= threshold
+        and round(similarity - threshold, 6) < round(ambiguity_margin, 6)
+    )
 
 
 def reconcile_speakers(

@@ -42,7 +42,9 @@ def test_single_near_threshold_embedding_cannot_force_merge():
     assert _near_threshold_single_embedding_candidate(0.6637, 0.65)
     assert not _near_threshold_single_embedding_candidate(0.78, 0.65)
     assert not _near_threshold_single_embedding_candidate(0.649, 0.65)
+    assert _near_threshold_single_embedding_candidate(0.6999, 0.65)
     assert not _near_threshold_single_embedding_candidate(0.70, 0.65)
+    assert not _near_threshold_single_embedding_candidate(0.7001, 0.65)
 
 
 def test_negation_inversion_is_rejected_without_modifying_original():
