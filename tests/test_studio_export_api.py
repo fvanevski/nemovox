@@ -171,6 +171,39 @@ def test_typed_milestone_lines_and_monotonic_progress(live):
     assert client.app.state.runner._read_stage_events(job_id, journal, offset) == offset
 
 
+def test_completed_cli_drains_all_stage_events_after_large_final_log(live, monkeypatch):
+    client, settings, clip, root = live
+    job_id = make_job(client, clip, root)
+    runner = client.app.state.runner
+
+    class FinishedProcess:
+        pid = 12345
+        returncode = 0
+
+        def poll(self):
+            return self.returncode
+
+    def fake_popen(_args, **kwargs):
+        log = kwargs["stdout"]
+        log.write(("large ordinary log line\\n" * 15000))
+        log.write('NEMOVOX_EVENT {"schema":"not-our-schema","stage":"review","status":"failed"}\\n')
+        log.write('NEMOVOX_EVENT {"schema":"nemovox-progress/v1","stage":"translation","status":"running"}\\n')
+        log.write('NEMOVOX_EVENT {"schema":"nemovox-progress/v1","stage":"translation","status":"complete"}\\n')
+        log.write('NEMOVOX_EVENT {"schema":"nemovox-progress/v1","stage":"review","status":"complete"}\\n')
+        log.write('NEMOVOX_EVENT {"schema":"nemovox-progress/v1","stage":"render","status":"complete"}\\n')
+        log.flush()
+        return FinishedProcess()
+
+    monkeypatch.setattr("nvidia_transcribe.studio_api.subprocess.Popen", fake_popen)
+    monkeypatch.setattr(runner, "_terminate_process_group", lambda _process: None)
+    runner._command(job_id, ["generate-subtitles"], "Generating English outputs", 55)
+    history = runner.get(job_id)["stage_history"]
+    assert [(item["id"], item["status"]) for item in history] == [
+        ("translation", "complete"), ("review", "complete"), ("render", "complete")
+    ]
+    assert (settings.job_root / job_id / "execution.log").stat().st_size > 256 * 1024
+
+
 def test_failure_marks_active_stage_and_does_not_mark_job_complete(live):
     client, settings, clip, root = live
     job_id = make_job(client, clip, root)

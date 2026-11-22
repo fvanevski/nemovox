@@ -458,12 +458,25 @@ class JobRunner:
                 continue
             try:
                 event = json.loads(raw[len(b"NEMOVOX_EVENT "):])
-                if isinstance(event, dict):
+                if isinstance(event, dict) and event.get("schema") == "nemovox-progress/v1":
                     self._stage_event(job_id, str(event.get("stage")),
                                       str(event.get("status")), str(event.get("detail", "")))
             except (ValueError, UnicodeError):
                 continue
         return offset + complete_end + 1
+
+    def _drain_stage_events(self, job_id: str, path: Path, offset: int) -> int:
+        """Consume all complete event lines, including large final log bursts.
+
+        One live poll reads at most 256 KiB. A completed CLI can already have
+        written several such chunks; a single final read would silently lose
+        later translation/review/render milestones.
+        """
+        while True:
+            next_offset = self._read_stage_events(job_id, path, offset)
+            if next_offset <= offset:
+                return offset
+            offset = next_offset
 
     def _export(self, job_id: str, *, media_only: bool = False) -> dict:
         record = self.get(job_id)
@@ -512,7 +525,7 @@ class JobRunner:
                     if job_id in self._cancelled:
                         raise InterruptedError("Cancelled")
                     time.sleep(0.4)
-                offset = self._read_stage_events(job_id, path, offset)
+                offset = self._drain_stage_events(job_id, path, offset)
                 if job_id in self._cancelled:
                     raise InterruptedError("Cancelled")
                 if process.returncode != 0:
