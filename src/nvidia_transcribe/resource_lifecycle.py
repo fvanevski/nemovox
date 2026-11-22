@@ -365,6 +365,49 @@ class ModelLifecycle:
             yield
 
 
+
+class _DeferredASRClient:
+    """Keep ASR stopped when every recording chunk can be resumed from cache."""
+
+    def __init__(self, manager: ModelLifecycle, resource: ModelResource, client: object):
+        self.manager = manager
+        self.resource = resource
+        self.client = client
+        self._scope = None
+
+    def __getattr__(self, key: str):
+        # Passive identity reads (model/base_url) must not start vLLM.
+        return getattr(self.client, key)
+
+    def _acquire(self) -> None:
+        if self._scope is None:
+            scope = self.manager.endpoint(self.resource)
+            scope.__enter__()
+            self._scope = scope
+
+    def transcribe(self, *args, **kwargs):
+        self._acquire()
+        return self.client.transcribe(*args, **kwargs)
+
+    def list_models(self, *args, **kwargs):
+        self._acquire()
+        return self.client.list_models(*args, **kwargs)
+
+    def close(self) -> None:
+        if self._scope is not None:
+            scope, self._scope = self._scope, None
+            scope.__exit__(None, None, None)
+
+
+@contextmanager
+def managed_asr_client(manager: ModelLifecycle, resource: ModelResource,
+                       client: object) -> Iterator[_DeferredASRClient]:
+    proxy = _DeferredASRClient(manager, resource, client)
+    try:
+        yield proxy
+    finally:
+        proxy.close()
+
 class _DeferredTextClient:
     """Acquire a text service at the first uncached inference request."""
 
