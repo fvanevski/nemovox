@@ -326,6 +326,7 @@ def test_contract_transcription_import_and_empty_contract(client):
     assert c.get(f"/api/jobs/{job_id}").json()["state"] == "complete"
     imported = settings.job_root / job_id / "asr" / "recording.contract.json"
     assert json.loads(imported.read_text(encoding="utf-8")) == original
+    assert imported.read_bytes() == contract.read_bytes()  # faithful, unmodified import
     transcript = (settings.job_root / job_id / "asr" / "transcript.txt").read_text(encoding="utf-8")
     assert "你好" in transcript and "没有时间" in transcript and "[untimed -> untimed]" in transcript
     preview = c.get(f"/api/jobs/{job_id}/preview").json()
