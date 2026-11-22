@@ -16,7 +16,7 @@
       "adapter": "riva_worker",
       "checkpoint_path": "/workspace/models/Riva-Translate-4B-Instruct-v2",
       "worker_python": "/workspace/nvidia-transcribe/outputs/modular-eval/.venv/bin/python",
-      "device": "auto"
+      "device": "cuda:0"
     },
     "qwen_local": {
       "adapter": "qwen_forced_aligner",
@@ -35,6 +35,7 @@
     "source_refinement": "text_local",
     "text_translation": "text_local",
     "subtitle_condensation": "text_local",
+    "translation_review": "text_local",
     "riva_translation": "riva_local",
     "forced_alignment": "qwen_local",
     "speaker_embedding": "titanet_cpu"

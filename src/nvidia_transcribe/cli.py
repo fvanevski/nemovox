@@ -18,6 +18,7 @@ from nvidia_transcribe.refinement import RefinementConfig
 from nvidia_transcribe.subtitle_pipeline import SubtitlePipelineConfig, generate_subtitles
 from nvidia_transcribe.subtitles import SubtitleConfig
 from nvidia_transcribe.translation import TranslationConfig
+from nvidia_transcribe.translation_review import TranslationReviewConfig
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -79,6 +80,9 @@ def build_parser() -> argparse.ArgumentParser:
     gs.add_argument("--translator", default="openai_chat", choices=["openai_chat", "swiftu", "riva", "none"],
                     help="OpenAI chat text model, Riva worker, or none; swiftu is a compatibility alias.")
     gs.add_argument("--style", default="natural", choices=["natural", "literal", "expressive"])
+    gs.add_argument("--translation-review", default="off",
+                    choices=["off", "conservative", "balanced", "expressive"],
+                    help="Contextual English post-edit after dedicated translation; off keeps legacy CLI behavior.")
     gs.add_argument("--glossary", default=None, help="Path to character/term glossary (.yaml/.json) or comma-separated terms.")
     gs.add_argument("--formats", default="srt,ass", help="Comma-separated subtitle formats (default: srt,ass).")
     gs.add_argument("--episode-stem", default=None, help="Override subtitle output filename stem.")
@@ -95,7 +99,10 @@ def build_parser() -> argparse.ArgumentParser:
     gs.add_argument("--text-model", "--swiftu-model", dest="text_model", default=None,
                     help="Explicit served-model override for all text roles; --swiftu-model is legacy.")
     gs.add_argument("--refinement-resource", default=None, help="Named text resource for source refinement.")
-    gs.add_argument("--translation-resource", default=None, help="Named text resource for translation.")
+    gs.add_argument("--translation-resource", default=None,
+                    help="Named text resource for legacy general-text-model primary translation.")
+    gs.add_argument("--translation-review-resource", default=None,
+                    help="Named OpenAI-compatible text resource for English post-edit.")
     gs.add_argument("--condensation-resource", default=None, help="Named text resource for condensation.")
     gs.add_argument("--max-chars", type=int, default=42)
     gs.add_argument("--max-lines", type=int, default=2)
@@ -187,6 +194,8 @@ def main(argv: list[str] | None = None) -> int:
                     "text_translation", resource_name=args.translation_resource, **text_overrides)
                 condensation_resource = registry.resolve(
                     "subtitle_condensation", resource_name=args.condensation_resource, **text_overrides)
+                review_resource = registry.resolve(
+                    "translation_review", resource_name=args.translation_review_resource, **text_overrides)
                 riva_resource = registry.resolve(
                     "riva_translation", require_local_paths=args.translator == "riva" and not args.re_render)
             asr_key = asr_resource.credential() if (
@@ -199,6 +208,9 @@ def main(argv: list[str] | None = None) -> int:
                                    if args.translator in ("openai_chat", "swiftu") and not args.re_render else None)
                 condensation_key = (condensation_resource.credential()
                                     if args.condense_high_cps and args.translator != "none" and not args.re_render else None)
+                review_key = (review_resource.credential()
+                              if args.translation_review != "off" and args.translator == "riva"
+                              and not args.re_render else None)
         except ResourceConfigError as exc:
             print(json.dumps({"status": "CONFIG_ERROR", "error": str(exc)}), file=sys.stderr)
             return 2
@@ -303,7 +315,13 @@ def main(argv: list[str] | None = None) -> int:
             api_key=translation_key,
             riva_model_path=riva_resource.checkpoint_path,
             riva_python=riva_resource.worker_python,
-            riva_device=riva_resource.device or "auto",
+            riva_device=riva_resource.device or "cuda:0",
+        )
+        review_cfg = TranslationReviewConfig(
+            profile=args.translation_review, style=args.style,
+            target_language=args.target_language,
+            base_url=review_resource.endpoint, model=review_resource.model,
+            resource_fingerprint=review_resource.fingerprint(), api_key=review_key,
         )
         cond_cfg = TranslationConfig(
             backend="openai_chat", style=args.style, target_language=args.target_language,
@@ -343,6 +361,7 @@ def main(argv: list[str] | None = None) -> int:
             speaker_embedding_model=speaker_resource.model or "titanet_small",
             refinement=ref_cfg,
             translation=trans_cfg,
+            translation_review=review_cfg,
             condensation=cond_cfg,
             subtitles=sub_cfg,
             formats=formats,
@@ -352,6 +371,7 @@ def main(argv: list[str] | None = None) -> int:
             resume=not args.fresh,
             resume_refinement=not (args.fresh or args.fresh_refinement),
             resume_translation=not (args.fresh or args.fresh_translation),
+            resume_translation_review=not (args.fresh or args.fresh_translation),
             resume_condensation=not (args.fresh or args.fresh_translation),
             re_render_only=args.re_render,
             condense_high_cps=args.condense_high_cps,

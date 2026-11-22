@@ -165,3 +165,12 @@ def test_asr_model_override_clears_inherited_checkpoint_unless_explicit(tmp_path
 def test_asr_endpoint_only_override_retains_default_checkpoint():
     reg = load_model_resources(environ={"ASR_BASE_URL": "http://localhost:8200/v1"})
     assert reg.resolve("asr").checkpoint_path == load_model_resources(environ={}).resolve("asr").checkpoint_path
+
+
+
+def test_translation_review_role_defaults_to_text_and_rejects_specialized_adapter(tmp_path):
+    registry = load_model_resources(environ={})
+    review = registry.resolve("translation_review")
+    assert review.adapter == "openai_chat"
+    assert review.name == "text_local"
+    assert registry.resolve("riva_translation").device == "cuda:0"

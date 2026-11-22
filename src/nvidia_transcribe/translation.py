@@ -84,7 +84,7 @@ class TranslationConfig:
     api_key: str | None = None
     riva_model_path: str = str(DEFAULT_RIVA_MODEL_PATH)
     riva_python: str = str(DEFAULT_RIVA_PYTHON)
-    riva_device: str = "auto"
+    riva_device: str = "cuda:0"
     timeout_s: float = 180.0
     max_tokens: int = 8192
     temperature: float = 0.0
