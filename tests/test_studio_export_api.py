@@ -185,12 +185,12 @@ def test_completed_cli_drains_all_stage_events_after_large_final_log(live, monke
 
     def fake_popen(_args, **kwargs):
         log = kwargs["stdout"]
-        log.write(("large ordinary log line\\n" * 15000))
-        log.write('NEMOVOX_EVENT {"schema":"not-our-schema","stage":"review","status":"failed"}\\n')
-        log.write('NEMOVOX_EVENT {"schema":"nemovox-progress/v1","stage":"translation","status":"running"}\\n')
-        log.write('NEMOVOX_EVENT {"schema":"nemovox-progress/v1","stage":"translation","status":"complete"}\\n')
-        log.write('NEMOVOX_EVENT {"schema":"nemovox-progress/v1","stage":"review","status":"complete"}\\n')
-        log.write('NEMOVOX_EVENT {"schema":"nemovox-progress/v1","stage":"render","status":"complete"}\\n')
+        log.write(("large ordinary log line\n" * 15000))
+        log.write('NEMOVOX_EVENT {"schema":"not-our-schema","stage":"review","status":"failed"}\n')
+        log.write('NEMOVOX_EVENT {"schema":"nemovox-progress/v1","stage":"translation","status":"running"}\n')
+        log.write('NEMOVOX_EVENT {"schema":"nemovox-progress/v1","stage":"translation","status":"complete"}\n')
+        log.write('NEMOVOX_EVENT {"schema":"nemovox-progress/v1","stage":"review","status":"complete"}\n')
+        log.write('NEMOVOX_EVENT {"schema":"nemovox-progress/v1","stage":"render","status":"complete"}\n')
         log.flush()
         return FinishedProcess()
 
