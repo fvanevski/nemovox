@@ -1,0 +1,17 @@
+{
+  "alternative_json_checkpoint_path": null,
+  "asr_model_env_clears_checkpoint": true,
+  "cli_model_override_clears_checkpoint": true,
+  "endpoint_only_env_retains_default_checkpoint": true,
+  "process_media_no_checkpoint": {
+    "model_provenance_model_path": null,
+    "ctc_vocabulary_status": "not_configured",
+    "oov_characters": [],
+    "failure_cause": "missing_ctc_metadata"
+  },
+  "process_media_default_checkpoint": {
+    "model_provenance_model_path": "/workspace/models/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4",
+    "ctc_vocabulary_status": "loaded"
+  },
+  "cache_signature_differs_with_checkpoint": true
+}

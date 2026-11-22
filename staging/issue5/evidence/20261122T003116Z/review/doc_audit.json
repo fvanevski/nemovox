@@ -1,0 +1,11 @@
+{
+  "document": "docs/model-resources/CONFIGURATION.md",
+  "checks": {
+    "checkpoint_optional_for_alt_asr": true,
+    "null_provenance_and_not_configured": true,
+    "clears_on_model_change": true,
+    "endpoint_only_preserves": true,
+    "cache_includes_ctc_checkpoint": true
+  },
+  "blocking_discrepancies": []
+}

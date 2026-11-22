@@ -26,14 +26,16 @@ class TitaNetSpeakerEmbedder:
 
     name = "nemo:titanet_small:cpu"
 
-    def __init__(self) -> None:
+    def __init__(self, model_name: str = "titanet_small") -> None:
+        self.model_name = model_name
+        self.name = f"nemo:{model_name}:cpu"
         self._model: Any = None
 
     def _load(self) -> Any:
         if self._model is None:
             from nemo.collections.asr.models import EncDecSpeakerLabelModel
 
-            self._model = EncDecSpeakerLabelModel.from_pretrained("titanet_small", map_location="cpu").eval()
+            self._model = EncDecSpeakerLabelModel.from_pretrained(self.model_name, map_location="cpu").eval()
         return self._model
 
     def embed_wav(self, wav_path: Path) -> list[float] | None:

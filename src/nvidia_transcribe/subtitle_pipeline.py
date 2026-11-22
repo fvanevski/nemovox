@@ -15,12 +15,12 @@ from nvidia_transcribe.refinement import (
     GlossaryConfig,
     RefinementConfig,
     load_glossary,
-    refine_utterances_with_swiftu,
+    refine_utterances_with_text_model,
 )
 from nvidia_transcribe.subtitles import SubtitleConfig, render_subtitles
 from nvidia_transcribe.translation import (
     TranslationConfig,
-    condense_high_cps_cues_with_swiftu,
+    condense_high_cps_cues_with_text_model,
     translate_utterances,
 )
 from nvidia_transcribe.utterances import apply_validation_overlay, audit_and_reconstruct_contract
@@ -38,14 +38,21 @@ class SubtitlePipelineConfig:
     alignment_fallback: str = "off"
     qwen_policy: str = "subtitle"
     qwen_device: str = "cuda:0"
+    qwen_model_path: str | None = None
+    qwen_worker_python: str | None = None
     qwen_gpu_mode: str = "available"
     qwen_owned_asr_unit: str | None = None
     qwen_asr_lease_path: str | None = None
     speaker_embeddings: str = "titanet"
+    speaker_embedding_model: str = "titanet_small"
     asr_base_url: str = "http://127.0.0.1:8190/v1"
     asr_model: str = "nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4"
+    asr_api_key: str | None = None
+    asr_resource_fingerprint: str = ""
+    asr_model_path: str | None = None
     refinement: RefinementConfig = RefinementConfig()
     translation: TranslationConfig = TranslationConfig()
+    condensation: TranslationConfig | None = None
     subtitles: SubtitleConfig = SubtitleConfig()
     formats: tuple[str, ...] = ("srt", "ass")
     episode_stem: str | None = None
@@ -102,7 +109,7 @@ def generate_subtitles(
     text_client: Any = None,
     progress_callback: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
-    """Run staged ASR -> SwiftU Refinement -> Translation -> SRT/ASS Render pipeline.
+    """Run staged ASR -> text refinement -> translation -> subtitle rendering.
 
     Can start from raw ``media_path`` OR resume directly from ``recording_contract_path``
     without loading the 30B ASR model. Supports fast CPU-only re-rendering when
@@ -110,6 +117,12 @@ def generate_subtitles(
     """
     t0 = time.perf_counter()
     cfg = config or SubtitlePipelineConfig()
+    if (cfg.condense_high_cps and cfg.translation.backend == "riva"
+            and cfg.condensation is None and not cfg.re_render_only):
+        raise ValueError(
+            "Riva translation with subtitle condensation requires an explicit "
+            "OpenAI-compatible condensation resource config."
+        )
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     gl = glossary if isinstance(glossary, GlossaryConfig) else load_glossary(glossary)
@@ -157,7 +170,8 @@ def generate_subtitles(
             if not m_path.is_file():
                 raise FileNotFoundError(f"Media file not found: {m_path}")
             _log(f"Stage 1/4: Transcribing media via Nemotron chunked core: {m_path.name}")
-            client = asr_client or NemotronVLLMClient(base_url=cfg.asr_base_url, model=cfg.asr_model, timeout_s=900.0)
+            client = asr_client or NemotronVLLMClient(base_url=cfg.asr_base_url, model=cfg.asr_model,
+                                                   api_key=cfg.asr_api_key, timeout_s=900.0)
             asr_res = process_media(
                 m_path,
                 output_dir=out_dir / "asr",
@@ -172,10 +186,15 @@ def generate_subtitles(
                     alignment_fallback=cfg.alignment_fallback,
                     qwen_policy=cfg.qwen_policy,
                     qwen_device=cfg.qwen_device,
+                    qwen_model_path=cfg.qwen_model_path,
+                    qwen_worker_python=cfg.qwen_worker_python,
                     qwen_gpu_mode=cfg.qwen_gpu_mode,
                     qwen_owned_asr_unit=cfg.qwen_owned_asr_unit,
                     qwen_asr_lease_path=cfg.qwen_asr_lease_path,
                     speaker_embeddings=cfg.speaker_embeddings,
+                    speaker_embedding_model=cfg.speaker_embedding_model,
+                    asr_resource_fingerprint=cfg.asr_resource_fingerprint,
+                    model_path=cfg.asr_model_path,
                     resume=cfg.resume,
                 ),
             )
@@ -185,9 +204,9 @@ def generate_subtitles(
         src_lang = cfg.source_language or contract.get("source_language")
         raw_utterances = list(contract.get("utterances") or [])
 
-        # Stage 2: SwiftU contextual source refinement (without mandatory audio reverification)
+        # Stage 2: Contextual source refinement (without mandatory audio reverification)
         _log(f"Stage 2/4: Source refinement (backend={cfg.refinement.backend}, profile={cfg.refinement.profile})")
-        refined_utts, ref_summary = refine_utterances_with_swiftu(
+        refined_utts, ref_summary = refine_utterances_with_text_model(
             raw_utterances,
             source_language=src_lang,
             config=cfg.refinement,
@@ -216,10 +235,10 @@ def generate_subtitles(
         )
         if cfg.condense_high_cps and cfg.translation.backend != "none":
             _log(f"Stage 3b/4: Selective condensation (> {cfg.condense_cps_threshold} CPS)")
-            translated_utts, condense_summary = condense_high_cps_cues_with_swiftu(
+            translated_utts, condense_summary = condense_high_cps_cues_with_text_model(
                 translated_utts,
                 source_language=src_lang,
-                config=cfg.translation,
+                config=cfg.condensation or cfg.translation,
                 cps_threshold=cfg.condense_cps_threshold,
                 target_cps=cfg.subtitles.target_cps,
                 text_client=text_client,

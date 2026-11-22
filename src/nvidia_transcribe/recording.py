@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import Any
 
 from nvidia_transcribe.alignment import ExternalForcedAligner, recover_chunk_alignment
-from nvidia_transcribe.checkpoint import DEFAULT_MODEL_PATH
 from nvidia_transcribe.chunking import ChunkConfig, ChunkSpec, plan_chunks, reconcile_chunk_boundaries
 from nvidia_transcribe.client import InferenceRequestConfig, NemotronVLLMClient
 from nvidia_transcribe.contract import (
@@ -49,11 +48,16 @@ class RecordingPipelineConfig:
     alignment_fallback: str = "off"  # "off" | "qwen"
     qwen_policy: str = "subtitle"     # "subtitle" | "fine"
     qwen_device: str = "cuda:0"      # "cuda:0" | "cpu" (explicit only)
+    qwen_model_path: str | None = None
+    qwen_worker_python: str | None = None
     qwen_gpu_mode: str = "available"  # "available" | "managed"
     qwen_owned_asr_unit: str | None = None
     qwen_asr_lease_path: str | None = None
     resume: bool = True
-    model_path: str = str(DEFAULT_MODEL_PATH)
+    # Absent matching checkpoint means vocabulary-based OOV checks are skipped.
+    model_path: str | None = None
+    asr_resource_fingerprint: str = ""
+    speaker_embedding_model: str = "titanet_small"
 
 
 def _sha256_text(text: str) -> str:
@@ -89,6 +93,7 @@ def _config_signature(
     media: MediaInfo,
     model_name: str,
     cfg: RecordingPipelineConfig,
+    model_endpoint: str = "",
 ) -> str:
     payload = {
         "media_path": media.path,
@@ -97,6 +102,9 @@ def _config_signature(
         "media_duration_s": media.duration_s,
         "audio_stream": media.selected_audio_stream,
         "model_name": model_name,
+        "model_endpoint": model_endpoint,
+        "asr_resource_fingerprint": cfg.asr_resource_fingerprint,
+        "ctc_metadata_checkpoint": cfg.model_path,
         "mode": cfg.mode,
         "source_language": normalize_language_code(cfg.source_language) or "auto",
         "chunk_seconds": cfg.chunk_seconds,
@@ -206,7 +214,8 @@ def process_media(
         min_tail_seconds=cfg.min_tail_seconds,
     )
     chunks: list[ChunkSpec] = plan_chunks(media.duration_s, chunk_cfg)
-    sig = _config_signature(media=media, model_name=client.model, cfg=cfg)
+    sig = _config_signature(media=media, model_name=client.model, cfg=cfg,
+                            model_endpoint=getattr(client, "base_url", ""))
 
     existing_manifest: dict[str, Any] = {}
     if cfg.resume and manifest_path.is_file():
@@ -450,7 +459,11 @@ def process_media(
                 try:
                     with managed_scope as lease_report:
                         with QwenForcedAlignerAdapter(
-                            QwenAlignerConfig(device=cfg.qwen_device)
+                            QwenAlignerConfig(**{
+                                "device": cfg.qwen_device,
+                                **({"model_path": cfg.qwen_model_path} if cfg.qwen_model_path else {}),
+                                **({"worker_python": cfg.qwen_worker_python} if cfg.qwen_worker_python else {}),
+                            })
                         ) as adapter:
                             for idx, (spec, rec) in enumerate(zip(chunks, native_records)):
                                 if not plans[idx][0]:
@@ -537,7 +550,7 @@ def process_media(
     # Cross-chunk speaker reconciliation.
     chosen_embedder = embedder
     if chosen_embedder is None and cfg.speaker_embeddings == "titanet":
-        chosen_embedder = TitaNetSpeakerEmbedder()
+        chosen_embedder = TitaNetSpeakerEmbedder(model_name=cfg.speaker_embedding_model)
 
     spk_res = reconcile_speakers(
         chunks=chunks,

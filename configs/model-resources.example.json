@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "resources": {
+    "asr_local": {
+      "adapter": "nemotron_ctc",
+      "endpoint": "http://127.0.0.1:8190/v1",
+      "model": "nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4",
+      "checkpoint_path": "/workspace/models/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4"
+    },
+    "text_local": {
+      "adapter": "openai_chat",
+      "endpoint": "http://127.0.0.1:8001/v1",
+      "model": "chat"
+    },
+    "riva_local": {
+      "adapter": "riva_worker",
+      "checkpoint_path": "/workspace/models/Riva-Translate-4B-Instruct-v2",
+      "worker_python": "/workspace/nvidia-transcribe/outputs/modular-eval/.venv/bin/python",
+      "device": "auto"
+    },
+    "qwen_local": {
+      "adapter": "qwen_forced_aligner",
+      "checkpoint_path": "/workspace/models/Qwen3-ForcedAligner-0.6B",
+      "worker_python": "/workspace/nvidia-transcribe/outputs/modular-eval/.venv/bin/python",
+      "device": "cuda:0"
+    },
+    "titanet_cpu": {
+      "adapter": "titanet",
+      "model": "titanet_small",
+      "device": "cpu"
+    }
+  },
+  "roles": {
+    "asr": "asr_local",
+    "source_refinement": "text_local",
+    "text_translation": "text_local",
+    "subtitle_condensation": "text_local",
+    "riva_translation": "riva_local",
+    "forced_alignment": "qwen_local",
+    "speaker_embedding": "titanet_cpu"
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "schema": "nemovox-pr6-p2-evidence/v1",
+  "utc_run_id": "20261122T003116Z",
+  "pr_number": 6,
+  "target_source_sha": "45705ab72faaa8df0a2817305e73b6558d584aa2",
+  "tested_source_sha": "45705ab72faaa8df0a2817305e73b6558d584aa2",
+  "source_changes": false,
+  "members": [
+    {
+      "path": "COMMAND_SHAPE_FRICTION.txt",
+      "criterion": "Canonical command friction report",
+      "bytes": 84,
+      "sha256": "8646d16795e8b857c0ffbdb0da4846caf520c962d4025efeddb67667930f388e"
+    },
+    {
+      "path": "review/doc_audit.json",
+      "criterion": "CONFIGURATION.md vs P2 remediation audit",
+      "bytes": 317,
+      "sha256": "35ded0973a117960598b9108e485c979afea6f2aad5dfce50e380fdb190ca9a1"
+    },
+    {
+      "path": "review/findings.md",
+      "criterion": "Verification findings",
+      "bytes": 1045,
+      "sha256": "2a5117862d62788a62d82869d4bdf3fa18db66b17200c7627f6e3a1a06bb9991"
+    },
+    {
+      "path": "source/identity.json",
+      "criterion": "Exact PR #6 P2 source & worktree identity",
+      "bytes": 527,
+      "sha256": "c716dcf271b993bc9304e6b9c4361c11f01f002725d8e1f0ae2a54d597240992"
+    },
+    {
+      "path": "validation/cpu_focused.txt",
+      "criterion": "Focused model-resource, integration, recording, alignment regressions",
+      "bytes": 1131,
+      "sha256": "6e9707cfdfc16cd8e2942a37e260123e10b7783ff7b11fba9df98a17d8d09956"
+    },
+    {
+      "path": "validation/cpu_full.txt",
+      "criterion": "Python compilation & full CPU suite",
+      "bytes": 1075,
+      "sha256": "4eea09f04ae49a468fe4d66b6d5213c927fe15b6c9322155a6faa11d5c31ce52"
+    },
+    {
+      "path": "validation/ctc_checkpoint_behavior.json",
+      "criterion": "Direct CTC checkpoint clearing, provenance null, and vocabulary status check",
+      "bytes": 627,
+      "sha256": "aaebf93016ec620ddb9e3f3eebe7c542936e96ff4aa93dea1f339621fc646cbf"
+    },
+    {
+      "path": "validation/web_build.txt",
+      "criterion": "Frontend TypeScript & Vite production build",
+      "bytes": 1019,
+      "sha256": "8233fe57a00ddc9ffa04d4d1e32e595f941769402517e930d8b287ee31e314be"
+    },
+    {
+      "path": "validation/web_test.txt",
+      "criterion": "Frontend unit tests",
+      "bytes": 449,
+      "sha256": "47464feacf42e68a3d989afbd1536e738d5dff513b24d94534f56f6717a3c360"
+    }
+  ]
+}

@@ -10,7 +10,7 @@ Multilingual speech transcription, speaker diarization, contextual transcript re
 
 - **Single-Clip & Chunked Recording ASR:** Transcribe short clips (`transcribe`) or full-length audio/video recordings (`process-media`) with chunk-overlap boundary reconciliation, CTC word/character timestamp extraction, optional sub-interval recovery, and resumable manifests.
 - **Speaker Tracking & Contracts:** Reconstruct per-speaker utterances across overlapping streams, reconcile speakers across chunks, and emit structured JSON contracts (`recording.contract.json`) that preserve verbatim source Unicode text and honest timestamp provenance without fabricating missing timings.
-- **Contextual Refinement & Translation:** Refine noisy ASR output (proper nouns, homophones, domain terminology via YAML/JSON glossaries) and translate into natural target text using local OpenAI-compatible reasoning models (e.g., SwiftU/NInfer) or Riva-Translate workers, with content-addressed batch caching.
+- **Contextual Refinement & Translation:** Refine noisy ASR output (proper nouns, homophones, domain terminology via YAML/JSON glossaries) and translate into natural target text using configurable OpenAI-compatible text inference (the current host defaults to SwiftU/NInfer) or a specialized Riva-Translate worker, with resource-sensitive batch caching.
 - **Post-Processing & Export (`generate-subtitles`):** Render `SRT` and multi-lane `ASS` subtitles (`Main`, `Top`, `TopAlt`), optional hardsub-clearing layout (`--ass-layout raised_main`), selective high-CPS condensation (`--condense-high-cps`), reversible review overlays (`--validation-overlay`), and zero-inference CPU re-rendering (`--re-render`).
 
 ---
@@ -32,12 +32,18 @@ pip install -e .
 
 ### Host Configuration
 
-Copy the tracked template files to your local ignored config files and set host-specific model paths and URLs:
+Copy the tracked templates into ignored host-local files and set model paths and URLs:
 
 ```bash
 cp configs/vllm_rtx5090.env.example configs/vllm_rtx5090.env
 cp configs/runtime.env.example .env
+cp configs/model-resources.example.json configs/model-resources.local.json
+# Edit local resource bindings before starting CLI/Studio:
+export NEMOVOX_MODEL_RESOURCES="$PWD/configs/model-resources.local.json"
+# Optional: source a locally reviewed .env for per-resource overrides.
 ```
+
+The resource file binds functional roles (ASR, refinement, translation, condensation, alignment, embeddings) to installed local resources. Correction, translation and condensation can use distinct compatible text models; the shipped `text_local` binding points to the existing SwiftU/NInfer host endpoint. The CLI and Studio use the same resolver. See [Model-resource configuration](docs/model-resources/CONFIGURATION.md) for JSON schema, precedence, security, compatibility and examples. No inference server is started by this configuration.
 
 Launch the ASR serving backend (reads `configs/vllm_rtx5090.env` by default):
 
@@ -73,6 +79,7 @@ nvidia-transcribe generate-subtitles \
   --target-language en \
   --glossary configs/glossaries/a_will_eternal_zh.yaml \
   --ass-layout raised_main \
+  --translator openai_chat \
   --condense-high-cps
 
 # 5. Fast CPU-only re-render (no GPU/LLM calls) with optional review overlay
@@ -92,8 +99,9 @@ nvidia-transcribe generate-subtitles \
 - **`src/nvidia_transcribe/`** — Core package:
   - *ASR & media:* `checkpoint.py`, `client.py`, `prompts.py`, `media.py`, `chunking.py`, `parser.py`, `recording.py`
   - *Alignment & speakers:* `alignment.py`, `qwen_aligner.py`, `speakers.py`, `scene_diarization.py`, `utterances.py`, `contract.py`, `metrics.py`
+  - *Resource resolution:* `model_resources.py` (validated role/resource mappings and host overrides)
   - *Refinement, translation & output:* `refinement.py`, `translation.py`, `subtitles.py`, `subtitle_pipeline.py`, `cli.py`
-- **`configs/`** — Example server/runtime templates (`*.env.example`), domain glossaries (`configs/glossaries/`), and validation overlays (`configs/overlays/`).
+- **`configs/`** — Example model-resource JSON (`model-resources.example.json`), server/runtime templates (`*.env.example`), domain glossaries, and validation overlays.
 - **`scripts/`** — vLLM server launcher (`start_vllm_server.sh`), evaluation runners, and evidence packagers.
 - **`tests/`** — CPU unit/regression suite (`-m "not gpu"`) and gated GPU markers (`-m gpu`).
 - **`experiments/`** — Modular bakeoff, reliability, and viewing-quality harness scripts.
@@ -109,4 +117,7 @@ CPU tests are decoupled from live GPU/model endpoints:
 ```bash
 python -m compileall -q src tests experiments
 pytest -q -m "not gpu"
+cd web && npm test && npm run build
 ```
+
+The live ASR and text services are separate validation requirements and are not started by this test suite. For current resource CLI switches, run `nvidia-transcribe generate-subtitles --help`.

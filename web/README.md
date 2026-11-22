@@ -1,7 +1,5 @@
 # Nemovox Studio
 
-Central-authored GUI implementation staged at https://github.com/fvanevski/nemovox/tree/central/gui-foundation-20261121
-
 This is a local React interface over the existing Nemovox Python CLI, not a replacement processing pipeline.
 
 ## Stack
@@ -34,14 +32,14 @@ npm run dev
 
 Then open http://127.0.0.1:5173. The frontend proxies /api to the Python backend. A production build (npm run build) is served by the same backend from web/dist.
 
-The backend does NOT start/stop vLLM or SwiftU. Both model-serving endpoints are reused as configured by the existing CLI.
+The backend does not start/stop model services. Studio runs the existing CLI, which resolves host-configured ASR and text-inference resources, including the default SwiftU/NInfer text binding. Export `NEMOVOX_MODEL_RESOURCES` before starting the Studio server; per-job model-resource selection is currently configured on the host, not exposed as a Studio UI selector. See [resource configuration](../docs/model-resources/CONFIGURATION.md).
 
 FFmpeg/ffprobe are required for media processing; yt-dlp is required for remote/YouTube URLs. All model weights continue under /workspace/models.
 
 ## Three tabs
 
 1. Media & task: host directory browsing, browser file upload, remote URL, language choice, transcription/translation/subtitle tasks.
-2. Configure: task-specific settings, SwiftU refinement, glossary, style, ASS display, speaker/alignment options.
+2. Configure: task-specific contextual text refinement, selected translation adapter (configured text model or Riva), glossary, style, ASS display, speaker/alignment options.
 3. Process & preview: job status/history, logs, video where browser-compatible, synchronized cues, ASS preview and downloads.
 
 ## Expected limitations of this foundation
@@ -51,7 +49,7 @@ FFmpeg/ffprobe are required for media processing; yt-dlp is required for remote/
 - Percent shown is a coarse workflow milestone, not per-chunk completion.
 - In-flight jobs are marked interrupted if the Studio process restarts. Re-submission is possible; automated cross-job cache reuse is not implemented.
 - The HTML subtitle overlay is approximate. JASSUB is the accurate preview when worker/WASM/video support permits.
-- The frontend uses Radix Tabs and styled semantic controls. Host-side shadcn component generation is authorized by components.json but has not yet been executed.
+- The frontend uses Radix Tabs and styled semantic controls. Host-side shadcn component generation is supported by `components.json` but is not required for running Studio.
 - Remote ingestion is intended for a trusted local operator. Keep the API bound to loopback; it is not ready for public deployment.
 
-Architecture and host handoff: ../docs/gui/ARCHITECTURE.md and ../docs/gui/ANTIGRAVITY_HANDOFF.md.
+Current architecture: [Studio architecture](../docs/gui/ARCHITECTURE.md). The original [Antigravity integration handoff](../docs/gui/ANTIGRAVITY_HANDOFF.md) is historical and should not override current source.

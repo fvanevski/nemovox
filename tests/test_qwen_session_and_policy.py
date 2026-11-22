@@ -336,9 +336,14 @@ def test_qwen_cli_policy_defaults_and_explicit_managed_options() -> None:
     parser = build_parser()
     off = parser.parse_args(["process-media", "dummy.wav", "--output-dir", "out"])
     assert off.alignment_fallback == "off"
-    assert off.qwen_device == "cuda:0"
+    # Argument omitted: the role-bound aligner resource supplies its device.
+    assert off.qwen_device is None
     assert off.qwen_policy == "subtitle"
     assert off.qwen_gpu_mode == "available"
+    explicit_cpu = parser.parse_args([
+        "process-media", "dummy.wav", "--output-dir", "out", "--qwen-device", "cpu",
+    ])
+    assert explicit_cpu.qwen_device == "cpu"
     controlled = parser.parse_args([
         "generate-subtitles", "dummy.wav", "--output-dir", "out",
         "--alignment-fallback", "qwen", "--qwen-policy", "fine",

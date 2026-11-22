@@ -1,0 +1,268 @@
+"""Host model-resource bindings, independent of processing-task semantics.
+
+This module performs configuration resolution only. It does not instantiate models,
+contact endpoints, download checkpoints, or control GPU services. Adapters own
+protocol-specific behavior; a role declares the adapters it accepts.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import re
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Mapping
+from urllib.parse import urlsplit
+
+
+class ResourceConfigError(ValueError):
+    """Invalid, absent, or incompatible model-resource configuration."""
+
+
+# Stage requirements, not model names. Specialized adapters remain distinct.
+ROLE_ADAPTERS: dict[str, frozenset[str]] = {
+    "asr": frozenset({"nemotron_ctc"}),
+    "source_refinement": frozenset({"openai_chat"}),
+    "text_translation": frozenset({"openai_chat"}),
+    "subtitle_condensation": frozenset({"openai_chat"}),
+    "riva_translation": frozenset({"riva_worker"}),
+    "forced_alignment": frozenset({"qwen_forced_aligner"}),
+    "speaker_embedding": frozenset({"titanet"}),
+}
+RESOURCE_FIELDS = frozenset({"adapter", "model", "endpoint", "checkpoint_path", "worker_python", "device", "api_key_env"})
+# A field that the selected adapter ignores must be rejected rather than silently
+# suggesting it controls inference (particularly device and credential settings).
+_ADAPTER_FIELDS = {
+    "nemotron_ctc": frozenset({"adapter", "endpoint", "model", "checkpoint_path", "api_key_env"}),
+    "openai_chat": frozenset({"adapter", "endpoint", "model", "api_key_env"}),
+    "riva_worker": frozenset({"adapter", "checkpoint_path", "worker_python", "device"}),
+    "qwen_forced_aligner": frozenset({"adapter", "checkpoint_path", "worker_python", "device"}),
+    "titanet": frozenset({"adapter", "model", "device"}),
+}
+_RESOURCE_DEFAULTS: dict[str, dict[str, str]] = {
+    "asr_local": {
+        "adapter": "nemotron_ctc",
+        "endpoint": "http://127.0.0.1:8190/v1",
+        "model": "nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4",
+        "checkpoint_path": "/workspace/models/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4",
+    },
+    "text_local": {
+        "adapter": "openai_chat",
+        "endpoint": "http://127.0.0.1:8001/v1",
+        "model": "chat",
+    },
+    "riva_local": {
+        "adapter": "riva_worker",
+        "checkpoint_path": "/workspace/models/Riva-Translate-4B-Instruct-v2",
+        "worker_python": "/workspace/nvidia-transcribe/outputs/modular-eval/.venv/bin/python",
+        "device": "auto",
+    },
+    "qwen_local": {
+        "adapter": "qwen_forced_aligner",
+        "checkpoint_path": "/workspace/models/Qwen3-ForcedAligner-0.6B",
+        "worker_python": "/workspace/nvidia-transcribe/outputs/modular-eval/.venv/bin/python",
+        "device": "cuda:0",
+    },
+    "titanet_cpu": {"adapter": "titanet", "model": "titanet_small", "device": "cpu"},
+}
+_ROLE_DEFAULTS = {
+    "asr": "asr_local",
+    "source_refinement": "text_local",
+    "text_translation": "text_local",
+    "subtitle_condensation": "text_local",
+    "riva_translation": "riva_local",
+    "forced_alignment": "qwen_local",
+    "speaker_embedding": "titanet_cpu",
+}
+_ID = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
+_ENV = re.compile(r"^[A-Z_][A-Z0-9_]*$")
+
+
+@dataclass(frozen=True)
+class ModelResource:
+    name: str
+    adapter: str
+    model: str | None = None
+    endpoint: str | None = None
+    checkpoint_path: str | None = None
+    worker_python: str | None = None
+    device: str | None = None
+    api_key_env: str | None = None
+
+    def fingerprint(self) -> str:
+        """Stable cache discriminator; never includes credential values."""
+        fields = (self.adapter, self.model, self.endpoint, self.checkpoint_path,
+                  self.worker_python, self.device, self.api_key_env)
+        return hashlib.sha256(json.dumps(fields, separators=(",", ":")).encode()).hexdigest()
+
+    def credential(self, environ: Mapping[str, str] | None = None) -> str | None:
+        if not self.api_key_env:
+            return None
+        env = os.environ if environ is None else environ
+        secret = env.get(self.api_key_env)
+        if not secret:
+            raise ResourceConfigError(
+                f"Resource {self.name!r} requires environment variable {self.api_key_env}")
+        return secret
+
+
+def _validate_resource(name: str, spec: Mapping[str, Any]) -> ModelResource:
+    if not isinstance(name, str) or not _ID.fullmatch(name):
+        raise ResourceConfigError(f"Invalid resource name {name!r}")
+    unexpected = set(spec) - RESOURCE_FIELDS
+    if unexpected:
+        raise ResourceConfigError(f"Resource {name!r} has unsupported keys: {sorted(unexpected)}")
+    if not all(isinstance(v, str) and v.strip() for v in spec.values()):
+        raise ResourceConfigError(f"Resource {name!r} fields must be nonempty strings")
+    adapter = spec.get("adapter")
+    if adapter not in _ADAPTER_FIELDS:
+        raise ResourceConfigError(f"Resource {name!r} has unknown adapter {adapter!r}")
+    unused = set(spec) - _ADAPTER_FIELDS[adapter]
+    if unused:
+        raise ResourceConfigError(
+            f"Resource {name!r} adapter {adapter!r} cannot use fields: {sorted(unused)}")
+    endpoint = spec.get("endpoint")
+    if endpoint is not None:
+        parsed = urlsplit(endpoint)
+        if (parsed.scheme not in ("http", "https") or not parsed.hostname or
+                parsed.username or parsed.password or parsed.query or parsed.fragment):
+            raise ResourceConfigError(f"Resource {name!r} endpoint must be an HTTP(S) base URL without credentials/query")
+        try:
+            _ = parsed.port
+        except ValueError as exc:
+            raise ResourceConfigError(f"Resource {name!r} has invalid endpoint port") from exc
+    if adapter in ("openai_chat", "nemotron_ctc") and not (endpoint and spec.get("model")):
+        raise ResourceConfigError(f"Resource {name!r} requires endpoint and served model")
+    if adapter in ("riva_worker", "qwen_forced_aligner") and not (spec.get("checkpoint_path") and spec.get("worker_python")):
+        raise ResourceConfigError(f"Resource {name!r} requires checkpoint_path and worker_python")
+    if adapter == "titanet" and not spec.get("model"):
+        raise ResourceConfigError(f"Resource {name!r} requires a model identifier")
+    env_name = spec.get("api_key_env")
+    if env_name and not _ENV.fullmatch(env_name):
+        raise ResourceConfigError(f"Resource {name!r} api_key_env must name an environment variable")
+    if adapter == "qwen_forced_aligner" and spec.get("device", "cuda:0") not in ("cuda:0", "cpu"):
+        raise ResourceConfigError("Qwen aligner device must be cuda:0 or explicitly cpu")
+    if adapter == "titanet" and spec.get("device", "cpu") != "cpu":
+        raise ResourceConfigError("NeMo TitaNet speaker embedding runs on CPU only")
+    if adapter == "riva_worker":
+        device = spec.get("device", "auto")
+        if device not in ("auto", "cpu") and not re.fullmatch(r"cuda:\d+", device):
+            raise ResourceConfigError("Riva worker device must be auto, cpu, or cuda:N")
+    return ModelResource(name=name, **dict(spec))
+
+
+@dataclass(frozen=True)
+class ModelResources:
+    resources: Mapping[str, ModelResource]
+    roles: Mapping[str, str]
+
+    def resolve(self, role: str, *, resource_name: str | None = None,
+                endpoint: str | None = None, model: str | None = None,
+                require_local_paths: bool = False) -> ModelResource:
+        if role not in ROLE_ADAPTERS:
+            raise ResourceConfigError(f"Unknown task role {role!r}")
+        name = resource_name if resource_name is not None else self.roles.get(role)
+        if not isinstance(name, str) or not _ID.fullmatch(name):
+            raise ResourceConfigError(f"Role {role!r} has invalid resource name {name!r}")
+        if name not in self.resources:
+            raise ResourceConfigError(f"Role {role!r} references unknown resource {name!r}")
+        resource = self.resources[name]
+        if resource.adapter not in ROLE_ADAPTERS[role]:
+            raise ResourceConfigError(f"Role {role!r} cannot use {resource.adapter!r} resource {name!r}")
+        updates = {}
+        if endpoint is not None:
+            updates["endpoint"] = endpoint
+        if model is not None:
+            updates["model"] = model
+        if updates:
+            fields = {
+                k: getattr(resource, k) for k in RESOURCE_FIELDS if getattr(resource, k) is not None
+            }
+            # Changing the served ASR model does not establish that the old
+            # checkpoint contains the new model's CTC vocabulary.
+            if role == "asr" and model is not None and model != resource.model:
+                fields.pop("checkpoint_path", None)
+            resource = _validate_resource(resource.name, {**fields, **updates})
+        if require_local_paths:
+            for attr in ("checkpoint_path", "worker_python"):
+                location = getattr(resource, attr)
+                if location and not Path(location).exists():
+                    raise ResourceConfigError(
+                        f"Resource {name!r} {attr} is unavailable (configure an installed local path)")
+        return resource
+
+    def public_bindings(self) -> dict[str, dict[str, str]]:
+        """Troubleshooting inventory with no tokens, endpoint hostnames, or local paths."""
+        result = {}
+        for role, name in self.roles.items():
+            resource = self.resolve(role)
+            result[role] = {"resource": name, "adapter": resource.adapter, "fingerprint": resource.fingerprint()[:12]}
+        return result
+
+
+def load_model_resources(
+    path: str | Path | None = None, *, environ: Mapping[str, str] | None = None
+) -> ModelResources:
+    """Resolve defaults < JSON host file < new/legacy env vars; CLI overrides happen later.
+
+    Legacy SWIFTU_* only governs the built-in text_local binding and loses to
+    TEXT_*. Arbitrary role-specific resources in the JSON file remain independent.
+    """
+    env = os.environ if environ is None else environ
+    requested = path if path is not None else env.get("NEMOVOX_MODEL_RESOURCES")
+    resources = {name: dict(spec) for name, spec in _RESOURCE_DEFAULTS.items()}
+    roles = dict(_ROLE_DEFAULTS)
+    if requested:
+        config_path = Path(requested).expanduser()
+        try:
+            doc = json.loads(config_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ResourceConfigError(f"Cannot load model resource config {config_path.name!r}: {exc}") from exc
+        if not isinstance(doc, dict) or set(doc) - {"version", "resources", "roles"}:
+            raise ResourceConfigError("Resource config must contain only version, resources, roles")
+        if doc.get("version") != 1:
+            raise ResourceConfigError("Unsupported model resource config version; expected 1")
+        overrides = doc.get("resources", {})
+        role_overrides = doc.get("roles", {})
+        if not isinstance(overrides, dict) or not isinstance(role_overrides, dict):
+            raise ResourceConfigError("resources and roles must be objects")
+        for name, spec in overrides.items():
+            if not isinstance(spec, dict):
+                raise ResourceConfigError(f"Resource {name!r} definition must be an object")
+            prior = resources.get(name, {})
+            merged = {**prior, **spec}
+            # A partial override of the built-in ASR model cannot inherit the
+            # shipped checkpoint. Explicitly re-state the matching path.
+            if (name == "asr_local" and "model" in spec
+                    and spec["model"] != prior.get("model")
+                    and "checkpoint_path" not in spec):
+                merged.pop("checkpoint_path", None)
+            resources[name] = merged
+        if set(role_overrides) - ROLE_ADAPTERS.keys():
+            raise ResourceConfigError(f"Unknown roles: {sorted(set(role_overrides) - ROLE_ADAPTERS.keys())}")
+        for role, name in role_overrides.items():
+            if not isinstance(name, str) or not _ID.fullmatch(name):
+                raise ResourceConfigError(f"Role {role!r} must reference a valid resource name")
+        roles.update(role_overrides)
+
+    # Environment overrides are scoped to *default resource identities* only.
+    for resource_name, settings in {
+        "asr_local": {"endpoint": env.get("ASR_BASE_URL"), "model": env.get("ASR_MODEL")},
+        "text_local": {"endpoint": env.get("TEXT_BASE_URL") if "TEXT_BASE_URL" in env else env.get("SWIFTU_BASE_URL"),
+                       "model": env.get("TEXT_MODEL") if "TEXT_MODEL" in env else env.get("SWIFTU_MODEL")},
+    }.items():
+        for field_name, value in settings.items():
+            if value is not None:
+                if not value.strip():
+                    raise ResourceConfigError(f"Empty environment override for {resource_name}.{field_name}")
+                chosen = value.strip()
+                if (resource_name == "asr_local" and field_name == "model"
+                        and chosen != resources[resource_name].get("model")):
+                    resources[resource_name].pop("checkpoint_path", None)
+                resources[resource_name][field_name] = chosen
+    validated = {name: _validate_resource(name, spec) for name, spec in resources.items()}
+    registry = ModelResources(resources=validated, roles=roles)
+    for role in ROLE_ADAPTERS:
+        registry.resolve(role)
+    return registry
