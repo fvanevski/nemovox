@@ -59,6 +59,14 @@ _RIVA_PAIR_MAP = {
 }
 
 
+def is_english_source_to_english(source_language: str | None, target_language: str | None) -> bool:
+    """Recognize already-English speech destined for English subtitle rendering."""
+    def base(value: str | None) -> str:
+        return (value or "").strip().lower().replace("_", "-").split("-", 1)[0]
+
+    return base(source_language) in {"en", "eng", "english"} and base(target_language) in {"en", "eng", "english"}
+
+
 def map_language_for_riva(source_language: str | None) -> str | None:
     if not source_language:
         return None
@@ -482,6 +490,16 @@ def translate_utterances(
     if cfg.backend == "riva":
         if cfg.target_language.strip().lower() not in ("en", "english"):
             raise ValueError("Riva primary translation currently supports an English target only")
+        if is_english_source_to_english(source_language, cfg.target_language):
+            # English subtitles need no MT or post-edit of the source ASR.
+            # This bypass works even if a Riva worker has not been installed.
+            for u in out_utts:
+                u["translated_text"] = str(u.get("source_text") or "").strip()
+                u["translation_status"] = "bypassed_same_language"
+            return out_utts, {
+                "backend": "riva", "status": "bypassed_same_language",
+                "total_utterances": len(out_utts), "resource_fingerprint": cfg.resource_fingerprint,
+            }
         lang_pair = map_language_for_riva(source_language)
         if lang_pair is None:
             raise ValueError(f"Riva-Translate-4B-Instruct-v2 does not support source_language={source_language!r}")

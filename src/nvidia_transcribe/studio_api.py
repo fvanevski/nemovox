@@ -9,6 +9,7 @@ from __future__ import annotations
 import fcntl
 import ipaddress
 import json
+import yaml
 import math
 import os
 import re
@@ -32,6 +33,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from nvidia_transcribe.media import MediaInspectionError, inspect_audio_streams
+from nvidia_transcribe.translation import is_english_source_to_english
 from nvidia_transcribe.model_resources import ResourceConfigError, load_model_resources
 from nvidia_transcribe.refinement import load_glossary
 from pydantic import BaseModel, Field
@@ -594,7 +596,6 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
             try:
                 glossary = load_glossary(p)
                 if p.suffix.lower() in (".yaml", ".yml"):
-                    import yaml
                     metadata = yaml.safe_load(p.read_text(encoding="utf-8"))
                 else:
                     metadata = json.loads(p.read_text(encoding="utf-8"))
@@ -606,7 +607,8 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
                     "terms": list(glossary.terms)[:60],
                     "notes": (glossary.notes or "")[:1200],
                 })
-            except (OSError, TypeError, ValueError):
+            except (OSError, TypeError, ValueError, yaml.YAMLError):
+                # An invalid optional glossary must not disable valid neighbors.
                 continue
         return records
 
@@ -698,7 +700,9 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
                     raise HTTPException(422, "Selected audio track is not present in this file.")
         if request.source.kind == "url" and request.options.audio_stream != 0:
             raise HTTPException(422, "Remote audio tracks are unknown until download; use track 0.")
-        if request.task != "transcription" and request.options.translator == "riva":
+        if (request.task != "transcription" and request.options.translator == "riva"
+                and not is_english_source_to_english(
+                    request.options.source_language, request.options.target_language)):
             try:
                 load_model_resources().resolve("riva_translation", require_local_paths=True)
             except ResourceConfigError as exc:

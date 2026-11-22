@@ -21,6 +21,7 @@ from nvidia_transcribe.subtitles import SubtitleConfig, render_subtitles
 from nvidia_transcribe.translation import (
     TranslationConfig,
     condense_high_cps_cues_with_text_model,
+    is_english_source_to_english,
     translate_utterances,
 )
 from nvidia_transcribe.translation_review import TranslationReviewConfig, review_translated_utterances
@@ -245,7 +246,16 @@ def generate_subtitles(
             resume=cfg.resume_translation,
         )
         # Retain the first-stage MT independently of all text-model edits.
-        if cfg.translation.backend == "riva":
+        if (cfg.translation.backend == "riva"
+                and is_english_source_to_english(src_lang, cfg.target_language)):
+            # Already-English speech must not enter a text-based source correction.
+            for u in translated_utts:
+                u["translation_review_status"] = "skipped_same_language"
+            review_summary = {
+                "status": "skipped_same_language", "profile": cfg.translation_review.profile,
+                "reviewed": 0, "changed": 0,
+            }
+        elif cfg.translation.backend == "riva":
             _log(f"Stage 3b/4: Contextual English post-edit (profile={cfg.translation_review.profile})")
             translated_utts, review_summary = review_translated_utterances(
                 translated_utts, source_language=src_lang, config=cfg.translation_review,
