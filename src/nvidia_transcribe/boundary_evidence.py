@@ -11,10 +11,11 @@ from __future__ import annotations
 from collections import Counter
 from difflib import SequenceMatcher
 from typing import Any, Sequence
+import unicodedata
 
 
 def _norm(token: str) -> str:
-    return "".join(c for c in str(token).casefold() if c.isalnum())
+    return "".join(c for c in unicodedata.normalize("NFKD", str(token).casefold()) if c.isalnum() and not unicodedata.combining(c))
 
 
 def _speaker(unit: dict[str, Any]) -> str | None:
@@ -25,37 +26,71 @@ def _speaker(unit: dict[str, Any]) -> str | None:
     return str(v)
 
 
-def _median_mid(units: Sequence[dict[str, Any]]) -> float:
-    mids = sorted(float(u["_mid"]) for u in units if u.get("_mid") is not None)
-    if not mids:
-        raise ValueError("No timing observations in overlap segment")
-    return mids[len(mids) // 2]
+def _mid(unit: dict[str, Any]) -> float:
+    return float(unit["_mid"])
 
 
-def _same_voice_within(units: Sequence[dict[str, Any]]) -> bool:
-    known = {_speaker(u) for u in units if _speaker(u) is not None}
-    return len(known) <= 1
+def _stream_candidates(
+    units: list[dict[str, Any]], spec: Any, boundary: float, lookaround_s: float,
+) -> dict[str, list[dict[str, Any]]]:
+    """Compare each voice in lexical order, not a mixed-speaker timeline."""
+    streams: dict[str, list[dict[str, Any]]] = {}
+    for unit in units:
+        speaker = _speaker(unit)
+        if (unit["_drop"] or speaker is None or unit.get("_mid") is None
+                or unit.get("unit_type") == "character"
+                or not _norm(unit.get("text", ""))):
+            continue
+        t = _mid(unit)
+        if (abs(t - boundary) > lookaround_s
+                or not spec.infer_start_s - 0.15 <= t <= spec.infer_end_s + 0.15):
+            continue
+        streams.setdefault(speaker, []).append(unit)
+    return streams
 
 
-def _continuation(
-    seq: list[dict[str, Any]], after: int, reference: dict[str, Any],
-    boundary: float, limit: int = 3,
+def _consistent_runs(
+    pairs: list[tuple[dict[str, Any], dict[str, Any]]], tolerance_s: float = 2.0,
+) -> list[list[tuple[dict[str, Any], dict[str, Any]]]]:
+    """Split matches at discontinuous CTC offsets or backward word movement.
+
+    A median offset across a *whole* phrase previously hid the one-word
+    ten-second W04c displacement and deleted its correctly timed copy.
+    """
+    runs: list[list[tuple[dict[str, Any], dict[str, Any]]]] = []
+    for left, right in pairs:
+        if not runs:
+            runs.append([(left, right)])
+            continue
+        prev_l, prev_r = runs[-1][-1]
+        d = _mid(right) - _mid(left)
+        prev_d = _mid(prev_r) - _mid(prev_l)
+        if (abs(d - prev_d) > tolerance_s
+                or _mid(left) < _mid(prev_l) - 0.3
+                or _mid(right) < _mid(prev_r) - 0.3):
+            runs.append([(left, right)])
+        else:
+            runs[-1].append((left, right))
+    return runs
+
+
+def _right_continuation(
+    stream: list[dict[str, Any]], end: int,
+    matched_last: dict[str, Any],
+    boundary: float,
 ) -> list[dict[str, Any]]:
-    """Small contiguous same-voice suffix, never an arbitrary neighboring turn."""
-    result: list[dict[str, Any]] = []
-    prior = reference
-    for unit in seq[after:after + limit]:
-        if unit["_drop"] or unit.get("_mid") is None or _speaker(unit) != _speaker(reference):
+    """Accept only a coherent multiword continuation; not one noisy edge token."""
+    suffix: list[dict[str, Any]] = []
+    prev = matched_last
+    for unit in stream[end:end + 4]:
+        if unit["_drop"] or abs(_mid(unit) - boundary) > 15.0:
             break
-        if not (abs(float(unit["_mid"]) - boundary) <= 15.0
-                and float(unit["start"]) - float(prior["end"]) <= 0.75
-                and float(unit["start"]) >= float(prior["start"]) - 0.15):
+        if (float(unit["start"]) - float(prev["end"]) > 0.75
+                or float(unit["start"]) < float(prev["start"]) - 0.15):
             break
-        if not _norm(unit.get("text", "")):
-            break
-        result.append(unit)
-        prior = unit
-    return result
+        suffix.append(unit)
+        prev = unit
+    return suffix if len(suffix) >= 2 else []
 
 
 def reconcile_displaced_sequences(
@@ -64,134 +99,138 @@ def reconcile_displaced_sequences(
     *,
     lookaround_s: float = 45.0,
 ) -> dict[str, Any]:
-    """Eliminate only independently repeated, distinctive boundary sequences.
+    """Conservatively reconcile distinct multiword echoes across shared audio.
 
-    For long displaced phrases require >=6 matching tokens with >=3 distinct
-    lexical forms, unique four-token anchors, and internally consistent speaker
-    streams. For short 4-5-token phrases, require close timing plus same speaker,
-    or a demonstrably more complete neighbor phrase. A short displaced phrase
-    whose speakers disagree is *reported*, not automatically deleted.
-
-    All decisions are bounded to the adjacent chunks' actual inference coverage.
+    Long cross-speaker matches need strong distinctive lexical evidence and
+    coherent *per-word* relative offsets. Short or ambiguous repetitions are
+    not deleted. Only a better, multiword right-hand continuation can replace
+    a truncated core candidate; arbitrary unmatched suffix promotion is banned.
     """
     deduped = 0
     promoted = 0
     matches: list[dict[str, Any]] = []
     ambiguities: list[dict[str, Any]] = []
     for bi in range(len(chunks) - 1):
-        left_spec, right_spec = chunks[bi:bi + 2]
-        boundary = float(left_spec.core_end_s)
-        common_start = max(left_spec.infer_start_s, right_spec.infer_start_s)
-        common_end = min(left_spec.infer_end_s, right_spec.infer_end_s)
-        if common_end <= common_start:
+        lspec, rspec = chunks[bi:bi + 2]
+        boundary = float(lspec.core_end_s)
+        if min(lspec.infer_end_s, rspec.infer_end_s) <= max(
+            lspec.infer_start_s, rspec.infer_start_s
+        ):
             continue
-
-        def candidate(units: list[dict[str, Any]], spec: Any) -> list[dict[str, Any]]:
-            return [
-                u for u in units if not u["_drop"] and u.get("_mid") is not None
-                and _norm(u.get("text", ""))
-                and abs(float(u["_mid"]) - boundary) <= lookaround_s
-                and spec.infer_start_s - 0.15 <= float(u["_mid"]) <= spec.infer_end_s + 0.15
-            ]
-
-        left = candidate(tagged_by_chunk[bi], left_spec)
-        right = candidate(tagged_by_chunk[bi + 1], right_spec)
-        lt, rt = [_norm(u.get("text", "")) for u in left], [_norm(u.get("text", "")) for u in right]
-        if len(lt) < 4 or len(rt) < 4:
-            continue
-        # Four-gram multiplicity guards repeated slogans or identical phrases
-        # spoken twice *within* either chunk's acoustic excerpt.
-        lgrams = Counter(tuple(lt[j:j + 4]) for j in range(len(lt) - 3))
-        rgrams = Counter(tuple(rt[j:j + 4]) for j in range(len(rt) - 3))
-        blocks = [b for b in SequenceMatcher(None, lt, rt, autojunk=False).get_matching_blocks()
-                  if b.size >= 4]
-        if not blocks:
-            continue
-        groups: list[tuple[int, int, int, int, int]] = []
-        for b in blocks:
-            a0, a1, z0, z1, count = b.a, b.a + b.size, b.b, b.b + b.size, b.size
-            if groups and a0 - groups[-1][1] <= 2 and z0 - groups[-1][3] <= 2:
-                pa0, _, pz0, _, pc = groups[-1]
-                groups[-1] = (pa0, a1, pz0, z1, pc + count)
-            else:
-                groups.append((a0, a1, z0, z1, count))
-
-        for a0, a1, z0, z1, exact_matches in groups:
-            lu, ru = left[a0:a1], right[z0:z1]
-            if any(u["_drop"] for u in (*lu, *ru)):
+        ls = _stream_candidates(tagged_by_chunk[bi], lspec, boundary, lookaround_s)
+        rs = _stream_candidates(tagged_by_chunk[bi + 1], rspec, boundary, lookaround_s)
+        # The number of local speakers is bounded by the actual ASR response;
+        # compare pairwise streams rather than merging interleaved voices.
+        for lvoice, left in sorted(ls.items()):
+            lt = [_norm(x["text"]) for x in left]
+            if len(lt) < 4:
                 continue
-            shared = [v for v in lt[a0:a1] if v in set(rt[z0:z1])]
-            uniqueness = len(set(shared))
-            density = exact_matches / max(a1 - a0, z1 - z0)
-            phrase = tuple(lt[a0:min(a0 + 4, a1)])
-            if exact_matches < 4 or uniqueness < 3 or density < 0.72:
-                continue
-            left_mid, right_mid = _median_mid(lu), _median_mid(ru)
-            delta = round(right_mid - left_mid, 3)
-            signature = {"left_chunk": left_spec.chunk_index,
-                         "right_chunk": right_spec.chunk_index,
-                         "left_source_indices": [u["_unit_idx"] for u in lu],
-                         "right_source_indices": [u["_unit_idx"] for u in ru],
-                         "matched_tokens": exact_matches,
-                         "relative_ctc_shift_s": delta}
-            if (lgrams[phrase] != 1 or rgrams[phrase] != 1
-                    or not _same_voice_within(lu) or not _same_voice_within(ru)):
-                ambiguities.append({**signature, "reason": "repeated_or_mixed_voice_sequence"})
-                continue
-            # Character-level (e.g. Mandarin) CTC needs a different lexical
-            # uniqueness model; keep the legacy near-time reconciliation only.
-            # Unknown identities are not positive evidence for deleting speech.
-            if any(u.get("unit_type") == "character" for u in (*lu, *ru)):
-                ambiguities.append({**signature, "reason": "character_sequence_requires_review"})
-                continue
-            if any(_speaker(u) is None for u in (*lu, *ru)):
-                ambiguities.append({**signature, "reason": "unknown_speaker_sequence"})
-                continue
-            same_speaker = _speaker(lu[0]) is not None and _speaker(lu[0]) == _speaker(ru[0])
-            left_suffix = _continuation(left, a1, lu[-1], boundary)
-            right_suffix = _continuation(right, z1, ru[-1], boundary)
-            right_more_complete = (
-                not left_suffix and bool(right_suffix) and abs(delta) <= 1.0
-                and not str(lu[-1].get("text", "")).endswith((".", "!", "?"))
-            )
-            if abs(delta) > 3.0 and not same_speaker and exact_matches < 8:
-                ambiguities.append({**signature, "reason": "insufficient_cross_speaker_sequence_evidence"})
-                continue
-            if (exact_matches < 6 and not (abs(delta) <= 1.0 and same_speaker)
-                    and not right_more_complete):
-                ambiguities.append({**signature, "reason": "short_unanchored_duplicate_candidate"})
-                continue
-            if (abs(delta) <= 1.0 and not same_speaker
-                    and not right_more_complete):
-                ambiguities.append({**signature, "reason": "possible_simultaneous_distinct_speakers"})
-                continue
-            # The preferred candidate is the original core observation unless
-            # the adjacent overlap contains an independently more complete turn.
-            keep_right = right_more_complete
-            kept, dropped = (ru, lu) if keep_right else (lu, ru)
-            for u in dropped:
-                u["_drop"] = True
-                deduped += 1
-            promoted_indices: list[int] = []
-            for u in (*kept, *(right_suffix if keep_right else left_suffix)):
-                if not u["_in_core"]:
-                    u["_in_core"] = True
-                    u["_recovered"] = True
-                    u["_recovery_kind"] = "sequence_alternate_recovered"
-                    promoted += 1
-                    promoted_indices.append(u["_unit_idx"])
-                # The winning CTC hypothesis is not an acoustic verification.
-                if abs(delta) > 3.0:
-                    u["timing_evidence_status"] = "displaced_sequence_ctc_unverified"
-                    u["timing_evidence_reason"] = "cross_chunk_ctc_disagreement"
-            matches.append({
-                **signature, "kept_chunk": right_spec.chunk_index if keep_right else left_spec.chunk_index,
-                "discarded_chunk": left_spec.chunk_index if keep_right else right_spec.chunk_index,
-                "selected_better_complete_turn": keep_right,
-                "promoted_source_indices": promoted_indices,
-                "decision": "sequence_duplicate_removed",
-            })
-
+            left_grams = Counter(tuple(lt[i:i + 4]) for i in range(len(lt) - 3))
+            for rvoice, right in sorted(rs.items()):
+                rt = [_norm(x["text"]) for x in right]
+                if len(rt) < 4:
+                    continue
+                right_grams = Counter(tuple(rt[i:i + 4]) for i in range(len(rt) - 3))
+                blocks = SequenceMatcher(
+                    None, lt, rt, autojunk=False
+                ).get_matching_blocks()
+                for block in blocks:
+                    if block.size < 4:
+                        continue
+                    pairs = [(left[block.a + j], right[block.b + j])
+                             for j in range(block.size)]
+                    for run in _consistent_runs(pairs):
+                        lu = [p[0] for p in run]
+                        ru = [p[1] for p in run]
+                        n = len(run)
+                        if n < 4 or any(u["_drop"] for u in (*lu, *ru)):
+                            continue
+                        words = [_norm(u["text"]) for u in lu]
+                        if len(set(words)) < 3:
+                            continue
+                        phrase = tuple(words[:4])
+                        if left_grams[phrase] != 1 or right_grams[phrase] != 1:
+                            continue
+                        offsets = [_mid(b) - _mid(a) for a, b in run]
+                        shift = round(sum(offsets) / n, 3)
+                        same_voice = lvoice == rvoice
+                        # A few repeated tokens cannot prove that two distinct
+                        # speakers in the overlapping recording said one phrase.
+                        reason: str | None = None
+                        suffix: list[dict[str, Any]] = []
+                        # A more complete right-hand observation is separate
+                        # positive evidence for selecting it over a truncated core.
+                        last_right_i = next(
+                            (i for i, u in enumerate(right) if u is ru[-1]), -1
+                        )
+                        if last_right_i >= 0:
+                            suffix = _right_continuation(
+                                right, last_right_i + 1, ru[-1], boundary
+                            )
+                        right_more_complete = (
+                            bool(suffix) and abs(shift) <= 1.0
+                            and not str(lu[-1].get("text", "")).endswith((".", "!", "?"))
+                            and not any(
+                                # If the left chunk itself includes those words
+                                # as a continuation, right is not more complete.
+                                _norm(u.get("text", "")) == _norm(suffix[0]["text"])
+                                for u in left
+                                if not u["_drop"] and u["_unit_idx"] > lu[-1]["_unit_idx"]
+                                and _mid(u) <= _mid(lu[-1]) + 1.2
+                            )
+                        )
+                        if abs(shift) > 3.0 and (n < 8 if not same_voice else n < 6):
+                            reason = "insufficient_cross_speaker_sequence_evidence"
+                        elif abs(shift) <= 1.0 and not same_voice and not right_more_complete:
+                            reason = "possible_simultaneous_distinct_speakers"
+                        elif n < 6 and not (same_voice and abs(shift) <= 1.0) and not right_more_complete:
+                            reason = "short_unanchored_duplicate_candidate"
+                        if reason:
+                            ambiguities.append({
+                                "left_chunk": lspec.chunk_index, "right_chunk": rspec.chunk_index,
+                                "left_source_indices": [u["_unit_idx"] for u in lu],
+                                "right_source_indices": [u["_unit_idx"] for u in ru],
+                                "matched_tokens": n, "relative_ctc_shift_s": shift,
+                                "reason": reason, "resolution": "preserved_both",
+                            })
+                            continue
+                        # In a close duplicate, honor core ownership. In a
+                        # displaced duplicate, preserve only a single lexical
+                        # occurrence, but do not claim either CTC time verified.
+                        left_core = sum(bool(u["_in_core"]) for u in lu)
+                        right_core = sum(bool(u["_in_core"]) for u in ru)
+                        keep_right = right_more_complete or (
+                            not right_more_complete and right_core > left_core
+                        )
+                        kept, discarded = (ru, lu) if keep_right else (lu, ru)
+                        for u in discarded:
+                            u["_drop"] = True
+                            deduped += 1
+                        promoted_indices: list[int] = []
+                        to_promote = (*kept, *(suffix if right_more_complete else ()))
+                        for u in to_promote:
+                            if not u["_in_core"]:
+                                u["_in_core"] = True
+                                u["_recovered"] = True
+                                u["_recovery_kind"] = "sequence_alternate_recovered"
+                                promoted += 1
+                                promoted_indices.append(u["_unit_idx"])
+                            if abs(shift) > 3.0:
+                                u["timing_evidence_status"] = "cross_chunk_ctc_disagreement"
+                                u["timing_evidence_reason"] = "relative_sequence_shift_unverified"
+                        matches.append({
+                            "left_chunk": lspec.chunk_index,
+                            "right_chunk": rspec.chunk_index,
+                            "left_source_indices": [u["_unit_idx"] for u in lu],
+                            "right_source_indices": [u["_unit_idx"] for u in ru],
+                            "matched_tokens": n,
+                            "relative_ctc_shift_s": shift,
+                            "kept_chunk": rspec.chunk_index if keep_right else lspec.chunk_index,
+                            "discarded_chunk": lspec.chunk_index if keep_right else rspec.chunk_index,
+                            "selected_better_complete_turn": right_more_complete,
+                            "promoted_source_indices": promoted_indices,
+                            "decision": "sequence_duplicate_removed",
+                        })
     return {
         "schema": "nemovox-boundary-sequence-evidence/v1",
         "sequence_deduplicated_units": deduped,
@@ -252,13 +291,13 @@ def recover_extended_right_context(
                 continue
             words = [_norm(u["text"]) for u in group]
             has_lexical_copy = SequenceMatcher(None, words, right_words, autojunk=False).find_longest_match(
-                0, len(words), 0, len(right_words)).size >= min(3, len(words))
+                0, len(words), 0, len(right_words)).size >= max(3, (3 * len(words) + 3) // 4)
             # A different phrase in the same time window may be a genuine
             # overlapping speaker or an ASR substitution; do not guess.
             nearby = any(
                 u.get("_mid") is not None and u.get("valid_timing")
-                and float(u["end"]) >= float(group[0]["start"]) - 0.30
-                and float(u["start"]) <= float(group[-1]["end"]) + 0.30
+                and float(u["end"]) > float(group[0]["start"])
+                and float(u["start"]) < float(group[-1]["end"])
                 for u in right
             )
             if has_lexical_copy or nearby:
