@@ -1,0 +1,205 @@
+COMMAND: /workspace/nvidia-transcribe/.venv/bin/python -m nvidia_transcribe.cli generate-subtitles --help
+usage: nvidia-transcribe generate-subtitles [-h]
+                                            [--recording-contract RECORDING_CONTRACT]
+                                            --output-dir OUTPUT_DIR
+                                            [--source-language SOURCE_LANGUAGE]
+                                            [--target-language TARGET_LANGUAGE]
+                                            [--refinement {off,conservative,balanced,expressive}]
+                                            [--translator {openai_chat,swiftu,riva,none}]
+                                            [--style {natural,literal,expressive}]
+                                            [--translation-review {off,conservative,balanced,expressive}]
+                                            [--glossary GLOSSARY]
+                                            [--formats FORMATS]
+                                            [--episode-stem EPISODE_STEM]
+                                            [--sidecar-dir SIDECAR_DIR]
+                                            [--overwrite-sidecar]
+                                            [--base-url BASE_URL]
+                                            [--model MODEL]
+                                            [--alignment-fallback {off,qwen}]
+                                            [--chunk-seconds CHUNK_SECONDS]
+                                            [--context-seconds CONTEXT_SECONDS]
+                                            [--min-tail-seconds MIN_TAIL_SECONDS]
+                                            [--text-url TEXT_URL]
+                                            [--text-model TEXT_MODEL]
+                                            [--refinement-resource REFINEMENT_RESOURCE]
+                                            [--translation-resource TRANSLATION_RESOURCE]
+                                            [--translation-review-resource TRANSLATION_REVIEW_RESOURCE]
+                                            [--condensation-resource CONDENSATION_RESOURCE]
+                                            [--max-chars MAX_CHARS]
+                                            [--max-lines MAX_LINES]
+                                            [--min-display MIN_DISPLAY]
+                                            [--max-display MAX_DISPLAY]
+                                            [--overlap-threshold OVERLAP_THRESHOLD]
+                                            [--ass-layout {standard,raised_main}]
+                                            [--ass-margin-v ASS_MARGIN_V]
+                                            [--ass-opaque-box]
+                                            [--ass-max-lanes {2,3}]
+                                            [--condense-high-cps]
+                                            [--condense-threshold CONDENSE_THRESHOLD]
+                                            [--fresh] [--fresh-refinement]
+                                            [--fresh-translation]
+                                            [--re-render]
+                                            [--validation-overlay VALIDATION_OVERLAY]
+                                            [--model-resources MODEL_RESOURCES]
+                                            [--asr-resource ASR_RESOURCE]
+                                            [--qwen-policy {subtitle,fine}]
+                                            [--qwen-device {cuda:0,cpu}]
+                                            [--qwen-gpu-mode {available,managed}]
+                                            [--qwen-owned-asr-unit QWEN_OWNED_ASR_UNIT]
+                                            [--qwen-asr-lease-path QWEN_ASR_LEASE_PATH]
+                                            [media]
+
+positional arguments:
+  media                 Path to local media file (omit when using --recording-
+                        contract).
+
+options:
+  -h, --help            show this help message and exit
+  --recording-contract RECORDING_CONTRACT
+                        Existing recording.contract.json to start from (skips
+                        ASR).
+  --output-dir OUTPUT_DIR
+                        Directory for refined/translated contracts and SRT/ASS
+                        outputs.
+  --source-language SOURCE_LANGUAGE
+                        Source language code (e.g. 'fr', 'zh').
+  --target-language TARGET_LANGUAGE
+                        Target subtitle language (default: en).
+  --refinement {off,conservative,balanced,expressive}
+                        Source-language text correction is OFF by default.
+                        Non-off profiles are explicit legacy opt-ins.
+  --translator {openai_chat,swiftu,riva,none}
+                        OpenAI chat text model, Riva worker, or none; swiftu
+                        is a compatibility alias.
+  --style {natural,literal,expressive}
+  --translation-review {off,conservative,balanced,expressive}
+                        Contextual English post-edit after dedicated
+                        translation; off keeps legacy CLI behavior.
+  --glossary GLOSSARY   Path to character/term glossary (.yaml/.json) or
+                        comma-separated terms.
+  --formats FORMATS     Comma-separated subtitle formats (default: srt,ass).
+  --episode-stem EPISODE_STEM
+                        Override subtitle output filename stem.
+  --sidecar-dir SIDECAR_DIR
+                        Optional directory for EpisodeName.<lang>.srt/.ass
+                        sidecars.
+  --overwrite-sidecar   Allow overwriting existing sidecar files.
+  --base-url BASE_URL   Explicit ASR endpoint override.
+  --model MODEL         Explicit served ASR model override.
+  --alignment-fallback {off,qwen}
+  --chunk-seconds CHUNK_SECONDS
+  --context-seconds CONTEXT_SECONDS
+  --min-tail-seconds MIN_TAIL_SECONDS
+  --text-url, --swiftu-url TEXT_URL
+                        Explicit endpoint override for all text roles;
+                        --swiftu-url is legacy.
+  --text-model, --swiftu-model TEXT_MODEL
+                        Explicit served-model override for all text roles;
+                        --swiftu-model is legacy.
+  --refinement-resource REFINEMENT_RESOURCE
+                        Named text resource for source refinement.
+  --translation-resource TRANSLATION_RESOURCE
+                        Named text resource for legacy general-text-model
+                        primary translation.
+  --translation-review-resource TRANSLATION_REVIEW_RESOURCE
+                        Named OpenAI-compatible text resource for English
+                        post-edit.
+  --condensation-resource CONDENSATION_RESOURCE
+                        Named text resource for condensation.
+  --max-chars MAX_CHARS
+  --max-lines MAX_LINES
+  --min-display MIN_DISPLAY
+  --max-display MAX_DISPLAY
+  --overlap-threshold OVERLAP_THRESHOLD
+  --ass-layout {standard,raised_main}
+                        ASS positioning layout ('raised_main' clears bottom
+                        Chinese hardsubs).
+  --ass-margin-v ASS_MARGIN_V
+                        Bottom margin (px) for raised_main ASS layout.
+  --ass-opaque-box      Draw semi-opaque dark box behind ASS cues.
+  --ass-max-lanes {2,3}
+                        Maximum simultaneous ASS speaker lanes.
+  --condense-high-cps   Condense overly fast (>threshold CPS) English cues
+                        with the configured text model.
+  --condense-threshold CONDENSE_THRESHOLD
+                        CPS threshold triggering text-model condensation.
+  --fresh               Recompute ASR, refinement, and translation without
+                        reusing caches.
+  --fresh-refinement    Ignore refinement checkpoint cache.
+  --fresh-translation   Ignore translation checkpoint cache.
+  --re-render           Re-render SRT/ASS directly from
+                        translated.contract.json without model calls.
+  --validation-overlay VALIDATION_OVERLAY
+                        Optional viewing-validation JSON overlay for coarse
+                        timing & polish.
+  --model-resources MODEL_RESOURCES
+                        Host model-resource JSON path (or
+                        NEMOVOX_MODEL_RESOURCES).
+  --asr-resource ASR_RESOURCE
+                        Named ASR/CTC model resource.
+  --qwen-policy {subtitle,fine}
+                        Admit useful untimed subtitle windows by default; fine
+                        admits smaller gaps.
+  --qwen-device {cuda:0,cpu}
+                        CUDA BF16 required unless CPU is explicitly selected.
+  --qwen-gpu-mode {available,managed}
+                        Default never alters other services; managed requires
+                        a cooperative ASR lease.
+  --qwen-owned-asr-unit QWEN_OWNED_ASR_UNIT
+                        Explicit Nemovox-owned ASR systemd user unit, managed
+                        mode only.
+  --qwen-asr-lease-path QWEN_ASR_LEASE_PATH
+                        Cooperative ASR ownership lease file, managed mode
+                        only.
+
+=== READ-ONLY HOST CONFIG INVENTORY ===
+{
+  "public_bindings": {
+    "asr": {
+      "resource": "asr_local",
+      "adapter": "nemotron_ctc",
+      "fingerprint": "4952e76413ea"
+    },
+    "source_refinement": {
+      "resource": "text_local",
+      "adapter": "openai_chat",
+      "fingerprint": "7c4ddcaf9e48"
+    },
+    "text_translation": {
+      "resource": "text_local",
+      "adapter": "openai_chat",
+      "fingerprint": "7c4ddcaf9e48"
+    },
+    "subtitle_condensation": {
+      "resource": "text_local",
+      "adapter": "openai_chat",
+      "fingerprint": "7c4ddcaf9e48"
+    },
+    "translation_review": {
+      "resource": "text_local",
+      "adapter": "openai_chat",
+      "fingerprint": "7c4ddcaf9e48"
+    },
+    "riva_translation": {
+      "resource": "riva_local",
+      "adapter": "riva_worker",
+      "fingerprint": "51e174c84e77"
+    },
+    "forced_alignment": {
+      "resource": "qwen_local",
+      "adapter": "qwen_forced_aligner",
+      "fingerprint": "72b18920eecb"
+    },
+    "speaker_embedding": {
+      "resource": "titanet_cpu",
+      "adapter": "titanet",
+      "fingerprint": "431f090200ea"
+    }
+  },
+  "riva_configured": true,
+  "riva_device": "cuda:0",
+  "asr_checkpoint_present": true,
+  "studio_venv_present": true,
+  "live_inference_exercised": false
+}
+EXIT_CODE: 0

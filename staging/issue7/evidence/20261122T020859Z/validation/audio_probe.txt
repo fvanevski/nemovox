@@ -1,0 +1,34 @@
+COMMAND: bounded read-only inspect_audio_streams on approved local media roots
+[
+  {
+    "sample_label": "approved_root_mcog_single_track_webm",
+    "present": true,
+    "audio_streams": [
+      {
+        "index": 0,
+        "container_index": 1,
+        "codec": "opus",
+        "language": "eng",
+        "title": null,
+        "channels": 2,
+        "sample_rate_hz": 48000
+      }
+    ]
+  },
+  {
+    "sample_label": "approved_root_pyannote_single_track_webm",
+    "present": true,
+    "audio_streams": [
+      {
+        "index": 0,
+        "container_index": 1,
+        "codec": "opus",
+        "language": "eng",
+        "title": null,
+        "channels": 2,
+        "sample_rate_hz": 48000
+      }
+    ]
+  }
+]
+EXIT_CODE: 0
