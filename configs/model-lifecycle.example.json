@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "services": {
+    "asr_local": {
+      "unit": "nemovox-asr.service",
+      "startup_timeout_s": 300,
+      "stop_after_stage": true,
+      "min_free_vram_mb": 26000
+    },
+    "text_local": {
+      "unit": "nemovox-text-review.service",
+      "startup_timeout_s": 300,
+      "stop_after_stage": true,
+      "min_free_vram_mb": 16000
+    }
+  }
+}
