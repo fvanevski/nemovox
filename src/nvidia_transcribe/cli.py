@@ -253,7 +253,7 @@ def main(argv: list[str] | None = None) -> int:
             qwen_owned_asr_unit=args.qwen_owned_asr_unit,
             qwen_asr_lease_path=args.qwen_asr_lease_path,
             resume=not args.fresh,
-            model_path=args.model_path or asr_resource.checkpoint_path or str(DEFAULT_MODEL_PATH),
+            model_path=args.model_path or asr_resource.checkpoint_path,
             asr_resource_fingerprint=asr_resource.fingerprint(),
             speaker_embedding_model=speaker_resource.model or "titanet_small",
         )

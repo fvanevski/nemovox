@@ -194,7 +194,7 @@ def generate_subtitles(
                     speaker_embeddings=cfg.speaker_embeddings,
                     speaker_embedding_model=cfg.speaker_embedding_model,
                     asr_resource_fingerprint=cfg.asr_resource_fingerprint,
-                    model_path=cfg.asr_model_path or RecordingPipelineConfig.model_path,
+                    model_path=cfg.asr_model_path,
                     resume=cfg.resume,
                 ),
             )

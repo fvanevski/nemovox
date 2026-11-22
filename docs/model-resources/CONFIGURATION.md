@@ -105,6 +105,17 @@ environment. The variable's value is not written to resource fingerprints.
 The Nemotron client also retains its legacy `VLLM_API_KEY` fallback when a
 resource-specific `api_key_env` is not set.
 
+For ASR, `checkpoint_path` is optional when matching CTC vocabulary metadata
+is unavailable. New named ASR resources without a checkpoint continue native
+CTC alignment and subinterval recovery, but do **not** run vocabulary-based
+OOV classification; recording provenance stores `model_path: null`, and
+alignment diagnostics report `ctc_vocabulary_status: not_configured`.
+To enable that classification, explicitly bind the **matching** checkpoint.
+Changing the built-in ASR model through JSON `asr_local.model`, `ASR_MODEL`,
+or `--model` clears its inherited checkpoint unless a matching path is
+explicitly rebound; `process-media --model-path` supplies an override for
+that invocation. An endpoint-only change preserves the existing binding.
+
 ## Precedence and CLI examples
 
 The effective precedence is:
@@ -205,7 +216,8 @@ Invalid or unavailable selected resources are not silently swapped to a
 different model or device.
 
 Cache/checkpoint identities include effective resource fingerprints or
-associated backend settings. Do not carry unrelated historical ASR, timing,
+associated backend settings, including the selected CTC metadata checkpoint
+(or its absence). Do not carry unrelated historical ASR, timing,
 speaker, translated or condensed outputs across models without reevaluation.
 `--fresh`, `--fresh-refinement`, and `--fresh-translation` provide
 explicit recomputation controls. `--re-render` intentionally reuses an

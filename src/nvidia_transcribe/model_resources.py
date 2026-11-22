@@ -176,8 +176,14 @@ class ModelResources:
         if model is not None:
             updates["model"] = model
         if updates:
-            resource = _validate_resource(resource.name, {**{
-                k: getattr(resource, k) for k in RESOURCE_FIELDS if getattr(resource, k) is not None}, **updates})
+            fields = {
+                k: getattr(resource, k) for k in RESOURCE_FIELDS if getattr(resource, k) is not None
+            }
+            # Changing the served ASR model does not establish that the old
+            # checkpoint contains the new model's CTC vocabulary.
+            if role == "asr" and model is not None and model != resource.model:
+                fields.pop("checkpoint_path", None)
+            resource = _validate_resource(resource.name, {**fields, **updates})
         if require_local_paths:
             for attr in ("checkpoint_path", "worker_python"):
                 location = getattr(resource, attr)
@@ -224,7 +230,15 @@ def load_model_resources(
         for name, spec in overrides.items():
             if not isinstance(spec, dict):
                 raise ResourceConfigError(f"Resource {name!r} definition must be an object")
-            resources[name] = {**resources.get(name, {}), **spec}
+            prior = resources.get(name, {})
+            merged = {**prior, **spec}
+            # A partial override of the built-in ASR model cannot inherit the
+            # shipped checkpoint. Explicitly re-state the matching path.
+            if (name == "asr_local" and "model" in spec
+                    and spec["model"] != prior.get("model")
+                    and "checkpoint_path" not in spec):
+                merged.pop("checkpoint_path", None)
+            resources[name] = merged
         if set(role_overrides) - ROLE_ADAPTERS.keys():
             raise ResourceConfigError(f"Unknown roles: {sorted(set(role_overrides) - ROLE_ADAPTERS.keys())}")
         for role, name in role_overrides.items():
@@ -242,7 +256,11 @@ def load_model_resources(
             if value is not None:
                 if not value.strip():
                     raise ResourceConfigError(f"Empty environment override for {resource_name}.{field_name}")
-                resources[resource_name][field_name] = value.strip()
+                chosen = value.strip()
+                if (resource_name == "asr_local" and field_name == "model"
+                        and chosen != resources[resource_name].get("model")):
+                    resources[resource_name].pop("checkpoint_path", None)
+                resources[resource_name][field_name] = chosen
     validated = {name: _validate_resource(name, spec) for name, spec in resources.items()}
     registry = ModelResources(resources=validated, roles=roles)
     for role in ROLE_ADAPTERS:

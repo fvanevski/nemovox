@@ -377,7 +377,7 @@ def recover_chunk_alignment(
     ctc_payload: Any,
     source_offset_s: float,
     chunk_index: int,
-    model_path: str = str(DEFAULT_MODEL_PATH),
+    model_path: str | None = str(DEFAULT_MODEL_PATH),
     subinterval_runner: Callable[[float, float], tuple[str, Any]] | None = None,
     external_aligner: ExternalForcedAligner | None = None,
     chunk_wav_path: Path | None = None,
@@ -395,7 +395,9 @@ def recover_chunk_alignment(
     parsed: ParsedCTCAlignment = parse_ctc_timestamps(
         ctc_payload, source_offset_s=source_offset_s, strict=False
     )
-    vocab_chars = load_ctc_vocabulary_chars(model_path)
+    vocab_chars = load_ctc_vocabulary_chars(model_path) if model_path is not None else None
+    vocab_status = ("not_configured" if model_path is None else
+                    ("loaded" if vocab_chars else "unavailable"))
     oov_chars = find_ctc_oov_characters(raw_text, vocab_chars)
 
     if parsed.error is None and parsed.units:
@@ -418,6 +420,7 @@ def recover_chunk_alignment(
                 "status": "ok" if parsed.invalid_timing_count == 0 else "partial_invalid_units",
                 "ctc_error": None,
                 "oov_characters": oov_chars,
+                "ctc_vocabulary_status": vocab_status,
                 "invalid_timing_count": parsed.invalid_timing_count,
                 "recovery_attempted": False,
                 "recovered_units": 0,
@@ -489,6 +492,7 @@ def recover_chunk_alignment(
                         "status": status,
                         "ctc_error": parsed.error,
                         "oov_characters": oov_chars,
+                        "ctc_vocabulary_status": vocab_status,
                         "failure_cause": "ctc_vocab_oov" if oov_chars else parsed.error,
                         "recovery_attempted": True,
                         "recovered_units": recovered_count,
@@ -707,6 +711,7 @@ def recover_chunk_alignment(
                         "status": status,
                         "ctc_error": parsed.error,
                         "oov_characters": oov_chars,
+                        "ctc_vocabulary_status": vocab_status,
                         "failure_cause": "ctc_vocab_oov" if oov_chars else parsed.error,
                         "recovery_attempted": True,
                         "recovered_units": total_recovered,
@@ -731,6 +736,7 @@ def recover_chunk_alignment(
             "status": status,
             "ctc_error": parsed.error or "missing_ctc_metadata",
             "oov_characters": oov_chars,
+            "ctc_vocabulary_status": vocab_status,
             "failure_cause": "ctc_vocab_oov" if oov_chars else (parsed.error or "missing_ctc_metadata"),
             "recovery_attempted": recovery_attempted,
             "recovered_units": recovered_count + ext_recovered_count,

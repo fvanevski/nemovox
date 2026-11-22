@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import Any
 
 from nvidia_transcribe.alignment import ExternalForcedAligner, recover_chunk_alignment
-from nvidia_transcribe.checkpoint import DEFAULT_MODEL_PATH
 from nvidia_transcribe.chunking import ChunkConfig, ChunkSpec, plan_chunks, reconcile_chunk_boundaries
 from nvidia_transcribe.client import InferenceRequestConfig, NemotronVLLMClient
 from nvidia_transcribe.contract import (
@@ -55,7 +54,8 @@ class RecordingPipelineConfig:
     qwen_owned_asr_unit: str | None = None
     qwen_asr_lease_path: str | None = None
     resume: bool = True
-    model_path: str = str(DEFAULT_MODEL_PATH)
+    # Absent matching checkpoint means vocabulary-based OOV checks are skipped.
+    model_path: str | None = None
     asr_resource_fingerprint: str = ""
     speaker_embedding_model: str = "titanet_small"
 
@@ -104,6 +104,7 @@ def _config_signature(
         "model_name": model_name,
         "model_endpoint": model_endpoint,
         "asr_resource_fingerprint": cfg.asr_resource_fingerprint,
+        "ctc_metadata_checkpoint": cfg.model_path,
         "mode": cfg.mode,
         "source_language": normalize_language_code(cfg.source_language) or "auto",
         "chunk_seconds": cfg.chunk_seconds,

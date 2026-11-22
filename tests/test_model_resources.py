@@ -131,3 +131,37 @@ def test_configured_cpu_titanet_is_valid(tmp_path):
     path = _file(tmp_path, {"version": 1, "resources": {
         "titanet_cpu": {"adapter": "titanet", "model": "titanet_small", "device": "cpu"}}})
     assert load_model_resources(path, environ={}).resolve("speaker_embedding").device == "cpu"
+
+
+
+def test_alternate_asr_resource_without_checkpoint_has_no_borrowed_vocabulary(tmp_path):
+    path = _file(tmp_path, {"version": 1, "resources": {
+        "alternative": {"adapter": "nemotron_ctc", "endpoint": "http://localhost:8191/v1",
+                        "model": "served-alternative"}},
+        "roles": {"asr": "alternative"}})
+    reg = load_model_resources(path, environ={})
+    assert reg.resolve("asr").checkpoint_path is None
+    assert reg.resolve("asr", model="another-model").checkpoint_path is None
+    assert reg.resolve("asr").model == "served-alternative"
+
+
+def test_asr_model_override_clears_inherited_checkpoint_unless_explicit(tmp_path):
+    original = load_model_resources(environ={}).resolve("asr")
+    assert original.checkpoint_path is not None
+    assert load_model_resources(environ={"ASR_MODEL": "different"}).resolve("asr").checkpoint_path is None
+    assert load_model_resources(environ={}).resolve("asr", model="different").checkpoint_path is None
+
+    file_override = _file(tmp_path, {"version": 1, "resources": {
+        "asr_local": {"model": "other-model"}}})
+    assert load_model_resources(file_override, environ={}).resolve("asr").checkpoint_path is None
+
+    explicit_checkpoint = "/matching/checkpoint"
+    file_override = _file(tmp_path, {"version": 1, "resources": {
+        "asr_local": {"model": "other-model", "checkpoint_path": explicit_checkpoint}}})
+    assert load_model_resources(file_override, environ={}).resolve("asr").checkpoint_path == explicit_checkpoint
+    assert load_model_resources(file_override, environ={"ASR_MODEL": "override"}).resolve("asr").checkpoint_path is None
+
+
+def test_asr_endpoint_only_override_retains_default_checkpoint():
+    reg = load_model_resources(environ={"ASR_BASE_URL": "http://localhost:8200/v1"})
+    assert reg.resolve("asr").checkpoint_path == load_model_resources(environ={}).resolve("asr").checkpoint_path

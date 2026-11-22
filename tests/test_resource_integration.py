@@ -258,3 +258,61 @@ def test_single_clip_asr_role_default_and_legacy_explicit_endpoint(monkeypatch, 
         "--base-url", "http://127.0.0.1:8000/v1", "--model", legacy_model,
     ]) == 0, capsys.readouterr()
     assert constructed[-1] == ("http://127.0.0.1:8000/v1", legacy_model)
+
+
+def test_alternative_asr_checkpoint_is_not_fabricated_in_cli_configs(tmp_path, monkeypatch, capsys):
+    path = _resource_file(tmp_path)
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    doc["resources"]["other_asr"] = {
+        "adapter": "nemotron_ctc", "endpoint": "http://localhost:8191/v1",
+        "model": "other-ctc-model",
+    }
+    doc["roles"]["asr"] = "other_asr"
+    path.write_text(json.dumps(doc), encoding="utf-8")
+
+    class StopAtRecording(Exception):
+        pass
+
+    captured = {}
+    def intercept_recording(media, *, output_dir, client, config):
+        captured["model_path"] = config.model_path
+        captured["client_model"] = client.model
+        raise StopAtRecording()
+
+    monkeypatch.setattr(cli, "process_media", intercept_recording)
+    with pytest.raises(StopAtRecording):
+        cli.main(["process-media", "synthetic-media.wav", "--output-dir",
+                  str(tmp_path / "out"), "--model-resources", str(path)])
+    assert captured == {"model_path": None, "client_model": "other-ctc-model"}
+
+    with pytest.raises(StopAtRecording):
+        cli.main(["process-media", "synthetic-media.wav", "--output-dir",
+                  str(tmp_path / "out"), "--model-resources", str(path),
+                  "--model-path", "/matching/other-checkpoint"])
+    assert captured["model_path"] == "/matching/other-checkpoint"
+
+    captured.clear()
+    monkeypatch.setattr(cli, "generate_subtitles",
+                        lambda *args, **kwargs: captured.setdefault("cfg", kwargs["config"]) and {"ok": True})
+    code = cli.main([
+        "generate-subtitles", "--recording-contract", "not-opened-by-fake",
+        "--output-dir", str(tmp_path / "subs"), "--model-resources", str(path),
+    ])
+    assert code == 0, capsys.readouterr()
+    assert captured["cfg"].asr_model_path is None
+
+
+def test_ctc_without_checkpoint_disables_vocabulary_claims(monkeypatch):
+    from nvidia_transcribe import alignment
+
+    def must_not_load(_checkpoint):
+        pytest.fail("No CTC vocabulary checkpoint was configured")
+
+    monkeypatch.setattr(alignment, "load_ctc_vocabulary_chars", must_not_load)
+    result = alignment.recover_chunk_alignment(
+        raw_text="alternate language vocab", ctc_payload=None,
+        source_offset_s=0.0, chunk_index=0, model_path=None)
+    diagnostic = result["diagnostic"]
+    assert diagnostic["ctc_vocabulary_status"] == "not_configured"
+    assert diagnostic["oov_characters"] == []
+    assert diagnostic["failure_cause"] != "ctc_vocab_oov"
