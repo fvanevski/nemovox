@@ -142,6 +142,13 @@ def generate_subtitles(
         if progress_callback is not None:
             progress_callback(msg)
 
+    def _event(stage: str, status: str, detail: str = "") -> None:
+        if progress_callback is not None:
+            progress_callback("NEMOVOX_EVENT " + json.dumps({
+                "schema": "nemovox-progress/v1", "stage": stage,
+                "status": status, "detail": detail,
+            }, ensure_ascii=False))
+
     def _text_stage(role: str):
         if lifecycle is None or text_client is not None or not lifecycle_resources:
             return nullcontext(text_client)
@@ -165,6 +172,8 @@ def generate_subtitles(
 
     if cfg.re_render_only and translated_path.is_file():
         _log("Stage 1-3: Reusing existing translated.contract.json (--re-render)")
+        for skipped in ("translation", "review", "condensation"):
+            _event(skipped, "skipped", "Offline re-render uses retained contract")
         translated_contract = json.loads(translated_path.read_text(encoding="utf-8"))
         ref_summary: dict[str, Any] = {"status": "reused_translated_contract"}
         trans_summary: dict[str, Any] = {"status": "reused_translated_contract"}
@@ -261,6 +270,7 @@ def generate_subtitles(
         _atomic_write(refined_path, json.dumps(refined_contract, ensure_ascii=False, indent=2))
 
         # Stage 3: Dedicated machine translation of unchanged ASR by default
+        _event("translation", "running")
         _log(f"Stage 3/4: Translation ({src_lang} -> {cfg.target_language}, backend={cfg.translation.backend}, style={cfg.translation.style})")
         with _text_stage("text_translation") as stage_client:
             translated_utts, trans_summary = translate_utterances(
@@ -275,6 +285,11 @@ def generate_subtitles(
                 checkpoint_path=out_dir / "translation.checkpoint.json",
                 resume=cfg.resume_translation,
             )
+        _event("translation", "skipped" if
+               (cfg.translation.backend == "none" or
+                (cfg.translation.backend == "riva" and
+                 is_english_source_to_english(src_lang, cfg.target_language)))
+               else "complete", str(trans_summary.get("status", "")))
         # Retain the first-stage MT independently of all text-model edits.
         if (cfg.translation.backend == "riva"
                 and is_english_source_to_english(src_lang, cfg.target_language)):
@@ -285,7 +300,10 @@ def generate_subtitles(
                 "status": "skipped_same_language", "profile": cfg.translation_review.profile,
                 "reviewed": 0, "changed": 0,
             }
+            _event("review", "skipped", "Same-language translation bypass")
         elif cfg.translation.backend == "riva":
+            if cfg.translation_review.profile != "off":
+                _event("review", "running")
             _log(f"Stage 3b/4: Contextual English post-edit (profile={cfg.translation_review.profile})")
             with _text_stage("translation_review") as stage_client:
                 translated_utts, review_summary = review_translated_utterances(
@@ -294,9 +312,15 @@ def generate_subtitles(
                     checkpoint_path=out_dir / "translation-review.checkpoint.json",
                     resume=cfg.resume_translation_review,
                 )
+            _event("review",
+                   "skipped" if review_summary.get("status") == "disabled" else
+                   "failed" if review_summary.get("status") == "completed_with_errors" else "complete",
+                   str(review_summary.get("status", "")))
         else:
             review_summary = {"status": "not_applicable_legacy_translation"}
+            _event("review", "skipped", "Not a dedicated Riva review path")
         if cfg.condense_high_cps and cfg.translation.backend != "none":
+            _event("condensation", "running")
             _log(f"Stage 3c/4: Selective condensation (> {cfg.condense_cps_threshold} CPS)")
             with _text_stage("subtitle_condensation") as stage_client:
                 translated_utts, condense_summary = condense_high_cps_cues_with_text_model(
@@ -309,8 +333,10 @@ def generate_subtitles(
                     checkpoint_path=out_dir / "condensation.checkpoint.json",
                     resume=cfg.resume_condensation,
                 )
+            _event("condensation", "complete", str(condense_summary.get("status", "")))
         else:
             condense_summary = {"status": "disabled", "candidate_count": 0, "condensed_count": 0}
+            _event("condensation", "skipped", "Optional condensation disabled")
         translated_contract = {
             **refined_contract,
             "target_language": cfg.target_language,
@@ -348,6 +374,7 @@ def generate_subtitles(
         _atomic_write(out_dir / "final_english_subtitles.txt", _format_utterance_transcript_lines(overlaid_utts, "translated_text"))
 
     # Stage 4: Render English SRT & ASS subtitles
+    _event("render", "running")
     _log(f"Stage 4/4: Rendering subtitles ({','.join(cfg.formats)}) -> {ep_stem}.{cfg.target_language}.*")
     render_res = render_subtitles(
         translated_contract,
@@ -384,4 +411,5 @@ def generate_subtitles(
         "total_wall_time_s": elapsed_s,
     }
     _atomic_write(out_dir / "subtitles.metadata.json", json.dumps(metadata, ensure_ascii=False, indent=2))
+    _event("render", "complete")
     return metadata

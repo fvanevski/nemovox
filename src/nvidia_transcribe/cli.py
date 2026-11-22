@@ -411,7 +411,9 @@ def main(argv: list[str] | None = None) -> int:
                 output_dir=args.output_dir,
                 config=scfg,
                 glossary=args.glossary,
-                progress_callback=lambda msg: print(f"[nvidia-transcribe] {msg}", file=sys.stderr, flush=True),
+                progress_callback=lambda msg: print(
+                    msg if msg.startswith("NEMOVOX_EVENT ") else f"[nvidia-transcribe] {msg}",
+                    file=sys.stderr, flush=True),
                 lifecycle=ModelLifecycle(),
                 lifecycle_resources={
                     "asr": asr_resource, "source_refinement": refinement_resource,
