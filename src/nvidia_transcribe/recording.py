@@ -14,6 +14,7 @@ from typing import Any
 from nvidia_transcribe.alignment import ExternalForcedAligner, recover_chunk_alignment
 from nvidia_transcribe.chunking import ChunkConfig, ChunkSpec, plan_chunks, reconcile_chunk_boundaries
 from nvidia_transcribe.client import InferenceRequestConfig, NemotronVLLMClient
+from nvidia_transcribe.asr_integrity import IncompleteASRGeneration, audit_asr_generation
 from nvidia_transcribe.contract import (
     build_recording_contract,
     detect_script_language_hint,
@@ -331,7 +332,7 @@ def process_media(
 
         if wav_valid_for_reuse and prev_entry is not None and raw_path.is_file():
             raw_resp = json.loads(raw_path.read_text(encoding="utf-8"))
-            entry = prev_entry
+            entry = dict(prev_entry)
             resumed_count += 1
         else:
             req_cfg = InferenceRequestConfig(
@@ -360,6 +361,15 @@ def process_media(
                 "usage": raw_resp.get("usage"),
             }
 
+        # A response ending at the generation limit is not a completed
+        # transcription: c28 exhausted 16K tokens, loop-cleaned to one
+        # untimed interjection, and previously flowed to rendered subtitles.
+        # Persist the *raw* response and its checksum, but never mark this
+        # chunk completed or resume it as though its speech was covered.
+        integrity = audit_asr_generation(raw_resp)
+        entry["generation_integrity"] = integrity
+        if integrity["status"] == "incomplete":
+            entry["status"] = "incomplete_generation"
         chunk_raws.append(raw_resp)
         chunk_manifest_entries.append(entry)
 
@@ -373,6 +383,13 @@ def process_media(
             "chunks": chunk_manifest_entries,
         }
         _atomic_write_text(manifest_path, json.dumps(manifest_state, ensure_ascii=False, indent=2))
+        if integrity["status"] == "incomplete":
+            raise IncompleteASRGeneration(
+                f"Chunk {spec.chunk_index} ASR generation incomplete "
+                f"({integrity['reason']}); raw response retained at {raw_path}. "
+                "No recording contract or subtitles were produced from this incomplete chunk. "
+                "Use a source-verified bounded retry/rechunk, not the loop-cleaned fragment."
+            )
 
     raw_texts = [
         cleanup_generation_loops((((r.get("choices") or [{}])[0]).get("message") or {}).get("content") or "")
