@@ -87,6 +87,7 @@ def test_missing_or_unowned_unit_never_starts(manager, asr, monkeypatch):
 
 
 def test_owned_asr_started_and_released_around_one_stage(manager, asr, monkeypatch):
+    monkeypatch.setattr(lifecycle, "_free_vram_mb", lambda: 31000)
     state = {"active": False}
     transitions = []
     monkeypatch.setattr(lifecycle, "_unit", lambda _: _unit(active=state["active"]))
@@ -118,6 +119,7 @@ def test_active_owned_unit_with_live_other_client_is_not_stopped(manager, asr, m
 
 
 def test_owned_service_start_failure_does_not_escape_cleanup(manager, asr, monkeypatch):
+    monkeypatch.setattr(lifecycle, "_free_vram_mb", lambda: 31000)
     state = {"active": False}
     monkeypatch.setattr(lifecycle, "_unit", lambda _: _unit(active=state["active"]))
     monkeypatch.setattr(lifecycle, "_models_healthy", lambda _: state["active"])
