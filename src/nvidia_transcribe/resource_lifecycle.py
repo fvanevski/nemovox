@@ -191,10 +191,17 @@ class ModelLifecycle:
         with self._lock():
             # A matching already-serving external endpoint is usable but never ours to stop.
             # A managed endpoint still obeys its explicit ownership/release policy.
-            config = self.services.get(resource.name)
-            properties = _unit(config.unit) if config else None
-            owned = bool(config and properties and _owned(properties, resource.name))
             healthy = _models_healthy(resource)
+            config = self.services.get(resource.name)
+            try:
+                properties = _unit(config.unit) if config else None
+            except ResourceLifecycleError:
+                if healthy:
+                    # Healthy unmanaged endpoints never need systemd access.
+                    yield
+                    return
+                raise
+            owned = bool(config and properties and _owned(properties, resource.name))
             if healthy and not owned:
                 yield
                 return
