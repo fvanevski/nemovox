@@ -1,0 +1,12 @@
+# Phase 0-4 Criteria & Verification Matrix
+
+| Criterion | Observation / File | Mode | Status | Relevance to Remediation Planning |
+|---|---|---|---|---|
+| Authoritative `main` & `evidence` branch ancestry | `8f6c03cbc70e84bf1970ba364207a02c9fe22b44` (`21ae1c6...`), `b32c6c91f821ef0bff0c5a9e9e5942b5a0fd189b`; `provenance.json` | Independently checked (`gh api` + `git merge-base`) | **PASS** | Locks baseline evidence to exact merged source. |
+| Read-only production/job/media isolation | `<PROD_CHECKOUT>` untouched; `nemovox-studio.service` unchanged; model units `inactive (dead)`; `provenance.json` | Independently checked | **PASS** | Guarantees zero contamination or side effects. |
+| Historical job execution commit SHA | No `git_sha` in `job.json`, `manifest.json`, `recording.contract.json`, `execution.log`; `provenance.json` | Independently checked | **UNVERIFIED** | Epoch predates PR #13; offline `8f6c03c` replay matches archived artifacts identically. |
+| Original job & input artifact hashes | All 15 job artifacts, 16 `.wav`, 16 `.raw.json`, `<INPUT_VIDEO>`, `<INPUT_ASS>`, `<INPUT_CATALOG>` hashed; `provenance.json` | Independently checked (`sha256sum` + `ffprobe`) | **PASS** | Proves immutable artifact integrity (`COMPLETE`). |
+| Baseline metric recomputation & catalog reconciliation | `baseline-metrics.json` (`270` diar spans vs `0`; `7` = `4+3` ambiguous; `29 > 22 cps` vs `63 > 18 cps`) | Independently checked (`audit_mcog_baseline.py` offline replay) | **PASS** | Corrects three quantitative misconceptions before remediation design. |
+| `W01..W05` end-to-end raw->ASS trace & `C1/C2` controls | `cases.jsonl`, `boundary-traces.md` (`W01a..d`, `W02a..d`, `W03a..c`, `W04a..c`, `W05a`, `C1`, `C2`, `S01..S05`) | Independently checked | **PASS** | Pinpoints exact CTC jump, `1.5s` bound, `+/-2.5s`/`0.85s` dedup misses, and `c13` core override gates. |
+| Priority-window acoustic verification + controls `C1/C2` | `18` bounded WAV subclips via `ffmpeg` + `read_file` audio listening (`acoustic-spotchecks.md`) | Independently checked (`HEARD`/`NOT_HEARD`) | **PASS** | Disproves `W04a` `+45s` direction; proves `W02c`/`W03c` duplicates are single utterances and `W05a` speech exists at `1352-1354s`. |
+| Full-episode speaker count ground truth (`~8`) & uninspected windows | Outside `W01-W05`/`C1-C2`/`S04-S05`; `speaker-and-translation.md`, `baseline-metrics.json` | Not annotated episode-wide | **UNVERIFIED** | Remediation evaluation must measure against ground truth or curated test fixtures rather than assuming `8`. |

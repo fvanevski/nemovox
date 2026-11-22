@@ -1,0 +1,177 @@
+{
+  "schema": "nemovox-mcog-baseline-metrics/v1",
+  "method_version": "audit_mcog_baseline.py@8f6c03c-offline-replay",
+  "source_commit": "8f6c03cbc70e84bf1970ba364207a02c9fe22b44",
+  "definitions": {
+    "micro_utterance_predicate": "duration_s <= 0.60 OR lexical_word_count <= 2 (checked identically for space-split tokens and alphanumeric lexical tokens)",
+    "fragment_0_19_0_24_predicate": "0.19s <= (source_end - source_start) <= 0.24s",
+    "conflict_cue_records": "count of entries in subtitles.metadata.json['subtitle_conflicts'] (unique cue records with >=1 conflict)",
+    "conflict_label_total": "sum of individual conflict label strings across all subtitle_conflicts records",
+    "high_reading_speed_flag_definition": "subtitles.py:544-545 flags len(cue.text) / max(0.2, cue.end - cue.start) > target_cps + 4.0 (= 22.0 cps)"
+  },
+  "recomputed": {
+    "input_media": {
+      "duration_s": 1379.901,
+      "size_bytes": 313494885,
+      "audio_codec": "opus",
+      "sample_rate_hz": 48000,
+      "channels": 2
+    },
+    "chunks": {
+      "chunk_count": 16,
+      "raw_words_total": 2415,
+      "raw_diarization_spans_total": 270,
+      "raw_speaker_tag_to_diar_total": 42
+    },
+    "speakers": {
+      "raw_local_speaker_count": 42,
+      "reconciled_global_speaker_count": 23,
+      "unknown_speaker_count": 0,
+      "provisional_single_chunk_count": 13,
+      "unresolved_speakers_total": 13,
+      "temporal_boundary_merges": 15,
+      "embedding_merges": 4,
+      "ambiguous_matches_total": 7,
+      "ambiguous_embedding_matches": 4,
+      "ambiguous_temporal_matches": 3,
+      "embedded_clusters": 25
+    },
+    "boundary_reconciliation_replay": {
+      "deduplicated_units": 53,
+      "recovered_boundary_units": 4,
+      "untimed_preserved_units": 0,
+      "ambiguities_count": 0,
+      "ambiguity_reasons": {},
+      "replay_exact_match_with_archived_recording_contract": true
+    },
+    "utterances": {
+      "total": 234,
+      "untimed_units": 0,
+      "duration_le_0_60s": 63,
+      "words_le_2_space_split": 87,
+      "words_le_2_lexical": 87,
+      "union_dur_le_0_60s_or_words_le_2_space": 90,
+      "union_dur_le_0_60s_or_words_le_2_lexical": 90,
+      "single_lexical_word_utterances": 61,
+      "fragments_0_19s_to_0_24s": 49
+    },
+    "translation_and_review": {
+      "riva_translated_utterances": 234,
+      "review_reported_changed": 75,
+      "review_actual_text_diff_vs_mt": 75,
+      "review_api_calls": 39,
+      "review_errors": 0
+    },
+    "subtitles_and_ass": {
+      "ass_dialogue_events": 308,
+      "replayed_displayed_cues": 308,
+      "replayed_overflow_cues": 0,
+      "replayed_unrenderable_cues": 0,
+      "ass_style_counts": {
+        "Main": 277,
+        "Top": 26,
+        "TopAlt": 5
+      },
+      "replayed_lane_counts": {
+        "0": 277,
+        "1": 26,
+        "2": 5
+      },
+      "metadata_conflict_cue_records": 68,
+      "metadata_conflict_label_total": 90,
+      "metadata_conflict_label_counts": {
+        "max_display_clamped": 4,
+        "display_split_subthreshold_overlap": 17,
+        "display_delayed_subthreshold_overlap": 17,
+        "display_clamped_before_next_cue": 23,
+        "high_reading_speed": 29
+      },
+      "metadata_max_cps": 82.4,
+      "ass_cues_gt_18_cps": 63,
+      "ass_cues_gt_22_cps": 30,
+      "top_5_ass_cps": [
+        [
+          82.35,
+          281,
+          "0:21:44.78",
+          "0:21:45.80",
+          "Main"
+        ],
+        [
+          66.67,
+          128,
+          "0:08:24.21",
+          "0:08:24.36",
+          "Main"
+        ],
+        [
+          63.64,
+          29,
+          "0:01:54.41",
+          "0:01:55.40",
+          "Main"
+        ],
+        [
+          63.03,
+          180,
+          "0:13:37.72",
+          "0:13:38.91",
+          "Main"
+        ],
+        [
+          59.57,
+          67,
+          "0:04:19.26",
+          "0:04:20.20",
+          "Main"
+        ]
+      ]
+    }
+  },
+  "unverified_counters": {
+    "independent_human_episode_speaker_count": null,
+    "independent_human_episode_speaker_count_note": "Catalog estimates ~8 speakers; unverified without full-episode human speaker annotation.",
+    "full_episode_acoustic_wer_cer": null,
+    "full_episode_acoustic_wer_cer_note": "Only targeted priority windows (W01-W05), controls (C1-C2), and supplementary anchors were acoustically checked; unannotated spans remain unverified."
+  },
+  "catalog_comparisons_and_disagreements": [
+    {
+      "metric": "raw_diarization_spans_total",
+      "catalog_value": 0,
+      "observed_value": 270,
+      "status": "DISAGREEMENT_CATALOG_INCORRECT",
+      "reason": "All 16 raw chunk JSONs (chunk_000..chunk_015) contain non-empty ctc_timestamps['diarization'] spans (270 total, min 8 in chunk_015, max 49 in chunk_003) and 42 speaker_tag_to_diarization_speaker entries (100% diarization_mapped). recording.contract.json omits raw chunk diarization span arrays, likely leading the catalog author to infer 0."
+    },
+    {
+      "metric": "ambiguous_speaker_merges",
+      "catalog_value": "7 ambiguous embedding merges left unresolved",
+      "observed_value": {
+        "total": 7,
+        "embedding_stage": 4,
+        "boundary_temporal_stage": 3
+      },
+      "status": "DISAGREEMENT_PARTIAL",
+      "reason": "speaker_reconciliation.ambiguous_matches has 7 records total, but only 4 are stage='embedding' near-ties (all within margin 0.05) and 3 are stage='boundary_temporal' near-ties (margin 0.12)."
+    },
+    {
+      "metric": "high_reading_speed_count_and_threshold",
+      "catalog_value": "29 cues exceed target_cps=18.0 (ranging 23.1-82.4 cps)",
+      "observed_value": {
+        "flagged_gt_22_cps_floor_0_2s": 29,
+        "ass_raw_gt_22_cps": 30,
+        "ass_gt_18_cps": 63,
+        "min_flagged_cps": 23.1,
+        "max_cps_ass_exact": 82.35
+      },
+      "status": "DISAGREEMENT_DEFINITION_DRIFT",
+      "reason": "subtitles.py:544-545 flags > target_cps + 4.0 (22.0 cps) with a max(0.2, dur) denominator, yielding 29 flagged cues (82.35 rounds to 82.4; 1 additional 0.15s cue hits 26.67 cps on 0.15s denominator but 20.0 cps on max(0.2, dur)). True count exceeding target_cps=18.0 is 63/308 (20.45%)."
+    },
+    {
+      "metric": "w04_20_03_20_48_displacement",
+      "catalog_value": "+45s forward drift from 20:03 to 20:48",
+      "observed_value": "Bidirectional split: -27s backward (1203.25s) and +17s forward (1248.54-1250.03s) from actual ~1230-1232.5s speech",
+      "status": "DISAGREEMENT_ACOUSTIC_ANCHOR",
+      "reason": "Acoustic listening of 1200-1216s and 1228-1246s proved the line is spoken at ~1230-1232.5s right before the ~1233s reply; chunk_013 split it both ways across a 45s gap."
+    }
+  ]
+}

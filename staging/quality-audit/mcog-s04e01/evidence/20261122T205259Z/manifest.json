@@ -1,0 +1,100 @@
+{
+  "schema": "nemovox-mcog-evidence-manifest/v1",
+  "utc_run_id": "20261122T205259Z",
+  "repo_id": "fvanevski/nemovox",
+  "authoritative_main_sha": "8f6c03cbc70e84bf1970ba364207a02c9fe22b44",
+  "authoritative_main_tree": "21ae1c6d1b682f1061ae36f6896cd0ac87db1580",
+  "handoff_commit_sha": "b32c6c91f821ef0bff0c5a9e9e5942b5a0fd189b",
+  "evidence_branch": "evidence/mcog-s04e01-baseline-20261122",
+  "evidence_output_root": "staging/quality-audit/mcog-s04e01/evidence/20261122T205259Z/",
+  "omissions_for_privacy": [
+    "original_video_webm",
+    "bounded_private_wav_subclips",
+    "full_copyrighted_transcripts_and_subtitles",
+    "raw_chunk_json_responses",
+    "full_job_execution_log",
+    "absolute_personal_host_paths"
+  ],
+  "members": [
+    {
+      "path": "COMMAND_SHAPE_FRICTION.txt",
+      "bytes": 25,
+      "sha256": "c333f1c530df2dbfa232d903a30c99bb7948f93c3a0e297957efe6c114eb48e9",
+      "criterion": "command_shape_friction",
+      "evidence_class": "public_safe_friction_log",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2628,
+      "sha256": "21c740cbf5d8cff2d012f1c0072bef77a6b8d4bfe10ccc7f801e030b96afdf99",
+      "criterion": "packet_index_and_scope",
+      "evidence_class": "public_safe_summary",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "acceptance-matrix.md",
+      "bytes": 2552,
+      "sha256": "2bf9b2779a5cd93b59ea422d185c62f622fdecfaf3454ac36238c66fb036d045",
+      "criterion": "consolidated_acceptance_mapping",
+      "evidence_class": "public_safe_acceptance_matrix",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "acoustic-spotchecks.md",
+      "bytes": 4748,
+      "sha256": "08fadbc8e59029635f4b46411182fb2265c81c5da6a5b141f4e1f8f6143fcfed",
+      "criterion": "bounded_acoustic_verification",
+      "evidence_class": "sanitized_acoustic_spotchecks",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "baseline-metrics.json",
+      "bytes": 6682,
+      "sha256": "f735fd2bddbb8c5e90af2c6f2375fb56d2e62872108f3ce7c37bb3c7c3849120",
+      "criterion": "recomputed_metrics_and_disagreements",
+      "evidence_class": "public_safe_metrics",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "boundary-traces.md",
+      "bytes": 8159,
+      "sha256": "af1d6260b16262ce155677b051c36049cb9e845bfc9234f71352129692ee0870",
+      "criterion": "w01_to_w05_boundary_and_drift_traces",
+      "evidence_class": "sanitized_boundary_traces",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "cases.jsonl",
+      "bytes": 17011,
+      "sha256": "e9441762b92910d2abdc8d23a196f839812169b0bb769f9a87326790acba763f",
+      "criterion": "case_level_provenance_index",
+      "evidence_class": "sanitized_case_index",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "findings.md",
+      "bytes": 5510,
+      "sha256": "12c7716f795bc2fe0aadf6be0c564f2054a6daf383bd8fa7ff0767e85d20a579",
+      "criterion": "causal_findings_threshold_risks_and_eval_plan",
+      "evidence_class": "public_safe_findings",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "provenance.json",
+      "bytes": 10807,
+      "sha256": "530ee34fb9300abc0502c4fc8638e225eeeccbf39edf884093c399a5486311be",
+      "criterion": "source_epoch_and_input_hashes",
+      "evidence_class": "sanitized_provenance",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    },
+    {
+      "path": "speaker-and-translation.md",
+      "bytes": 6047,
+      "sha256": "752e6f622216840ebd2caff687dabb39372e74d40183c96be9b17cd7aa0f77f6",
+      "criterion": "speaker_fragmentation_mt_review_attribution",
+      "evidence_class": "sanitized_speaker_translation_analysis",
+      "privacy_status": "sanitized_no_personal_paths_no_raw_dialogue_or_media"
+    }
+  ]
+}

@@ -1,0 +1,330 @@
+{
+  "schema": "nemovox-mcog-provenance/v1",
+  "utc_run_id": "20261122T205259Z",
+  "repo_id": "fvanevski/nemovox",
+  "authoritative_main_sha": "8f6c03cbc70e84bf1970ba364207a02c9fe22b44",
+  "authoritative_main_tree": "21ae1c6d1b682f1061ae36f6896cd0ac87db1580",
+  "handoff_commit_sha": "b32c6c91f821ef0bff0c5a9e9e5942b5a0fd189b",
+  "evidence_branch": "evidence/mcog-s04e01-baseline-20261122",
+  "read_only_isolation": {
+    "production_checkout_status": "read_only_unchanged",
+    "production_studio_unit": "nemovox-studio.service (active, MainPID=1121444, InvocationID=6cd5cf36a6774b0693d37a196c088464)",
+    "model_units": {
+      "nemovox-asr.service": "inactive (dead)",
+      "nemovox-text-review.service": "inactive (dead)"
+    },
+    "gpu_inference_or_restarts": "none",
+    "isolated_diagnostic_import_root": "<ISOLATED_WORKTREE>/src"
+  },
+  "original_job_epoch": {
+    "job_id": "980af31f014245c4b200e0af8b33ebca",
+    "job_state": "complete",
+    "historical_source_sha": "UNVERIFIED",
+    "historical_source_epoch_note": "job.json, manifest.json, recording.contract.json, and execution.log do not record a git commit SHA. Job timestamps (created_at=1795369155.1145134, finished_at=1795369560.2100809, 2026-11-22 09:41-09:46 PST) predate PR #13 / 8f6c03cbc70e84bf1970ba364207a02c9fe22b44 deployment and coincide chronologically with prior main commit 332a99697edcc0b72fcc842168d5b1f57782e203. Offline replay on 8f6c03c reproduces archived recording.contract.json and .en.ass event structure identically.",
+    "vllm_system_fingerprint": "vllm-0.32.0-a795aa69",
+    "served_asr_model": "nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4",
+    "speaker_embedding_backend": "nemo:titanet_small:cpu",
+    "translator_backend": "riva",
+    "translation_review_profile": "balanced"
+  },
+  "inputs": {
+    "input_video": {
+      "logical_id": "<INPUT_VIDEO>",
+      "ext": ".webm",
+      "bytes": 313494885,
+      "sha256": "0e77ce3c809e498b97ffe48b53575c29e10d8b08a039b78e2150cd0c845c81b0",
+      "ffprobe_duration_s": 1379.901,
+      "audio_stream": {
+        "index": 0,
+        "codec": "opus",
+        "sample_rate_hz": 48000,
+        "channels": 2
+      },
+      "video_stream": {
+        "codec": "av1",
+        "width": 2560,
+        "height": 1440,
+        "fps": "25/1"
+      }
+    },
+    "input_ass": {
+      "logical_id": "<INPUT_ASS>",
+      "bytes": 28234,
+      "sha256": "7dc2c54d715fcaea977e87ecf3655ebad8403a776a51a12afbb1a4a0b1fcbbbb",
+      "matches_job_output_ass": true
+    },
+    "input_catalog": {
+      "logical_id": "<INPUT_CATALOG>",
+      "bytes": 29770,
+      "sha256": "c34aa180222557332149b6c74c49f1945f7bc9f7001649fe0de2c7aea0c4da74"
+    },
+    "job_config_verified": {
+      "source_language": "fr",
+      "target_language": "en",
+      "asr_mode": "speaker",
+      "audio_stream": 0,
+      "chunk_seconds": 90,
+      "context_seconds": 10,
+      "speaker_embeddings": "titanet",
+      "alignment_fallback": "off",
+      "refinement": "off",
+      "translator": "riva",
+      "translation_review": "balanced",
+      "style": "natural",
+      "glossary": null,
+      "ass_layout": "standard",
+      "ass_max_lanes": 3,
+      "condense_high_cps": false,
+      "formats": [
+        "srt",
+        "ass"
+      ]
+    }
+  },
+  "original_artifacts_inventory": {
+    "job.json": {
+      "status": "PRESENT",
+      "bytes": 1081,
+      "sha256": "f23ed8e42a6eb3643edea1157164c6cb1c4386c507b0eb9d8ebd49ac3cbe5fec"
+    },
+    "execution.log": {
+      "status": "PRESENT",
+      "bytes": 257801,
+      "sha256": "2c10168d7c66e111a7656d610e09ce45cd73bc23f4b73cd9c3e47512b9ac808f"
+    },
+    "asr/manifest.json": {
+      "status": "PRESENT",
+      "bytes": 20362,
+      "sha256": "cea5a72b529136dcdfd747adbb82fb46d45777543f8740aab18f9993c59d8a88"
+    },
+    "asr/recording.contract.json": {
+      "status": "PRESENT",
+      "bytes": 1699242,
+      "sha256": "f0f444dcb0db95c332c08c0c72387ac9c3fef080035a722f918da9972af90f8e"
+    },
+    "asr/transcript.txt": {
+      "status": "PRESENT",
+      "bytes": 22119,
+      "sha256": "38f0be9a11fb398c305c2940cdcbfcd8952eba2c87ea13c420e6baea9c02c303"
+    },
+    "output/refined.contract.json": {
+      "status": "PRESENT",
+      "bytes": 1790601,
+      "sha256": "547db5c204160b8d6ff4288884f361f4b82844b9912e4ae886b9ac65607a441d"
+    },
+    "output/translated.contract.json": {
+      "status": "PRESENT",
+      "bytes": 1903989,
+      "sha256": "aa3ad8c3188ac626ad0b3a4ebebf51b3fab9ddb5987da566eb59b0ab321b4029"
+    },
+    "output/translation.checkpoint.json": {
+      "status": "PRESENT",
+      "bytes": 37010,
+      "sha256": "7d15934411c7deee3ec0785c2dcde1c442ede62a592256d46fc66aacfa9b49a6"
+    },
+    "output/translation-review.checkpoint.json": {
+      "status": "PRESENT",
+      "bytes": 58335,
+      "sha256": "ace17056b4501dc048f5e3dfa3502c4ec12dd3a1cde32e51cf7ab111130fc360"
+    },
+    "output/subtitles.metadata.json": {
+      "status": "PRESENT",
+      "bytes": 21355,
+      "sha256": "4565e616761db243767db2c827b4e6970daffdb770e8f2fce39ccbc2039e83b5"
+    },
+    "output/raw_source_transcript.txt": {
+      "status": "PRESENT",
+      "bytes": 21518,
+      "sha256": "361dc98840fa8449595248539c4a985198ff69adaf640a8a7dcae9d2f26a0d75"
+    },
+    "output/refined_source_transcript.txt": {
+      "status": "PRESENT",
+      "bytes": 21518,
+      "sha256": "361dc98840fa8449595248539c4a985198ff69adaf640a8a7dcae9d2f26a0d75"
+    },
+    "output/final_english_subtitles.txt": {
+      "status": "PRESENT",
+      "bytes": 20590,
+      "sha256": "c0492481a9729b15ad96d6d23740fe0f942ebf9e9b1c87c9779fa87f828044aa"
+    },
+    "output/<episode>.en.srt": {
+      "status": "PRESENT",
+      "bytes": 21616,
+      "sha256": "50c79b3a1527933fd2354158f2f9c92912b912979920d824b3ef1996f72e64c1"
+    },
+    "output/<episode>.en.ass": {
+      "status": "PRESENT",
+      "bytes": 28234,
+      "sha256": "7dc2c54d715fcaea977e87ecf3655ebad8403a776a51a12afbb1a4a0b1fcbbbb"
+    }
+  },
+  "chunk_artifact_counts": {
+    "wav_present": 16,
+    "raw_json_present": 16,
+    "expected": 16
+  },
+  "chunk_raw_hashes": [
+    {
+      "chunk_index": 0,
+      "status": "PRESENT",
+      "sha256": "9ce0fffa58613468d1edc0d5d88ad2fb4d7940e43221ff0cfdabc9d2102d0a81"
+    },
+    {
+      "chunk_index": 1,
+      "status": "PRESENT",
+      "sha256": "fe5c8b317bece5f0f6210045c83e6d05e3ce355d0deb69edec15baf4cd60d1dc"
+    },
+    {
+      "chunk_index": 2,
+      "status": "PRESENT",
+      "sha256": "e15e903b38d24be9869afea3d941249a621ffdc2c2a3bcafd84ac13da4cec6a5"
+    },
+    {
+      "chunk_index": 3,
+      "status": "PRESENT",
+      "sha256": "1986fbfbd5cb642887f927ffc4439163f9cafbc655cc4a3e6c4ec24ef0693620"
+    },
+    {
+      "chunk_index": 4,
+      "status": "PRESENT",
+      "sha256": "65c12109e253760114762c731e0710026aac55afa3cc2525d6a0a14f926104af"
+    },
+    {
+      "chunk_index": 5,
+      "status": "PRESENT",
+      "sha256": "8e34b7b25b6748facf1b1e38110de3e1e6ccbfb9b8e7337663e22e6a30efceb0"
+    },
+    {
+      "chunk_index": 6,
+      "status": "PRESENT",
+      "sha256": "8aafab33c404f94331bb65418fabfff51a1f6bd66bdfc7a11630107dbc8a5123"
+    },
+    {
+      "chunk_index": 7,
+      "status": "PRESENT",
+      "sha256": "f2a74948402e07a34b3622c91498b4d16527faa770edd5a84bf5f4cfdd85aacc"
+    },
+    {
+      "chunk_index": 8,
+      "status": "PRESENT",
+      "sha256": "4f4d11a02b3b08792fe2fe925bc2396db28232c92342a2fbd2429fc46aac33ff"
+    },
+    {
+      "chunk_index": 9,
+      "status": "PRESENT",
+      "sha256": "93258665da79c227f875c87351f284d96281c43079a4b958d11f8f11c42c5f54"
+    },
+    {
+      "chunk_index": 10,
+      "status": "PRESENT",
+      "sha256": "2256c5dbe022004257b398699b2a06e55dd9c96633950deb8ed2920b87987dc5"
+    },
+    {
+      "chunk_index": 11,
+      "status": "PRESENT",
+      "sha256": "058095461ef3ecca22a0a39d16314fba08dc054ee6d4f5a3e9dc8b2f1e5aa1c1"
+    },
+    {
+      "chunk_index": 12,
+      "status": "PRESENT",
+      "sha256": "2a205ff5f64b4120df82b3c6a944b52a83ebd92bdd9b1902101318d9d89a0c34"
+    },
+    {
+      "chunk_index": 13,
+      "status": "PRESENT",
+      "sha256": "38f93e2e91cfc89cc33ce3ec0d305f20cc86cddb65dd59f5be7d85e688ec0e43"
+    },
+    {
+      "chunk_index": 14,
+      "status": "PRESENT",
+      "sha256": "dcc09101c53df53f1579964918d4e4e12904963af184619440cd679d5ce3c199"
+    },
+    {
+      "chunk_index": 15,
+      "status": "PRESENT",
+      "sha256": "3bc567846f823e1a0bad91dc72e87f005a7daebf5dd2e071ba0152b239a19c79"
+    }
+  ],
+  "chunk_wav_hashes": [
+    {
+      "chunk_index": 0,
+      "status": "PRESENT",
+      "sha256": "797ea6b95147a39000e18ad96a8aa4f89e93c5214ca13452f7f0b5b1c78fde5d"
+    },
+    {
+      "chunk_index": 1,
+      "status": "PRESENT",
+      "sha256": "adc177deb7ed2b4f66c3ca665bfafe1da0b0c2a242e26b7b8aae6494ce1fb2b8"
+    },
+    {
+      "chunk_index": 2,
+      "status": "PRESENT",
+      "sha256": "efcf30a3f8711d4384421547b5bc4e53dd736031ac587ece8496af14e1fefc1d"
+    },
+    {
+      "chunk_index": 3,
+      "status": "PRESENT",
+      "sha256": "d6dbc44c59c5b608e31314f949f7acfa719aa50938473d1e2465d08cffa0fe2a"
+    },
+    {
+      "chunk_index": 4,
+      "status": "PRESENT",
+      "sha256": "0b7667ec74168b4d31fb8900867062163aaf1c3a3e33fad5f1822fa5a3d55a6c"
+    },
+    {
+      "chunk_index": 5,
+      "status": "PRESENT",
+      "sha256": "c06aa97fa4a55e095105eb7846fcbad39a48ecf7e0d89cad1dfc8451091301f0"
+    },
+    {
+      "chunk_index": 6,
+      "status": "PRESENT",
+      "sha256": "47f7078cd70473f0984445b33370855d54cb52b050759131bd386c9f8639dc92"
+    },
+    {
+      "chunk_index": 7,
+      "status": "PRESENT",
+      "sha256": "1500a5c13fd8b465194823746401839358ce3fd49ca39129256df8f275266578"
+    },
+    {
+      "chunk_index": 8,
+      "status": "PRESENT",
+      "sha256": "6a9f69594f943ac015dd6c4046a0ae6cc24b4cd48e8526387338936bf2f96aca"
+    },
+    {
+      "chunk_index": 9,
+      "status": "PRESENT",
+      "sha256": "4a1b25f44d7b5f56ee2770d125fae3ac25fd3f7822997283ba6660d0567313e9"
+    },
+    {
+      "chunk_index": 10,
+      "status": "PRESENT",
+      "sha256": "c24d5f682b002d3cc3bffd9228e6a599347bc74b9be8e37959ef6bf66af6d99f"
+    },
+    {
+      "chunk_index": 11,
+      "status": "PRESENT",
+      "sha256": "f5f0272962a200b9ce92807f06e48e626d3e1c3892767c2e0815f3db565af3c5"
+    },
+    {
+      "chunk_index": 12,
+      "status": "PRESENT",
+      "sha256": "01a4ce1ba79b51224ce1b9b7183b19b574fa6c404076f93222a983601c761ddb"
+    },
+    {
+      "chunk_index": 13,
+      "status": "PRESENT",
+      "sha256": "a6a0818bc34929a783416bfd89fba03ea6fd480e46fbf4d184f48799658ff631"
+    },
+    {
+      "chunk_index": 14,
+      "status": "PRESENT",
+      "sha256": "a1b15f18497dde6eb3c9091b34aea065612e99493e99a3a39d86536c2aad8539"
+    },
+    {
+      "chunk_index": 15,
+      "status": "PRESENT",
+      "sha256": "ad6341ad6960a900819bcdec69306e31dfa924986f0d8edf6a71a80e8bddf6ae"
+    }
+  ]
+}

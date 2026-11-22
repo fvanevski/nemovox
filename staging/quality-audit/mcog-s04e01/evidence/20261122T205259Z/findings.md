@@ -1,0 +1,27 @@
+# Key Findings, Rejected Hypotheses, Threshold Risks & Candidate Measurement Plan
+
+## 1. Reproducible Findings Ranked by Impact
+1. **[HIGH / Boundary Omission (`W05a`)] Hard `1.5s` right-context recovery cap (`chunking.py:377`) silently drops valid speech up to `right_context_s=10s`:** `chunk_014` transcribed all `6` tokens at `1352.01-1353.86s`, while `chunk_015` omitted them; because `mid > boundary_t + 1.5s`, `reconcile_chunk_boundaries` dropped live speech.
+2. **[HIGH / Boundary Duplication & Drift (`W02c`, `W03a`, `W03c`)] Large Nemotron CTC jumps (`16-17s`) defeat narrow `boundary_window_s=2.5` / `match_time_tolerance_s=0.85` dedup and cross-chunk speaker matching:** Left-context speech is displaced `+9s` to `+18s` into the next chunk's core (and in `W02c` also pulled `-17s` early in `chunk_002`). Both timing gates and cross-chunk speaker ID mismatches (`W03a`, `W03c`) keep both copies.
+3. **[HIGH / Core Ownership Masking (`W04b`, `S03`)] Unconditional core ownership (`chunking.py:234-237`) discards more complete/accurate right-chunk left-context speech inside `core_end_s - 2.5s`..`core_start_s`:** In `W04b` (`1253-1255s`, `chunk_013` truncated vs `chunk_014` complete) and `S03` (`1166s`), the boundary chunk's accurate overlap sits more than `2.5s` left of `core_end_s`.
+4. **[HIGH / Bidirectional & Single-Word CTC Drift (`W01a/b/d`, `W02a`, `W04a/c`, `S04`)] Sub-second outlier tokens jump `10-55s` backward or forward across silence:** In `utterances.py:239`, sorting per speaker across a whole chunk causes displaced shards to fracture sentences into `0.21-0.22s` micro-utterances (`49` in `0.19-0.24s`; `90/234` micro-utterances) that cascade into `90` subtitle conflict labels (`63/308` ASS cues `> 18.0 cps`, `29` flagged `> 22.0 cps`, max `82.35 cps`).
+5. **[MEDIUM / Speaker Attribution & Stage Coupling (`D`, `W02b`, `W03b`, `S05`)] Multi-factor `42 -> 23` explosion + intra-chunk alternating-turn collapse:** `chunk_002:spk_1` vs `chunk_003:spk_1` separation from `W02c` created a Stage-2 `0.05` ambiguity near-tie blocking `chunk_004:spk_1` (Zia); low-margin TitaNet merges (`0.6536`, `0.6637`) crossed distinct speakers; intra-chunk `<spk:N>` tags merged alternating speakers (`W02b`, `W03b`, `S05`).
+6. **[MEDIUM / MT vs Review Attribution (`S01`, `S02`, `W04b/c`)] Proper-noun OOV/acoustic errors dominate (`D5`); Qwen review helps complete sentences (`utt-0011, 0021, 0169, 0171, 0215, 0232`) but amplifies fragment errors (`S01`, `W04c`) and rarely inverts negation (`S02`).**
+
+## 2. Hypotheses Rejected / Catalog Corrections
+- **Rejected (`0 raw chunk diarization spans`):** Actually `270` raw diarization spans (`42/42` mapped local clusters).
+- **Refined (`+45s drift at 20:03 -> 20:48` in `W04a`):** Actually a bidirectional `-27s` (`1203.25s`) / `+17s` (`1248.54s`) split around true acoustic `~1230-1232.8s` audio.
+- **Refined (`7 ambiguous embedding merges`):** Actually `4` embedding near-ties + `3` temporal-boundary near-ties.
+- **Refined (`29 cues > 18.0 cps`):** Conflict reporter flags `> 22.0 cps` (`target_cps + 4.0`, `29` flagged on `max(0.2, dur)` denominator); `63` cues exceed `18.0 cps`.
+
+## 3. Risks of Naively Widening Thresholds (Tested Against Controls `C1`, `C2` & `W05`)
+- **Widening text dedup window blindly (`+/- 30s`, ignoring order/turn):** Risks deleting genuine repeated dialogue like `C2` (`utt-0177`, repeated `4`-word exclamation inside `2.9s`) or distinct speakers repeating a catchphrase (`Alerte! Alerte!` at `1327s`/`1329s`). Dedup candidates must condition on left-context/overlap chunk origin, monotonic lexical position vs local core dialogue, and multi-token sequence similarity (`n >= 3` or bounded orphan phrase).
+- **Blindly lowering TitaNet similarity threshold `< 0.65` or removing `0.05` ambiguity margin:** Already at `0.6536` (`chunk_002:spk_2` + `chunk_014:spk_3`) and `0.6637` (`chunk_001:spk_0` + `chunk_011:spk_0`), distinct characters merged! Lowering thresholds without voice-purity filtering will collapse the cast further.
+- **Widening right-context recovery indiscriminately to `+10s` without checking `right_chunk` lexical coverage:** Could duplicate shifted right-chunk speech if `right_chunk` merely aligned those words late (as in `W02c`/`W03a`). Recovery must verify that `right_chunk` lacks matching lexical tokens anywhere in its left overlap / core start, as holds for `W05a` (`1352-1354s`).
+
+## 4. Candidate Measurement Plan (Pre-Design Only)
+To evaluate future D1-D4 remediations objectively without overfitting:
+1. **Cross-chunk duplicate rate on `W02c`, `W03a`, `W03c` + preservation of `C2`:** Target `0` duplicate sequence pairs emitted in `W02c/W03a/W03c` AND `100%` preservation of `C2` (`utt-0177` both halves) and `1327/1329s` repeated shouts.
+2. **Boundary omission recall on `W05a` & core-truncation comparisons (`W04b`, `S03`):** Target `6/6` tokens of `W05a` (`571c9f3c88fb621a`) recovered cleanly at `1352-1354s` without duplicating `utt-0230`/`0231`.
+3. **Outlier displacement & micro-utterance reduction on `W01a/b/d`, `W02a`, `W04a/c`, `C1`:** Measure drop in `duration <= 0.60s OR words <= 2` (baseline `90/234`), `0.19-0.24s` shards (baseline `49`), and cues `> 22.0 cps` (baseline `29`) while maintaining `C1` verbatim (`29/29` tokens, `0` conflicts).
+4. **Speaker & translation regression check:** Track provisional cluster count (`baseline 13`), Stage-2 same-voice tie blocks (`baseline >= 2`), and Qwen negation/fragment regressions (`S01`, `S02`) on fixed fixture replays.
