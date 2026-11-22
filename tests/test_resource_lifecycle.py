@@ -214,3 +214,24 @@ def test_owned_asr_start_requires_reported_capacity(manager, asr, monkeypatch):
             pass
     assert error.value.status == "gpu_capacity_blocked"
     assert attempts == []
+
+
+def test_inspection_is_read_only_and_reports_startable(manager, asr, monkeypatch):
+    calls = []
+    monkeypatch.setattr(lifecycle, "_unit", lambda _: _unit(active=False))
+    monkeypatch.setattr(lifecycle, "_models_healthy", lambda _: False)
+    monkeypatch.setattr(lifecycle, "_systemctl", lambda *args: calls.append(args))
+    state = manager.inspect(asr)
+    assert state["state"] == "startable"
+    assert state["startable"] is True
+    assert calls == []
+
+
+def test_offline_constructor_never_reads_invalid_lifecycle_config(tmp_path):
+    # The rerender path instantiates a manager but never acquires a model.
+    missing = tmp_path / "missing.json"
+    manager = lifecycle.ModelLifecycle(config_path=missing, lock_path=tmp_path / "no-touch.lock")
+    assert not (tmp_path / "no-touch.lock").exists()
+    with pytest.raises(lifecycle.ResourceLifecycleError) as error:
+        _ = manager.services
+    assert error.value.status == "invalid_lifecycle_config"
