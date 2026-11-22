@@ -33,6 +33,7 @@ from nvidia_transcribe.speakers import (
 )
 from nvidia_transcribe.utterances import reconstruct_speaker_utterances
 from nvidia_transcribe.timing_evidence import audit_ctc_timing_units
+from nvidia_transcribe.speech_chunks import detect_silence_intervals, plan_pause_aware_chunks
 
 
 @dataclass(frozen=True)
@@ -41,6 +42,7 @@ class RecordingPipelineConfig:
     mode: str = "speaker"
     chunk_seconds: float = 90.0
     context_seconds: float = 10.0
+    chunk_policy: str = "pause_aware"  # "pause_aware" | "fixed"
     min_tail_seconds: float = 15.0
     audio_stream_index: int = 0
     speaker_embeddings: str = "titanet"  # "titanet" | "none"
@@ -95,6 +97,8 @@ def _config_signature(
     model_name: str,
     cfg: RecordingPipelineConfig,
     model_endpoint: str = "",
+    chunks: list[ChunkSpec] | None = None,
+    plan_metadata: dict[str, Any] | None = None,
 ) -> str:
     payload = {
         "media_path": media.path,
@@ -110,6 +114,9 @@ def _config_signature(
         "source_language": normalize_language_code(cfg.source_language) or "auto",
         "chunk_seconds": cfg.chunk_seconds,
         "context_seconds": cfg.context_seconds,
+        "chunk_policy": cfg.chunk_policy,
+        "chunk_plan": [s.to_dict() for s in chunks] if chunks is not None else None,
+        "chunk_plan_metadata": plan_metadata,
         "min_tail_seconds": cfg.min_tail_seconds,
     }
     return _sha256_text(json.dumps(payload, sort_keys=True))
@@ -195,6 +202,8 @@ def process_media(
     """Process a complete audio or video recording through bounded Nemotron chunks."""
     t_start = time.perf_counter()
     cfg = config or RecordingPipelineConfig()
+    if cfg.chunk_policy not in ("fixed", "pause_aware"):
+        raise ValueError("chunk_policy must be fixed or pause_aware")
     if cfg.alignment_fallback not in ("off", "qwen"):
         raise ValueError(f"Unsupported alignment_fallback {cfg.alignment_fallback!r}; expected 'off' or 'qwen'.")
     if cfg.qwen_policy not in ("subtitle", "fine"):
@@ -214,9 +223,34 @@ def process_media(
         context_seconds=cfg.context_seconds,
         min_tail_seconds=cfg.min_tail_seconds,
     )
-    chunks: list[ChunkSpec] = plan_chunks(media.duration_s, chunk_cfg)
-    sig = _config_signature(media=media, model_name=client.model, cfg=cfg,
-                            model_endpoint=getattr(client, "base_url", ""))
+    if cfg.chunk_policy == "pause_aware":
+        if media.duration_s > 54.0:
+            pauses, detector_diag = detect_silence_intervals(
+                media.path, audio_stream_index=cfg.audio_stream_index,
+                duration_s=media.duration_s,
+            )
+        else:
+            pauses, detector_diag = [], {
+                "status": "not_needed_short_media", "silence_intervals": 0,
+            }
+        chunks, planner_diag = plan_pause_aware_chunks(
+            media.duration_s, pauses,
+            max_requested_core_s=cfg.chunk_seconds,
+            requested_context_s=cfg.context_seconds,
+        )
+        planner_diag["detector"] = detector_diag
+        planner_diag["fallback_used"] = (
+            detector_diag["status"] == "failed"
+            or planner_diag["forced_cut_count"] > 0
+        )
+    else:
+        chunks = plan_chunks(media.duration_s, chunk_cfg)
+        planner_diag = {"schema": "fixed/v1", "policy": "fixed"}
+    sig = _config_signature(
+        media=media, model_name=client.model, cfg=cfg,
+        model_endpoint=getattr(client, "base_url", ""),
+        chunks=chunks, plan_metadata=planner_diag,
+    )
 
     existing_manifest: dict[str, Any] = {}
     if cfg.resume and manifest_path.is_file():
@@ -328,7 +362,8 @@ def process_media(
             "config_signature": sig,
             "media": media.to_dict(),
             "model": client.model,
-            "chunk_config": chunk_cfg.to_dict(),
+            "chunk_config": {**chunk_cfg.to_dict(), "chunk_policy": cfg.chunk_policy},
+            "chunk_plan": planner_diag,
             "chunks": chunk_manifest_entries,
         }
         _atomic_write_text(manifest_path, json.dumps(manifest_state, ensure_ascii=False, indent=2))
@@ -624,7 +659,8 @@ def process_media(
             "resumed_chunks": resumed_count,
             "chunk_request_latencies_s": chunk_latencies,
         },
-        chunk_config=chunk_cfg.to_dict(),
+        chunk_config={**chunk_cfg.to_dict(), "chunk_policy": cfg.chunk_policy,
+                      "chunk_plan": planner_diag},
         chunk_records=chunk_records,
         speakers=spk_res["speakers"],
         utterances=utterances,

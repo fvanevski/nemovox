@@ -59,6 +59,8 @@ def build_parser() -> argparse.ArgumentParser:
     pm.add_argument("--source-language", default=None, help="Explicit source language (e.g. 'fr', 'zh') or omit for auto.")
     pm.add_argument("--mode", default="speaker", choices=["speaker", "multispeaker_sot", "rich", "verbatim"])
     pm.add_argument("--chunk-seconds", type=float, default=90.0)
+    pm.add_argument("--chunk-policy", choices=["pause_aware", "fixed"], default="pause_aware",
+                    help="Pause-aware inference cores or legacy fixed-size cores.")
     pm.add_argument("--context-seconds", type=float, default=10.0)
     pm.add_argument("--min-tail-seconds", type=float, default=15.0)
     pm.add_argument("--audio-stream", type=int, default=0)
@@ -95,6 +97,8 @@ def build_parser() -> argparse.ArgumentParser:
     gs.add_argument("--model", default=None, help="Explicit served ASR model override.")
     gs.add_argument("--alignment-fallback", default="off", choices=["off", "qwen"])
     gs.add_argument("--chunk-seconds", type=float, default=90.0)
+    gs.add_argument("--chunk-policy", choices=["pause_aware", "fixed"], default="pause_aware",
+                    help="Pause-aware ~39–46s inference cores or legacy fixed-size cores.")
     gs.add_argument("--context-seconds", type=float, default=10.0)
     gs.add_argument("--min-tail-seconds", type=float, default=15.0)
     gs.add_argument("--text-url", "--swiftu-url", dest="text_url", default=None,
@@ -270,6 +274,7 @@ def main(argv: list[str] | None = None) -> int:
             mode=args.mode,
             chunk_seconds=args.chunk_seconds,
             context_seconds=args.context_seconds,
+            chunk_policy=args.chunk_policy,
             min_tail_seconds=args.min_tail_seconds,
             audio_stream_index=args.audio_stream,
             speaker_embeddings=args.speaker_embeddings,
@@ -370,6 +375,7 @@ def main(argv: list[str] | None = None) -> int:
             target_language=args.target_language,
             chunk_seconds=args.chunk_seconds,
             context_seconds=args.context_seconds,
+            chunk_policy=args.chunk_policy,
             min_tail_seconds=args.min_tail_seconds,
             alignment_fallback=args.alignment_fallback,
             qwen_policy=args.qwen_policy,

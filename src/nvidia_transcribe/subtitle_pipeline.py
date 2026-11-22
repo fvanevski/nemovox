@@ -38,6 +38,7 @@ class SubtitlePipelineConfig:
     asr_mode: str = "speaker"
     chunk_seconds: float = 90.0
     context_seconds: float = 10.0
+    chunk_policy: str = "pause_aware"
     min_tail_seconds: float = 15.0
     audio_stream_index: int = 0
     alignment_fallback: str = "off"
@@ -222,6 +223,7 @@ def generate_subtitles(
                         mode=cfg.asr_mode,
                         chunk_seconds=cfg.chunk_seconds,
                         context_seconds=cfg.context_seconds,
+                        chunk_policy=cfg.chunk_policy,
                         min_tail_seconds=cfg.min_tail_seconds,
                         audio_stream_index=cfg.audio_stream_index,
                         alignment_fallback=cfg.alignment_fallback,
