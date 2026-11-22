@@ -116,6 +116,56 @@ def probe_media(media_path: str | Path, *, audio_stream_index: int = 0) -> Media
     )
 
 
+def inspect_audio_streams(media_path: str | Path) -> list[dict[str, Any]]:
+    """Return actual 0:a:N streams, not arbitrary container stream indices.
+
+    This is a bounded metadata-only ffprobe read. The Studio API checks path
+    authority separately before calling it, and never returns a host path.
+    """
+    path = Path(media_path)
+    if not path.is_file():
+        raise MediaInspectionError("Selected media file is unavailable")
+    try:
+        raw = subprocess.check_output(
+            ["ffprobe", "-v", "error", "-print_format", "json",
+             "-show_streams", str(path)],
+            text=True, stderr=subprocess.PIPE, timeout=30,
+        )
+        document = json.loads(raw)
+    except FileNotFoundError as exc:
+        raise MediaInspectionError("ffprobe is required for audio stream inspection") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise MediaInspectionError("Audio stream inspection timed out") from exc
+    except subprocess.CalledProcessError as exc:
+        raise MediaInspectionError("ffprobe could not inspect selected media") from exc
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise MediaInspectionError("ffprobe returned invalid stream metadata") from exc
+    result: list[dict[str, Any]] = []
+    for stream in document.get("streams") or []:
+        if not isinstance(stream, dict) or stream.get("codec_type") != "audio":
+            continue
+        tags = stream.get("tags") or {}
+        tags = tags if isinstance(tags, dict) else {}
+        def positive_int(value: Any) -> int | None:
+            try:
+                parsed = int(value)
+            except (TypeError, ValueError, OverflowError):
+                return None
+            return parsed if parsed > 0 else None
+        result.append({
+            "index": len(result),
+            "container_index": stream.get("index"),
+            "codec": stream.get("codec_name"),
+            "language": tags.get("language"),
+            "title": tags.get("title"),
+            "channels": positive_int(stream.get("channels")),
+            "sample_rate_hz": positive_int(stream.get("sample_rate")),
+        })
+    if not result:
+        raise MediaInspectionError("Selected media contains no audio tracks")
+    return result
+
+
 def compute_file_sha256(path: Path) -> str:
     """Compute exact streaming SHA-256 digest of a file."""
     h = hashlib.sha256()

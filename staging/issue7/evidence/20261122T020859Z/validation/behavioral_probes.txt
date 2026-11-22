@@ -1,0 +1,8 @@
+COMMAND: PYTHONPATH=/workspace/nemovox-issue7-evidence/src /workspace/nvidia-transcribe/.venv/bin/python - <behavioral_probes>
+{
+  "options_and_cli_defaults": "PASS",
+  "studio_api_validation": "PASS",
+  "reviewer_original_mt_and_source_context": "PASS",
+  "riva_first_single_review_and_rerender": "PASS"
+}
+EXIT_CODE: 0

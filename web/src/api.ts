@@ -15,6 +15,21 @@ export interface MediaListing {
 export interface Glossary {
   name: string;
   path: string;
+  characters: string[];
+  terms: string[];
+  notes: string;
+}
+export interface AudioStream {
+  index: number;
+  container_index: number | null;
+  codec: string | null;
+  language: string | null;
+  title: string | null;
+  channels: number | null;
+  sample_rate_hz: number | null;
+}
+export interface TranslationBackendStatus {
+  riva: {configured: boolean; device: string | null; detail: string};
 }
 export interface JobOptions {
   source_language: string;
@@ -27,6 +42,7 @@ export interface JobOptions {
   alignment_fallback: "off" | "qwen";
   refinement: "off" | "conservative" | "balanced" | "expressive";
   translator: "openai_chat" | "swiftu" | "riva" | "none";
+  translation_review: "off" | "conservative" | "balanced" | "expressive";
   style: "natural" | "literal" | "expressive";
   glossary: string | null;
   ass_layout: "standard" | "raised_main";
@@ -77,6 +93,10 @@ export const studio = {
   health: () => json<{status: string; ffmpeg: boolean; ytdlp: boolean; media_roots: string[]}>("/health"),
   browse: (path?: string | null) => json<MediaListing>("/media" + (path ? "?path=" + encodeURIComponent(path) : "")),
   glossaries: () => json<Glossary[]>("/glossaries"),
+  inspect: (source: JobRequest["source"]) => json<{audio_streams: AudioStream[]}>("/media/inspect", {
+    method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(source),
+  }),
+  translationBackends: () => json<TranslationBackendStatus>("/translation-backends"),
   jobs: () => json<Job[]>("/jobs"),
   job: (id: string) => json<Job>("/jobs/" + id),
   preview: (id: string) => json<Preview>("/jobs/" + id + "/preview"),

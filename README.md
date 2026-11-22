@@ -10,8 +10,8 @@ Multilingual speech transcription, speaker diarization, contextual transcript re
 
 - **Single-Clip & Chunked Recording ASR:** Transcribe short clips (`transcribe`) or full-length audio/video recordings (`process-media`) with chunk-overlap boundary reconciliation, CTC word/character timestamp extraction, optional sub-interval recovery, and resumable manifests.
 - **Speaker Tracking & Contracts:** Reconstruct per-speaker utterances across overlapping streams, reconcile speakers across chunks, and emit structured JSON contracts (`recording.contract.json`) that preserve verbatim source Unicode text and honest timestamp provenance without fabricating missing timings.
-- **Contextual Refinement & Translation:** Refine noisy ASR output (proper nouns, homophones, domain terminology via YAML/JSON glossaries) and translate into natural target text using configurable OpenAI-compatible text inference (the current host defaults to SwiftU/NInfer) or a specialized Riva-Translate worker, with resource-sensitive batch caching.
-- **Post-Processing & Export (`generate-subtitles`):** Render `SRT` and multi-lane `ASS` subtitles (`Main`, `Top`, `TopAlt`), optional hardsub-clearing layout (`--ass-layout raised_main`), selective high-CPS condensation (`--condense-high-cps`), reversible review overlays (`--validation-overlay`), and zero-inference CPU re-rendering (`--re-render`).
+- **Untouched ASR → dedicated translation → selective English review:** Preserve the unmodified source-language ASR transcript. **No source-language text-model correction is part of the normal Studio workflow.** The Studio subtitle path uses a **dedicated Riva-Translate worker** for initial English machine translation, then uses the configured text model (e.g., SwiftU/NInfer) **only to assess and selectively correct original English translations**, using adjacent raw English cues, untouched ASR text, speaker context and an optional glossary. The initial machine translation remains inspectable; stage-specific caching prevents stale cross-model reuse. Source-language refinement remains an explicit legacy CLI opt-in (`--refinement` non-off). For standalone CLI backward compatibility, primary translation still defaults to `openai_chat` unless `--translator riva` is chosen explicitly; **Studio always sends `riva`** and selects the English review independently.
+- **Post-Processing & Export (`generate-subtitles`):** Render `SRT` and multi-lane `ASS` subtitles (`Main`, `Top`, `TopAlt`), optional hardsub-clearing layout (`--ass-layout raised_main`), explicit optional high-CPS condensation (`--condense-high-cps`, disabled by default in Studio to avoid a second English text-model pass), reversible review overlays (`--validation-overlay`), and zero-inference CPU re-rendering (`--re-render`).
 
 ---
 
@@ -20,7 +20,7 @@ Multilingual speech transcription, speaker diarization, contextual transcript re
 ### Requirements
 - Python `>= 3.12` (see [`pyproject.toml`](pyproject.toml))
 - `ffmpeg` and `ffprobe` on `PATH` for media inspection, chunk extraction, and preview rendering
-- For live GPU inference: a running `vLLM` server with `nemo_speechlm` CTC timestamp middleware, plus an optional OpenAI-compatible text endpoint for refinement/translation/condensation
+- For live ASR: an available `vLLM` server with `nemo_speechlm` CTC timestamp middleware. For the Studio's normal English subtitle workflow: a **locally installed Riva-Translate checkpoint and worker interpreter** and an OpenAI-compatible text endpoint for **one selective English review pass**. Source correction and additional condensation are off by default. Mere path presence does not guarantee model compatibility or sufficient GPU memory.
 
 ### Installation
 
@@ -43,7 +43,7 @@ export NEMOVOX_MODEL_RESOURCES="$PWD/configs/model-resources.local.json"
 # Optional: source a locally reviewed .env for per-resource overrides.
 ```
 
-The resource file binds functional roles (ASR, refinement, translation, condensation, alignment, embeddings) to installed local resources. Correction, translation and condensation can use distinct compatible text models; the shipped `text_local` binding points to the existing SwiftU/NInfer host endpoint. The CLI and Studio use the same resolver. See [Model-resource configuration](docs/model-resources/CONFIGURATION.md) for JSON schema, precedence, security, compatibility and examples. No inference server is started by this configuration.
+The resource file binds functional roles (ASR, **dedicated Riva translation and English translation review**, optional legacy source refinement/condensation, alignment, embeddings) to installed local resources. The shipped `text_local` binding points to the existing SwiftU/NInfer host endpoint for selective English post-editing. The CLI and Studio use the same resolver, but the Studio uses Riva for primary translation while the legacy CLI text translator remains opt-in. See [model-resource configuration](docs/model-resources/CONFIGURATION.md) and the [Studio subtitle workflow guide](docs/gui/SUBTITLE_WORKFLOW.md). Reading this configuration never starts inference services.
 
 Launch the ASR serving backend (reads `configs/vllm_rtx5090.env` by default):
 
@@ -71,16 +71,20 @@ nvidia-transcribe process-media episode.webm \
   --source-language zh \
   --mode speaker
 
-# 4. Refine, translate, and render SRT/ASS from a recording contract
+# 4. Dedicated Riva English translation followed by contextual text-model review.
+# Requires an installed Riva checkpoint/worker and a compatible text endpoint.
+# Omit --glossary for unrelated media.
 nvidia-transcribe generate-subtitles \
   --recording-contract outputs/episode_run/recording.contract.json \
   --output-dir outputs/episode_subs \
   --source-language zh \
   --target-language en \
-  --glossary configs/glossaries/a_will_eternal_zh.yaml \
-  --ass-layout raised_main \
-  --translator openai_chat \
-  --condense-high-cps
+  --translator riva --translation-review balanced \
+  --style natural
+
+# Legacy compatibility: direct OpenAI-compatible text-model primary translation
+# remains an explicit CLI choice, without the new Riva post-edit stage.
+# nvidia-transcribe generate-subtitles --recording-contract ... --output-dir ... --translator openai_chat
 
 # 5. Fast CPU-only re-render (no GPU/LLM calls) with optional review overlay
 nvidia-transcribe generate-subtitles \
@@ -100,7 +104,7 @@ nvidia-transcribe generate-subtitles \
   - *ASR & media:* `checkpoint.py`, `client.py`, `prompts.py`, `media.py`, `chunking.py`, `parser.py`, `recording.py`
   - *Alignment & speakers:* `alignment.py`, `qwen_aligner.py`, `speakers.py`, `scene_diarization.py`, `utterances.py`, `contract.py`, `metrics.py`
   - *Resource resolution:* `model_resources.py` (validated role/resource mappings and host overrides)
-  - *Refinement, translation & output:* `refinement.py`, `translation.py`, `subtitles.py`, `subtitle_pipeline.py`, `cli.py`
+  - *Refinement, translation & output:* `refinement.py`, `translation.py`, `translation_review.py`, `subtitles.py`, `subtitle_pipeline.py`, `cli.py`
 - **`configs/`** — Example model-resource JSON (`model-resources.example.json`), server/runtime templates (`*.env.example`), domain glossaries, and validation overlays.
 - **`scripts/`** — vLLM server launcher (`start_vllm_server.sh`), evaluation runners, and evidence packagers.
 - **`tests/`** — CPU unit/regression suite (`-m "not gpu"`) and gated GPU markers (`-m gpu`).

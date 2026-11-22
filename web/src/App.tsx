@@ -10,17 +10,11 @@ import {
   Square, UploadCloud, Waves, X
 } from "lucide-react";
 import { studio, secondsLabel, type Cue, type Glossary, type Job, type JobOptions, type JobRequest, type MediaKind, type Step, type TaskKind } from "./api";
+import { ASR_MODES, TRANSLATION_REVIEW, LOCALIZATION_STYLES, hasAudioIndex, normalizeAudioIndex, streamLabel, isEnglishSourceToEnglish, INITIAL_OPTIONS } from "./config-options";
+import { ExplainedSelect } from "./ExplainedSelect";
 import { emptySource, sourceForSubmission, uploadResponseIsCurrent, type SourceMethod } from "./source-selection";
 import { mediaPreviewState, resultQueryKey } from "./job-display";
 
-const INITIAL_OPTIONS: JobOptions = {
-  source_language: "auto", target_language: "en", asr_mode: "speaker",
-  audio_stream: 0, chunk_seconds: 90, context_seconds: 10,
-  speaker_embeddings: "titanet", alignment_fallback: "off",
-  refinement: "balanced", translator: "openai_chat", style: "natural",
-  glossary: null, ass_layout: "standard", ass_max_lanes: 3,
-  condense_high_cps: true, formats: ["srt", "ass"],
-};
 const TASKS: {id: TaskKind; title: string; description: string; icon: typeof FileAudio2}[] = [
   {id: "transcription", title: "Transcribe", description: "Source-language transcript with speakers and timing.", icon: AudioLines},
   {id: "translation", title: "Translate", description: "Contextual English dialogue from media or a transcript.", icon: Languages},
@@ -127,7 +121,25 @@ export default function App() {
   const jobs = useQuery({queryKey: ["jobs"], queryFn: studio.jobs, refetchInterval: 4000});
   const health = useQuery({queryKey: ["health"], queryFn: studio.health, refetchInterval: 30000});
   const listing = useQuery({queryKey: ["media", browserDir], queryFn: () => studio.browse(browserDir), enabled: sourceMethod === "browse"});
+  const selectedSource = sourceForSubmission(sourceMethod, source);
+  const isLocalMedia = selectedSource?.kind === "path" || selectedSource?.kind === "upload";
+  const audioInfo = useQuery({
+    queryKey: ["audio-tracks", selectedSource?.kind, selectedSource?.value],
+    queryFn: () => studio.inspect(selectedSource!),
+    enabled: !!selectedSource && isLocalMedia, retry: false,
+  });
+  const translationBackends = useQuery({queryKey: ["translation-backends"], queryFn: studio.translationBackends});
   const glossaries = useQuery({queryKey: ["glossaries"], queryFn: studio.glossaries});
+  const selectedGlossary = glossaries.data?.find(g => g.path === options.glossary);
+  const audioTracks = isLocalMedia ? audioInfo.data?.audio_streams : undefined;
+  const englishOnly = isEnglishSourceToEnglish(options.source_language, options.target_language);
+  const audioValid = !isLocalMedia || hasAudioIndex(audioTracks, options.audio_stream);
+  useEffect(() => {
+    if (isLocalMedia && audioTracks?.length) {
+      const next = normalizeAudioIndex(audioTracks, options.audio_stream);
+      if (next !== options.audio_stream) setOptions(prev => ({...prev, audio_stream: next}));
+    }
+  }, [isLocalMedia, audioTracks, options.audio_stream]);
   // A distinct final cache key guarantees one post-completion fetch, even if
   // the job poll finishes before the preview/artifact poll runs.
   const preview = useQuery({queryKey: resultQueryKey("preview", jobId, currentJob?.state),
@@ -149,7 +161,7 @@ export default function App() {
     mutationFn: ({file}: {file: File; epoch: number}) => studio.upload(file),
     onSuccess: (result, submitted) => {
       if (uploadResponseIsCurrent(sourceMethodRef.current, submitted.epoch, uploadEpoch.current)) {
-        setSource({kind: "upload", value: result.path}); setError("");
+        setSource({kind: "upload", value: result.path}); setOptions(prev => ({...prev, audio_stream: 0})); setError("");
       }
     },
     onError: (e: Error, submitted) => {
@@ -168,11 +180,17 @@ export default function App() {
     uploadEpoch.current += 1; // Invalidate an upload started in another mode.
     setSourceMethod(next);
     setSource(emptySource(next));
+    setOptions(prev => ({...prev, audio_stream: 0}));
     setError("");
   }
-  const selectedSource = sourceForSubmission(sourceMethod, source);
   function start() {
     if (!selectedSource) {setError("Select a media file, upload a file, or enter a URL."); setStep("media"); return;}
+    if (!audioValid) {setError("Wait for audio inspection or select an available audio track."); return;}
+    if (task !== "transcription" && options.translator === "riva" && !englishOnly &&
+        translationBackends.data?.riva.configured !== true) {
+      setError(translationBackends.data?.riva.detail || "Dedicated Riva translation availability is not confirmed.");
+      return;
+    }
     const req: JobRequest = {source: selectedSource, task, options: {...options, formats: task === "subtitles" ? ["srt", "ass"] : ["srt"]}};
     setError("");
     submit.mutate(req);
@@ -296,7 +314,8 @@ export default function App() {
                   <button key={item.path} className="media-row" data-selected={source.value === item.path}
                     onClick={() => {
                       if (item.kind === "directory") setBrowserDir(item.path);
-                      else setSource({kind: item.name === "recording.contract.json" ? "contract" : "path", value: item.path});
+                      else {setSource({kind: item.name === "recording.contract.json" ? "contract" : "path", value: item.path});
+                        setOptions(prev => ({...prev, audio_stream: 0}));}
                     }}>
                     {item.kind === "directory" ? <Folder size={17} className="shrink-0 text-sky-300"/> : <Film size={17} className="shrink-0 text-teal-300"/>}
                     <span className="flex-1 truncate text-sm">{item.name}</span>
@@ -316,7 +335,7 @@ export default function App() {
             {sourceMethod === "url" && <Field title="Media URL" hint="YouTube and other public URLs supported by the installed yt-dlp downloader. No playlists.">
               <input type="url" className="control" placeholder="https://www.youtube.com/watch?v=..."
                 value={source.kind === "url" ? source.value : ""}
-                onChange={e => setSource({kind: "url", value: e.target.value})}/>
+                onChange={e => {setSource({kind: "url", value: e.target.value}); setOptions(prev => ({...prev, audio_stream: 0}));}}/>
             </Field>}
             {selectedSource && <div className="mt-4 flex items-center gap-3 rounded-lg border border-teal-800/50 bg-teal-950/20 p-3">
               <CheckCircle2 size={18} className="shrink-0 text-teal-300"/>
@@ -352,31 +371,59 @@ export default function App() {
               <Pill>{options.source_language.toUpperCase()} → {options.target_language.toUpperCase()}</Pill>
             </div>
             <div className="grid gap-5 sm:grid-cols-2">
-              <Field title="Transcription mode"><Select value={options.asr_mode} onChange={v => option("asr_mode", v as JobOptions["asr_mode"])}>
-                <option value="speaker">Speaker-attributed</option>
-                <option value="multispeaker_sot">Overlapping speakers</option>
-                <option value="verbatim">Verbatim</option>
-                <option value="rich">Rich transcription</option>
-              </Select></Field>
-              <Field title="Audio stream index"><Select value={options.audio_stream} onChange={v => option("audio_stream", Number(v))}>
-                {[0,1,2,3].map(v => <option key={v} value={v}>Audio stream {v}</option>)}
-              </Select></Field>
+              <Field title="Transcription mode"><ExplainedSelect label="Transcription mode"
+                value={options.asr_mode} items={ASR_MODES} onChange={v => option("asr_mode", v as JobOptions["asr_mode"])}/></Field>
+              {isLocalMedia ? <Field title="Audio stream">
+                {audioInfo.isPending ? <p className="text-xs muted">Inspecting audio streams in the selected file…</p>
+                  : audioInfo.isError ? <p role="alert" className="text-xs text-rose-300">{(audioInfo.error as Error).message}</p>
+                  : <Select value={options.audio_stream} onChange={v => option("audio_stream", Number(v))}>
+                    {(audioTracks || []).map(stream => <option key={stream.index} value={stream.index}>{streamLabel(stream)}</option>)}
+                  </Select>}
+                <p className="mt-2 text-xs muted">Only actual FFprobe audio tracks in the selected file are selectable. These are audio-only indices, not container stream numbers.</p>
+              </Field> : <Field title="Audio stream">
+                <p className="text-xs leading-5 muted">
+                  {selectedSource?.kind === "contract" ? "Existing transcript contract: no audio track is selected."
+                    : "Remote source: audio tracks cannot be inspected until download; the first audio stream will be used."}
+                </p>
+              </Field>}
               {task !== "transcription" && <>
-                <Field title="Contextual refinement"><Select value={options.refinement} onChange={v => option("refinement", v as JobOptions["refinement"])}>
-                  <option value="off">Off — raw transcript</option><option value="conservative">Conservative</option>
-                  <option value="balanced">Balanced (recommended)</option><option value="expressive">Expressive</option>
-                </Select></Field>
-                <Field title="Translation engine"><Select value={options.translator} onChange={v => option("translator", v as JobOptions["translator"])}>
-                  <option value="openai_chat">Configured text model · contextual</option><option value="riva">Riva Translate · direct</option>
-                   <option value="swiftu">Legacy SwiftU setting · contextual</option>
-                </Select></Field>
-                <Field title="Localization style"><Select value={options.style} onChange={v => option("style", v as JobOptions["style"])}>
-                  <option value="natural">Natural dialogue</option><option value="literal">Closer to literal</option>
-                  <option value="expressive">Expressive localization</option>
-                </Select></Field>
-                <Field title="Character / terminology glossary"><Select value={options.glossary || ""} onChange={v => option("glossary", v || null)}>
-                  <option value="">No glossary</option>{(glossaries.data || []).map((g: Glossary) => <option value={g.path} key={g.path}>{g.name}</option>)}
-                </Select></Field>
+                <Field title="Primary translation engine">
+                  <div className="rounded-lg border border-[#335867] bg-[#122a32] p-3 text-sm">
+                    <strong className="text-teal-200">{englishOnly ? "English source · translation bypassed" : "Riva Translate · dedicated translation model"}</strong>
+                    <p className="mt-1 text-xs leading-5 muted">{englishOnly
+                      ? "Already-English source dialogue is preserved as subtitles. No Riva translation or text-model translation review is performed."
+                      : "Translates the original ASR transcript directly into English without text-model rewriting of the source. Context-aware review operates on the resulting English cues."}</p>
+                    {!englishOnly && <p className={"mt-2 text-xs " + (translationBackends.data?.riva.configured ? "text-teal-300" : "text-amber-300")}>
+                      {translationBackends.isPending ? "Checking local Riva files…"
+                        : translationBackends.isError ? "Unable to verify Riva configuration."
+                        : translationBackends.data?.riva.detail}
+                    </p>}
+                  </div>
+                </Field>
+                <Field title="English translation review"><ExplainedSelect label="English translation review"
+                  value={options.translation_review} items={TRANSLATION_REVIEW}
+                  onChange={v => option("translation_review", v as JobOptions["translation_review"])}/></Field>
+                <Field title="Localization style"
+                  hint={options.translation_review === "off"
+                    ? "Style takes effect during English translation review. Enable a review profile to apply it; Riva's direct translation does not use this control."
+                    : "Applies to the separate English post-edit stage, not the Riva translator."}>
+                  <ExplainedSelect label="Localization style"
+                    value={options.style} items={LOCALIZATION_STYLES}
+                    onChange={v => option("style", v as JobOptions["style"])}/>
+                </Field>
+                <Field title="Character / terminology glossary" hint="Optional series-specific names and terms for context-aware English translation review. The source-language ASR transcript is never rewritten in Studio. No example glossary is applied automatically.">
+                  <Select value={options.glossary || ""} onChange={v => option("glossary", v || null)}>
+                    <option value="">No glossary (default)</option>
+                    {(glossaries.data || []).map((g: Glossary) => <option value={g.path} key={g.path}>{g.name}</option>)}
+                  </Select>
+                  {selectedGlossary ? <div className="mt-2 max-h-56 overflow-y-auto rounded-lg border border-[#344c5f] bg-[#12202d] p-3 text-xs leading-5">
+                    <p className="font-semibold text-teal-200">{selectedGlossary.name}</p>
+                    {selectedGlossary.notes && <p className="mt-1 muted">{selectedGlossary.notes}</p>}
+                    <p className="mt-2 text-slate-300"><strong>Characters:</strong> {selectedGlossary.characters.join(", ") || "None"}</p>
+                    <p className="mt-2 text-slate-300"><strong>Terminology:</strong> {selectedGlossary.terms.join(", ") || "None"}</p>
+                    <p className="mt-2 muted">Prompt hints only, not an ASR model, auto-detected series, or guaranteed text replacements.</p>
+                  </div> : <p className="mt-2 text-xs muted">French and Mandarin examples are included for their own series. Leave this off for unrelated media.</p>}
+                </Field>
               </>}
             </div>
           </section>
@@ -392,7 +439,7 @@ export default function App() {
                 <div className="text-sm font-bold">{title}</div><div className="mt-1 text-xs leading-5 muted">{desc}</div>
               </button>)}
             </div>
-            <div className="mt-5"><Toggle title="Condense hard-to-read English cues" detail="The configured text-inference model tightens dense lines without another ASR pass."
+            <div className="mt-5"><Toggle title="Optional extra condensation pass (advanced)" detail="Disabled by default. Enables a second English text-model pass only for overly dense cues; otherwise one contextual review pass is used."
               value={options.condense_high_cps} onChange={v => option("condense_high_cps", v)}/></div>
           </section>}
           <section className="panel p-6">
@@ -420,7 +467,10 @@ export default function App() {
           </section>
           <div className="flex flex-wrap justify-between gap-3">
             <button className="btn btn-secondary" onClick={() => setStep("media")}><ChevronLeft size={16}/> Back</button>
-            <button className="btn btn-primary" onClick={start} disabled={!ready || submit.isPending}>
+            <button className="btn btn-primary" onClick={start}
+              disabled={!ready || submit.isPending || !audioValid ||
+                (task !== "transcription" && options.translator === "riva" && !englishOnly &&
+                 translationBackends.data?.riva.configured !== true)}>
               {submit.isPending ? <LoaderCircle className="animate-spin" size={16}/> : <Play size={16}/>}
               {submit.isPending ? "Creating job…" : "Start processing"}
             </button>

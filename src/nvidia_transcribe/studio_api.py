@@ -9,6 +9,7 @@ from __future__ import annotations
 import fcntl
 import ipaddress
 import json
+import yaml
 import math
 import os
 import re
@@ -30,6 +31,11 @@ from urllib.parse import quote, urlsplit
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+
+from nvidia_transcribe.media import MediaInspectionError, inspect_audio_streams
+from nvidia_transcribe.translation import is_english_source_to_english
+from nvidia_transcribe.model_resources import ResourceConfigError, load_model_resources
+from nvidia_transcribe.refinement import load_glossary
 from pydantic import BaseModel, Field
 
 PROJECT = Path(__file__).resolve().parents[2]
@@ -126,13 +132,14 @@ class Options(BaseModel):
     context_seconds: int = Field(default=10, ge=0, le=30)
     speaker_embeddings: Literal["titanet", "none"] = "titanet"
     alignment_fallback: Literal["off", "qwen"] = "off"
-    refinement: Literal["off", "conservative", "balanced", "expressive"] = "balanced"
+    refinement: Literal["off", "conservative", "balanced", "expressive"] = "off"
     translator: Literal["openai_chat", "swiftu", "riva", "none"] = "openai_chat"
+    translation_review: Literal["off", "conservative", "balanced", "expressive"] = "off"
     style: Literal["natural", "literal", "expressive"] = "natural"
     glossary: str | None = Field(default=None, max_length=512)
     ass_layout: Literal["standard", "raised_main"] = "standard"
     ass_max_lanes: Literal[2, 3] = 3
-    condense_high_cps: bool = True
+    condense_high_cps: bool = False
     formats: list[Literal["srt", "ass"]] = Field(default_factory=lambda: ["srt", "ass"])
 
 
@@ -473,6 +480,7 @@ class JobRunner:
                     "--output-dir", str(root / "output"),
                     "--target-language", opt.target_language,
                     "--refinement", opt.refinement, "--translator", opt.translator,
+                    "--translation-review", opt.translation_review,
                     "--style", opt.style, "--ass-layout", opt.ass_layout,
                     "--ass-max-lanes", str(opt.ass_max_lanes),
                     "--formats", ",".join(opt.formats if spec.task == "subtitles" else ["srt"]),
@@ -483,7 +491,7 @@ class JobRunner:
                     args.append("--condense-high-cps")
                 if opt.glossary:
                     args.extend(["--glossary", opt.glossary])
-                self._command(job_id, args, "Refining, translating and rendering", 60)
+                self._command(job_id, args, "Translating, reviewing English and rendering", 60)
             self._complete_if_not_cancelled(job_id)
         except InterruptedError:
             self.update(job_id, state="cancelled", stage="Cancelled", finished_at=time.time())
@@ -562,11 +570,67 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
                 })
         return {"directory": str(candidate), "parent": str(candidate.parent) if _within(candidate.parent, settings.media_roots) else None, "items": items}
 
+    @app.post("/api/media/inspect")
+    def inspect_media(source: Source) -> dict:
+        if source.kind not in ("path", "upload"):
+            raise HTTPException(422, "Only selected local or uploaded media can be inspected before processing.")
+        path = Path(source.value).expanduser().resolve()
+        roots = settings.media_roots if source.kind == "path" else (settings.upload_root,)
+        if not _within(path, roots) or not path.is_file():
+            raise HTTPException(403, "Selected media is outside allowed local roots.")
+        if path.suffix.lower() not in MEDIA_EXTENSIONS:
+            raise HTTPException(422, "Unsupported media format.")
+        try:
+            tracks = inspect_audio_streams(path)
+        except MediaInspectionError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        return {"audio_streams": tracks}
+
     @app.get("/api/glossaries")
     def glossaries() -> list[dict]:
         root = PROJECT / "configs" / "glossaries"
-        return [{"name": p.stem, "path": str(p)} for p in sorted(root.glob("*"))
-                if p.suffix.lower() in {".yaml", ".yml", ".json"} and p.is_file()]
+        records = []
+        for p in sorted(root.glob("*")):
+            if p.suffix.lower() not in {".yaml", ".yml", ".json"} or not p.is_file():
+                continue
+            try:
+                glossary = load_glossary(p)
+                if p.suffix.lower() in (".yaml", ".yml"):
+                    metadata = yaml.safe_load(p.read_text(encoding="utf-8"))
+                else:
+                    metadata = json.loads(p.read_text(encoding="utf-8"))
+                title = metadata.get("title") if isinstance(metadata, dict) else None
+                records.append({
+                    "name": str(title).strip()[:120] if title else p.stem.replace("_", " "),
+                    "path": str(p),
+                    "characters": list(glossary.characters)[:40],
+                    "terms": list(glossary.terms)[:60],
+                    "notes": (glossary.notes or "")[:1200],
+                })
+            except (OSError, TypeError, ValueError, yaml.YAMLError):
+                # An invalid optional glossary must not disable valid neighbors.
+                continue
+        return records
+
+    @app.get("/api/translation-backends")
+    def translation_backends() -> dict:
+        # Configuration discovery only. Do not load models or probe GPU/services.
+        try:
+            resource = load_model_resources().resolve("riva_translation")
+            checkpoint = Path(resource.checkpoint_path or "")
+            worker = Path(resource.worker_python or "")
+            installed = checkpoint.is_dir() and worker.is_file()
+            return {
+                "riva": {
+                    "configured": installed,
+                    "device": resource.device or "cuda:0",
+                    "detail": ("Dedicated Riva translation worker is configured." if installed
+                               else "Riva checkpoint or worker interpreter is unavailable on this host."),
+                }
+            }
+        except (ResourceConfigError, OSError):
+            return {"riva": {"configured": False, "device": None,
+                             "detail": "Riva resource configuration is unavailable."}}
 
     @app.post("/api/media/upload")
     async def upload(media_file: UploadFile = File(...)) -> dict:
@@ -594,6 +658,14 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
     def submit(request: JobRequest) -> dict:
         if request.task != "transcription" and request.options.translator == "none":
             raise HTTPException(422, "Select a translation backend for this task.")
+        if request.task != "transcription" and request.options.refinement != "off":
+            raise HTTPException(
+                422, "Studio uses the original ASR transcript without source-language correction. "
+                     "For legacy source correction, explicitly use CLI --refinement.",
+            )
+        if (request.task != "transcription" and request.options.translation_review != "off"
+                and request.options.translator != "riva"):
+            raise HTTPException(422, "English post-edit requires dedicated Riva translation.")
         if request.options.glossary:
             glossary = Path(request.options.glossary).resolve()
             if not _within(glossary, (PROJECT / "configs" / "glossaries",)) or not glossary.is_file():
@@ -619,6 +691,22 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
                         raise HTTPException(422, str(exc)) from exc
             elif source.suffix.lower() not in MEDIA_EXTENSIONS:
                 raise HTTPException(422, "Unsupported media format.")
+            else:
+                try:
+                    tracks = inspect_audio_streams(source)
+                except MediaInspectionError as exc:
+                    raise HTTPException(422, str(exc)) from exc
+                if request.options.audio_stream >= len(tracks):
+                    raise HTTPException(422, "Selected audio track is not present in this file.")
+        if request.source.kind == "url" and request.options.audio_stream != 0:
+            raise HTTPException(422, "Remote audio tracks are unknown until download; use track 0.")
+        if (request.task != "transcription" and request.options.translator == "riva"
+                and not is_english_source_to_english(
+                    request.options.source_language, request.options.target_language)):
+            try:
+                load_model_resources().resolve("riva_translation", require_local_paths=True)
+            except ResourceConfigError as exc:
+                raise HTTPException(422, f"Dedicated Riva translation is not available: {exc}") from exc
         return runner.submit(request, source)
 
     @app.get("/api/jobs")

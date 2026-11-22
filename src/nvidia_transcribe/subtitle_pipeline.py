@@ -21,8 +21,10 @@ from nvidia_transcribe.subtitles import SubtitleConfig, render_subtitles
 from nvidia_transcribe.translation import (
     TranslationConfig,
     condense_high_cps_cues_with_text_model,
+    is_english_source_to_english,
     translate_utterances,
 )
+from nvidia_transcribe.translation_review import TranslationReviewConfig, review_translated_utterances
 from nvidia_transcribe.utterances import apply_validation_overlay, audit_and_reconstruct_contract
 
 
@@ -50,8 +52,9 @@ class SubtitlePipelineConfig:
     asr_api_key: str | None = None
     asr_resource_fingerprint: str = ""
     asr_model_path: str | None = None
-    refinement: RefinementConfig = RefinementConfig()
+    refinement: RefinementConfig = RefinementConfig(backend="off", profile="off")
     translation: TranslationConfig = TranslationConfig()
+    translation_review: TranslationReviewConfig = TranslationReviewConfig()
     condensation: TranslationConfig | None = None
     subtitles: SubtitleConfig = SubtitleConfig()
     formats: tuple[str, ...] = ("srt", "ass")
@@ -61,6 +64,7 @@ class SubtitlePipelineConfig:
     resume: bool = True
     resume_refinement: bool = True
     resume_translation: bool = True
+    resume_translation_review: bool = True
     resume_condensation: bool = True
     re_render_only: bool = False
     condense_high_cps: bool = False
@@ -109,7 +113,7 @@ def generate_subtitles(
     text_client: Any = None,
     progress_callback: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
-    """Run staged ASR -> text refinement -> translation -> subtitle rendering.
+    """Run staged ASR -> primary translation -> optional English review -> subtitle rendering.
 
     Can start from raw ``media_path`` OR resume directly from ``recording_contract_path``
     without loading the 30B ASR model. Supports fast CPU-only re-rendering when
@@ -117,6 +121,8 @@ def generate_subtitles(
     """
     t0 = time.perf_counter()
     cfg = config or SubtitlePipelineConfig()
+    if cfg.translation_review.profile != "off" and cfg.translation.backend != "riva":
+        raise ValueError("Contextual English post-edit requires dedicated Riva primary translation")
     if (cfg.condense_high_cps and cfg.translation.backend == "riva"
             and cfg.condensation is None and not cfg.re_render_only):
         raise ValueError(
@@ -140,6 +146,7 @@ def generate_subtitles(
         ref_summary: dict[str, Any] = {"status": "reused_translated_contract"}
         trans_summary: dict[str, Any] = {"status": "reused_translated_contract"}
         condense_summary: dict[str, Any] = {"status": "reused_translated_contract"}
+        review_summary: dict[str, Any] = {"status": "reused_translated_contract"}
     else:
         # Stage 1: Load existing recording contract or run chunked ASR.
         if recording_contract_path is not None:
@@ -204,8 +211,13 @@ def generate_subtitles(
         src_lang = cfg.source_language or contract.get("source_language")
         raw_utterances = list(contract.get("utterances") or [])
 
-        # Stage 2: Contextual source refinement (without mandatory audio reverification)
-        _log(f"Stage 2/4: Source refinement (backend={cfg.refinement.backend}, profile={cfg.refinement.profile})")
+        # The ordinary path preserves the ASR transcript unchanged. The
+        # compatibility contract still includes refined_text=source_text,
+        # but this fast copy requires no text-model invocation.
+        if cfg.refinement.profile == "off" or cfg.refinement.backend == "off":
+            _log("Stage 2/4: Preserving raw ASR transcript (source correction disabled)")
+        else:
+            _log(f"Stage 2/4: Explicit legacy source correction (profile={cfg.refinement.profile})")
         refined_utts, ref_summary = refine_utterances_with_text_model(
             raw_utterances,
             source_language=src_lang,
@@ -222,7 +234,7 @@ def generate_subtitles(
         }
         _atomic_write(refined_path, json.dumps(refined_contract, ensure_ascii=False, indent=2))
 
-        # Stage 3: English translation/localization
+        # Stage 3: Dedicated machine translation of unchanged ASR by default
         _log(f"Stage 3/4: Translation ({src_lang} -> {cfg.target_language}, backend={cfg.translation.backend}, style={cfg.translation.style})")
         translated_utts, trans_summary = translate_utterances(
             refined_utts,
@@ -233,8 +245,28 @@ def generate_subtitles(
             checkpoint_path=out_dir / "translation.checkpoint.json",
             resume=cfg.resume_translation,
         )
+        # Retain the first-stage MT independently of all text-model edits.
+        if (cfg.translation.backend == "riva"
+                and is_english_source_to_english(src_lang, cfg.target_language)):
+            # Already-English speech must not enter a text-based source correction.
+            for u in translated_utts:
+                u["translation_review_status"] = "skipped_same_language"
+            review_summary = {
+                "status": "skipped_same_language", "profile": cfg.translation_review.profile,
+                "reviewed": 0, "changed": 0,
+            }
+        elif cfg.translation.backend == "riva":
+            _log(f"Stage 3b/4: Contextual English post-edit (profile={cfg.translation_review.profile})")
+            translated_utts, review_summary = review_translated_utterances(
+                translated_utts, source_language=src_lang, config=cfg.translation_review,
+                glossary=gl, text_client=text_client,
+                checkpoint_path=out_dir / "translation-review.checkpoint.json",
+                resume=cfg.resume_translation_review,
+            )
+        else:
+            review_summary = {"status": "not_applicable_legacy_translation"}
         if cfg.condense_high_cps and cfg.translation.backend != "none":
-            _log(f"Stage 3b/4: Selective condensation (> {cfg.condense_cps_threshold} CPS)")
+            _log(f"Stage 3c/4: Selective condensation (> {cfg.condense_cps_threshold} CPS)")
             translated_utts, condense_summary = condense_high_cps_cues_with_text_model(
                 translated_utts,
                 source_language=src_lang,
@@ -252,6 +284,7 @@ def generate_subtitles(
             "target_language": cfg.target_language,
             "utterances": translated_utts,
             "translation": trans_summary,
+            "translation_review": review_summary,
             "condensation": condense_summary,
         }
         _atomic_write(translated_path, json.dumps(translated_contract, ensure_ascii=False, indent=2))
@@ -302,6 +335,7 @@ def generate_subtitles(
         "sidecars": render_res["sidecars"],
         "refinement": ref_summary,
         "translation": trans_summary,
+        "translation_review": review_summary,
         "condensation": condense_summary,
         "validation_overlay": overlay_summary,
         "subtitles": render_res["stats"],

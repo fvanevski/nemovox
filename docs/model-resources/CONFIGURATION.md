@@ -34,19 +34,23 @@ environment) before running the CLI or Studio.
 | Task role | Required adapter | Shipped resource | Function |
 |---|---|---|---|
 | `asr` | `nemotron_ctc` | `asr_local` | Nemotron/vLLM speech recognition with CTC metadata |
-| `source_refinement` | `openai_chat` | `text_local` | Contextual correction of source-language text |
-| `text_translation` | `openai_chat` | `text_local` | Contextual text translation/localization |
+| `source_refinement` | `openai_chat` | `text_local` | Legacy CLI-only explicit source-language correction; off by default, not used in Studio |
+| `text_translation` | `openai_chat` | `text_local` | Explicit legacy CLI primary text-model translation |
+| `translation_review` | `openai_chat` | `text_local` | Independent English post-edit of dedicated MT using source context |
 | `subtitle_condensation` | `openai_chat` | `text_local` | Shorten dense subtitle cues |
 | `riva_translation` | `riva_worker` | `riva_local` | Dedicated Riva translation worker |
 | `forced_alignment` | `qwen_forced_aligner` | `qwen_local` | Optional selective Qwen forced alignment |
 | `speaker_embedding` | `titanet` | `titanet_cpu` | NeMo speaker embeddings on CPU |
 
-The same named `openai_chat` resource may serve all three text roles, or each
-may bind a different compatible server/model. The `riva_translation` role is
-selected by `--translator riva`; it is **not** a drop-in OpenAI chat model.
-Condensation after Riva uses the separate `subtitle_condensation` text role
-when requested. Nemotron CTC, Qwen alignment, and NeMo speaker embeddings keep
-specialized adapters and safety requirements.
+The same named `openai_chat` resource may serve optional legacy source correction, selective English
+translation review and optional extra subtitle condensation, or these roles may bind distinct
+compatible servers/models. `text_translation` remains for **explicit legacy CLI
+text-model primary translation**. For the normal Studio workflow, `riva_translation`
+supplies a dedicated machine-translation worker. `--translation-review balanced`
+then asks the text model to correct supported English errors *after* Riva, using
+source text, neighboring utterances and optional glossary. Original MT is retained
+separately in `machine_translated_text`. No live model is automatically started;
+Nemotron CTC, Qwen alignment, Riva and NeMo embeddings retain specialized adapters.
 
 ## Resource schema
 
@@ -61,7 +65,7 @@ fields:
 | `model` | Served model ID for ASR/text, or NeMo model name for speaker embedding |
 | `checkpoint_path` | Local model checkpoint/directory for applicable adapters |
 | `worker_python` | Python interpreter path for Riva/Qwen worker processes |
-| `device` | Adapter-specific execution target: Qwen `cuda:0` or explicit `cpu`; Riva `auto`, `cpu`, or `cuda:N`; TitaNet `cpu` only |
+| `device` | Adapter-specific execution target: Qwen `cuda:0` or explicit `cpu`; shipped Riva `cuda:0` (explicit `cpu` or `auto` supported as opt-in and may be slower); TitaNet `cpu` only |
 | `api_key_env` | Environment **variable name** holding a token, never the token value |
 
 Example: keep the current SwiftU/NInfer binding for correction, but assign
@@ -85,6 +89,7 @@ independent locally hosted models for translation and condensation:
   "roles": {
     "source_refinement": "text_local",
     "text_translation": "translation_local",
+    "translation_review": "text_local",
     "subtitle_condensation": "condensation_local"
   }
 }
@@ -132,12 +137,16 @@ built-in `asr_local`. These environment variables do not silently rewrite
 new, independently named resources.
 
 ```bash
-# Use the host config's task bindings.
+# Normal dedicated MT path with untouched ASR and selective English review:
 nvidia-transcribe generate-subtitles \
   --model-resources configs/model-resources.local.json \
   --recording-contract outputs/episode_run/recording.contract.json \
   --output-dir outputs/episode_subs \
-  --translator openai_chat --condense-high-cps
+  --translator riva --translation-review balanced \
+  --style natural
+
+# Legacy direct text-model translation remains a separate explicit choice:
+# nvidia-transcribe generate-subtitles ... --translator openai_chat
 
 # Select explicitly named text models for one invocation.
 nvidia-transcribe generate-subtitles \
@@ -149,7 +158,7 @@ nvidia-transcribe generate-subtitles \
   --condensation-resource condensation_local \
   --fresh-refinement --fresh-translation
 
-# One-off override applied to all three text roles (including independent ones).
+# One-off override applied to all text roles (including English translation review).
 nvidia-transcribe generate-subtitles \
   --recording-contract outputs/episode_run/recording.contract.json \
   --output-dir outputs/episode_subs \
@@ -165,8 +174,8 @@ over `NEMOVOX_MODEL_RESOURCES` for the config-file location.
 ## Compatibility and migration
 
 - `--swiftu-url` and `--swiftu-model` remain aliases of `--text-url`
-  and `--text-model`. Their semantics now explicitly apply to **all three**
-  text roles for that invocation.
+  and `--text-model`. Their semantics explicitly apply to **all text roles**
+  for that invocation.
 - `--translator swiftu` and the prior SwiftU-named Python function exports
   remain compatibility aliases. Prefer `--translator openai_chat` and generic
   text-inference names in new integrations.
@@ -185,13 +194,15 @@ over `NEMOVOX_MODEL_RESOURCES` for the config-file location.
 
 ## Studio host configuration
 
-Studio is a CLI subprocess orchestrator, not a second inference pipeline.
+Studio is a CLI subprocess orchestrator, not a second inference pipeline. It never makes a text-model call to correct the source-language ASR transcript.
 Export `NEMOVOX_MODEL_RESOURCES` and any credential variables **before**
 starting the FastAPI Studio service. Child CLI jobs inherit that environment
-and perform the same role resolution as standalone CLI commands. Studio's
-`translator` selection chooses `openai_chat` (default), `riva`, or legacy
-`swiftu`; Studio does not currently offer per-job resource ID selectors in its
-UI. Configure model identities/bindings in the host JSON instead.
+and perform the same role resolution as standalone CLI commands. The **Studio
+GUI uses Riva as the primary translator** and enables balanced English text-model
+post-editing by default. An extra text-model condensation pass is off by default. It does not surface legacy `swiftu` as a primary
+translation dropdown. The existing CLI's default `--translator openai_chat`
+and `--translation-review off` remain unchanged for compatibility. For
+per-role resource IDs, configure host JSON instead of editing source.
 
 Keep the Studio server bound to loopback and separate its HTTP Python
 environment from the inference environment; see `web/README.md`.
@@ -217,8 +228,11 @@ different model or device.
 
 Cache/checkpoint identities include effective resource fingerprints or
 associated backend settings, including the selected CTC metadata checkpoint
-(or its absence). Do not carry unrelated historical ASR, timing,
-speaker, translated or condensed outputs across models without reevaluation.
+(or its absence). Source correction, dedicated machine translation, English
+post-editing and optional condensation retain separate checkpoint identities.
+Post-edit caching also includes the raw machine translation, source context,
+glossary digest, style/profile and reviewer identity. Do not carry unrelated
+historical ASR, speaker, translation or review outputs across model changes.
 `--fresh`, `--fresh-refinement`, and `--fresh-translation` provide
 explicit recomputation controls. `--re-render` intentionally reuses an
 existing translated contract instead of repeating model inference.
@@ -234,8 +248,9 @@ and must not change another service's GPU allocation. Qwen's optional
 managed-ASR flow still requires explicit ownership/lease admission. Do not
 use production/private media for smoke testing without authorization.
 
-**Verification boundary:** CPU and frontend checks from the prior local
-integration handback apply to their recorded exact source and local test
-patch. Any subsequent code or documentation change requires fresh tests on
-its own exact head. Live text/ASR inference was unavailable during that
-campaign and remains unverified until separately exercised safely.
+**Verification boundary:** Issue #7 implementation has no host qualification
+at the time of authoring. Prior issue #5 test results are tied to their earlier
+exact source and do not verify these changes. Fresh CPU/TypeScript/UI tests
+and bounded host checks are required. Live ASR/Riva/text inference is UNVERIFIED
+until safely exercised on the actual configured host without interrupting
+shared GPU processes.

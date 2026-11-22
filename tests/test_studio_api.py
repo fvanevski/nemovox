@@ -16,6 +16,18 @@ fastapi = pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
 from nvidia_transcribe.studio_api import JobRunner, StudioConfig, _remote_url, _srt_cues, create_app
+from nvidia_transcribe.media import MediaInspectionError
+
+
+@pytest.fixture(autouse=True)
+def fake_media_probe(monkeypatch: pytest.MonkeyPatch):
+    # The existing Studio tests use synthetic files. Explicit media-probe tests
+    # below independently exercise the real ffprobe parser and API validation.
+    monkeypatch.setattr(
+        "nvidia_transcribe.studio_api.inspect_audio_streams",
+        lambda path: [{"index": 0, "codec": "aac", "channels": 2, "sample_rate_hz": 48000,
+                       "container_index": 1, "language": "eng", "title": "Main"}],
+    )
 
 
 @pytest.fixture
@@ -56,7 +68,7 @@ def test_job_submission_and_preview(client):
     response = c.post("/api/jobs", json={
         "source": {"kind": "contract", "value": str(media / "recording.contract.json")},
         "task": "subtitles",
-        "options": {"source_language": "zh", "refinement": "balanced", "translator": "swiftu"},
+        "options": {"source_language": "zh", "refinement": "off", "translator": "swiftu"},
     })
     assert response.status_code == 202, response.text
     job = response.json()
@@ -445,3 +457,173 @@ def test_cancel_and_completion_have_serialized_terminal_state(client):
     assert after.json()["state"] == "complete"
     assert after.json()["stage"] == "Complete"
     assert runner.get(completed)["state"] == "complete"
+
+
+
+def test_audio_inspection_authorization_and_stream_index_validation(client, monkeypatch):
+    c, media, secret, _ = client
+    source = {"kind": "path", "value": str(media / "sample.webm")}
+    tracks = [
+        {"index": 0, "container_index": 1, "codec": "aac",
+         "channels": 2, "sample_rate_hz": 48000, "language": "fra", "title": "French"},
+        {"index": 1, "container_index": 3, "codec": "eac3",
+         "channels": 6, "sample_rate_hz": 48000, "language": "eng", "title": "English"},
+    ]
+    monkeypatch.setattr("nvidia_transcribe.studio_api.inspect_audio_streams",
+                        lambda path: tracks)
+    response = c.post("/api/media/inspect", json=source)
+    assert response.status_code == 200, response.text
+    assert response.json() == {"audio_streams": tracks}
+    assert c.post("/api/media/inspect", json={
+        "kind": "path", "value": str(secret / "private.webm")}).status_code == 403
+    assert c.post("/api/media/inspect", json={
+        "kind": "contract", "value": str(media / "recording.contract.json")}).status_code == 422
+    allowed = c.post("/api/jobs", json={
+        "source": source, "task": "transcription", "options": {"audio_stream": 1}})
+    assert allowed.status_code == 202, allowed.text
+    rejected = c.post("/api/jobs", json={
+        "source": source, "task": "transcription", "options": {"audio_stream": 2}})
+    assert rejected.status_code == 422
+
+
+def test_glossary_metadata_explains_series_specific_examples(client):
+    c, _media, _secret, _settings = client
+    entries = c.get("/api/glossaries").json()
+    assert any("A Will Eternal" in e["name"] and e["characters"] and e["terms"]
+               for e in entries)
+    assert any("French example" in e["name"] and e["notes"] for e in entries)
+    assert all("path" in e and "notes" in e for e in entries)
+
+
+def test_audio_stream_parser_uses_audio_only_indices(monkeypatch, tmp_path):
+    from nvidia_transcribe import media as media_module
+    clip = tmp_path / "episode.mkv"
+    clip.write_bytes(b"synthetic media")
+    payload = {"streams": [
+        {"index": 0, "codec_type": "video", "codec_name": "hevc"},
+        {"index": 1, "codec_type": "audio", "codec_name": "aac",
+         "channels": 2, "sample_rate": "48000",
+         "tags": {"language": "fra", "title": "French"}},
+        {"index": 2, "codec_type": "subtitle", "codec_name": "ass"},
+        {"index": 3, "codec_type": "audio", "codec_name": "eac3",
+         "channels": 6, "sample_rate": "48000", "tags": {"language": "eng"}},
+    ]}
+    monkeypatch.setattr(media_module.subprocess, "check_output",
+                        lambda *args, **kwargs: json.dumps(payload))
+    records = media_module.inspect_audio_streams(clip)
+    assert [x["index"] for x in records] == [0, 1]
+    assert [x["container_index"] for x in records] == [1, 3]
+    assert records[0]["language"] == "fra"
+
+
+
+def test_studio_rejects_legacy_text_translation_with_riva_only_review(client):
+    c, media, _secret, _settings = client
+    response = c.post("/api/jobs", json={
+        "source": {"kind": "contract", "value": str(media / "recording.contract.json")},
+        "task": "subtitles", "options": {
+            "translator": "openai_chat", "translation_review": "balanced",
+        },
+    })
+    assert response.status_code == 422
+
+
+
+def test_studio_keeps_source_asr_uncorrected(client):
+    from nvidia_transcribe.studio_api import Options
+    c, media, _secret, _settings = client
+    assert Options().refinement == "off"
+    payload = {
+        "source": {"kind": "contract", "value": str(media / "recording.contract.json")},
+        "task": "subtitles",
+        "options": {"translator": "openai_chat", "refinement": "balanced"},
+    }
+    result = c.post("/api/jobs", json=payload)
+    assert result.status_code == 422
+    assert "original ASR transcript" in result.json()["detail"]
+    payload["options"]["refinement"] = "off"
+    permitted = c.post("/api/jobs", json=payload)
+    assert permitted.status_code == 202
+
+
+
+def test_condensation_is_opt_in_for_api_and_persisted_job_options(client):
+    """Omitted API options must not enable an unexpected second text-model pass."""
+    from nvidia_transcribe.studio_api import JobRequest, Options
+
+    assert Options().condense_high_cps is False
+    assert Options(condense_high_cps=True).condense_high_cps is True
+
+    c, media, _secret, settings = client
+    request = {
+        "source": {"kind": "contract", "value": str(media / "recording.contract.json")},
+        "task": "subtitles",
+        "options": {"translator": "openai_chat"},
+    }
+    parsed = JobRequest.model_validate(request)
+    assert parsed.options.refinement == "off"
+    assert parsed.options.condense_high_cps is False
+    response = c.post("/api/jobs", json=request)
+    assert response.status_code == 202, response.text
+    persisted = json.loads((settings.job_root / response.json()["id"] / "job.json").read_text(encoding="utf-8"))
+    assert persisted["request"]["options"]["condense_high_cps"] is False
+
+    # Existing jobs that explicitly opted in must retain that request.
+    request["options"]["condense_high_cps"] = True
+    assert JobRequest.model_validate(request).options.condense_high_cps is True
+
+
+def test_yaml_glossary_dependency_is_declared_for_cli_and_studio():
+    """Clean installs must supply the YAML reader used by both runtime surfaces."""
+    import tomllib
+
+    manifest = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    metadata = tomllib.loads(manifest.read_text(encoding="utf-8"))
+    requirements = metadata["project"]["dependencies"]
+    assert any(item.lower().replace("-", "").startswith("pyyaml") for item in requirements)
+
+
+def test_english_studio_subtitles_do_not_require_riva_checkpoint(client, monkeypatch):
+    """Same-language subtitles do not depend on an unused Riva resource."""
+    c, media, _secret, _settings = client
+
+    def forbidden_resource_probe():
+        raise AssertionError("English-to-English job does not require Riva")
+
+    monkeypatch.setattr("nvidia_transcribe.studio_api.load_model_resources", forbidden_resource_probe)
+    result = c.post("/api/jobs", json={
+        "source": {"kind": "path", "value": str(media / "sample.webm")},
+        "task": "subtitles",
+        "options": {"source_language": "en", "target_language": "en",
+                    "translator": "riva", "translation_review": "balanced"},
+    })
+    assert result.status_code == 202, result.text
+
+
+def test_invalid_glossaries_do_not_disable_valid_entries(client, monkeypatch, tmp_path):
+    """One malformed optional glossary must not turn all discovery into HTTP 500."""
+    from nvidia_transcribe import studio_api
+    from nvidia_transcribe.refinement import load_glossary
+
+    root = tmp_path / "configs" / "glossaries"
+    root.mkdir(parents=True)
+    (root / "good.json").write_text(json.dumps({
+        "title": "Valid Example", "characters": ["Esteban"],
+        "terms": ["Golden Condor"], "notes": "A valid example",
+    }), encoding="utf-8")
+    (root / "bad-null.json").write_text("null", encoding="utf-8")
+    (root / "bad-scalar.json").write_text("42", encoding="utf-8")
+    (root / "bad-list-shape.yaml").write_text("characters: not-a-list\n", encoding="utf-8")
+    (root / "bad-syntax.yaml").write_text("characters: [unfinished\n", encoding="utf-8")
+    monkeypatch.setattr(studio_api, "PROJECT", tmp_path)
+
+    c, _media, _secret, _settings = client
+    response = c.get("/api/glossaries")
+    assert response.status_code == 200, response.text
+    records = response.json()
+    assert len(records) == 1 and records[0]["name"] == "Valid Example"
+    assert records[0]["characters"] == ["Esteban"]
+    with pytest.raises(ValueError, match="must contain a mapping or list"):
+        load_glossary(root / "bad-null.json")
+    with pytest.raises(ValueError, match="character and term fields must be lists"):
+        load_glossary(root / "bad-list-shape.yaml")

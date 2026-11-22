@@ -1,0 +1,26 @@
+{
+  "repo_id": "fvanevski/nemovox",
+  "issue_number": 7,
+  "pr_number": 8,
+  "branch": "issue/7-studio-subtitle-workflow",
+  "base_main_sha": "8205d7783230272c39a669c3f51d89bca50669e6",
+  "previous_qualified_source_sha": "e824321d5680e61044cdbccc9564ca25d2b2f9e9",
+  "previous_evidence_commit_sha": "198f92cf5f3a3920bf54c9a81ea477cb2bb3bc36",
+  "remote_head_before_requal_evidence_sha": "b75724f37f6588d803006741f9de2b2d0755cf83",
+  "tested_source_sha": "4d560467fdcf97c0b01b54a9b7cf711e44317eaf",
+  "tree_equivalence_diff_to_remote_head": "staging/issue7/REQUALIFICATION.md only (93 insertions; zero source/test/config/doc diff)",
+  "source_edits": false,
+  "worktree": "/workspace/nemovox-issue7-requal",
+  "git_status": [
+    "## HEAD (no branch)"
+  ],
+  "python_executable": "/workspace/nvidia-transcribe/.venv/bin/python",
+  "python_version": "Python 3.13.15",
+  "imported_package": "/workspace/nemovox-issue7-requal/src/nvidia_transcribe/__init__.py",
+  "pyyaml_declared": "PyYAML>=6.0",
+  "pyyaml_installed_venv": "6.0.3",
+  "pyyaml_installed_studio_venv": "6.0.4",
+  "node_version": "v26.13.1",
+  "npm_version": "12.2.3",
+  "utc_run_id": "20261122T022503Z"
+}

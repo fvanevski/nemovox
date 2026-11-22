@@ -1,0 +1,2 @@
+COMMAND: /workspace/nvidia-transcribe/.venv/bin/python -m compileall -q src tests experiments
+EXIT_CODE: 0

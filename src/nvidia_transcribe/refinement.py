@@ -338,8 +338,14 @@ def load_glossary(path_or_terms: str | Path | Sequence[str] | None) -> GlossaryC
             data = json.loads(raw_text)
         if isinstance(data, list):
             return GlossaryConfig(terms=tuple(str(x).strip() for x in data if str(x).strip()))
-        chars = tuple(str(x).strip() for x in (data.get("characters") or []) if str(x).strip())
-        terms = tuple(str(x).strip() for x in (data.get("terms") or []) if str(x).strip())
+        if not isinstance(data, dict):
+            raise ValueError(f"Glossary file {p.name!r} must contain a mapping or list")
+        chars_raw = data.get("characters") or []
+        terms_raw = data.get("terms") or []
+        if not isinstance(chars_raw, list) or not isinstance(terms_raw, list):
+            raise ValueError(f"Glossary file {p.name!r} character and term fields must be lists")
+        chars = tuple(str(x).strip() for x in chars_raw if str(x).strip())
+        terms = tuple(str(x).strip() for x in terms_raw if str(x).strip())
         notes = str(data.get("notes")).strip() if data.get("notes") else None
         return GlossaryConfig(characters=chars, terms=terms, notes=notes)
     terms = tuple(x.strip() for x in str(path_or_terms).split(",") if x.strip())

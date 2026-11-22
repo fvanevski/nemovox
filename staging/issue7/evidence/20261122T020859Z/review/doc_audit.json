@@ -1,0 +1,32 @@
+{
+  "audited_sha": "e824321d5680e61044cdbccc9564ca25d2b2f9e9",
+  "blocking_findings": [],
+  "important_findings": [],
+  "minor_observations": [
+    {
+      "severity": "MINOR",
+      "file": "web/src/App.tsx",
+      "line": 411,
+      "summary": "Glossary field hint mentions 'source correction and English post-editing', though Studio disables source correction (HTTP 422 on refinement != 'off')."
+    },
+    {
+      "severity": "MINOR",
+      "file": "src/nvidia_transcribe/studio_api.py",
+      "line": 492,
+      "summary": "JobRunner._run logs stage 'Refining, translating and rendering' when calling generate-subtitles even though Studio enforces --refinement off."
+    },
+    {
+      "severity": "MINOR",
+      "file": "pyproject.toml",
+      "line": 10,
+      "summary": "pyyaml is imported by studio_api.py:597 and refinement.py:334 for YAML glossaries without an explicit entry in pyproject.toml dependencies or optional-dependencies.studio (installed in host .venv and .venv-studio)."
+    }
+  ],
+  "checked_documents_and_contracts": {
+    "cli_generate_subtitles_help": "matches src/nvidia_transcribe/cli.py and docs/model-resources/CONFIGURATION.md",
+    "studio_options_vs_ts_job_options": "all 17 fields and literal unions match between studio_api.Options and web/src/api.ts JobOptions",
+    "studio_endpoints_vs_architecture_doc": "all 15 HTTP routes in studio_api.py match docs/gui/ARCHITECTURE.md",
+    "model_resources_example_vs_configuration_doc": "configs/model-resources.example.json matches model_resources.py defaults and docs/model-resources/CONFIGURATION.md",
+    "readme_and_web_readme_and_subtitle_workflow": "accurately distinguish Studio Riva+balanced-review defaults from CLI openai_chat+off backward compatibility"
+  }
+}
