@@ -76,7 +76,10 @@ def _entry(u: dict[str, Any], i: int) -> dict[str, Any]:
         "utterance_id": _uid(u, i),
         "speaker": u.get("speaker_id") or u.get("global_speaker_id"),
         "start": u.get("source_start"), "end": u.get("source_end"),
-        "source_text": str(u.get("refined_text") or u.get("source_text") or ""),
+        # Give the reviewer the original ASR text, never a rewritten source
+        # language hypothesis. The English machine translation is the only
+        # text that this stage is permitted to change.
+        "source_text": str(u.get("source_text") or ""),
         "machine_translation": str(u.get("machine_translated_text") or ""),
     }
 
@@ -159,12 +162,17 @@ def review_translated_utterances(
                 {"role": "system", "content": (
                     f"Review existing machine translations from {source_language or 'source'} "
                     f"into {cfg.target_language}. " + _PROFILE[cfg.profile] + " " + _STYLE[cfg.style]
-                    + " Only edit TARGET utterances; surrounding entries are read-only evidence. "
-                    + "This is NOT a fresh translation request. Preserve original meaning, names, numbers, "
-                    + "speaker intent and all narrative facts; no invented dialogue. "
-                    + "Return exactly one review for each target utterance_id. "
-                    + "If there is no clear improvement, set changed=false and return the machine_translation unchanged. "
-                    + "Give a short evidence-based reason for each proposed correction."
+                    + " Only edit TARGET translated English cues; neighboring entries and the original "
+                    + "ASR source-language transcript are read-only evidence, never material to rewrite. "
+                    + "Evaluate each individual target cue against the untranslated source and its adjacent "
+                    + "original machine translations. This is NOT a fresh translation request or a blanket "
+                    + "localization rewrite. Look for concrete mistranslations, missing meaning, incorrect names, "
+                    + "misresolved references and context-dependent idioms. Preserve original meaning, names, "
+                    + "numbers, speaker intent and narrative facts. Stylistic preferences alone do not justify edits. "
+                    + "Return exactly one review for every target utterance_id. "
+                    + "When the existing translation is adequate or evidence is insufficient, set changed=false "
+                    + "and return the machine_translation exactly. For a change, give a short reason tied to "
+                    + "the source or surrounding raw translations; never invent dialogue or source words."
                 )},
                 {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
             ]

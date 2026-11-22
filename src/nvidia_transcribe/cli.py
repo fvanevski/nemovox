@@ -69,14 +69,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     gs = sub.add_parser(
         "generate-subtitles",
-        help="Run or resume ASR -> text refinement -> translation -> SRT/ASS rendering.",
+        help="Run or resume ASR -> dedicated translation -> optional English review -> SRT/ASS rendering.",
     )
     gs.add_argument("media", nargs="?", default=None, help="Path to local media file (omit when using --recording-contract).")
     gs.add_argument("--recording-contract", default=None, help="Existing recording.contract.json to start from (skips ASR).")
     gs.add_argument("--output-dir", required=True, help="Directory for refined/translated contracts and SRT/ASS outputs.")
     gs.add_argument("--source-language", default=None, help="Source language code (e.g. 'fr', 'zh').")
     gs.add_argument("--target-language", default="en", help="Target subtitle language (default: en).")
-    gs.add_argument("--refinement", default="balanced", choices=["off", "conservative", "balanced", "expressive"])
+    gs.add_argument("--refinement", default="off",
+                    choices=["off", "conservative", "balanced", "expressive"],
+                    help="Source-language text correction is OFF by default. Non-off profiles are explicit legacy opt-ins.")
     gs.add_argument("--translator", default="openai_chat", choices=["openai_chat", "swiftu", "riva", "none"],
                     help="OpenAI chat text model, Riva worker, or none; swiftu is a compatibility alias.")
     gs.add_argument("--style", default="natural", choices=["natural", "literal", "expressive"])

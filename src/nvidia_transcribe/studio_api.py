@@ -130,7 +130,7 @@ class Options(BaseModel):
     context_seconds: int = Field(default=10, ge=0, le=30)
     speaker_embeddings: Literal["titanet", "none"] = "titanet"
     alignment_fallback: Literal["off", "qwen"] = "off"
-    refinement: Literal["off", "conservative", "balanced", "expressive"] = "balanced"
+    refinement: Literal["off", "conservative", "balanced", "expressive"] = "off"
     translator: Literal["openai_chat", "swiftu", "riva", "none"] = "openai_chat"
     translation_review: Literal["off", "conservative", "balanced", "expressive"] = "off"
     style: Literal["natural", "literal", "expressive"] = "natural"
@@ -656,6 +656,11 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
     def submit(request: JobRequest) -> dict:
         if request.task != "transcription" and request.options.translator == "none":
             raise HTTPException(422, "Select a translation backend for this task.")
+        if request.task != "transcription" and request.options.refinement != "off":
+            raise HTTPException(
+                422, "Studio uses the original ASR transcript without source-language correction. "
+                     "For legacy source correction, explicitly use CLI --refinement.",
+            )
         if (request.task != "transcription" and request.options.translation_review != "off"
                 and request.options.translator != "riva"):
             raise HTTPException(422, "English post-edit requires dedicated Riva translation.")

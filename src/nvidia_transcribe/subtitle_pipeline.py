@@ -51,7 +51,7 @@ class SubtitlePipelineConfig:
     asr_api_key: str | None = None
     asr_resource_fingerprint: str = ""
     asr_model_path: str | None = None
-    refinement: RefinementConfig = RefinementConfig()
+    refinement: RefinementConfig = RefinementConfig(backend="off", profile="off")
     translation: TranslationConfig = TranslationConfig()
     translation_review: TranslationReviewConfig = TranslationReviewConfig()
     condensation: TranslationConfig | None = None
@@ -112,7 +112,7 @@ def generate_subtitles(
     text_client: Any = None,
     progress_callback: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
-    """Run staged ASR -> text refinement -> translation -> subtitle rendering.
+    """Run staged ASR -> primary translation -> optional English review -> subtitle rendering.
 
     Can start from raw ``media_path`` OR resume directly from ``recording_contract_path``
     without loading the 30B ASR model. Supports fast CPU-only re-rendering when
@@ -210,8 +210,13 @@ def generate_subtitles(
         src_lang = cfg.source_language or contract.get("source_language")
         raw_utterances = list(contract.get("utterances") or [])
 
-        # Stage 2: Contextual source refinement (without mandatory audio reverification)
-        _log(f"Stage 2/4: Source refinement (backend={cfg.refinement.backend}, profile={cfg.refinement.profile})")
+        # The ordinary path preserves the ASR transcript unchanged. The
+        # compatibility contract still includes refined_text=source_text,
+        # but this fast copy requires no text-model invocation.
+        if cfg.refinement.profile == "off" or cfg.refinement.backend == "off":
+            _log("Stage 2/4: Preserving raw ASR transcript (source correction disabled)")
+        else:
+            _log(f"Stage 2/4: Explicit legacy source correction (profile={cfg.refinement.profile})")
         refined_utts, ref_summary = refine_utterances_with_text_model(
             raw_utterances,
             source_language=src_lang,
@@ -228,7 +233,7 @@ def generate_subtitles(
         }
         _atomic_write(refined_path, json.dumps(refined_contract, ensure_ascii=False, indent=2))
 
-        # Stage 3: English translation/localization
+        # Stage 3: Dedicated machine translation of unchanged ASR by default
         _log(f"Stage 3/4: Translation ({src_lang} -> {cfg.target_language}, backend={cfg.translation.backend}, style={cfg.translation.style})")
         translated_utts, trans_summary = translate_utterances(
             refined_utts,

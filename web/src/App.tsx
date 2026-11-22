@@ -10,19 +10,11 @@ import {
   Square, UploadCloud, Waves, X
 } from "lucide-react";
 import { studio, secondsLabel, type Cue, type Glossary, type Job, type JobOptions, type JobRequest, type MediaKind, type Step, type TaskKind } from "./api";
-import { ASR_MODES, SOURCE_REFINEMENT, TRANSLATION_REVIEW, LOCALIZATION_STYLES, hasAudioIndex, normalizeAudioIndex, streamLabel } from "./config-options";
+import { ASR_MODES, TRANSLATION_REVIEW, LOCALIZATION_STYLES, hasAudioIndex, normalizeAudioIndex, streamLabel, INITIAL_OPTIONS } from "./config-options";
 import { ExplainedSelect } from "./ExplainedSelect";
 import { emptySource, sourceForSubmission, uploadResponseIsCurrent, type SourceMethod } from "./source-selection";
 import { mediaPreviewState, resultQueryKey } from "./job-display";
 
-const INITIAL_OPTIONS: JobOptions = {
-  source_language: "auto", target_language: "en", asr_mode: "speaker",
-  audio_stream: 0, chunk_seconds: 90, context_seconds: 10,
-  speaker_embeddings: "titanet", alignment_fallback: "off",
-  refinement: "balanced", translator: "riva", translation_review: "balanced", style: "natural",
-  glossary: null, ass_layout: "standard", ass_max_lanes: 3,
-  condense_high_cps: true, formats: ["srt", "ass"],
-};
 const TASKS: {id: TaskKind; title: string; description: string; icon: typeof FileAudio2}[] = [
   {id: "transcription", title: "Transcribe", description: "Source-language transcript with speakers and timing.", icon: AudioLines},
   {id: "translation", title: "Translate", description: "Contextual English dialogue from media or a transcript.", icon: Languages},
@@ -394,13 +386,10 @@ export default function App() {
                 </p>
               </Field>}
               {task !== "transcription" && <>
-                <Field title="Source transcript refinement"><ExplainedSelect label="Source transcript refinement"
-                  value={options.refinement} items={SOURCE_REFINEMENT}
-                  onChange={v => option("refinement", v as JobOptions["refinement"])}/></Field>
                 <Field title="Primary translation engine">
                   <div className="rounded-lg border border-[#335867] bg-[#122a32] p-3 text-sm">
                     <strong className="text-teal-200">Riva Translate · dedicated translation model</strong>
-                    <p className="mt-1 text-xs leading-5 muted">Translates the source-language dialogue into English. Independent contextual English post-editing follows as a separate optional stage.</p>
+                    <p className="mt-1 text-xs leading-5 muted">Translates the original ASR transcript directly into English without text-model rewriting of the source. Context-aware review operates on the resulting English cues.</p>
                     <p className={"mt-2 text-xs " + (translationBackends.data?.riva.configured ? "text-teal-300" : "text-amber-300")}>
                       {translationBackends.isPending ? "Checking local Riva files…"
                         : translationBackends.isError ? "Unable to verify Riva configuration."
@@ -447,7 +436,7 @@ export default function App() {
                 <div className="text-sm font-bold">{title}</div><div className="mt-1 text-xs leading-5 muted">{desc}</div>
               </button>)}
             </div>
-            <div className="mt-5"><Toggle title="Condense hard-to-read English cues" detail="The configured text-inference model tightens dense lines without another ASR pass."
+            <div className="mt-5"><Toggle title="Optional extra condensation pass (advanced)" detail="Disabled by default. Enables a second English text-model pass only for overly dense cues; otherwise one contextual review pass is used."
               value={options.condense_high_cps} onChange={v => option("condense_high_cps", v)}/></div>
           </section>}
           <section className="panel p-6">

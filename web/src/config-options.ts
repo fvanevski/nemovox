@@ -1,4 +1,13 @@
-import type { AudioStream } from "./api";
+import type { AudioStream, JobOptions } from "./api";
+
+export const INITIAL_OPTIONS: JobOptions = {
+  source_language: "auto", target_language: "en", asr_mode: "speaker",
+  audio_stream: 0, chunk_seconds: 90, context_seconds: 10,
+  speaker_embeddings: "titanet", alignment_fallback: "off",
+  refinement: "off", translator: "riva", translation_review: "balanced", style: "natural",
+  glossary: null, ass_layout: "standard", ass_max_lanes: 3,
+  condense_high_cps: false, formats: ["srt", "ass"],
+};
 
 export interface ExplainedOption {
   value: string;
@@ -16,25 +25,15 @@ export const ASR_MODES: readonly ExplainedOption[] = [
   {value: "rich", label: "Rich transcription",
    description: "Requests special event and speaking-style tokens in addition to spoken words. Experimental for subtitles; tag support depends on the ASR model and response."},
 ];
-export const SOURCE_REFINEMENT: readonly ExplainedOption[] = [
-  {value: "off", label: "Off: keep source transcript",
-   description: "No text-model source correction. Original ASR wording is used directly for translation."},
-  {value: "conservative", label: "Conservative",
-   description: "Correct obvious ASR slips, names and punctuation only when strongly supported by nearby dialogue."},
-  {value: "balanced", label: "Balanced (recommended)",
-   description: "Use context and optional glossary to fix likely mistranscriptions or homophones in the original spoken language without changing its meaning."},
-  {value: "expressive", label: "Expressive",
-   description: "Repair severely awkward or corrupted ASR wording more aggressively in the original language. Higher risk of overcorrection."},
-];
 export const TRANSLATION_REVIEW: readonly ExplainedOption[] = [
   {value: "off", label: "Off: raw machine translation",
    description: "Keep the dedicated translation model's English output as-is. Machine translation remains available for inspection."},
   {value: "conservative", label: "Conservative",
    description: "Correct clear translation errors, misrendered names and obvious inconsistencies against source dialogue."},
   {value: "balanced", label: "Balanced (recommended)",
-   description: "Review the dedicated translation against original dialogue, neighboring speaker turns and glossary; fix supported semantic and idiomatic errors."},
+   description: "Compare each original machine-translated cue against neighboring English cues and untouched source transcript; change only supported errors, otherwise retain it."},
   {value: "expressive", label: "Expressive",
-   description: "Polish dialogue and emotional tone more strongly while preserving named entities, events and speaker intent."},
+   description: "Where an actual translation problem is identified, consider tone and naturalness without rewriting otherwise acceptable cues or inventing details."},
 ];
 export const LOCALIZATION_STYLES: readonly ExplainedOption[] = [
   {value: "natural", label: "Natural dialogue",
