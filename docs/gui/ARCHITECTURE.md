@@ -7,7 +7,7 @@ For development and review, use the live repository source and exact Git branch/
 ## Processing boundary
 
 React/Vite Studio → FastAPI local HTTP → one-job subprocess worker → existing Nemovox Python CLI:
-process-media (recording.contract.json) → generate-subtitles (source correction → Riva primary machine translation → optional independent source-aware English post-edit → optional cue condensation → SRT/ASS). Legacy CLI direct OpenAI-chat translation remains explicitly supported.
+process-media (recording.contract.json) → generate-subtitles (unchanged ASR transcript → Riva primary machine translation → selective contextual English post-edit → SRT/ASS). Legacy CLI source-language correction, direct text-model translation and extra cue condensation remain explicit opt-ins.
 
 There must be only ONE owner of ASR, diarization, translation, text refinement and subtitle rendering: the existing Python source modules. The web layer only validates and configures requests, submits CLI jobs, retrieves output contracts, and visualizes results.
 
@@ -42,7 +42,7 @@ Media browsing is limited to explicit roots, without arbitrary host-path executi
 ## UX
 
 - Media & task: browse host paths, upload from browser, remote URL, source language, task.
-- Configure: detailed accessible in-menu and selected-option explanations for ASR, source refinement, English translation review and style. Local source audio choices are dynamically probed and validated against the selected file; URL audio tracks are unknown until download. Dedicated Riva primary translation and text-model post-edit appear as distinct steps. Example glossaries are off by default and show names/terms/context when chosen. Resource identities and role bindings remain host-configured.
+- Configure: detailed accessible in-menu and selected-option explanations for ASR, English translation review and style. Local source audio choices are dynamically probed and validated against the selected file; URL audio tracks are unknown until download. Dedicated Riva primary translation and selective English text-model post-edit appear as distinct steps. Source-language refinement is absent from Studio; extra condensation is off by default. Example glossaries are off by default and show names/terms/context when chosen. Resource identities and role bindings remain host-configured.
 - Process & preview: progress/history, output file access, synchronized dialogue search/click-to-seek, browser JASSUB where available, HTML overlay fallback.
 
 Design aims for a contemporary media workstation, not a generic enterprise dashboard: clear typography, progressive disclosure, dark subdued palette, responsive controls, easily accessible task state.

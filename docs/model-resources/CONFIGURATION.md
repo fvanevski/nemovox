@@ -34,7 +34,7 @@ environment) before running the CLI or Studio.
 | Task role | Required adapter | Shipped resource | Function |
 |---|---|---|---|
 | `asr` | `nemotron_ctc` | `asr_local` | Nemotron/vLLM speech recognition with CTC metadata |
-| `source_refinement` | `openai_chat` | `text_local` | Contextual correction of source-language text |
+| `source_refinement` | `openai_chat` | `text_local` | Legacy CLI-only explicit source-language correction; off by default, not used in Studio |
 | `text_translation` | `openai_chat` | `text_local` | Explicit legacy CLI primary text-model translation |
 | `translation_review` | `openai_chat` | `text_local` | Independent English post-edit of dedicated MT using source context |
 | `subtitle_condensation` | `openai_chat` | `text_local` | Shorten dense subtitle cues |
@@ -42,8 +42,8 @@ environment) before running the CLI or Studio.
 | `forced_alignment` | `qwen_forced_aligner` | `qwen_local` | Optional selective Qwen forced alignment |
 | `speaker_embedding` | `titanet` | `titanet_cpu` | NeMo speaker embeddings on CPU |
 
-The same named `openai_chat` resource may serve source correction, English
-translation review and subtitle condensation, or these roles may bind distinct
+The same named `openai_chat` resource may serve optional legacy source correction, selective English
+translation review and optional extra subtitle condensation, or these roles may bind distinct
 compatible servers/models. `text_translation` remains for **explicit legacy CLI
 text-model primary translation**. For the normal Studio workflow, `riva_translation`
 supplies a dedicated machine-translation worker. `--translation-review balanced`
@@ -137,13 +137,13 @@ built-in `asr_local`. These environment variables do not silently rewrite
 new, independently named resources.
 
 ```bash
-# Normal dedicated MT path with independent contextual English post-edit:
+# Normal dedicated MT path with untouched ASR and selective English review:
 nvidia-transcribe generate-subtitles \
   --model-resources configs/model-resources.local.json \
   --recording-contract outputs/episode_run/recording.contract.json \
   --output-dir outputs/episode_subs \
   --translator riva --translation-review balanced \
-  --style natural --condense-high-cps
+  --style natural
 
 # Legacy direct text-model translation remains a separate explicit choice:
 # nvidia-transcribe generate-subtitles ... --translator openai_chat
@@ -194,12 +194,12 @@ over `NEMOVOX_MODEL_RESOURCES` for the config-file location.
 
 ## Studio host configuration
 
-Studio is a CLI subprocess orchestrator, not a second inference pipeline.
+Studio is a CLI subprocess orchestrator, not a second inference pipeline. It never makes a text-model call to correct the source-language ASR transcript.
 Export `NEMOVOX_MODEL_RESOURCES` and any credential variables **before**
 starting the FastAPI Studio service. Child CLI jobs inherit that environment
 and perform the same role resolution as standalone CLI commands. The **Studio
 GUI uses Riva as the primary translator** and enables balanced English text-model
-post-editing by default. It does not surface legacy `swiftu` as a primary
+post-editing by default. An extra text-model condensation pass is off by default. It does not surface legacy `swiftu` as a primary
 translation dropdown. The existing CLI's default `--translator openai_chat`
 and `--translation-review off` remain unchanged for compatibility. For
 per-role resource IDs, configure host JSON instead of editing source.

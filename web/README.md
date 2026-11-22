@@ -32,14 +32,14 @@ npm run dev
 
 Then open http://127.0.0.1:5173. The frontend proxies /api to the Python backend. A production build (npm run build) is served by the same backend from web/dist.
 
-The backend does not start/stop model services. Studio uses existing CLI stages with **Riva-Translate for primary translation** and a separate configured OpenAI-compatible text model (e.g. SwiftU/NInfer) for source ASR correction and English translation review. The default Riva binding requests `cuda:0`, without silently falling back to CPU. Verify model availability and GPU headroom on the host; the UI reports only configured checkpoint/worker file availability, not a successful inference session. Export `NEMOVOX_MODEL_RESOURCES` before starting Studio; resource identities are configured on the host rather than selected by a model marketplace in the UI. See [resource configuration](../docs/model-resources/CONFIGURATION.md).
+The backend does not start/stop model services. Studio uses existing CLI stages with **Riva-Translate for primary translation** and a separate configured OpenAI-compatible text model (e.g. SwiftU/NInfer) for **English translation review only**. The original source ASR is not text-corrected before translation. The default Riva binding requests `cuda:0`, without silently falling back to CPU. Verify model availability and GPU headroom on the host; the UI reports only configured checkpoint/worker file availability, not a successful inference session. Export `NEMOVOX_MODEL_RESOURCES` before starting Studio; resource identities are configured on the host rather than selected by a model marketplace in the UI. See [resource configuration](../docs/model-resources/CONFIGURATION.md).
 
 FFmpeg/ffprobe are required for media processing; yt-dlp is required for remote/YouTube URLs. All model weights continue under /workspace/models.
 
 ## Three tabs
 
 1. Media & task: host directory browsing, browser file upload, remote URL, language choice, transcription/translation/subtitle tasks.
-2. Configure: accessible explanations for ASR/refinement/review/style settings; **actual FFprobe audio tracks for a local selected file** (not hard-coded 0–3 choices); dedicated Riva translation followed by optional context-aware English post-edit; descriptive optional glossary previews; ASS layout and speaker/alignment settings. The shipped GUI selects Riva rather than legacy text-model primary translation.
+2. Configure: accessible explanations for ASR/English-review/style settings; **actual FFprobe audio tracks for a local selected file** (not hard-coded 0–3 choices); dedicated Riva translation followed by optional context-aware English post-edit; descriptive optional glossary previews; ASS layout and speaker/alignment settings. The shipped GUI selects Riva, has no source-language correction control, and disables optional extra condensation by default.
 3. Process & preview: job status/history, logs, video where browser-compatible, synchronized cues, ASS preview and downloads.
 
 ## Expected limitations of this foundation
