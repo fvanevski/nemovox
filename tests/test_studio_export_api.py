@@ -201,6 +201,7 @@ def test_imported_contract_processing_keeps_adjacent_reconstruction_sidecars(
     assert invoked == [original]
     archived = settings.job_root / job_id / "asr"
     assert json.loads((archived / "recording.contract.json").read_text()) == source_contract
+    assert (archived / "recording.contract.json").read_bytes() == original_contents
     assert "Parole sans temps." in (archived / "transcript.txt").read_text()
     assert original.read_bytes() == original_contents
     saved = root / ("nemovox-" + job_id)

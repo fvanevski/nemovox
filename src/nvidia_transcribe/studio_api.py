@@ -59,6 +59,17 @@ def _atomic_json(path: Path, payload: dict) -> None:
         tmp.unlink(missing_ok=True)
 
 
+def _atomic_bytes(path: Path, payload: bytes) -> None:
+    """Atomically archive validated input without reserializing its bytes."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name("." + path.name + "." + uuid.uuid4().hex + ".tmp")
+    try:
+        tmp.write_bytes(payload)
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
 def _within(path: Path, roots: tuple[Path, ...]) -> bool:
     real = path.resolve()
     return any(real.is_relative_to(root.resolve()) for root in roots)
@@ -84,10 +95,11 @@ def _remote_url(url: str) -> str:
     return url
 
 
-def _read_transcription_contract(path: Path) -> dict:
-    """Validate source utterances before importing a prior recording transcription."""
+def _read_transcription_contract_snapshot(path: Path) -> tuple[dict, bytes]:
+    """Validate and capture the same exact input bytes for job-owned archival."""
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
+        raw = path.read_bytes()
+        value = json.loads(raw.decode("utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise ValueError("Recording contract is not readable JSON.") from exc
     if not isinstance(value, dict) or not isinstance(value.get("utterances"), list):
@@ -95,6 +107,12 @@ def _read_transcription_contract(path: Path) -> dict:
     if any(not isinstance(item, dict) or not isinstance(item.get("source_text"), str)
            for item in value["utterances"]):
         raise ValueError("Every contract utterance must contain source_text.")
+    return value, raw
+
+
+def _read_transcription_contract(path: Path) -> dict:
+    """Validate source utterances before importing a prior recording transcription."""
+    value, _ = _read_transcription_contract_snapshot(path)
     return value
 
 
@@ -611,11 +629,11 @@ class JobRunner:
                 # Regardless of task, import the existing source once into
                 # this job's retained archive so both default transcript and
                 # optional recording-contract exports have real source files.
-                value = _read_transcription_contract(source)
+                value, source_contract_bytes = _read_transcription_contract_snapshot(source)
                 imported = root / "asr"
                 imported.mkdir(parents=True, exist_ok=True)
                 contract = imported / "recording.contract.json"
-                _atomic_json(contract, value)
+                _atomic_bytes(contract, source_contract_bytes)
                 (imported / "transcript.txt").write_text(
                     _format_existing_transcript(value), encoding="utf-8"
                 )
