@@ -12,7 +12,7 @@ from nvidia_transcribe.client import InferenceRequestConfig, NemotronVLLMClient
 from nvidia_transcribe.gpu_handoff import ManagedASRBlocked, ManagedASRConfig, recover_pending_managed_asr
 from nvidia_transcribe.media import MediaInspectionError
 from nvidia_transcribe.model_resources import ResourceConfigError, load_model_resources
-from nvidia_transcribe.resource_lifecycle import ModelLifecycle, ResourceLifecycleError
+from nvidia_transcribe.resource_lifecycle import ModelLifecycle, ResourceLifecycleError, managed_asr_client
 from nvidia_transcribe.parser import CTCMetadataError
 from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
 from nvidia_transcribe.refinement import RefinementConfig
@@ -289,8 +289,8 @@ def main(argv: list[str] | None = None) -> int:
             speaker_embedding_model=speaker_resource.model or "titanet_small",
         )
         try:
-            with ModelLifecycle().endpoint(asr_resource):
-                out = process_media(args.media, output_dir=args.output_dir, client=client, config=rcfg)
+            with managed_asr_client(ModelLifecycle(), asr_resource, client) as stage_client:
+                out = process_media(args.media, output_dir=args.output_dir, client=stage_client, config=rcfg)
         except (FileNotFoundError, MediaInspectionError, ValueError, RuntimeError) as exc:
             print(json.dumps({"status": "RESOURCE_BLOCKED" if isinstance(exc, ResourceLifecycleError) else "ERROR",
                               "reason": exc.status if isinstance(exc, ResourceLifecycleError) else None,

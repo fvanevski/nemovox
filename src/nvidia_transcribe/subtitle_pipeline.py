@@ -12,7 +12,7 @@ from typing import Any, Callable, Mapping, Sequence
 
 from nvidia_transcribe.client import NemotronVLLMClient
 from nvidia_transcribe.model_resources import ModelResource
-from nvidia_transcribe.resource_lifecycle import ModelLifecycle, ResourceLifecycleError, managed_text_client
+from nvidia_transcribe.resource_lifecycle import ModelLifecycle, ResourceLifecycleError, managed_asr_client, managed_text_client
 from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
 from nvidia_transcribe.refinement import (
     GlossaryConfig,
@@ -202,12 +202,12 @@ def generate_subtitles(
             _log(f"Stage 1/4: Transcribing media via Nemotron chunked core: {m_path.name}")
             client = asr_client or NemotronVLLMClient(base_url=cfg.asr_base_url, model=cfg.asr_model,
                                                    api_key=cfg.asr_api_key, timeout_s=900.0)
-            with (lifecycle.endpoint(lifecycle_resources["asr"])
-                  if lifecycle and lifecycle_resources else nullcontext()):
+            with (managed_asr_client(lifecycle, lifecycle_resources["asr"], client)
+                  if lifecycle and lifecycle_resources else nullcontext(client)) as stage_client:
                 asr_res = process_media(
                     m_path,
                     output_dir=out_dir / "asr",
-                    client=client,
+                    client=stage_client,
                     config=RecordingPipelineConfig(
                         source_language=cfg.source_language,
                         mode=cfg.asr_mode,
