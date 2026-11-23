@@ -101,7 +101,7 @@ def bind_legacy_source_lineage(
         key = _source_key(lexical, "source_ordinal")
         if key is None or key in lexical_by_index or ident in lexical_ids:
             raise ValueError("Ambiguous or missing immutable lexical index/identity")
-        if lexical.get("unit_type") not in ("word", "char"):
+        if lexical.get("unit_type") not in ("word", "character"):
             raise ValueError("Unexpected source unit type")
         if key[0] not in observed_chunks:
             raise ValueError("Lexical unit refers to unverified source chunk")
