@@ -221,6 +221,28 @@ def reconcile_source_observations(
                 unit_to_reviewed_event[unit_id] = eid
         reviewed = ev.get("source_text_verified") is True
         text = ev.get("source_text")
+        # A corrected source event must be inside the interval of the
+        # actual auditioned WAV, not merely named by an old review digest.
+        # An old H2 [362.3,364.4] clip cannot substantiate a corrected
+        # H2 speech event at [364.8,366.0].
+        crop_fields = ("review_audio_crop_start_s", "review_audio_crop_end_s",
+                       "review_audio_crop_sha256")
+        crop_present = any(field in ev for field in crop_fields)
+        review_crop = None
+        if crop_present:
+            if not all(field in ev for field in crop_fields):
+                raise ValueError("Audited audio crop provenance requires complete bounds and digest")
+            cs, ce = _interval(
+                ev, start="review_audio_crop_start_s", end="review_audio_crop_end_s"
+            )
+            if cs > a + 0.001 or ce < b - 0.001:
+                raise ValueError("Audited audio event lies outside the review audio crop")
+            review_crop = {
+                "start_s": cs,
+                "end_s": ce,
+                "sha256": _digest(ev["review_audio_crop_sha256"], "review audio crop"),
+                "event_fully_covered_by_review_audio": True,
+            }
         if reviewed:
             if kind not in {"speech", "lexical_shout", "singing"}:
                 raise ValueError("Verbatim source text is inconsistent with non-lexical event")
@@ -250,6 +272,7 @@ def reconcile_source_observations(
                 "word_alignment_status": "unverified",
                 "speaker_identity_status": "unverified",
                 "review_evidence_sha256": review_digest,
+                "review_audio_crop_provenance": review_crop,
                 "reviewer_has_attested_direct_audio_listening": True,
                 "acoustic_bounds_are_event_level_not_word_level": True,
             })
@@ -274,6 +297,7 @@ def reconcile_source_observations(
             "challenger_window_context_ids": qwen_windows,
             "legacy_asr_window_context_ids": nemotron_windows,
             "model_windows_do_not_localize_or_verify_words": True,
+            "review_audio_crop_provenance": review_crop,
             "positive_audio_event_unit_ids": list(linked),
             "unit_link_review_evidence_sha256": (
                 ev.get("review_evidence_sha256") if linked else None
@@ -330,6 +354,7 @@ def reconcile_source_observations(
             "nonreviewed_source_turns_remain_unresolved": True,
             "legacy_asr_observations_preserved_unchanged": True,
             "source_fidelity_certified": False,
+            "auditioned_audio_crop_envelope_is_evidence_not_word_timing": True,
         },
         "diagnostics": {
             "challenger_windows_recorded": len(windows),
@@ -337,6 +362,9 @@ def reconcile_source_observations(
             "pending_challenger_requests": len(set(requests) - seen),
             "model_only_source_turns_automatically_accepted": 0,
             "reviewed_audio_source_turns": len(turns),
+            "reviewed_source_turns_with_bounded_audio_crop": sum(
+                turn["review_audio_crop_provenance"] is not None for turn in turns
+            ),
             "audited_events_without_verbatim_source_text": len(regions) - len(turns),
             "unresolved_echo_candidates": sum(
                 r["decision"] == "preserve_both_until_positive_audio_event_adjudication"

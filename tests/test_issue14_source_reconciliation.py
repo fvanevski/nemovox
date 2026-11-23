@@ -100,6 +100,46 @@ def test_verbatim_independent_audio_event_may_be_projected_but_not_word_aligned(
     assert projection["source_start"] == pytest.approx(1131.5)
 
 
+def test_reanchored_audio_review_requires_fresh_correct_audio_crop():
+    src, plan, q, audited = setup()
+    event = audited["events"][1]
+    event.update({
+        "source_text_verified": True, "source_text": "Faites voir.",
+        "source_language": "fr",
+        "review_method": "direct_audio_listening",
+        "review_evidence_sha256": "f" * 64,
+        # Prior auditioned crop covers the OLD event interval.
+        "review_audio_crop_start_s": 1131.3,
+        "review_audio_crop_end_s": 1136.2,
+        "review_audio_crop_sha256": "c" * 64,
+    })
+    before = reconcile_source_observations(src, plan, q, audited_events=audited)
+    previous_id = before["source_turns_audio_review_attested"][0]["source_turn_id"]
+    previous_revision = before["source_turns_audio_review_attested"][0]["source_revision_id"]
+    # The same acoustic event may have corrected bounds, but an old
+    # auditioned WAV cannot substantiate a later source event.
+    event["start_s"], event["end_s"] = 1136.8, 1138.0
+    with pytest.raises(ValueError, match="outside the review audio crop"):
+        reconcile_source_observations(src, plan, q, audited_events=audited)
+    event["review_audio_crop_start_s"] = 1136.5
+    event["review_audio_crop_end_s"] = 1138.4
+    event["review_audio_crop_sha256"] = "d" * 64
+    after = reconcile_source_observations(src, plan, q, audited_events=audited)
+    changed = after["source_turns_audio_review_attested"][0]
+    assert changed["source_turn_id"] == previous_id
+    assert changed["source_revision_id"] != previous_revision
+    assert changed["review_audio_crop_provenance"]["event_fully_covered_by_review_audio"]
+    assert after["diagnostics"]["reviewed_source_turns_with_bounded_audio_crop"] == 1
+
+
+def test_audio_review_rejects_partial_crop_provenance():
+    src, plan, q, audited = setup()
+    ev = audited["events"][1]
+    ev["review_audio_crop_start_s"] = 1131.0
+    with pytest.raises(ValueError, match="requires complete bounds"):
+        reconcile_source_observations(src, plan, q, audited_events=audited)
+
+
 def test_stable_source_event_id_across_observation_text_revision():
     src, plan, q, audited = setup()
     ev = audited["events"][1]
