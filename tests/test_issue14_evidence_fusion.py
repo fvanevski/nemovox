@@ -152,3 +152,19 @@ def test_complete_reviewed_unit_partition_supports_one_to_many_without_applicati
     dossier['audited_audio_regions'][1]['positive_audio_event_unit_ids']=['raw0']
     with pytest.raises(ValueError, match='multiple'):
         plan_reviewed_source_partitions(recording,ledger,dossier)
+
+
+def test_fusion_without_input_ancestry_and_support_without_citations_are_rejected():
+    c = case()
+    c['observations'][2]['derived_from'] = []
+    with pytest.raises(ValueError, match='upstream evidence'):
+        prepare_evidence_review(c, policy())
+    r = prepare_evidence_review(case(), policy())
+    response = {'schema': 'nemovox-evidence-model-review/v1', 'case_id': 'sample_01',
+                'case_sha256': r['case_sha256'], 'policy_sha256': r['policy_sha256'],
+                'decisions': [{'candidate_id': cid, 'decision': 'support',
+                               'supporting_evidence_ids': [], 'contrary_evidence_ids': [],
+                               'rationale': 'Empty support', 'unresolved': []}
+                              for cid in ('split', 'retain')]}
+    with pytest.raises(ValueError, match='at least one cited'):
+        adjudicate_review(r, response)

@@ -119,6 +119,8 @@ def prepare_evidence_review(case: Mapping[str, Any], policy: Mapping[str, Any]) 
             raise ValueError("Evidence lacks a testable assertion")
         if not isinstance(obs.get("derived_from", []), list):
             raise ValueError("derived_from must be an array")
+        if obs["modality"] in {"fusion", "model_assessment"} and not obs.get("derived_from"):
+            raise ValueError("Fused model observation must declare its upstream evidence")
         if not isinstance(obs.get("method"), str) or not obs["method"]:
             raise ValueError("Evidence method is required")
         by_id[oid] = deepcopy(obs)
@@ -215,6 +217,8 @@ def adjudicate_review(review_request: Mapping[str, Any], response: Mapping[str, 
                 or set(supporting) & set(contrary)
                 or any(v not in all_obs for v in supporting + contrary)):
             raise ValueError("Invalid or conflicted evidence citations")
+        if decision == "support" and not supporting:
+            raise ValueError("Support requires at least one cited observation")
         if any(all_obs[v]["applicability"] == "exclude" for v in supporting):
             raise ValueError("Reviewer used policy-excluded evidence as support")
         summary = _required_string(choice.get("rationale"), "review rationale")
