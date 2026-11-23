@@ -18,7 +18,7 @@ from typing import Any, Mapping
 from nvidia_transcribe.evidence_fusion import _digest
 
 SCHEMA = "nemovox-reviewed-unit-amendment/v1"
-_DOSSIER_SCHEMA = "nemovox-source-reconciliation-dossier/v1"
+_DOSSIER_SCHEMA = "nemovox-source-reconciliation/v1"
 
 
 def _check_window(value: Any, label: str) -> tuple[float, float]:
@@ -100,6 +100,7 @@ def apply_reviewed_unit_amendments(
             if uid not in raw or uid in current:
                 raise ValueError("Invalid original positive audio unit assignment")
             current[uid] = eid
+    original_positive = dict(current)
     actions = request.get("actions")
     if not isinstance(actions, list) or not actions:
         raise ValueError("Amendment requires nonempty direct-audio-reviewed actions")
@@ -143,8 +144,8 @@ def apply_reviewed_unit_amendments(
             current[uid] = eid
         else:
             preferred = action.get("preferred_owned_source_unit_id")
-            if (uid in owners or current.get(uid) != eid or preferred == uid
-                    or preferred not in owners or current.get(preferred) != eid):
+            if (uid in owners or original_positive.get(uid) != eid or preferred == uid
+                    or preferred not in owners or original_positive.get(preferred) != eid):
                 raise ValueError("Alternate requires unowned raw and same-event retained owner")
             preferred_parent = observed.get(raw[preferred]["chunk_index"])
             if preferred_parent is None:

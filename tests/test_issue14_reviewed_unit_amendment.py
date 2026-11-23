@@ -20,7 +20,7 @@ def example():
             "lexical_observations":[{"id":"owned0","chunk_index":0,"source_ordinal":0,"text":"we"},
                                     {"id":"owned1","chunk_index":0,"source_ordinal":1,"text":"go"},
                                     {"id":"other","chunk_index":1,"source_ordinal":0,"text":"we"}]}
-    dossier={"schema":"nemovox-source-reconciliation-dossier/v1","media_fingerprint_sha256":MEDIA,
+    dossier={"schema":"nemovox-source-reconciliation/v1","media_fingerprint_sha256":MEDIA,
              "source_language":"fr",
              "audited_audio_regions":[{"audio_event_id":"event","source_status":"audio_review_attested",
                                         "positive_audio_event_unit_ids":["owned0","other"]}],
