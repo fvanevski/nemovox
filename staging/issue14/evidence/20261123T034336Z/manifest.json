@@ -1,0 +1,59 @@
+{
+  "schema": "nemovox-evidence-manifest/v1",
+  "run_id": "20261123T034336Z",
+  "admitted_pr_head_sha": "5501adad9582349441c753f768731279559a9caa",
+  "validated_central_source_sha": "31529fc3e4fd37ca29b4d9d367483faeb5f44faf",
+  "file_count": 11,
+  "files": [
+    {
+      "path": "COMMAND_SHAPE_FRICTION.txt",
+      "sha256": "f24f6955934f69ac179326055d4371c14f0955f50e151f0c29c35d04bef0a7c2",
+      "bytes": 83
+    },
+    {
+      "path": "README.md",
+      "sha256": "acdb6e33df8b71d5fd65dbdbdbb23a9debcca07bc557ec67b78aa144d49a5e77",
+      "bytes": 956
+    },
+    {
+      "path": "review/production-readiness.md",
+      "sha256": "68fce6b7e40ad99bac50610806f16094576e41932fa93af1c1236c3b4994ce0e",
+      "bytes": 3514
+    },
+    {
+      "path": "source-identity.json",
+      "sha256": "f7639fac47fdc6827f567098b5e91511286c6bf5bf924ca615341ef55ace2e0d",
+      "bytes": 606
+    },
+    {
+      "path": "validation/audio-region-proposals.json",
+      "sha256": "376c07dcd91e64a0f0ba70b6ef2cbec4d3ff9e40e9d31eabe14340d8108b21c4",
+      "bytes": 3313
+    },
+    {
+      "path": "validation/bounded-qwen-provenance.json",
+      "sha256": "964c54b682a0cd06c9b11cca94f5b00ad86897e79110cab061af5becfb8b3b5f",
+      "bytes": 19800
+    },
+    {
+      "path": "validation/cpu-gates.json",
+      "sha256": "4ce9b6777efb7f58252cdaf8838cba5ca036268eef836e841a2908d0aeb608a6",
+      "bytes": 1265
+    },
+    {
+      "path": "validation/episode-source-to-render.md",
+      "sha256": "bcc873719fe4d74459df934c06918bb2d8a757a2b0a52f6c6a6d2ea0da1b554d",
+      "bytes": 3828
+    },
+    {
+      "path": "validation/replay-language-authority.json",
+      "sha256": "3c68e99bb6ee041ed842a117f757ceeeded271d3d63a4411e256ed0b4d771aaf",
+      "bytes": 1897
+    },
+    {
+      "path": "validation/source-promotion.json",
+      "sha256": "5d5f5b1ba0b91e84c8ad1061bbd1db29968d5ac8b7cb9b36089183ccc3c64d20",
+      "bytes": 17403
+    }
+  ]
+}

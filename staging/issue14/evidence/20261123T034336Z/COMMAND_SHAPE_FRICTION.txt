@@ -1,0 +1,4 @@
+COMMAND_SHAPE_FRICTION:
+  encountered=no
+  events=[]
+  omitted_sensitive_values=no
