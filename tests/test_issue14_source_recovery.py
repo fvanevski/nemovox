@@ -86,6 +86,28 @@ def test_budget_limit_reports_unserved_gap_instead_of_silently_dropping():
     assert len(plan["unplanned_due_to_budget"]) == 2
 
 
+def test_independent_coverage_floor_catches_joint_vad_false_negative_without_inventing_words():
+    plan = plan_source_recovery(ledger(), coverage_floor={"start_s": 1250, "end_s": 1274})
+    assert len(plan["requests"]) == 1
+    request = plan["requests"][0]
+    assert request["start_s"] == 1250
+    assert request["end_s"] == 1274
+    assert request["reason"] == "independent_coverage_probe"
+    assert not request["source_content_accepted"]
+    assert not plan["diagnostics"]["source_fidelity_certified"]
+
+
+def test_full_media_coverage_floor_reports_budget_unserved_regions():
+    plan = plan_source_recovery(
+        ledger(), coverage_floor={"start_s": 0, "end_s": 1379.9},
+        max_requests=30,
+    )
+    assert plan["status"] == "partial_budget"
+    assert plan["diagnostics"]["pending_requests"] > 0
+    assert plan["requests"][0]["start_s"] == 0
+    assert plan["unplanned_due_to_budget"][-1]["end_s"] == pytest.approx(1379.9)
+
+
 def test_activity_media_mismatch_fails_closed():
     a = activity()
     a["media_fingerprint_sha256"] = "other"

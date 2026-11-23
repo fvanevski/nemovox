@@ -21,7 +21,7 @@ ACTIVITY_SCHEMA = "nemovox-audio-activity-evidence/v1"
 MAX_WINDOW_S = 24.0
 OVERLAP_S = 2.0
 KNOWN_ACTIVITY = frozenset({"speech", "lexical_shout", "singing", "music", "sfx", "nonlexical_vocalization", "unknown"})
-PRIORITIES = {"generation_incomplete": 0, "acoustic_reference_omission": 1, "activity_without_timed_source_hypothesis": 2}
+PRIORITIES = {"generation_incomplete": 0, "acoustic_reference_omission": 1, "activity_without_timed_source_hypothesis": 2, "independent_coverage_probe": 3}
 LANGUAGES = {"fr": "French", "zh": "Chinese"}
 
 
@@ -64,6 +64,7 @@ def plan_source_recovery(
     activity: Mapping[str, Any] | None = None,
     incomplete: Sequence[Mapping[str, Any]] = (),
     independently_auditioned_misses: Sequence[Mapping[str, Any]] = (),
+    coverage_floor: Mapping[str, Any] | None = None,
     window_s: float = MAX_WINDOW_S,
     max_requests: int = 32,
 ) -> dict[str, Any]:
@@ -124,6 +125,18 @@ def plan_source_recovery(
             "start_s": a, "end_s": b, "reason": "acoustic_reference_omission",
             "evidence_ids": [str(event["id"])],
             "independently_auditioned": True,
+        })
+    # Optional independent challenger sweep over source media. This closes
+    # the blind-spot class where ALL available VAD/diar detectors missed a
+    # short real phrase (as observed for W04c and the H2 opening). It is
+    # intentionally opt-in and fully budget-accounted, not a secret default.
+    if coverage_floor is not None:
+        a, b = _interval(coverage_floor)
+        raw_proposals.append({
+            "start_s": a, "end_s": b,
+            "reason": "independent_coverage_probe",
+            "evidence_ids": [_id("coverage", [media, a, b])],
+            "independently_auditioned": False,
         })
     for event in (activity or {}).get("intervals", []):
         a, b = _interval(event)
@@ -308,6 +321,8 @@ def main() -> int:
     parser.add_argument("--auditioned-misses", type=Path, help="Optional JSON array of independently audited missing events")
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--max-requests", type=int, default=32)
+    parser.add_argument("--coverage-end-s", type=float,
+                        help="Opt-in independent whole-recording Qwen coverage sweep end in seconds")
     args = parser.parse_args()
     if args.output.exists():
         parser.error("Output exists; refuse overwrite")
@@ -317,6 +332,8 @@ def main() -> int:
         activity=load(args.activity_evidence) if args.activity_evidence else None,
         incomplete=load(args.incomplete) if args.incomplete else (),
         independently_auditioned_misses=load(args.auditioned_misses) if args.auditioned_misses else (),
+        coverage_floor=({"start_s": 0, "end_s": args.coverage_end_s}
+                        if args.coverage_end_s is not None else None),
         max_requests=args.max_requests,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
