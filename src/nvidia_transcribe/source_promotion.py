@@ -113,6 +113,7 @@ def promote_bounded_source_turns(
             raise ValueError("Duplicate audio event region")
         _interval(region)
         regions[eid] = region
+    selected_model = dossier.get("challenger_model") or {}
     window_contexts = {}
     for window in dossier.get("model_windows") or []:
         wid = _str(window.get("id"), "model_window_id")
@@ -190,13 +191,22 @@ def promote_bounded_source_turns(
                 reasons.append("missing_bounded_asr_for_model_only_text")
             else:
                 cropped = _interval(bound, start="crop_start_s", end="crop_end_s")
-                if (cropped[1] - cropped[0] > MAX_BOUNDED_AUDIO_S
+                crop_length = cropped[1] - cropped[0]
+                # Existing 24s sweep text cannot be relabeled as a 2s voice.
+                # Demand a separate materially narrower model input crop.
+                bounded_limit = min(MAX_BOUNDED_AUDIO_S, 16.0, max(6.0, (b-a)+8.0))
+                if (crop_length > bounded_limit
                         or cropped[0] > a or cropped[1] < b or cropped[1] > duration + .001):
-                    raise ValueError("Bounded ASR input must contain the acoustic event")
-                _str(bound.get("model_repo_id"), "bounded_asr model")
-                _str(bound.get("model_revision"), "bounded_asr revision")
+                    raise ValueError("Bounded ASR crop must tightly contain the acoustic event")
+                repo = _str(bound.get("model_repo_id"), "bounded_asr model")
+                revision = _str(bound.get("model_revision"), "bounded_asr revision")
+                if repo != selected_model.get("repo_id") or revision != selected_model.get("revision"):
+                    raise ValueError("Bounded ASR model identity differs from authenticated challenger")
                 _sha(bound.get("audio_crop_sha256"), "bounded audio crop")
                 _sha(bound.get("raw_response_sha256"), "bounded ASR response")
+                if (_sha(bound.get("source_text_sha256"), "bounded transcript") !=
+                        hashlib.sha256(candidate["source_text"].encode("utf-8")).hexdigest()):
+                    raise ValueError("Bounded ASR transcript text does not match authenticated digest")
                 if bound.get("finish_status") not in {"complete", "completed"}:
                     reasons.append("bounded_asr_not_complete")
                 if bound.get("language") != LANGUAGES[language]:
@@ -348,6 +358,7 @@ def promote_bounded_source_turns(
             "model_provisional_enabled": include_model_provisional,
             "model_source_is_not_human_verified": True,
             "no_window_wide_text_as_localized_source": True,
+            "bounded_text_requires_separate_crop_and_transcript_digest": True,
             "model_only_may_not_replace_legacy": True,
             "no_auto_music_sfx_source": True,
             "dominant_singing_sfx_requires_two_independent_speech_sources_or_direct_review": True,
