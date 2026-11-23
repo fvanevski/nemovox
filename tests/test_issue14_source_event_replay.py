@@ -87,7 +87,7 @@ def test_recording_integration_emits_manifest_bound_sidecar_and_keeps_v1(tmp_pat
         handle.setnchannels(1)
         handle.setsampwidth(2)
         handle.setframerate(16000)
-        handle.writeframes(b"\\x00\\x00" * 32000)
+        handle.writeframes(bytes(64000))
 
     calls = []
     response = {
