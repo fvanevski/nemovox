@@ -64,8 +64,15 @@ def test_long_displaced_duplicate_from_adjacent_excerpts_is_not_rendered_twice()
     assert all(
         u["timing_evidence_status"] == "cross_chunk_ctc_disagreement"
         and u["timing_evidence_reason"] == "relative_sequence_shift_unverified"
+        and not u["valid_timing"]
+        and u["start"] is None and u["end"] is None
+        and u["ctc_hypothesis_start_s"] is not None
+        and u["alignment_status"] == "ctc_timing_suspect"
         for u in merged
     )
+    assert diag["sequence_evidence"]["sequence_ctc_unverified_units"] == len(phrase)
+    # The raw inputs remain available with original CTC hypotheses.
+    assert left[0]["start"] == 242.8 and right[0]["start"] == 282.1
 
 
 def test_more_complete_right_excerpt_replaces_truncated_core_without_losing_tail() -> None:

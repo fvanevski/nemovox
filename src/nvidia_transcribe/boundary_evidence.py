@@ -115,6 +115,9 @@ def reconcile_displaced_sequences(
     """
     deduped = 0
     promoted = 0
+    # Defer invalidation until ALL lexical matches are decided. Mutating
+    # _mid during matching would corrupt later sequence correspondences.
+    uncertain_ctc_units: list[dict[str, Any]] = []
     matches: list[dict[str, Any]] = []
     ambiguities: list[dict[str, Any]] = []
     for bi in range(len(chunks) - 1):
@@ -242,6 +245,7 @@ def reconcile_displaced_sequences(
                                 promoted += 1
                                 promoted_indices.append(u["_unit_idx"])
                             if abs(shift) > 3.0:
+                                uncertain_ctc_units.append(u)
                                 u["timing_evidence_status"] = "cross_chunk_ctc_disagreement"
                                 u["timing_evidence_reason"] = "relative_sequence_shift_unverified"
                         matches.append({
@@ -257,9 +261,28 @@ def reconcile_displaced_sequences(
                             "promoted_source_indices": promoted_indices,
                             "decision": "sequence_duplicate_removed",
                         })
+    # A matched phrase with two mutually inconsistent CTC placements
+    # cannot have *either* time promoted as acoustic truth. Preserve the
+    # selected raw lexical observation and its original CTC hypothesis,
+    # but explicitly remove the confident timing before utterance assembly.
+    seen_uncertain: set[int] = set()
+    unverified_count = 0
+    for unit in uncertain_ctc_units:
+        if id(unit) in seen_uncertain or unit["_drop"]:
+            continue
+        seen_uncertain.add(id(unit))
+        unit["ctc_hypothesis_start_s"] = unit.get("start")
+        unit["ctc_hypothesis_end_s"] = unit.get("end")
+        unit["start"] = None
+        unit["end"] = None
+        unit["valid_timing"] = False
+        unit["_mid"] = None
+        unit["alignment_status"] = "ctc_timing_suspect"
+        unverified_count += 1
     return {
         "schema": "nemovox-boundary-sequence-evidence/v1",
         "sequence_deduplicated_units": deduped,
+        "sequence_ctc_unverified_units": unverified_count,
         "sequence_promoted_units": promoted,
         "matches": matches,
         "ambiguities": ambiguities,
