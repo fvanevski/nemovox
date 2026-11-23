@@ -112,3 +112,87 @@ def test_voice_metadata_kept_in_translation_without_global_voice_promotion():
     new=out["utterances"][1]
     assert new["reviewed_local_acoustic_voice"]["scope_sha256"]=="a"*64
     assert new["speaker_id"]=="SPK_UNK"
+
+
+def _renumber_translation_ids(prior):
+    """Model the historical untimed reorder: row id != source lineage id."""
+    previous = prior["utterances"]
+    previous[0]["original_utterance_id"] = "old"
+    previous[1]["original_utterance_id"] = "keep"
+    previous[0]["id"] = "keep"
+    previous[0]["grouped_utterance_ids"] = ["keep"]
+    previous[1]["id"] = "old"
+    previous[1]["grouped_utterance_ids"] = ["old"]
+
+
+def test_renumbered_prior_translations_join_on_stable_source_not_display_id():
+    o,p,r,t,_,_=fixture()
+    _renumber_translation_ids(p)
+    p_before=deepcopy(p)
+    result=assemble_revised_translation(o,p,r,[t],enable=True)
+    out=result["translated_contract"]
+    retained=next(u for u in out["utterances"] if u["id"]=="keep")
+    assert retained["translated_text"]=="Hello English"
+    assert retained["source_text"]=="Hello"
+    assert retained["grouped_utterance_ids"]==["keep"]
+    assert retained["original_utterance_id"]=="keep"
+    assert retained["historical_translated_row_id"]=="old"
+    assert "old" not in retained["grouped_utterance_ids"]
+    assert p==p_before
+    assert out["utterances"][1]["id"]=="rev_1"
+
+
+def test_historical_duplicate_provenance_cannot_reference_superseded_active_id():
+    o,p,r,t,_,_=fixture()
+    _renumber_translation_ids(p)
+    # The former display ID 'keep' belongs to original source 'old',
+    # which the revision supersedes. Preserve the historical hypothesis,
+    # but do not carry a dangling live probable_duplicate_of reference.
+    p["utterances"][1]["probable_duplicate_of"]="keep"
+    result=assemble_revised_translation(o,p,r,[t],enable=True)
+    retained=next(u for u in result["translated_contract"]["utterances"] if u["id"]=="keep")
+    assert retained["historical_probable_duplicate_of_superseded"]=="old"
+    assert "probable_duplicate_of" not in retained
+
+
+def test_renumbered_translation_group_or_merge_to_replaced_source_blocks():
+    o,p,r,t,_,_=fixture()
+    _renumber_translation_ids(p)
+    # Earlier translated row id 'keep' refers to the replaced source 'old'.
+    p["utterances"][1]["grouped_utterance_ids"]=["keep"]
+    with pytest.raises(ValueError,match="removed legacy"):
+        assemble_revised_translation(o,p,r,[t],enable=True)
+    p["utterances"][1]["grouped_utterance_ids"]=["old"]
+    p["utterances"][1]["merged_into"]="keep"
+    with pytest.raises(ValueError,match="removed legacy"):
+        assemble_revised_translation(o,p,r,[t],enable=True)
+    p["utterances"][1]["merged_into"]=None
+    p["utterances"][1]["grouped_utterance_ids"]=["unrecognized"]
+    with pytest.raises(ValueError,match="unknown row ID"):
+        assemble_revised_translation(o,p,r,[t],enable=True)
+
+
+def test_renumbered_translation_alias_collision_and_wrong_source_fail_closed():
+    o,p,r,t,_,_=fixture()
+    _renumber_translation_ids(p)
+    p["utterances"][0]["original_utterance_id"]="keep"
+    with pytest.raises(ValueError,match="source identity"):
+        assemble_revised_translation(o,p,r,[t],enable=True)
+    o,p,r,t,_,_=fixture()
+    _renumber_translation_ids(p)
+    p["utterances"][1]["source_text"]="Not the unchanged source"
+    with pytest.raises(ValueError,match="changed retained source"):
+        assemble_revised_translation(o,p,r,[t],enable=True)
+    o,p,r,t,_,_=fixture()
+    _renumber_translation_ids(p)
+    p["utterances"][1]["original_utterance_id"]=None
+    with pytest.raises(ValueError,match="source identity"):
+        assemble_revised_translation(o,p,r,[t],enable=True)
+
+
+def test_unrenumbered_historical_translation_without_original_alias_still_supported():
+    o,p,r,t,_,_=fixture()
+    out=assemble_revised_translation(o,p,r,[t],enable=True)["translated_contract"]
+    retained=next(u for u in out["utterances"] if u["id"]=="keep")
+    assert retained["translated_text"]=="Hello English"
+    assert retained["original_utterance_id"]=="keep"
