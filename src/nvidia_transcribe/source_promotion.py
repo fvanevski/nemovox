@@ -351,10 +351,10 @@ def promote_bounded_source_turns(
             # overlaps this reviewed speech. Supersession requires positive
             # event-ID lineage already on that v1-compatible utterance.
             original_turn = original[original_ids.index(uid)]
-            lineage = original_turn.get("source_turn_ids") or (
+            original_lineage = original_turn.get("source_turn_ids") or (
                 [original_turn["source_turn_id"]] if original_turn.get("source_turn_id") else []
             )
-            if (_id("src_turn", [media, eid]) not in lineage
+            if (_id("src_turn", [media, eid]) not in original_lineage
                     and (source_evidence is None
                          or uid not in eligible_by_event.get(eid, set()))):
                 reasons.append("legacy_turn_lacks_positive_same_event_lineage")
