@@ -19,6 +19,7 @@ from typing import Any, Mapping
 
 from nvidia_transcribe.source_reconciliation import SCHEMA as DOSSIER_SCHEMA
 from nvidia_transcribe.source_recovery import LANGUAGES, _id, _interval, _overlap
+from nvidia_transcribe.source_unit_lineage import bind_legacy_source_lineage
 
 SCHEMA = "nemovox-bounded-source-segments/v1"
 PROMOTION_SCHEMA = "nemovox-source-promotion/v1"
@@ -90,6 +91,7 @@ def promote_bounded_source_turns(
     segments: Mapping[str, Any],
     *,
     activity: Mapping[str, Any] | None = None,
+    source_evidence: Mapping[str, Any] | None = None,
     include_model_provisional: bool = True,
 ) -> dict[str, Any]:
     """Create a v1-compatible *new* recording contract; never mutate inputs.
@@ -128,6 +130,25 @@ def promote_bounded_source_turns(
     original_ids = [str(u.get("id") or "") for u in original]
     if not all(original_ids) or len(set(original_ids)) != len(original_ids):
         raise ValueError("Missing or duplicate legacy utterance identities")
+
+    # Recompute provenance from the exact original raw-unit ledger and
+    # independently reviewed source events. Do NOT trust a free-form
+    # user-supplied event/utterance ID correspondence as deletion authority.
+    lineage = (
+        bind_legacy_source_lineage(recording, source_evidence, dossier)
+        if source_evidence is not None else None
+    )
+    eligible_by_event: dict[str, set[str]] = {}
+    partially_linked_by_event: dict[str, set[str]] = {}
+    if lineage is not None:
+        for row in lineage["legacy_utterances"]:
+            events = row["reviewed_event_ids"]
+            uid = row["legacy_utterance_id"]
+            if row["eligible_for_reviewed_same_event_supersession"]:
+                eligible_by_event.setdefault(row["positive_same_event_id"], set()).add(uid)
+            elif events:
+                for eid in events:
+                    partially_linked_by_event.setdefault(eid, set()).add(uid)
 
     verified_turns = {}
     for turn in dossier.get("source_turns_audio_review_attested") or []:
@@ -310,6 +331,15 @@ def promote_bounded_source_turns(
         if (not isinstance(replacement_ids, list) or len(set(replacement_ids)) != len(replacement_ids)
                 or any(not isinstance(x, str) for x in replacement_ids)):
             raise ValueError("Supersessions must be distinct legacy IDs")
+        if reviewed and lineage is not None:
+            eligible = eligible_by_event.get(eid, set())
+            partial = partially_linked_by_event.get(eid, set())
+            if eligible and set(replacement_ids) != eligible:
+                reasons.append("reviewed_same_event_requires_complete_explicit_supersession")
+            if partial:
+                reasons.append("reviewed_event_has_partially_mapped_legacy_turns")
+            if replacement_ids and not set(replacement_ids) <= eligible:
+                reasons.append("requested_supersession_not_proven_by_immutable_source_units")
         if replacement_ids and not reviewed:
             reasons.append("model_only_candidate_may_not_replace_legacy_speech")
         if any(uid not in original_ids for uid in replacement_ids):
@@ -324,7 +354,9 @@ def promote_bounded_source_turns(
             lineage = original_turn.get("source_turn_ids") or (
                 [original_turn["source_turn_id"]] if original_turn.get("source_turn_id") else []
             )
-            if _id("src_turn", [media, eid]) not in lineage:
+            if (_id("src_turn", [media, eid]) not in lineage
+                    and (source_evidence is None
+                         or uid not in eligible_by_event.get(eid, set()))):
                 reasons.append("legacy_turn_lacks_positive_same_event_lineage")
             old_s, old_e = original_turn.get("source_start"), original_turn.get("source_end")
             # Matching IDs are necessary but not alone sufficient to erase
@@ -449,6 +481,8 @@ def promote_bounded_source_turns(
             "no_source_unit_deletion": True,
             "legacy_supersession_requires_existing_same_event_id": True,
             "legacy_supersession_requires_plausible_event_time": True,
+            "optional_positive_all_unit_lineage_enables_legacy_supersession": True,
+            "no_automatic_legacy_suppression_from_similarity_or_ctc": True,
             "word_timing_and_speaker_identity_not_certified": True,
             "unreviewed_text_scope_rate_screen_is_not_acoustic_truth": True,
         },
@@ -465,6 +499,7 @@ def promote_bounded_source_turns(
             for x in accepted
         ],
         "quarantined": quarantined,
+        "legacy_lineage_diagnostics": (lineage["diagnostics"] if lineage is not None else None),
         "preserved_legacy_utterance_count": len(retained),
         "superseded_legacy_utterance_count": len(used_supersessions),
         "source_utterances_input": len(original),
@@ -491,6 +526,8 @@ def main() -> int:
     parser.add_argument("--reconciliation-dossier", required=True, type=Path)
     parser.add_argument("--bounded-segments", required=True, type=Path)
     parser.add_argument("--activity-evidence", type=Path)
+    parser.add_argument("--source-evidence", type=Path,
+                        help="Optional authenticated raw-unit replay for positive same-event legacy supersession")
     parser.add_argument("--disable-model-provisional", action="store_true")
     parser.add_argument("--output-contract", required=True, type=Path)
     args = parser.parse_args()
@@ -503,6 +540,7 @@ def main() -> int:
         read(args.reconciliation_dossier),
         read(args.bounded_segments),
         activity=read(args.activity_evidence) if args.activity_evidence else None,
+        source_evidence=read(args.source_evidence) if args.source_evidence else None,
         include_model_provisional=not args.disable_model_provisional,
     )
     args.output_contract.parent.mkdir(parents=True, exist_ok=True)
