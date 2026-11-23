@@ -21,7 +21,7 @@ ACTIVITY_SCHEMA = "nemovox-audio-activity-evidence/v1"
 MAX_WINDOW_S = 24.0
 OVERLAP_S = 2.0
 KNOWN_ACTIVITY = frozenset({"speech", "lexical_shout", "singing", "music", "sfx", "nonlexical_vocalization", "unknown"})
-PRIORITIES = {"generation_incomplete": 0, "acoustic_reference_omission": 1, "activity_without_timed_source_hypothesis": 2, "independent_coverage_probe": 3}
+PRIORITIES = {"generation_incomplete": 0, "acoustic_reference_omission": 1, "independent_coverage_probe": 2, "activity_without_timed_source_hypothesis": 3}
 LANGUAGES = {"fr": "French", "zh": "Chinese"}
 
 
@@ -155,21 +155,31 @@ def plan_source_recovery(
             "independently_auditioned": False,
         })
 
-    # Coalesce overlapping proposals without losing their original evidence
-    # references or forcing the overlapping turns to be one source event.
+    # Coalesce overlapping *model activity proposals* by reason, independent
+    # of other interleaved proposal categories. This merges CPU/GPU detector
+    # intervals, NOT distinct acoustic speech events or speaker turns.
+    # The full coverage floor retains its own request budget protection.
     groups: list[dict[str, Any]] = []
-    for p in sorted(raw_proposals, key=lambda r: (r["start_s"], r["end_s"], r["reason"])):
-        if groups and p["start_s"] < groups[-1]["end_s"] and (
-            p["reason"] == groups[-1]["reasons"][0] == "generation_incomplete"
-        ):
-            groups[-1]["end_s"] = max(groups[-1]["end_s"], p["end_s"])
-            groups[-1]["evidence_ids"].extend(p["evidence_ids"])
-        else:
-            groups.append({
+    for reason in sorted(PRIORITIES, key=PRIORITIES.get):
+        within_reason: list[dict[str, Any]] = []
+        relevant = sorted((p for p in raw_proposals if p["reason"] == reason),
+                          key=lambda p: (p["start_s"], p["end_s"], tuple(p["evidence_ids"])))
+        for p in relevant:
+            can_coalesce = reason in {
+                "generation_incomplete", "activity_without_timed_source_hypothesis"
+            }
+            if (can_coalesce and within_reason
+                    and p["start_s"] < within_reason[-1]["end_s"]):
+                previous = within_reason[-1]
+                previous["end_s"] = max(previous["end_s"], p["end_s"])
+                previous["evidence_ids"].extend(p["evidence_ids"])
+                continue
+            within_reason.append({
                 "start_s": p["start_s"], "end_s": p["end_s"],
-                "reasons": [p["reason"]], "evidence_ids": list(p["evidence_ids"]),
+                "reasons": [reason], "evidence_ids": list(p["evidence_ids"]),
                 "independently_auditioned": p["independently_auditioned"],
             })
+        groups.extend(within_reason)
 
     requests = []
     for group in groups:
@@ -192,10 +202,15 @@ def plan_source_recovery(
                 "state": "candidate_only_no_source_content_accepted",
                 "source_content_accepted": False,
             })
-    # Give source-generation failures and independent audio labels priority.
+    # The independent source-audio floor is explicitly protected against
+    # activity-model fan-out. It is scheduled after verified failures/heard
+    # misses, but BEFORE unverified detector-triggered proposals. If the
+    # budget cannot cover the floor, every unserved window stays visible.
     requests.sort(key=lambda x: (PRIORITIES[x["reason"]], x["start_s"], x["end_s"], x["id"]))
     selected = requests[:max_requests]
     pending = requests[max_requests:]
+    total_floor = sum(r["reason"] == "independent_coverage_probe" for r in requests)
+    covered_floor = sum(r["reason"] == "independent_coverage_probe" for r in selected)
     return {
         "schema": SCHEMA,
         "media_fingerprint_sha256": media,
@@ -213,6 +228,10 @@ def plan_source_recovery(
             "total_requests": len(requests),
             "selected_requests": len(selected),
             "pending_requests": len(pending),
+            "coverage_floor_requests": total_floor,
+            "coverage_floor_selected": covered_floor,
+            "coverage_floor_pending": total_floor - covered_floor,
+            "activity_requests": sum(r["reason"] == "activity_without_timed_source_hypothesis" for r in requests),
             "possible_content_omission_not_proven_by_ctc": True,
             "source_fidelity_certified": False,
         },

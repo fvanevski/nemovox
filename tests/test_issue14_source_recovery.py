@@ -108,6 +108,60 @@ def test_full_media_coverage_floor_reports_budget_unserved_regions():
     assert plan["unplanned_due_to_budget"][-1]["end_s"] == pytest.approx(1379.9)
 
 
+def test_floor_precedes_activity_fanout_and_coalesces_multiple_detector_proposals():
+    base = ledger()
+    base["lexical_observations"] = []
+    evidence = {
+        "schema": "nemovox-audio-activity-evidence/v1",
+        "media_fingerprint_sha256": "media",
+        "intervals": [
+            {"id": f"detector_{i}", "source": f"model_{i}",
+             "kind": "speech", "start_s": i * 0.2, "end_s": i * 0.2 + 3}
+            for i in range(50)
+        ],
+    }
+    result = plan_source_recovery(
+        base, activity=evidence, coverage_floor={"start_s": 0, "end_s": 100},
+        max_requests=6
+    )
+    # Five contiguous independent floor windows and one coalesced activity
+    # region, rather than 50 detector requests crowding out the floor.
+    assert result["diagnostics"]["coverage_floor_requests"] == 5
+    assert result["diagnostics"]["coverage_floor_selected"] == 5
+    assert result["diagnostics"]["coverage_floor_pending"] == 0
+    assert result["diagnostics"]["activity_requests"] == 1
+    assert result["status"] == "complete_proposals"
+    activity_req = next(r for r in result["requests"]
+                        if r["reason"] == "activity_without_timed_source_hypothesis")
+    assert len(activity_req["trigger_evidence_ids"]) == 50
+
+
+def test_floor_short_budget_reports_missing_audio_windows_before_activity():
+    base = ledger()
+    result = plan_source_recovery(
+        base, coverage_floor={"start_s": 0, "end_s": 100}, max_requests=3
+    )
+    assert result["status"] == "partial_budget"
+    assert result["diagnostics"]["coverage_floor_pending"] == 2
+    assert all(r["reason"] == "independent_coverage_probe"
+               for r in result["unplanned_due_to_budget"])
+
+
+def test_different_heard_events_are_not_coalesced_by_overlap():
+    result = plan_source_recovery(
+        ledger(), independently_auditioned_misses=[
+            {"id": "first_voice", "acoustic_truth": "independently_auditioned",
+             "start_s": 10, "end_s": 14},
+            {"id": "second_voice", "acoustic_truth": "independently_auditioned",
+             "start_s": 12, "end_s": 16},
+        ]
+    )
+    assert len(result["requests"]) == 2
+    assert {tuple(r["trigger_evidence_ids"]) for r in result["requests"]} == {
+        ("first_voice",), ("second_voice",)
+    }
+
+
 def test_activity_media_mismatch_fails_closed():
     a = activity()
     a["media_fingerprint_sha256"] = "other"
