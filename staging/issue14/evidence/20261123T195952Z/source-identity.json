@@ -1,0 +1,25 @@
+{
+  "schema": "nemovox-issue14-source-identity/v1",
+  "run_id": "20261123T195952Z",
+  "repo": "fvanevski/nemovox",
+  "issue_number": 14,
+  "pr_number": 15,
+  "branch": "issue/14-longform-timing-boundaries",
+  "admitted_pr_head_sha": "0e7969ef41ca58ea5c2106a677b4b0c514b121a2",
+  "validated_central_source_sha": "17bb0239f7d8290d43475b06055cd95c2418a1d6",
+  "validated_central_source_tree": "1dded4da4ed118632724b69eb83b92f40a80153d",
+  "main_sha": "8f6c03cbc70e84bf1970ba364207a02c9fe22b44",
+  "src_and_tests_diff_vs_central": "none",
+  "source_archive_and_prior_public_auth": {
+    "previous_archive_sha256": "16ef680e419cc2bbe71fa9607e17a6c6323a104b7e23b468e13b5a915a7bc224",
+    "previous_archive_unique_checksums": "28/28",
+    "previous_public_manifest_sha256": "c2cc55cd41f464774c558e4573f391df63103a935123dc6c9c44fb2b25efc529",
+    "previous_public_members_verified": "9/9",
+    "recording_contract_sha256": "a67056da45130ae59bed594857372023c11e3c18a5f5b9bc85e167457b3b550e",
+    "translated_contract_sha256": "9422b3861743be135bf91baca40b43ef6de39b662f7032d78a1322b744df94fd",
+    "source_evidence_sha256": "764faf7e27a0a0cccc77fd39587c97d19f4f29503aa1da73cfe282ad5865e558",
+    "candidate_dossier_sha256": "62127e987c26b26538e4ae27e69fcf5f734d98ab9c9d36ac8c3e53e185daab1a",
+    "previous_revised_recording_sha256": "dd1a497dad70d4b8bd047adc3f0306f5eed45b69fc972e2e6849130915b02900"
+  },
+  "human_wer_cer_der": "UNVERIFIED"
+}

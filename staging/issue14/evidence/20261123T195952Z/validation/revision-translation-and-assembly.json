@@ -1,0 +1,219 @@
+{
+  "schema": "nemovox-issue14-revision-translation-and-assembly/v1",
+  "preview_enable_false": {
+    "schema": "nemovox-revision-translation-bridge/v1",
+    "original_recording_sha256": "48c0e1cb1fd04941a126ba402e895280d6ac0c27461e7c7d4242b77b94a10281",
+    "original_translated_sha256": "ff69429429b5b8b1b0877523318c901378b9c0a4a7948d5f97c45f278f87e409",
+    "revised_recording_sha256": "41c8469be23ef156ae00e4f284b6391ad325838ce231f68390dd6639d43e04f2",
+    "source_fusion_report_sha256": "007a28d445504cd510b27f735db374cedd1d81a7958da1852957a90e92dc32ce",
+    "new_source_turn_ids": [
+      "src_turn_342e6920397acfeb63969595",
+      "src_turn_6c41e55fb098aaade547b27c",
+      "src_turn_6de0f1ddd6fa163e73d02bf3",
+      "src_turn_8c279d3228c89841c35f72d1",
+      "src_turn_bb3c03cf6b84d5cbd3c42dd7",
+      "src_turn_ca1ed9b4fcc188b5cc1b8eb7",
+      "src_turn_d2326c85c5d246f3202f7f42",
+      "src_turn_d34088b4bd1cea0244ea65c2",
+      "src_turn_e9ec06f37f1d3c32a521b4dc"
+    ],
+    "superseded_source_turn_ids": [
+      "utt-0036",
+      "utt-0037",
+      "utt-0148",
+      "utt-0149",
+      "utt-0152",
+      "utt-0153",
+      "utt-0187",
+      "utt-0188"
+    ],
+    "fresh_translations_supplied": 0,
+    "missing_fresh_translation_ids": [
+      "src_turn_342e6920397acfeb63969595",
+      "src_turn_6c41e55fb098aaade547b27c",
+      "src_turn_6de0f1ddd6fa163e73d02bf3",
+      "src_turn_8c279d3228c89841c35f72d1",
+      "src_turn_bb3c03cf6b84d5cbd3c42dd7",
+      "src_turn_ca1ed9b4fcc188b5cc1b8eb7",
+      "src_turn_d2326c85c5d246f3202f7f42",
+      "src_turn_d34088b4bd1cea0244ea65c2",
+      "src_turn_e9ec06f37f1d3c32a521b4dc"
+    ],
+    "old_translation_reused_only_when_source_unchanged": true,
+    "original_recording_mutated": false,
+    "enabled": false
+  },
+  "nine_turn_riva": {
+    "execution_status": "EXECUTED",
+    "resource_name": "riva_local",
+    "model_checkpoint": "/workspace/models/Riva-Translate-4B-Instruct-v2",
+    "device": "cuda:0",
+    "resource_fingerprint": "51e174c84e775b5a5628be1117811fc126df47af95526fa9645492bda3096210",
+    "vram_before_mib": 3248,
+    "vram_peak_worker_mib": 8017.14,
+    "vram_after_mib": 3248,
+    "elapsed_s": 16.065,
+    "infer_s": 3.9569,
+    "receipts": [
+      {
+        "utterance_id": "src_turn_bb3c03cf6b84d5cbd3c42dd7",
+        "audio_event_id": "w02b_ev_3",
+        "source_revision_id": "src_revision_93516ddcd0726ab21eecdaa8",
+        "interval_s": [
+          218.6,
+          220.0
+        ],
+        "source_text_sha256": "4f4aa318d6767b1b32bbba4cb69dd1bcba4edf9aa23e85b359ee759a7c4b7a75",
+        "translated_text_sha256": "56ff7d762dd367c21b226054dc053765aaedbf31361d830116bec4b32f26d218",
+        "translation_evidence_sha256": "2ea8aa6fb1484e5d97347d7295bddce7e6d678fe6688ebbcf22b5771eabbeeed",
+        "status": "translated"
+      },
+      {
+        "utterance_id": "src_turn_6de0f1ddd6fa163e73d02bf3",
+        "audio_event_id": "w02b_ev_4_ord100",
+        "source_revision_id": "src_revision_a4dd003b72cf48802dc3a132",
+        "interval_s": [
+          220.25,
+          220.7
+        ],
+        "source_text_sha256": "ea2504e35d09e22b6622a82465b14e834ba26d4eacbacc5fcde029c29d62d8f8",
+        "translated_text_sha256": "a51ffcbb6177de156385fe5cc56c3a2f3106cedefd83f2a4ce3d8a3d8a24a1c4",
+        "translation_evidence_sha256": "d715ac6172d9d997c81cdf89619b05bf0e29e2cbbaa9ac9a988e8b74310864a5",
+        "status": "translated"
+      },
+      {
+        "utterance_id": "src_turn_342e6920397acfeb63969595",
+        "audio_event_id": "w02b_ev_5_ord101_127",
+        "source_revision_id": "src_revision_f9b6952bf0508ad65fee39d2",
+        "interval_s": [
+          221.05,
+          231.5
+        ],
+        "source_text_sha256": "91f49346e2550c3de957d8d202462c8ae41a6db4557853ea2f76a61928cf42e4",
+        "translated_text_sha256": "4e4118142ace9947cd398f594d2ab3e5c627939222487b40d4d08d4dcf012ff9",
+        "translation_evidence_sha256": "b6014bdb7aca9ac31e70923e143a60ccd4513c661670eba9a4e4d66e5cb00552",
+        "status": "translated"
+      },
+      {
+        "utterance_id": "src_turn_8c279d3228c89841c35f72d1",
+        "audio_event_id": "w02b_ev_6_final",
+        "source_revision_id": "src_revision_f9fe41bcc9634742b9728e64",
+        "interval_s": [
+          232.45,
+          235.85
+        ],
+        "source_text_sha256": "6406116f2a61810cbe2171cbcd87955c23c72897c00d3612155386922e80a9de",
+        "translated_text_sha256": "8ae7cafc222ea058670154dc2658effed138f4252c536d7f067831860118430d",
+        "translation_evidence_sha256": "c2ebcf719b8a7106d5571e8d818f26591e1c97909c5ed570cf6ac78811b1c0d9",
+        "status": "translated"
+      },
+      {
+        "utterance_id": "src_turn_d34088b4bd1cea0244ea65c2",
+        "audio_event_id": "w03b_ambrosius_ophir_saba",
+        "source_revision_id": "src_revision_d9c5285a9af40afd3c4c0fdf",
+        "interval_s": [
+          990.25,
+          996.5
+        ],
+        "source_text_sha256": "641c056efbd7310aea2e868cfea317a699ca908b1b5040d587a061a28c27893e",
+        "translated_text_sha256": "1839aa3f21348abdc032ff024ed897cb98a8b184ea023f857bcab829ae83dd05",
+        "translation_evidence_sha256": "22946e5675d5d168f21400ebf8f0e4051fe3f1025fc4e855f518b7df87f6604b",
+        "status": "translated"
+      },
+      {
+        "utterance_id": "src_turn_e9ec06f37f1d3c32a521b4dc",
+        "audio_event_id": "w03b_esteban_tao_shout",
+        "source_revision_id": "src_revision_4bf6dd3856d6c798da9de98b",
+        "interval_s": [
+          996.75,
+          999.0
+        ],
+        "source_text_sha256": "6fd503dbace43d0edc81b9d5504bdbae36c2796f8c5b4186b2960beaf30accad",
+        "translated_text_sha256": "6fd503dbace43d0edc81b9d5504bdbae36c2796f8c5b4186b2960beaf30accad",
+        "translation_evidence_sha256": "d151589c135624cde3baf83418721bd1b9972358c02ad97056082f6441feb45f",
+        "status": "translated"
+      },
+      {
+        "utterance_id": "src_turn_6c41e55fb098aaade547b27c",
+        "audio_event_id": "w03b_savaient_viendrions",
+        "source_revision_id": "src_revision_afae57c533b94b4fce1b068c",
+        "interval_s": [
+          1009.0,
+          1010.3
+        ],
+        "source_text_sha256": "307cdbe3ea17c9be45f00d516b4ee567a673832de27407d29e945a4f8fd82c82",
+        "translated_text_sha256": "4a86debcfd5c407351b2181be67cc92e905829c588fbfb445f05f15eb702b9a9",
+        "translation_evidence_sha256": "031501fdd17c1635c33fb493a60c43dc1aa5336bf1adf32230a2f1689c42b1d1",
+        "status": "translated"
+      },
+      {
+        "utterance_id": "src_turn_ca1ed9b4fcc188b5cc1b8eb7",
+        "audio_event_id": "w04a_turn_esteban_question",
+        "source_revision_id": "src_revision_f50f23a2ac11e11f955b7787",
+        "interval_s": [
+          1231.2,
+          1232.8
+        ],
+        "source_text_sha256": "05bffdb4fa0079fc9e5ae0e0ff31795d2e2a934b6ce457a7e89fd2d8151c13df",
+        "translated_text_sha256": "f5fe70c277e00bc3e4940c3c2188356ed722ee44c50f4bfb351f454c90b55b43",
+        "translation_evidence_sha256": "dc1a3d079e1cc56860f156787437c838aa1508a7b1e508994372436794e41e4b",
+        "status": "translated"
+      },
+      {
+        "utterance_id": "src_turn_d2326c85c5d246f3202f7f42",
+        "audio_event_id": "w04a_turn_zia_reply",
+        "source_revision_id": "src_revision_2e59707c2c03c30b8372afc3",
+        "interval_s": [
+          1233.0,
+          1234.45
+        ],
+        "source_text_sha256": "ed97ae8dc9fe795f482d3b832bc5a3432ea56a628071e19d5a5fb5b8bd56737e",
+        "translated_text_sha256": "15ff414d4131bd120296c4f69b8dfe34bd7dcccc5e6fbb5559cce28d0c9b0483",
+        "translation_evidence_sha256": "7419187cfd105f163b12abbaa73a9ac23e32193a15e59b908d6a0ca3bd61dbfa",
+        "status": "translated"
+      }
+    ]
+  },
+  "canonical_assemble_enable_true": {
+    "passed": false,
+    "result": "FAILED_CLOSED_GENUINE_CONTRACT_MISMATCH",
+    "error_type": "ValueError",
+    "error_message": "Cannot reuse translation for changed retained source",
+    "root_cause": "audit_and_order_untimed_utterances() in utterances.py:660-661 sorted untimed chunk-11 rows and renumbered utterances[idx]['id'] (saving pre-reorder ID in 'original_utterance_id'), permuting utt-0148..utt-0152 between recording.contract.json and translated.contract.json. assemble_revised_translation() joins by post-reorder u['id'] rather than u['original_utterance_id'], causing retained utt-0150/utt-0151 to fail source_text/time/speaker equality checks.",
+    "retained_id_mismatches_count": 2,
+    "mismatched_ids": [
+      "utt-0150",
+      "utt-0151"
+    ],
+    "retained_mismatch_details": [
+      {
+        "id": "utt-0150",
+        "translated_original_utterance_id": "utt-0152",
+        "mismatched_fields": [
+          "source_text"
+        ]
+      },
+      {
+        "id": "utt-0151",
+        "translated_original_utterance_id": "utt-0148",
+        "mismatched_fields": [
+          "source_end",
+          "source_start",
+          "source_text",
+          "speaker_id"
+        ]
+      }
+    ]
+  },
+  "diagnostic_rekeyed_by_original_utterance_id": {
+    "non_canonical_diagnostic_only": true,
+    "passed": true,
+    "total_utterances": 218,
+    "historical_unmodified_rows": 209,
+    "newly_translated_reviewed_rows": 9,
+    "retained_english_exact_match_209_of_209": true,
+    "retained_english_hashes_sha256_digest": "84d29ddc9ad718985b3f61846662869d9a90d995bbf6e1955c0172053199d107",
+    "diagnostic_translated_contract_sha256": "633172b80122158316e8ed77705d6c61e3eee86f709174d3d099bf374e648e9e",
+    "local_voice_metadata_preserved_and_spk_unk": true
+  }
+}

@@ -1,0 +1,9 @@
+COMMAND_SHAPE_FRICTION (issue14-downstream-subtitles campaign)
+
+1. Isolated worktree Python execution (`PYTHONPATH=src:.`)
+   - command: `PYTHONPATH=src:. /workspace/nvidia-transcribe/.venv/bin/python -m pytest ...` and `.venv-studio`
+   - outcome: Required `PYTHONPATH=src:.` in isolated worktree; passed 71/71 focused, 431/431 core `.venv`, 431/431 Studio `.venv-studio` (`executed_succeeded`).
+
+2. Canonical `assemble_revised_translation(..., enable=True)` ID-permutation block
+   - observed: `utterances.py:660-661` reordered untimed `utt-0150..0152` ahead of `utt-0148..0149` and renumbered `u['id']` (preserving pre-reorder ID in `original_utterance_id`), so `assemble_revised_translation()` failed closed with `ValueError: Cannot reuse translation for changed retained source` on `utt-0150` / `utt-0151`.
+   - handling: Left production code unchanged (`RESULT=PARTIAL`), logged exact traceback in `canonical_assembly_failure.json`, and ran an explicitly labeled diagnostic re-keying in memory (`u['id'] <- original_utterance_id`) to test the 9 Riva translations and private `render_subtitles()` end-to-end (`executed_succeeded` diagnostic check).

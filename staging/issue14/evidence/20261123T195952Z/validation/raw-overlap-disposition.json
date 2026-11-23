@@ -1,0 +1,147 @@
+{
+  "schema": "nemovox-proposed-raw-duplicate-disposition/v1",
+  "status": "proposed_disposition_not_auto_applied",
+  "media_fingerprint_sha256": "8d6e97fa0c3b0c674baa4e1864e72ada463dd4f448c7f9e3e6aacfb8249548e9",
+  "source_language": "fr",
+  "existing_ledger_correspondence_id": "corr_547022f83ef1499b34f47816",
+  "existing_correspondence_status": "candidate_only_unverified",
+  "existing_dossier_echo_decision": "unresolved_without_positive_same_event_identity",
+  "retained_source_units": [
+    {
+      "id": "unit_437d154cb027c56f637bfad3",
+      "chunk_index": 10,
+      "source_ordinal": 75,
+      "text": "Nous",
+      "ctc_hypothesis_s": [
+        985.8,
+        985.997
+      ]
+    },
+    {
+      "id": "unit_7de694e860f130028c967c96",
+      "chunk_index": 10,
+      "source_ordinal": 76,
+      "text": "avions",
+      "ctc_hypothesis_s": [
+        986.01,
+        986.308
+      ]
+    },
+    {
+      "id": "unit_a3c2827ac98e26f1ed943cd5",
+      "chunk_index": 10,
+      "source_ordinal": 77,
+      "text": "déjà",
+      "ctc_hypothesis_s": [
+        986.36,
+        986.649
+      ]
+    },
+    {
+      "id": "unit_64c9a837156eee9ff1aa05d8",
+      "chunk_index": 10,
+      "source_ordinal": 78,
+      "text": "vu",
+      "ctc_hypothesis_s": [
+        986.68,
+        986.889
+      ]
+    }
+  ],
+  "alternate_excluded_raw_units": [
+    {
+      "id": "unit_8e7cb0882b9b8463d43df24d",
+      "chunk_index": 11,
+      "source_ordinal": 0,
+      "text": "Nous",
+      "ctc_hypothesis_s": [
+        980.0,
+        980.21
+      ]
+    },
+    {
+      "id": "unit_4f58f55feb79e28dbd3a98f5",
+      "chunk_index": 11,
+      "source_ordinal": 1,
+      "text": "avions",
+      "ctc_hypothesis_s": [
+        980.05,
+        980.265
+      ]
+    },
+    {
+      "id": "unit_3c0f0084a89c8b0683362807",
+      "chunk_index": 11,
+      "source_ordinal": 2,
+      "text": "déjà",
+      "ctc_hypothesis_s": [
+        980.12,
+        980.335
+      ]
+    },
+    {
+      "id": "unit_bfb845acbdaf6601e6b5022f",
+      "chunk_index": 11,
+      "source_ordinal": 3,
+      "text": "vu",
+      "ctc_hypothesis_s": [
+        980.24,
+        980.455
+      ]
+    }
+  ],
+  "parent_asr_observations": {
+    "chunk_10": {
+      "id": "asr_872b2f6dcc7bfe0361b8c61d",
+      "raw_response_sha256": "8fbf230278ad5c79173c32b1a0174e2254bc0ec87b9c7012cceeb47cb49b94ba",
+      "core_s": [
+        900.0,
+        990.0
+      ],
+      "infer_s": [
+        890.0,
+        1000.0
+      ]
+    },
+    "chunk_11": {
+      "id": "asr_d27bb39bbf76bd43507bd538",
+      "raw_response_sha256": "e85a96c71cf1d1a3a2b8469f0d518881097e7119c2ca90e57fef14cae87ecd32",
+      "core_s": [
+        990.0,
+        1080.0
+      ],
+      "infer_s": [
+        980.0,
+        1090.0
+      ],
+      "overlap_with_chunk_10_s": [
+        980.0,
+        1000.0
+      ]
+    }
+  },
+  "positive_reviewed_audio_event": {
+    "audio_event_id": "w03a_bateau_volant",
+    "audited_interval_s": [
+      985.75,
+      989.0
+    ],
+    "review_evidence_sha256": "1ffb6b5349fe0b2c2d04d82c3fd7b75d3a1384bcb91b521d3eaa114eeea484fd",
+    "review_audio_crop_path": "/workspace/nemovox-issue14-default-recovery-private/challenger/clips/FR_W03a_W03b.wav",
+    "review_audio_crop_bounds_s": [
+      984.0,
+      1013.979
+    ],
+    "review_audio_crop_sha256": "b38242ad7db84df7b624bd7bb92b70efa12fbc33d5bc0dc79c297bb1dd4e5413"
+  },
+  "audible_finding": {
+    "phrase": "Nous avions déjà vu",
+    "occurrences_heard_in_984_1014_wav": 1,
+    "heard_at_s": [
+      985.75,
+      986.9
+    ],
+    "classification_proposed": "independently_reviewed_alternate_observation_of_same_event",
+    "explicit_uncertainty": "Chunk 11 CTC placed c11:0..3 at [980.00, 980.455] inside the 20s overlap [980.0, 1000.0], outside FR_W03a_W03b.wav [984.0, 1013.979]. c10 ledger records utt-0146 ('Tiens, oh! ... Oh!') ending at 981.115s, leaving no clean slot for 'Nous avions déjà vu' at 980.0s, and no duplicate is audible in [984.0, 1013.979]; however [980.0, 984.0] direct audio crop was not separately cut, so c11:0..3 remains blocked from auto-deletion and preserved as an explicit proposed disposition."
+  }
+}
