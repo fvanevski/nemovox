@@ -1,0 +1,162 @@
+{
+  "schema": "nemovox-issue14-source-turn-lineage/v1",
+  "run_id": "20261123T013938Z",
+  "legacy_v1_readonly_rerender": {
+    "fr_orig16": {
+      "name": "fr_orig16",
+      "total_input_utterances": 234,
+      "orig_subtitles_stats": {
+        "total_input_utterances": 234,
+        "renderable_cues": 308,
+        "ass_displayed_cues": 308,
+        "ass_lane_1_top_cues": 26,
+        "ass_overflow_cues": 0,
+        "unrenderable_cues": 0,
+        "conflict_cues": 68
+      },
+      "new_subtitles_stats": {
+        "total_input_utterances": 234,
+        "renderable_cues": 309,
+        "ass_displayed_cues": 309,
+        "ass_lane_1_top_cues": 26,
+        "ass_overflow_cues": 0,
+        "unrenderable_cues": 0,
+        "conflict_cues": 68
+      },
+      "orig_srt_cue_blocks": 308,
+      "new_srt_cue_blocks": 309,
+      "srt_delta": 1,
+      "orig_ass_dialogues": 308,
+      "new_ass_dialogues": 309,
+      "ass_delta": 1,
+      "srt_exact_match": false,
+      "ass_exact_match": false,
+      "restored_duplicate_looking_cues_count": 1,
+      "restored_cues_classification": "possible_unresolved_asr_echo_or_distinct_event_not_proven_new_true_speech",
+      "restored_cue_fingerprints": [
+        {
+          "text_sha256_prefix": "29951c3157d8",
+          "char_len": 51,
+          "delta_count": 1
+        }
+      ]
+    },
+    "zh_ep166_max_lanes_3_default": {
+      "name": "zh_ep166",
+      "total_input_utterances": 285,
+      "orig_subtitles_stats": {
+        "total_input_utterances": 285,
+        "renderable_cues": 307,
+        "ass_displayed_cues": 304,
+        "ass_lane_1_top_cues": 50,
+        "ass_overflow_cues": 3,
+        "unrenderable_cues": 41,
+        "conflict_cues": 227
+      },
+      "new_subtitles_stats": {
+        "total_input_utterances": 285,
+        "renderable_cues": 307,
+        "ass_displayed_cues": 307,
+        "ass_lane_1_top_cues": 50,
+        "ass_overflow_cues": 0,
+        "unrenderable_cues": 41,
+        "conflict_cues": 213
+      },
+      "orig_srt_cue_blocks": 307,
+      "new_srt_cue_blocks": 307,
+      "srt_delta": 0,
+      "orig_ass_dialogues": 304,
+      "new_ass_dialogues": 307,
+      "ass_delta": 3,
+      "srt_exact_match": false,
+      "ass_exact_match": false,
+      "restored_duplicate_looking_cues_count": 3,
+      "restored_cues_classification": "possible_unresolved_asr_echo_or_distinct_event_not_proven_new_true_speech",
+      "restored_cue_fingerprints": [
+        {
+          "text_sha256_prefix": "7fb6aacf0cae",
+          "char_len": 7,
+          "delta_count": 1
+        },
+        {
+          "text_sha256_prefix": "164f3f3c1501",
+          "char_len": 36,
+          "delta_count": 1
+        },
+        {
+          "text_sha256_prefix": "a7e38b8393b7",
+          "char_len": 15,
+          "delta_count": 1
+        }
+      ]
+    },
+    "zh_ep166_max_lanes_2_baseline_match": {
+      "total_input_utterances": 285,
+      "orig_subtitles_stats": {
+        "total_input_utterances": 285,
+        "renderable_cues": 307,
+        "ass_displayed_cues": 304,
+        "ass_lane_1_top_cues": 50,
+        "ass_overflow_cues": 3,
+        "unrenderable_cues": 41,
+        "conflict_cues": 227
+      },
+      "new_subtitles_stats": {
+        "total_input_utterances": 285,
+        "renderable_cues": 307,
+        "ass_displayed_cues": 304,
+        "ass_lane_1_top_cues": 50,
+        "ass_overflow_cues": 3,
+        "unrenderable_cues": 41,
+        "conflict_cues": 216
+      },
+      "delta_renderable_cues": 0,
+      "delta_ass_displayed_cues": 0
+    },
+    "classification_note": "In fr_orig16, the +1 restored cue (308 -> 309) was previously suppressed solely by English text similarity. Retaining it is conservative source-content preservation: it is classified as possible unresolved ASR echo or distinct event, NOT proven new true speech; upstream audio-event correspondence must resolve true duplicates before render."
+  },
+  "v2_source_turn_projection_pipeline": {
+    "distinct_events_input": 4,
+    "regrouped_adjacent_utterances": 0,
+    "resume_cache_hits": 4,
+    "resume_api_calls": 0,
+    "render_stats": {
+      "total_input_utterances": 4,
+      "renderable_cues": 3,
+      "ass_displayed_cues": 3,
+      "ass_lane_1_top_cues": 1,
+      "ass_overflow_cues": 0,
+      "unrenderable_cues": 1,
+      "conflict_cues": 1
+    },
+    "displayed_source_turn_ids": [
+      [
+        "src_turn_7b0c4cff4a63f47bd9d92680"
+      ],
+      [
+        "src_turn_66cbdfb858d3a2524da83fbe"
+      ],
+      [
+        "src_turn_8b05e70ddd13f0bfbcbe3499"
+      ]
+    ],
+    "unrenderable_source_turn_ids": [
+      [
+        "src_turn_56cc75f396cc4433451aa05f"
+      ]
+    ],
+    "srt_yes_count": 3,
+    "ass_yes_count": 3,
+    "untimed_excluded_from_srt_ass": true,
+    "exact_copy_dedup_stats": {
+      "total_input_utterances": 2,
+      "renderable_cues": 1,
+      "ass_displayed_cues": 1,
+      "ass_lane_1_top_cues": 0,
+      "ass_overflow_cues": 0,
+      "unrenderable_cues": 0,
+      "conflict_cues": 0
+    }
+  },
+  "v1_checkpoint_resume_unchanged": true
+}

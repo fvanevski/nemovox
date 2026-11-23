@@ -1,0 +1,109 @@
+{
+  "schema": "nemovox-issue14-runtime-and-resources/v1",
+  "run_id": "20261123T013938Z",
+  "gpu_device": "NVIDIA GeForce RTX 5090 (32607 MiB)",
+  "admission_mechanism": "ModelLifecycle.worker(resource_name='qwen_asr_challenger', min_free_vram_mb=8500)",
+  "cached_model_bindings_check": {
+    "public_bindings_roles": [
+      "asr",
+      "forced_alignment",
+      "riva_translation",
+      "source_refinement",
+      "speaker_embedding",
+      "subtitle_condensation",
+      "text_translation",
+      "translation_review"
+    ],
+    "asr_local_state": "startable (managed=True, ready=False)",
+    "text_local_state": "startable (managed=True, ready=False)",
+    "require_local_paths_verified": [
+      "asr",
+      "forced_alignment",
+      "riva_translation"
+    ]
+  },
+  "runs": {
+    "pilot_8_clips": {
+      "count": 8,
+      "load_s": 4.1073,
+      "total_infer_s": 5.4383,
+      "overall_peak_vram_mib": 4480.79,
+      "before_gpu": {
+        "total_mib": 32607,
+        "used_mib": 3104,
+        "free_mib": 29023,
+        "compute_apps": [
+          "11480, /usr/bin/kwin_wayland, 351",
+          "1216176, /usr/local/bin/text-embeddings-router, 1726"
+        ]
+      },
+      "after_gpu": {
+        "total_mib": 32607,
+        "used_mib": 3104,
+        "free_mib": 29023,
+        "compute_apps": [
+          "11480, /usr/bin/kwin_wayland, 351",
+          "1216176, /usr/local/bin/text-embeddings-router, 1726"
+        ]
+      },
+      "services_unchanged": true
+    },
+    "fr_full_sweep_63_windows": {
+      "count": 63,
+      "load_s": 2.26,
+      "total_infer_s": 255.3648,
+      "overall_peak_vram_mib": 4480.79,
+      "before_gpu": {
+        "total_mib": 32607,
+        "used_mib": 3104,
+        "free_mib": 29023,
+        "compute_apps": [
+          "11480, /usr/bin/kwin_wayland, 350",
+          "1216176, /usr/local/bin/text-embeddings-router, 1726"
+        ]
+      },
+      "after_gpu": {
+        "total_mib": 32607,
+        "used_mib": 3105,
+        "free_mib": 29022,
+        "compute_apps": [
+          "11480, /usr/bin/kwin_wayland, 351",
+          "1216176, /usr/local/bin/text-embeddings-router, 1726"
+        ]
+      },
+      "services_unchanged": true
+    },
+    "zh_ep166_sweep_60_windows": {
+      "count": 60,
+      "load_s": 3.2937,
+      "total_infer_s": 59.3467,
+      "overall_peak_vram_mib": 4480.79,
+      "before_gpu": {
+        "total_mib": 32607,
+        "used_mib": 3105,
+        "free_mib": 29022,
+        "compute_apps": [
+          "11480, /usr/bin/kwin_wayland, 351",
+          "1216176, /usr/local/bin/text-embeddings-router, 1726"
+        ]
+      },
+      "after_gpu": {
+        "total_mib": 32607,
+        "used_mib": 3105,
+        "free_mib": 29022,
+        "compute_apps": [
+          "11480, /usr/bin/kwin_wayland, 351",
+          "1216176, /usr/local/bin/text-embeddings-router, 1726"
+        ]
+      },
+      "services_unchanged": true
+    }
+  },
+  "nonmutation_proof": {
+    "nemovox_asr_service": "remained inactive (dead) across all runs",
+    "nemovox_text_review_service": "remained inactive (dead) across all runs",
+    "nemovox_studio_service": "remained active with unchanged InvocationID=6cd5cf36a6774b0693d37a196c088464 MainPID=1121444",
+    "external_text_embeddings_router": "PID 1216176 (1726 MiB) remained running and untouched",
+    "production_checkout_and_pyannote_and_models_untouched": true
+  }
+}

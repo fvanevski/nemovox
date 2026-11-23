@@ -1,0 +1,189 @@
+{
+  "schema": "nemovox-issue14-cpu-gates/v1",
+  "run_id": "20261123T013938Z",
+  "source_sha": "ae10f9b260e6bbba987ff546e23eccfdeba0c9a7",
+  "central_source_sha": "a46490266f5f161057eeb47daf2fee3a07bb2084",
+  "checks": [
+    {
+      "name": "compileall",
+      "command": "PYTHONPATH=src /workspace/nvidia-transcribe/.venv/bin/python -m compileall -q src/nvidia_transcribe",
+      "exit_code": 0,
+      "result": "PASS"
+    },
+    {
+      "name": "focused_source_recovery_and_renderer_tests",
+      "command": "PYTHONPATH=src /workspace/nvidia-transcribe/.venv/bin/python -m pytest -q -m 'not gpu' tests/test_issue14_source_recovery.py tests/test_issue14_source_to_renderer.py tests/test_viewing_quality_regressions.py tests/test_issue14_source_evidence.py tests/test_issue14_source_event_replay.py",
+      "exit_code": 0,
+      "passed": 41,
+      "failed": 0,
+      "warnings": 1,
+      "duration_s": 0.39,
+      "result": "PASS"
+    },
+    {
+      "name": "full_non_gpu_suite",
+      "command": "PYTHONPATH=src /workspace/nvidia-transcribe/.venv/bin/python -m pytest -q -m 'not gpu'",
+      "exit_code": 0,
+      "passed": 337,
+      "failed": 0,
+      "warnings": 1,
+      "duration_s": 10.18,
+      "result": "PASS"
+    },
+    {
+      "name": "git_diff_check",
+      "command": "git diff --check",
+      "exit_code": 0,
+      "result": "PASS"
+    },
+    {
+      "name": "forced_alignment_structural_qc_revalidation",
+      "command": "inspect_forced_alignment over 9 batch + 4 bounded prior GPU aligner cases",
+      "exit_code": 0,
+      "result": "PASS",
+      "summary": {
+        "batch_9_cases": [
+          {
+            "id": "T_fr_A_c28_03",
+            "kind": "true_text",
+            "status": "rejected",
+            "reasons": [
+              "excessive_zero_duration",
+              "word_duration_suspect"
+            ],
+            "zero_duration_ratio": 0.555556,
+            "text_verified": false,
+            "timestamp_is_acoustic_truth": false
+          },
+          {
+            "id": "T_fr_B_w04_full",
+            "kind": "true_text",
+            "status": "rejected",
+            "reasons": [
+              "word_duration_suspect"
+            ],
+            "zero_duration_ratio": 0.064516,
+            "text_verified": false,
+            "timestamp_is_acoustic_truth": false
+          },
+          {
+            "id": "T_fr_CTRL_c2",
+            "kind": "true_text",
+            "status": "rejected",
+            "reasons": [
+              "word_duration_suspect"
+            ],
+            "zero_duration_ratio": 0.333333,
+            "text_verified": false,
+            "timestamp_is_acoustic_truth": false
+          },
+          {
+            "id": "T_fr_H4",
+            "kind": "true_text",
+            "status": "rejected",
+            "reasons": [
+              "word_duration_suspect"
+            ],
+            "zero_duration_ratio": 0.2,
+            "text_verified": false,
+            "timestamp_is_acoustic_truth": false
+          },
+          {
+            "id": "T_zh_overlap_518",
+            "kind": "true_text",
+            "status": "structurally_provisional",
+            "reasons": [],
+            "zero_duration_ratio": 0.028571,
+            "text_verified": false,
+            "timestamp_is_acoustic_truth": false
+          },
+          {
+            "id": "FALSE_fr_w04c_on_sfx",
+            "kind": "false_text_on_sfx",
+            "status": "rejected",
+            "reasons": [
+              "excessive_zero_duration",
+              "word_duration_suspect"
+            ],
+            "zero_duration_ratio": 0.7,
+            "text_verified": false,
+            "timestamp_is_acoustic_truth": false
+          },
+          {
+            "id": "FALSE_fr_on_H3_sfx",
+            "kind": "false_text_on_sfx",
+            "status": "rejected",
+            "reasons": [
+              "excessive_zero_duration",
+              "word_duration_suspect"
+            ],
+            "zero_duration_ratio": 0.571429,
+            "text_verified": false,
+            "timestamp_is_acoustic_truth": false
+          },
+          {
+            "id": "FALSE_fr_wrong_w04c_candidate_on_B_w04",
+            "kind": "false_text_on_real_clip",
+            "status": "rejected",
+            "reasons": [
+              "word_duration_suspect"
+            ],
+            "zero_duration_ratio": 0.333333,
+            "text_verified": false,
+            "timestamp_is_acoustic_truth": false
+          },
+          {
+            "id": "FALSE_zh_on_fr_sfx",
+            "kind": "false_text_on_sfx",
+            "status": "structurally_provisional",
+            "reasons": [],
+            "zero_duration_ratio": 0.333333,
+            "text_verified": false,
+            "timestamp_is_acoustic_truth": false
+          }
+        ],
+        "bounded_4_cases": [
+          {
+            "id": "B_w04c_bounded",
+            "status": "rejected",
+            "reasons": [
+              "excessive_zero_duration"
+            ],
+            "zero_duration_ratio": 0.6,
+            "text_verified": false,
+            "timestamp_is_acoustic_truth": false
+          },
+          {
+            "id": "B_narr_bounded",
+            "status": "structurally_provisional",
+            "reasons": [],
+            "zero_duration_ratio": 0.16,
+            "text_verified": false,
+            "timestamp_is_acoustic_truth": false
+          },
+          {
+            "id": "A_c28_03_bounded",
+            "status": "rejected",
+            "reasons": [
+              "excessive_zero_duration",
+              "word_duration_suspect"
+            ],
+            "zero_duration_ratio": 0.444444,
+            "text_verified": false,
+            "timestamp_is_acoustic_truth": false
+          },
+          {
+            "id": "B_w04c_false_on_bounded",
+            "status": "rejected",
+            "reasons": [
+              "excessive_zero_duration"
+            ],
+            "zero_duration_ratio": 0.8,
+            "text_verified": false,
+            "timestamp_is_acoustic_truth": false
+          }
+        ]
+      }
+    }
+  ]
+}
