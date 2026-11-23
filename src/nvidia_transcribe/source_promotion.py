@@ -27,6 +27,45 @@ MAX_EVENT_S = 18.0
 MAX_BOUNDED_AUDIO_S = 24.0
 SHA_HEX = frozenset("0123456789abcdef")
 NON_SPEECH_CLASSES = frozenset({"music", "singing", "sfx", "silence", "nonlexical_vocalization"})
+# Conservative review screens, NOT evidence of a word's acoustic origin.
+# A 2.1-second scene cannot safely inherit 19 words from an 8.1-second crop.
+# The small absolute allowances avoid blocking short real exclamations.
+MAX_PROVISIONAL_FR_WORDS_PER_SECOND = 5.5
+PROVISIONAL_FR_WORD_SLACK = 2
+MAX_PROVISIONAL_ZH_HAN_PER_SECOND = 12.0
+PROVISIONAL_ZH_HAN_SLACK = 6
+
+
+def _lexical_density_evidence(text: str, language: str, duration_s: float) -> dict[str, Any]:
+    """Flag physically implausible source-text scope, not language correctness.
+
+    This only gates UNREVIEWED model output. Real rapid speech can exceed
+    a heuristic; quarantining retains the raw model hypothesis for separate
+    audition, never deletes an actual source observation.
+    """
+    if language == "zh":
+        count = sum(
+            0x3400 <= ord(ch) <= 0x9FFF or 0x20000 <= ord(ch) <= 0x2FA1F
+            for ch in text
+        )
+        limit = MAX_PROVISIONAL_ZH_HAN_PER_SECOND * duration_s + PROVISIONAL_ZH_HAN_SLACK
+        unit = "han_characters"
+    elif language == "fr":
+        count = len(text.split())
+        limit = MAX_PROVISIONAL_FR_WORDS_PER_SECOND * duration_s + PROVISIONAL_FR_WORD_SLACK
+        unit = "whitespace_words"
+    else:
+        raise ValueError("Unsupported source language for lexical-density screen")
+    return {
+        "unit": unit,
+        "count": count,
+        "event_duration_s": round(duration_s, 4),
+        "units_per_second": round(count / duration_s, 4),
+        "conservative_limit": round(limit, 4),
+        "requires_review": count > limit,
+        "not_an_acoustic_transcript_validation": True,
+    }
+
 
 
 def _sha(value: Any, name: str) -> str:
@@ -184,6 +223,15 @@ def promote_bounded_source_turns(
             basis = "reviewed"
         else:
             basis = "model_provisional"
+            # Window-wide Qwen text can contain several neighboring voices.
+            # Matching a digest only proves the text came from the crop, not
+            # that every word fits into this one acoustic event. A gross
+            # source-text/duration mismatch must not become an English cue.
+            density = _lexical_density_evidence(
+                candidate["source_text"], language, b - a
+            )
+            if density["requires_review"]:
+                reasons.append("model_text_scope_exceeds_audio_event_duration")
             # A direct independent audition of ONLY music/SFX/singing is
             # stronger contrary evidence than any number of model activity
             # flags. However, an overlapping independently heard SPEECH
@@ -326,6 +374,9 @@ def promote_bounded_source_turns(
                 ).hexdigest(),
                 "overlapping_legacy_utterance_ids": overlapping_legacy,
                 "cannot_be_presented_as_accepted_speech": True,
+                "model_text_scope_screen": (
+                    density if not reviewed else None
+                ),
             })
             continue
 
@@ -360,6 +411,9 @@ def promote_bounded_source_turns(
             "speaker_identity_accepted": False,
             "source_text_review_attested": bool(reviewed),
             "source_text_human_reference_verified": False,
+            "source_text_scope_screen": (
+                density if not reviewed else None
+            ),
         }
         accepted.append({
             "utterance": selected,
@@ -396,6 +450,7 @@ def promote_bounded_source_turns(
             "legacy_supersession_requires_existing_same_event_id": True,
             "legacy_supersession_requires_plausible_event_time": True,
             "word_timing_and_speaker_identity_not_certified": True,
+            "unreviewed_text_scope_rate_screen_is_not_acoustic_truth": True,
         },
         "accepted": [
             {

@@ -174,6 +174,61 @@ def test_positive_speech_plus_bounded_model_ASR_is_renderable_but_provisional(tm
     assert "À demain !" in (tmp_path / "test.en.ass").read_text(encoding="utf-8")
 
 
+@pytest.mark.parametrize(
+    ("speech_seconds", "words"),
+    [
+        (2.1, 19),  # S05: a two-second voice inherited 8s of neighboring speech
+        (2.4, 22),  # W04 question/reply: one event inherited several turns
+        (2.7, 18),  # distant call: additional context was translated as the event
+        (4.0, 25),  # closing line: multiple turns from the longer model crop
+    ],
+)
+def test_french_neighboring_speech_does_not_become_short_provisional_turn(
+    speech_seconds, words,
+):
+    text = " ".join(["parole"] * words)
+    item = candidate(
+        "new_model_turn", 50, 50 + speech_seconds, text,
+        context_window_ids=["qwen_window_02"],
+        bounded_asr=model_evidence(48, 50 + speech_seconds + 3, text),
+        speech_activity_ids=["fr_speech"],
+    )
+    doc = promote_bounded_source_turns(
+        baseline(), dossier(), segments(item), activity=activity()
+    )
+    assert doc["source_promotion"]["new_model_provisional_turns"] == 0
+    q = doc["source_promotion"]["quarantined"][0]
+    assert "model_text_scope_exceeds_audio_event_duration" in q["reasons"]
+    assert q["model_text_scope_screen"]["count"] == words
+    assert q["model_text_scope_screen"]["not_an_acoustic_transcript_validation"]
+    assert [u["id"] for u in doc["utterances"]] == ["legacy_1"]
+
+
+def test_short_fr_and_rapid_zh_model_speech_are_not_blanket_rejected():
+    item = provisional_candidate()
+    fr = promote_bounded_source_turns(
+        baseline(), dossier(), segments(item), activity=activity()
+    )
+    assert fr["source_promotion"]["new_model_provisional_turns"] == 1
+    assert not fr["utterances"][-1]["source_text_scope_screen"]["requires_review"]
+
+    base = baseline()
+    base["source_language"] = "zh"
+    d = dossier()
+    d["source_language"] = "zh"
+    d["challenger_model"]["pinned_language"] = "Chinese"
+    s = segments(candidate(
+        "rapid_voice", 50, 51.6, "你好" * 6,
+        context_window_ids=["qwen_window_02"],
+        bounded_asr=model_evidence(48, 54, "你好" * 6, language="Chinese"),
+        speech_activity_ids=["fr_speech"],
+    ))
+    s["source_language"] = "zh"
+    out = promote_bounded_source_turns(base, d, s, activity=activity())
+    assert out["source_promotion"]["new_model_provisional_turns"] == 1
+    assert out["utterances"][-1]["source_text_scope_screen"]["unit"] == "han_characters"
+
+
 def test_song_only_lyrics_not_accepted_even_with_qwen_model_text():
     song = candidate("song_model_guess", 80, 90, "Lyrics invented by model",
                      context_window_ids=["qwen_window_03"],
