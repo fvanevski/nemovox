@@ -1,0 +1,183 @@
+{
+  "wer_cer": "UNVERIFIED",
+  "french_orig16_comparison": {
+    "previous_baseline_riva": {
+      "utterances": 234,
+      "renderable_cues": 309,
+      "ass_top_lane": 26,
+      "unrenderable_cues": 0,
+      "consecutive_duplicate_srt_cues": 6,
+      "conflict_cues": 68,
+      "srt_sha256": "70460a0e9dd847dc115f8b502fdc68aff9048d05c9f6a5383af8308d2d36517c",
+      "ass_sha256": "c08cf090a21efccfca99e42b9ab58c0eb8277e7209adf9cc00360ec362c85db8"
+    },
+    "previous_unsafe_promoted_riva": {
+      "utterances": 241,
+      "renderable_cues": 320,
+      "ass_top_lane": 26,
+      "unrenderable_cues": 0,
+      "consecutive_duplicate_srt_cues": 7,
+      "conflict_cues": 75,
+      "context_contaminated_turns": 4,
+      "srt_sha256": "8411f6856e3176cbd6ca3b4fbd5db43ca473e8d2ead736e439c31d8b0011d0a9",
+      "ass_sha256": "2966842cc0d8ae551370e4685fec8333a158e8d72f4354f3698b1fdd4611725e"
+    },
+    "new_vetted_central_riva": {
+      "utterances": 237,
+      "superseded_legacy_utterances": 2,
+      "renderable_cues": 312,
+      "ass_top_lane": 26,
+      "unrenderable_cues": 0,
+      "consecutive_duplicate_srt_cues": 7,
+      "conflict_cues": 68,
+      "context_contaminated_turns": 0,
+      "peak_vram_mib": 8024.58,
+      "srt_sha256": "f56e5b057e72a963f90c07a704531b6042266d868d2a1b2768172cf3d97c8fc0",
+      "ass_sha256": "9f68fdc6bfe836671548d779928d90d3d7019e9aab1795d5fb95f97bb5a4b749",
+      "promoted_utterances": [
+        {
+          "id": "src_turn_aecc38e56e6cfbecd0ce9e37",
+          "audio_event_id": "H1_c01_gap_136_138",
+          "status": "model_source_candidate_provisional",
+          "start_s": 136.0,
+          "end_s": 138.0,
+          "source_text_sha256": "f325e33b7cecd59e",
+          "translated_text_sha256": "bbff7b98d6da7061",
+          "translation_status": "translated"
+        },
+        {
+          "id": "src_turn_2f6070415a12cd9585fe04d4",
+          "audio_event_id": "H2_opening_faites_voir",
+          "status": "audio_review_attested_source",
+          "start_s": 362.5,
+          "end_s": 364.2,
+          "source_text_sha256": "497c2bed3913b600",
+          "translated_text_sha256": "ab487dbb1eda6f68",
+          "translation_status": "translated"
+        },
+        {
+          "id": "src_turn_cd8c36c733f219af40a42b72",
+          "audio_event_id": "A_c28_03_heroic_rescue",
+          "status": "audio_review_attested_source",
+          "start_s": 1131.5,
+          "end_s": 1136.0,
+          "source_text_sha256": "7af53f52c168e30b",
+          "translated_text_sha256": "c709e473e8e169af",
+          "translation_status": "translated"
+        },
+        {
+          "id": "src_turn_fb84f0275f735833355a70a9",
+          "audio_event_id": "B_w04_on_a_reussi_tao",
+          "status": "audio_review_attested_source",
+          "start_s": 1252.0,
+          "end_s": 1255.8,
+          "source_text_sha256": "b00fe1b0de1a213c",
+          "translated_text_sha256": "793f3284e22d9523",
+          "translation_status": "translated"
+        },
+        {
+          "id": "src_turn_b319a380a8d484228ccb4c3a",
+          "audio_event_id": "B_w04_W04c_captain_shout",
+          "status": "audio_review_attested_source",
+          "start_s": 1261.5,
+          "end_s": 1263.5,
+          "source_text_sha256": "251094204a6ee102",
+          "translated_text_sha256": "f17b46f41d36e3f4",
+          "translation_status": "translated"
+        }
+      ]
+    },
+    "new_vetted_agent_recovered_riva": {
+      "utterances": 239,
+      "superseded_legacy_utterances": 2,
+      "renderable_cues": 314,
+      "ass_top_lane": 26,
+      "unrenderable_cues": 0,
+      "consecutive_duplicate_srt_cues": 7,
+      "conflict_cues": 68,
+      "context_contaminated_turns": 0,
+      "peak_vram_mib": 8024.58,
+      "srt_sha256": "9bacca4ffdb75effe3b36434e420ccd33881158fb51e66d1d6dc88f019ec567f",
+      "ass_sha256": "8198fad0803556f3ce60390175940ff3a287f848466e10ed4fda95c440496ba1",
+      "promoted_utterances": [
+        {
+          "id": "src_turn_aecc38e56e6cfbecd0ce9e37",
+          "audio_event_id": "H1_c01_gap_136_138",
+          "status": "model_source_candidate_provisional",
+          "start_s": 136.0,
+          "end_s": 138.0,
+          "source_text_sha256": "f325e33b7cecd59e",
+          "translated_text_sha256": "bbff7b98d6da7061",
+          "translation_status": "translated"
+        },
+        {
+          "id": "src_turn_2f6070415a12cd9585fe04d4",
+          "audio_event_id": "H2_opening_faites_voir",
+          "status": "audio_review_attested_source",
+          "start_s": 362.5,
+          "end_s": 364.2,
+          "source_text_sha256": "497c2bed3913b600",
+          "translated_text_sha256": "ab487dbb1eda6f68",
+          "translation_status": "translated"
+        },
+        {
+          "id": "src_turn_cd8c36c733f219af40a42b72",
+          "audio_event_id": "A_c28_03_heroic_rescue",
+          "status": "audio_review_attested_source",
+          "start_s": 1131.5,
+          "end_s": 1136.0,
+          "source_text_sha256": "7af53f52c168e30b",
+          "translated_text_sha256": "c709e473e8e169af",
+          "translation_status": "translated"
+        },
+        {
+          "id": "src_turn_547fee63b64798359561b84b",
+          "audio_event_id": "B_w04_esteban_tao_question",
+          "status": "audio_review_attested_source",
+          "start_s": 1230.5,
+          "end_s": 1232.9,
+          "source_text_sha256": "05bffdb4fa0079fc",
+          "translated_text_sha256": "f5fe70c277e00bc3",
+          "translation_status": "translated"
+        },
+        {
+          "id": "src_turn_fb84f0275f735833355a70a9",
+          "audio_event_id": "B_w04_on_a_reussi_tao",
+          "status": "audio_review_attested_source",
+          "start_s": 1252.0,
+          "end_s": 1255.8,
+          "source_text_sha256": "b00fe1b0de1a213c",
+          "translated_text_sha256": "793f3284e22d9523",
+          "translation_status": "translated"
+        },
+        {
+          "id": "src_turn_b319a380a8d484228ccb4c3a",
+          "audio_event_id": "B_w04_W04c_captain_shout",
+          "status": "audio_review_attested_source",
+          "start_s": 1261.5,
+          "end_s": 1263.5,
+          "source_text_sha256": "251094204a6ee102",
+          "translated_text_sha256": "f17b46f41d36e3f4",
+          "translation_status": "translated"
+        },
+        {
+          "id": "src_turn_9bb8f77ba72b6567335cc29c",
+          "audio_event_id": "C_w05_S05_omitted",
+          "status": "audio_review_attested_source",
+          "start_s": 1352.0,
+          "end_s": 1354.1,
+          "source_text_sha256": "1fd8b0525caefb21",
+          "translated_text_sha256": "09cef877d457fbbc",
+          "translation_status": "translated"
+        }
+      ]
+    }
+  },
+  "qualitative_checks": {
+    "s02_negation_utt0070": "preserved (translated as negative 'wasn't')",
+    "c2_repeated_speech_utt0177_utt0178": "both preserved distinctly",
+    "c30_1203s_bleed_utt0202": "preserved untouched",
+    "song_and_sfx_controls": "quarantined; zero hallucinated cues rendered",
+    "h1_duplicate_adjacent_cue": "H1_c01_gap_136_138 [136.0,138.0] and utt-0027 [138.44,139.137] both render 'What is it?' (7th consecutive dup cue vs 6 in baseline)"
+  }
+}

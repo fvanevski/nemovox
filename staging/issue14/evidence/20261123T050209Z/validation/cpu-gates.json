@@ -1,0 +1,38 @@
+{
+  "validated_source_sha": "e3b10a94e0a1214856aef7ade1258e1f4a5a4d41",
+  "validated_source_tree": "2382265517842fb562135d00eafc6d78a5442fb6",
+  "admitted_pr_head_sha": "e975cd86856c6fd47bd61a559f6402ad61be6512",
+  "gates": [
+    {
+      "name": "compileall",
+      "command": "PYTHONPATH=src /workspace/nvidia-transcribe/.venv/bin/python -m compileall -q src/nvidia_transcribe",
+      "exit_code": 0
+    },
+    {
+      "name": "focused_issue14_suite",
+      "command": "PYTHONPATH=src /workspace/nvidia-transcribe/.venv/bin/python -m pytest -q -m 'not gpu' tests/test_issue14_source_promotion.py tests/test_issue14_source_unit_lineage.py tests/test_issue14_audio_regions.py tests/test_issue14_source_recovery.py tests/test_issue14_source_reconciliation.py tests/test_issue14_source_event_replay.py tests/test_issue14_source_to_renderer.py tests/test_viewing_quality_regressions.py",
+      "exit_code": 1,
+      "passed": 89,
+      "failed": 1,
+      "skipped": 0,
+      "warnings": 1,
+      "failing_test": "tests/test_issue14_source_promotion.py::test_short_fr_and_rapid_zh_model_speech_are_not_blanket_rejected",
+      "failure_root_cause": "Central test fixture at tests/test_issue14_source_promotion.py:217-227 sets d['source_language'] = 'zh' while leaving d['source_turns_audio_review_attested'][0]['source_language'] == 'fr', triggering ValueError('Source event lacks positive direct audio-review attestation') in src/nvidia_transcribe/source_promotion.py:164."
+    },
+    {
+      "name": "full_non_gpu_suite",
+      "command": "PYTHONPATH=src /workspace/nvidia-transcribe/.venv/bin/python -m pytest -q -m 'not gpu'",
+      "exit_code": 1,
+      "passed": 393,
+      "failed": 1,
+      "skipped": 0,
+      "warnings": 1,
+      "failing_test": "tests/test_issue14_source_promotion.py::test_short_fr_and_rapid_zh_model_speech_are_not_blanket_rejected"
+    },
+    {
+      "name": "git_diff_check",
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ]
+}

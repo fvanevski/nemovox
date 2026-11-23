@@ -1,0 +1,80 @@
+{
+  "previous_source_only_backend_none_not_english": {
+    "backend": "none",
+    "utterances": 288,
+    "renderable_cues": 247,
+    "unrenderable_cues": 41,
+    "english_accuracy_claim": "NOT_ENGLISH_SOURCE_ONLY"
+  },
+  "new_full_ep166_baseline_riva_en": {
+    "backend": "riva",
+    "lang_pair": "zh-en",
+    "ass_layout": "raised_main",
+    "utterances": 285,
+    "renderable_english_cues": 304,
+    "unrenderable_untimed_utterances": 41,
+    "ass_top_lane_cues": 50,
+    "srt_cjk_leaks": 0,
+    "peak_vram_mib": 8072.93,
+    "srt_sha256": "9bc90865652dff3134c0a17f2ce94c3f6540a7edb242cadc33a34aa2b5a64185",
+    "ass_sha256": "ba5586ecb47c333de62a5bb531b777a53310ddb5c47061793bcd9e60a8fbc94a"
+  },
+  "new_full_ep166_vetted_riva_en": {
+    "backend": "riva",
+    "lang_pair": "zh-en",
+    "ass_layout": "raised_main",
+    "utterances": 285,
+    "superseded_legacy_utterances": [
+      "utt-0063",
+      "utt-0064",
+      "utt-0065"
+    ],
+    "preserved_partial_legacy_utterances": [
+      "utt-0062"
+    ],
+    "renderable_english_cues": 305,
+    "unrenderable_untimed_utterances": 41,
+    "ass_top_lane_cues": 51,
+    "srt_cjk_leaks": 0,
+    "peak_vram_mib": 8072.93,
+    "srt_sha256": "7a63f866b46ca2ab301b1f159797135484f1da731a99c04f11338fa14077add7",
+    "ass_sha256": "61ca50c1d0c03f8359b002d351adde0260cb2b1f9579eb22ae2625dca65a9397",
+    "promoted_utterances": [
+      {
+        "id": "utt-0072",
+        "audio_event_id": "ZH_overlap_turn1_elder",
+        "status": "audio_review_attested_source",
+        "start_s": 518.1,
+        "end_s": 524.5,
+        "source_text_sha256": "9d891911e8eaad24",
+        "translated_text_sha256": "9fd2699803a0c46f",
+        "translation_status": "translated"
+      },
+      {
+        "id": "utt-0073",
+        "audio_event_id": "ZH_overlap_turn2_young",
+        "status": "audio_review_attested_source",
+        "start_s": 525.1,
+        "end_s": 526.7,
+        "source_text_sha256": "60f3327feaa2554c",
+        "translated_text_sha256": "8d4b221797343f9a",
+        "translation_status": "translated"
+      },
+      {
+        "id": "utt-0074",
+        "audio_event_id": "ZH_overlap_turn3_elder",
+        "status": "audio_review_attested_source",
+        "start_s": 526.7,
+        "end_s": 530.2,
+        "source_text_sha256": "b7ec8cf92b1ff026",
+        "translated_text_sha256": "77792f414b3fb1ae",
+        "translation_status": "translated"
+      }
+    ]
+  },
+  "remaining_deficits": [
+    "41 untimed legacy utterances remain unrenderable without fabricated timestamps",
+    "chunk 14 raw response incomplete (generation_limit_exhausted) -> utt-0284 units remain unmatched",
+    "WER_CER=UNVERIFIED"
+  ]
+}

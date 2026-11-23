@@ -1,0 +1,64 @@
+{
+  "schema": "nemovox-evidence-manifest/v1",
+  "run_id": "20261123T050209Z",
+  "admitted_pr_head_sha": "e975cd86856c6fd47bd61a559f6402ad61be6512",
+  "validated_central_source_sha": "e3b10a94e0a1214856aef7ade1258e1f4a5a4d41",
+  "file_count": 12,
+  "files": [
+    {
+      "path": "COMMAND_SHAPE_FRICTION.txt",
+      "sha256": "f24f6955934f69ac179326055d4371c14f0955f50e151f0c29c35d04bef0a7c2",
+      "bytes": 83
+    },
+    {
+      "path": "README.md",
+      "sha256": "97adb281d87fd1c1bf9f61399694fa7568882ba3404c448088fa1b129e11ceed",
+      "bytes": 730
+    },
+    {
+      "path": "review/issue14-acceptance-matrix.md",
+      "sha256": "0e6393abec5f3de0e6aa3cd39e63c985a07f50f10fb3f935ba2862bd6de1e80d",
+      "bytes": 2350
+    },
+    {
+      "path": "source-identity.json",
+      "sha256": "f3bf213aa51db2d59a79ece5c98e3ab21bcb2c1eeab4e6361b31b81c7306474a",
+      "bytes": 975
+    },
+    {
+      "path": "validation/context-scope-gate.json",
+      "sha256": "25042fb75d1bae989ddd4c5b51917942958841d5e9c0f7a980df7e817c5d3b7f",
+      "bytes": 10245
+    },
+    {
+      "path": "validation/cpu-gates.json",
+      "sha256": "5bd88b3658004552d5a7808953dfa44b9bb33441e1fb8f7151bea90e7ae73cb2",
+      "bytes": 1973
+    },
+    {
+      "path": "validation/legacy-unit-lineage.json",
+      "sha256": "d605df497cbf330ccf103c5afe533fa3d8e43e87cfb35220775a6570e291322f",
+      "bytes": 8227
+    },
+    {
+      "path": "validation/mandarin-episode-integrity.json",
+      "sha256": "0cd405f4653649c6ba6a3a23134880f5f2a39a1f28dd1f4db6f12e43d5ced2e1",
+      "bytes": 2656
+    },
+    {
+      "path": "validation/positive-source-event-cases.md",
+      "sha256": "3f5e14e130f429b82046ef51bffe156cdd5b240eae09a8aaf16afeaf11f55d9f",
+      "bytes": 3344
+    },
+    {
+      "path": "validation/resource-nonmutation.json",
+      "sha256": "216418c39ce67ec4856c10513b91a20db432e6054aeb379b9be695e9f434324e",
+      "bytes": 811
+    },
+    {
+      "path": "validation/source-to-english-integrated.json",
+      "sha256": "610e96649f82f95ada94513973eae11e525d5b5fbf6d2bbeecd0ed708f5dd3c1",
+      "bytes": 7144
+    }
+  ]
+}

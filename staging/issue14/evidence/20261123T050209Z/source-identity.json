@@ -1,0 +1,19 @@
+{
+  "run_id": "20261123T050209Z",
+  "repository": "fvanevski/nemovox",
+  "issue_number": 14,
+  "pr_number": 15,
+  "branch": "issue/14-longform-timing-boundaries",
+  "controlling_handoff": "staging/issue14/HANDOFF_INTEGRATED_SOURCE_FIDELITY.md",
+  "controlling_design": "staging/issue14/INTEGRATED_SOURCE_FIDELITY_DESIGN.md",
+  "admitted_pr_head_sha": "e975cd86856c6fd47bd61a559f6402ad61be6512",
+  "validated_central_source_sha": "e3b10a94e0a1214856aef7ade1258e1f4a5a4d41",
+  "validated_central_source_tree": "2382265517842fb562135d00eafc6d78a5442fb6",
+  "base_main_sha": "8f6c03cbc70e84bf1970ba364207a02c9fe22b44",
+  "source_diff": "none",
+  "source_code_modified_on_host": false,
+  "worktree_path": "/workspace/nemovox-issue14-fidelity",
+  "worktree_mode": "isolated_detached_head",
+  "input_private_archive": "issue14-source-promotion-evidence-20261123T034336Z.tar.gz",
+  "input_private_archive_sha256": "a15ca6b60550eebc19cf11d619492262ccffd7ee9ba887eac0f1ec8c02f3bdf0"
+}
