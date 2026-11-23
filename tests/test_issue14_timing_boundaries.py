@@ -49,6 +49,38 @@ def test_ctc_audit_only_quarantines_impossible_or_flank_confirmed_outliers() -> 
     assert diag2["quarantine_reasons"]["ctc_outside_inference_excerpt"] == 1
 
 
+def test_ctc_multiword_compression_is_unverified_without_losing_source_words():
+    tokens = [
+        "marvellous", "mountains", "ancient", "gardens",
+        "extraordinary", "journeys", "familiar", "travelers",
+        "captivating", "beautiful", "children",
+    ]
+    # An 11-word multi-speaker/model run jammed into ~1.4 seconds.
+    raw = _phrase(tokens, 14.0, "SPK_SCENE", .105)
+    original = [dict(u) for u in raw]
+    audited, diag = audit_ctc_timing_units(raw, infer_start_s=0, infer_end_s=90)
+    assert diag["multiword_density_suspect_count"] == 1
+    assert diag["quarantine_reasons"]["ctc_multiword_temporal_compression"] == len(tokens)
+    assert all(u["start"] is None and u["end"] is None
+               and u["ctc_hypothesis_start_s"] is not None
+               and not u["valid_timing"] for u in audited)
+    assert [u["text"] for u in audited] == tokens
+    assert raw == original  # Never mutate the original ASR response.
+
+    clean = _phrase([f"spoken{i}" for i in range(29)], 20, "SPK_CLEAN", .31)
+    healthy, control = audit_ctc_timing_units(clean, infer_start_s=0, infer_end_s=90)
+    assert control["multiword_density_suspect_count"] == 0
+    assert control["quarantined_units"] == 0
+    assert all(u["valid_timing"] for u in healthy)
+
+
+def test_short_fast_exclamation_not_auto_quarantined_by_density():
+    raw = _phrase(["quick", "words", "now"], 5.0, "SPK_SHOUT", .08)
+    audited, diag = audit_ctc_timing_units(raw, infer_start_s=0, infer_end_s=90)
+    assert diag["multiword_density_suspect_count"] == 0
+    assert all(u["valid_timing"] for u in audited)
+
+
 def test_long_displaced_duplicate_from_adjacent_excerpts_is_not_rendered_twice() -> None:
     boundary = 270.0
     phrase = ["silent", "valley", "ancient", "garden", "golden", "river",

@@ -58,6 +58,7 @@ def audit_ctc_timing_units(
             by_speaker[str(speaker)].append(i)
 
     gaps: list[dict[str, Any]] = []
+    dense_sequences: list[dict[str, Any]] = []
     for speaker, indexes in by_speaker.items():
         for j in range(1, len(indexes)):
             before, current = indexes[j - 1], indexes[j]
@@ -89,6 +90,53 @@ def audit_ctc_timing_units(
                          or this_mid > max(prev_mid, next_mid) + outlier_displacement_s)):
                 reasons.setdefault(this_i, "ctc_isolated_sequence_outlier")
 
+    # A coherent sequence can be compressed into an acoustically
+    # implausible 1-2 second CTC interval without an isolated outlier.
+    # Quarantine only a sustained 8+-word, 55+-character run that exceeds
+    # 38 source characters/s. We do NOT infer true timing or suppress text.
+    # Short exclamations and ordinary rapid dialogue remain untouched.
+    for speaker, indexes in by_speaker.items():
+        runs: list[list[int]] = []
+        run: list[int] = []
+        for i in indexes:
+            u = copied[i]
+            if _mid(u) is None or i in reasons:
+                if run:
+                    runs.append(run)
+                    run = []
+                continue
+            if run:
+                prev = copied[run[-1]]
+                if (float(u["start"]) < float(prev["start"]) - 0.2
+                        or float(u["start"]) - float(prev["end"]) > 0.40
+                        or i - run[-1] > 4):
+                    runs.append(run)
+                    run = []
+            run.append(i)
+        if run:
+            runs.append(run)
+        for candidate in runs:
+            if len(candidate) < 8:
+                continue
+            a = float(copied[candidate[0]]["start"])
+            b = float(copied[candidate[-1]]["end"])
+            span = b - a
+            if span <= 0 or span > 4.0:
+                continue
+            chars = sum(len(str(copied[i].get("text") or "")) for i in candidate)
+            if chars < 55 or chars / span <= 38.0:
+                continue
+            for i in candidate:
+                reasons.setdefault(i, "ctc_multiword_temporal_compression")
+            if len(dense_sequences) < 30:
+                dense_sequences.append({
+                    "speaker": speaker, "first_source_unit": candidate[0],
+                    "last_source_unit": candidate[-1], "units": len(candidate),
+                    "source_characters": chars, "ctc_span_s": round(span, 4),
+                    "ctc_characters_per_second": round(chars / span, 2),
+                    "reason": "multiword_density_requires_acoustic_review",
+                })
+
     for i, reason in reasons.items():
         unit = copied[i]
         unit["ctc_hypothesis_start_s"] = unit.get("start")
@@ -109,6 +157,8 @@ def audit_ctc_timing_units(
             for reason in sorted(set(reasons.values()))
         },
         "large_gaps_review_only": gaps,
+        "multiword_density_suspects": dense_sequences,
+        "multiword_density_suspect_count": len(dense_sequences),
         "large_gap_count": sum(
             1 for indexes in by_speaker.values() for j in range(1, len(indexes))
             if (_mid(copied[indexes[j]]) is not None
