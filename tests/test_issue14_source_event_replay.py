@@ -76,6 +76,55 @@ def test_forensic_replay_exposes_incomplete_chunk_without_accepting_its_words(tm
     assert ledger["diagnostics"]["source_coverage_certified"] is False
 
 
+def test_recording_integration_emits_manifest_bound_sidecar_and_keeps_v1(tmp_path, monkeypatch):
+    import wave
+
+    from nvidia_transcribe.client import NemotronVLLMClient
+    from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
+
+    wav = tmp_path / "source.wav"
+    with wave.open(str(wav), "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(16000)
+        handle.writeframes(b"\\x00\\x00" * 32000)
+
+    calls = []
+    response = {
+        "choices": [{"message": {"content": "<spk:0> Bonjour monde"}, "finish_reason": "stop"}],
+        "ctc_timestamps": {
+            "words": [{"word": "Bonjour", "start": 0.5, "end": 0.8, "speaker": "0"},
+                      {"word": "monde", "start": 0.9, "end": 1.2, "speaker": "0"}],
+            "diarization": [{"speaker": 0, "start": 0.5, "end": 1.2}],
+            "speaker_tag_to_diarization_speaker": {"0": 0},
+            "error": None,
+        },
+    }
+
+    def fake(self, path, config=None):
+        calls.append(str(path))
+        return {"raw_response": response, "contract": {"raw_text": "Bonjour monde"}, "latency_s": 0.01}
+
+    monkeypatch.setattr(NemotronVLLMClient, "transcribe", fake)
+    out = tmp_path / "job"
+    config = RecordingPipelineConfig(source_language="fr", speaker_embeddings="none")
+    first = process_media(wav, output_dir=out, client=NemotronVLLMClient(model="fixture"), config=config)
+    sidecar = out / "source-evidence.v1.json"
+    manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
+    direct = json.loads(sidecar.read_text(encoding="utf-8"))
+    assert first["contract"]["schema_version"] == "nemotron-recording-contract/v1"
+    assert first["source_evidence_path"] == str(sidecar)
+    assert direct["diagnostics"]["source_unit_observations"] == 2
+    assert manifest["source_evidence"]["sha256"] == hashlib.sha256(sidecar.read_bytes()).hexdigest()
+    assert manifest["source_evidence"]["mode"] == "shadow_observation_only"
+    ids = [unit["id"] for unit in direct["lexical_observations"]]
+
+    again = process_media(wav, output_dir=out, client=NemotronVLLMClient(model="fixture"), config=config)
+    assert len(calls) == 1
+    assert [unit["id"] for unit in json.loads(sidecar.read_text())["lexical_observations"]] == ids
+    assert again["contract"]["schema_version"] == "nemotron-recording-contract/v1"
+
+
 def test_archived_manifest_raw_response_path_cannot_redirect_reads(tmp_path):
     root = _cache(tmp_path)
     path = root / "manifest.json"
