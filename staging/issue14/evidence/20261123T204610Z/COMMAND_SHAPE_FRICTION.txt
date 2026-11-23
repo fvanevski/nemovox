@@ -1,0 +1,8 @@
+COMMAND_SHAPE_FRICTION
+campaign: ISSUE14_REVIEWED_REVISION_CLI
+run_id: 20261123T204610Z
+1. initial_ledger_archive_filename_pattern_miss:
+   - requested: tar -tzf PRIOR_DEFAULT_ARCHIVE | grep -E 'recording|translated|ledger|source_evidence|dossier|review' followed by extracting phase_b/*/source_evidence.json
+   - effect: phase_b source_evidence ledgers had chunk response SHA mismatch ("Replay ledger does not match recording raw ASR response") against default_fr_job/asr/recording.contract.json; listed full archive contents and extracted actual default_fr_job/asr/source-evidence.v1.json (digest 8c0edd52...), then removed temporary non-matching ledgers before running Section B/C.
+2. unselected_blocked_components_reporting_detail:
+   - observed: run_reviewed_revision reports all 207 non-ready connected components (3 partially reviewed + 204 untouched historical singletons) in unselected_blocked_components; documented exact 3 partial-blocked vs 204 untouched split cleanly in evidence.

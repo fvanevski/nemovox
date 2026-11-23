@@ -1,0 +1,46 @@
+{
+  "schema": "nemovox-issue14-canonical-and-render-comparison/v1",
+  "run_id": "20261123T204610Z",
+  "canonical_comparison": {
+    "reviewed_recording_utterances": 218,
+    "reviewed_translated_utterances": 218,
+    "retained_checked": 209,
+    "new_reviewed_turns": 9,
+    "superseded_legacy_ids": [
+      "utt-0036",
+      "utt-0037",
+      "utt-0148",
+      "utt-0149",
+      "utt-0152",
+      "utt-0153",
+      "utt-0187",
+      "utt-0188"
+    ],
+    "stale_refs_count": 0,
+    "render_stats": {
+      "total_input_utterances": 218,
+      "renderable_cues": 289,
+      "ass_displayed_cues": 289,
+      "ass_lane_1_top_cues": 13,
+      "ass_overflow_cues": 0,
+      "unrenderable_cues": 2,
+      "conflict_cues": 54
+    },
+    "expected_canonical_srt_match": true,
+    "expected_canonical_ass_match": true
+  },
+  "matches_accepted_canonical_outputs": {
+    "reviewed_recording_vs_canonical_voiced_sha256": true,
+    "reviewed_translated_vs_canonical_translated_sha256": true,
+    "srt_vs_canonical_srt_sha256": true,
+    "ass_vs_canonical_ass_sha256": true
+  },
+  "actual_window_notes": {
+    "W02b": "Legacy merged [218.67-221.00] split into attested rapid turns [218.60-220.00] (voice_0), [220.25-221.05] (voice_1), [221.05-231.50] (voice_0), plus [232.45-235.85] (voice_0). Note Riva domain loanword choices 'nacale' and 'langage mu' remain glossary/post-edit candidates.",
+    "W03b": "Untimed utt-0152 resolved cleanly at [990.25-996.50]; unrenderable_cues reduced 3 -> 2; utt-0147+utt-0150 and utt-0154+utt-0156 stay blocked.",
+    "W04a": "Displaced SFX/misaligned cues removed; [1231.20-1232.80] and [1233.00-1234.45] rendered accurately.",
+    "S02_W05a_C2_S05": "Retained baseline controls unchanged (209/209 retained translations exact)."
+  },
+  "human_wer_cer_der": "UNVERIFIED",
+  "word_level_timing": "audio_event_bounds_only_word_timing_unverified"
+}

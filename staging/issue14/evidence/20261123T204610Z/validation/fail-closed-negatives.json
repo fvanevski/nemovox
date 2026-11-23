@@ -1,0 +1,70 @@
+{
+  "schema": "nemovox-issue14-fail-closed-negatives/v1",
+  "run_id": "20261123T204610Z",
+  "total_cases": 10,
+  "all_rejected_nonzero_exit": true,
+  "cases": [
+    {
+      "case": "stale_plan_sha",
+      "returncode": 1,
+      "error": "Reviewed component selection references a stale plan",
+      "partial_output_dir_created": false
+    },
+    {
+      "case": "blocked_component_utt0034",
+      "returncode": 1,
+      "error": "Selected components contain incomplete or unreviewed evidence",
+      "partial_output_dir_created": false
+    },
+    {
+      "case": "duplicate_selection_id",
+      "returncode": 1,
+      "error": "Explicit, nonempty, distinct reviewed components required",
+      "partial_output_dir_created": false
+    },
+    {
+      "case": "stale_dossier_digest",
+      "returncode": 1,
+      "error": "Reviewed component selection has stale dossier identity",
+      "partial_output_dir_created": false
+    },
+    {
+      "case": "stale_recording_digest",
+      "returncode": 1,
+      "error": "Reviewed component selection has stale recording identity",
+      "partial_output_dir_created": false
+    },
+    {
+      "case": "missing_one_of_nine_receipts",
+      "returncode": 1,
+      "error": "Fresh revised-source translation receipts are missing",
+      "partial_output_dir_created": false
+    },
+    {
+      "case": "invalid_local_voice_event_id",
+      "returncode": 1,
+      "error": "Unknown, repeated or unselected local voice event",
+      "partial_output_dir_created": false
+    },
+    {
+      "case": "existing_output_dir_refused",
+      "returncode": 1,
+      "error": "Reviewed revision output directory already exists",
+      "partial_output_dir_created": "existing_preserved"
+    },
+    {
+      "case": "unsafe_episode_stem",
+      "returncode": 1,
+      "error": "Episode stem must be a filename component",
+      "partial_output_dir_created": false
+    },
+    {
+      "case": "malformed_media_identity",
+      "returncode": 1,
+      "error": "Recording/ledger/dossier media fingerprint mismatch",
+      "partial_output_dir_created": false
+    }
+  ],
+  "prior_applied_outputs_untouched": true,
+  "original_inputs_untouched": true
+}
