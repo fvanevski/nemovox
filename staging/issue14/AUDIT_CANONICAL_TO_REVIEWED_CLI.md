@@ -10,7 +10,7 @@ Host exact source tests: focused 73/73, full core 436/436, Studio 436/436, both 
 
 ## General implementation staged after the handback, host UNVERIFIED
 
-Central source commit efc5016790c6e3ae99ac7c58aeb32e52a7a1307f, tree 08629e6f6f988bc46d710b5c20dcaaf0bba52f71. It adds src/nvidia_transcribe/reviewed_revision_runner.py and four isolated synthetic regression tests, plus a new **apply-reviewed-revision** subcommand of the existing CLI.
+Central source commit 32bf172d44f2f195b518edc2abd9cbba278c98f4, tree 5004b634021d31af04b7718f503c60037cb03473. It adds src/nvidia_transcribe/reviewed_revision_runner.py and four isolated synthetic regression tests, plus a new **apply-reviewed-revision** subcommand of the existing CLI.
 
 This is an explicitly invoked, model-free execution boundary for the *general* architecture already staged on this PR:
 1. Read original recording, immutable source-evidence ledger, direct-acoustic review dossier, and a selection under nemovox-reviewed-component-selection/v1. Recompute the current plan and require the exact expected plan SHA256 plus original recording/ledger/dossier canonical content digests. Caller must explicitly select nonempty, distinct components; every selected component must be complete and eligible. No default "select all" or automatic acoustic/visual acceptance.
@@ -19,7 +19,7 @@ This is an explicitly invoked, model-free execution boundary for the *general* a
 4. Render using the existing SRT/ASS implementation into a newly created private output directory after all model-free checks pass. Stage output within a temporary sibling directory before publication; never write original jobs, source ledger, Studio history or sidecar library, or invoke Riva/ASR/pyannote/VLM. Write reviewed.recording.contract.json, reviewed.translated.contract.json, reviewed.revision.report.json and selected subtitle formats, each tied to exact input SHA and output digests. Refuse existing output location.
 5. Unselected or incomplete source components are retained as in the historical recording, not erased. A selected reviewed event has verified event-level bounds, not necessarily word-level alignment. SFX false text and previously attested local speaker boundaries remain direct-audio evidence problems, not generic hardcoded per-case behavior.
 
-The runner is not yet enabled by default in Studio or generate-subtitles. Its local stand-alone synthetic prototype has 4/4 invariant tests PASS, but this is NOT proof of exact-host source compatibility; complete candidate-bound host tests and one real 218-turn integrated CLI output are required. No product-specific heuristic for animation/live action was installed in this application layer; assessment policies and prompts remain independently configurable upstream.
+The runner is not yet enabled by default in Studio or generate-subtitles. Its local stand-alone synthetic prototype has 5/5 invariant tests PASS (including cleanup of an incomplete render without publishing output), but this is NOT proof of exact-host source compatibility; complete candidate-bound host tests and one real 218-turn integrated CLI output are required. No product-specific heuristic for animation/live action was installed in this application layer; assessment policies and prompts remain independently configurable upstream.
 
 ## Remaining scope and decisions
 
