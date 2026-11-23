@@ -17,6 +17,7 @@ from typing import Any
 from nvidia_transcribe.alignment import recover_chunk_alignment
 from nvidia_transcribe.asr_integrity import audit_asr_generation
 from nvidia_transcribe.chunking import ChunkSpec
+from nvidia_transcribe.contract import normalize_language_code
 from nvidia_transcribe.prompts import cleanup_generation_loops
 from nvidia_transcribe.source_events import build_source_evidence_ledger
 from nvidia_transcribe.speakers import normalize_chunk_speakers
@@ -25,6 +26,32 @@ from nvidia_transcribe.timing_evidence import audit_ctc_timing_units
 
 def _hash(data: str) -> str:
     return hashlib.sha256(data.encode("utf-8")).hexdigest()
+
+
+def _resolve_cached_source_language(root: Path, manifest: dict[str, Any], fingerprint: str) -> tuple[str, str]:
+    """Bind replay language to the authenticated recording, not a model guess.
+
+    Earlier manifests omit source_language while recording.contract.json
+    contains it. Accept that value only when the contract belongs to the
+    SAME fingerprint and uses the expected v1 contract schema. If the two
+    sources disagree, fail closed rather than silently picking a language.
+    """
+    manifest_lang = normalize_language_code(manifest.get("source_language"))
+    path = root / "recording.contract.json"
+    if not path.exists():
+        return (manifest_lang or "unverified", "manifest" if manifest_lang else "unverified")
+    contract = json.loads(path.read_text(encoding="utf-8"))
+    if contract.get("schema_version") != "nemotron-recording-contract/v1":
+        raise ValueError("Cached recording contract has unsupported schema")
+    if (contract.get("source") or {}).get("fingerprint_sha256") != fingerprint:
+        raise ValueError("Cached recording contract media fingerprint mismatch")
+    contract_lang = normalize_language_code(contract.get("source_language"))
+    if manifest_lang and contract_lang and manifest_lang != contract_lang:
+        raise ValueError("Cached manifest and recording contract source language mismatch")
+    return (manifest_lang or contract_lang or "unverified",
+            "manifest_and_contract" if manifest_lang and contract_lang else
+            "manifest" if manifest_lang else
+            "recording_contract_verified" if contract_lang else "unverified")
 
 
 def replay_cached_source_evidence(root: Path, *, forensic_incomplete: bool = False) -> dict[str, Any]:
@@ -41,6 +68,9 @@ def replay_cached_source_evidence(root: Path, *, forensic_incomplete: bool = Fal
     fingerprint = meta.get("fingerprint_sha256")
     if not fingerprint:
         raise ValueError("Missing media fingerprint in cached manifest")
+    source_language, language_provenance = _resolve_cached_source_language(
+        root, manifest, str(fingerprint)
+    )
     entries = manifest.get("chunks") or []
     if not entries:
         raise ValueError("No cached ASR chunk entries")
@@ -115,7 +145,7 @@ def replay_cached_source_evidence(root: Path, *, forensic_incomplete: bool = Fal
 
     ledger = build_source_evidence_ledger(
         media_fingerprint_sha256=str(fingerprint),
-        source_language=str(manifest.get("source_language") or "unverified"),
+        source_language=source_language,
         chunk_specs=specs,
         chunk_units=chunk_units,
         raw_response_sha256=raw_digests,
@@ -124,6 +154,7 @@ def replay_cached_source_evidence(root: Path, *, forensic_incomplete: bool = Fal
     )
     ledger["replay_provenance"] = {
         "mode": ("offline_forensic_partial" if rejected_chunks else "offline_native_ctc_only"),
+        "source_language_provenance": language_provenance,
         "rejected_or_incomplete_chunks": rejected_chunks,
         "asr_manifest_sha256": hashlib.sha256(
             (root / "manifest.json").read_bytes()

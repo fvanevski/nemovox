@@ -55,6 +55,44 @@ def test_verified_offline_replay_preserves_raw_source_and_job_immutability(tmp_p
     assert all(not u["word_alignment_accepted"] for u in ledger["lexical_observations"])
 
 
+def test_language_replayed_from_same_media_recording_contract(tmp_path):
+    root = _cache(tmp_path)
+    (root / "recording.contract.json").write_text(json.dumps({
+        "schema_version": "nemotron-recording-contract/v1",
+        "source": {"fingerprint_sha256": "immut-media-id"},
+        "source_language": "French",
+    }), encoding="utf-8")
+    ledger = replay_cached_source_evidence(root)
+    assert ledger["source_language"] == "fr"
+    assert ledger["replay_provenance"]["source_language_provenance"] == "recording_contract_verified"
+
+
+def test_stale_recording_contract_fingerprint_rejected_even_with_language(tmp_path):
+    root = _cache(tmp_path)
+    (root / "recording.contract.json").write_text(json.dumps({
+        "schema_version": "nemotron-recording-contract/v1",
+        "source": {"fingerprint_sha256": "OTHER_MEDIA"},
+        "source_language": "fr",
+    }), encoding="utf-8")
+    with pytest.raises(ValueError, match="fingerprint mismatch"):
+        replay_cached_source_evidence(root)
+
+
+def test_manifest_contract_language_disagreement_rejected(tmp_path):
+    root = _cache(tmp_path)
+    manifest_path = root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["source_language"] = "zh"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    (root / "recording.contract.json").write_text(json.dumps({
+        "schema_version": "nemotron-recording-contract/v1",
+        "source": {"fingerprint_sha256": "immut-media-id"},
+        "source_language": "fr",
+    }), encoding="utf-8")
+    with pytest.raises(ValueError, match="source language mismatch"):
+        replay_cached_source_evidence(root)
+
+
 def test_raw_digest_mismatch_is_a_hard_failure(tmp_path):
     root = _cache(tmp_path, digest_override="0" * 64)
     with pytest.raises(ValueError, match="digest mismatch"):
