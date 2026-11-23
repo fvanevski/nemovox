@@ -10,6 +10,7 @@ import argparse
 import hashlib
 import json
 import math
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -73,6 +74,28 @@ def _subtract(a: list[tuple[float, float]], b: list[tuple[float, float]]) -> lis
         if cursor < hi:
             result.append((cursor, hi))
     return result
+
+
+def _edit_distance(left: list[str], right: list[str]) -> int:
+    if len(left) < len(right):
+        left, right = right, left
+    prev = list(range(len(right) + 1))
+    for i, token in enumerate(left, 1):
+        now = [i]
+        for j, other in enumerate(right, 1):
+            now.append(min(now[-1] + 1, prev[j] + 1,
+                           prev[j - 1] + int(token != other)))
+        prev = now
+    return prev[-1]
+
+
+def _lexical_units(text: str, language: str) -> list[str]:
+    normalized = unicodedata.normalize("NFKC", text.casefold())
+    if language == "zh":
+        return [ch for ch in normalized if unicodedata.category(ch)[0] in {"L", "N"}]
+    cleaned = "".join(ch if (unicodedata.category(ch)[0] in {"L", "N"} or ch == "'")
+                      else " " for ch in normalized)
+    return cleaned.split()
 
 
 def _normalized_regions(document: dict[str, Any], *, prediction: bool) -> dict[str, dict[str, Any]]:
@@ -160,6 +183,23 @@ def score(reference: dict[str, Any], prediction: dict[str, Any]) -> dict[str, An
             "source_word_accuracy_validated": False,
             "word_alignment_validated": False,
         }
+        # Exact lexical accuracy is evaluated only against explicitly verified
+        # private source text. A VAD/diarization output without text has no WER.
+        if region.get("source_text_verified") is True:
+            gold = region.get("source_text")
+            hypothesis = trial.get("source_text")
+            language = region.get("language")
+            if not isinstance(gold, str) or not isinstance(hypothesis, str) or language not in {"fr", "zh"}:
+                raise ValueError(f"Missing exact private source text/model transcript/language in {rid}")
+            target = _lexical_units(gold, language)
+            emitted = _lexical_units(hypothesis, language)
+            record["lexical_metric"] = "CER" if language == "zh" else "WER"
+            record["lexical_reference_units"] = len(target)
+            record["lexical_edit_count"] = _edit_distance(target, emitted)
+            record["lexical_error_ratio"] = (
+                round(record["lexical_edit_count"] / len(target), 6) if target else None
+            )
+            record["source_word_accuracy_validated"] = True
         scored.append(record)
         rows.append(record)
     return {
@@ -179,6 +219,17 @@ def score(reference: dict[str, Any], prediction: dict[str, Any]) -> dict[str, An
             "non_speech_only_predicted_speech_s": round(
                 sum(x["non_speech_only_predicted_speech_s"] for x in scored), 4
             ),
+        },
+        "lexical_accuracy": {
+            metric: {
+                "reference_units": sum(
+                    r.get("lexical_reference_units", 0) for r in scored if r.get("lexical_metric") == metric
+                ),
+                "edit_count": sum(
+                    r.get("lexical_edit_count", 0) for r in scored if r.get("lexical_metric") == metric
+                ),
+            }
+            for metric in ("WER", "CER")
         },
         "regions": rows,
         "limitations": [

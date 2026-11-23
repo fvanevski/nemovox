@@ -90,6 +90,30 @@ def test_reject_outside_window_and_unverified_reference():
     assert result["scored_regions"] == 1
 
 
+def test_exact_private_lexical_reference_scores_french_wer_and_mandarin_cer():
+    r = ref()
+    r["regions"][0].update(
+        {"source_text_verified": True, "language": "fr", "source_text": "Bonjour, le monde !"}
+    )
+    p = pred()
+    p["regions"][0]["source_text"] = "Bonjour monde"
+    result = score(r, p)
+    assert result["lexical_accuracy"]["WER"] == {"reference_units": 3, "edit_count": 1}
+    assert result["regions"][0]["lexical_error_ratio"] == pytest.approx(1 / 3, abs=1e-6)
+
+    r["regions"][0].update({"language": "zh", "source_text": "天地玄黄"})
+    p["regions"][0]["source_text"] = "天地黄"
+    result = score(r, p)
+    assert result["lexical_accuracy"]["CER"] == {"reference_units": 4, "edit_count": 1}
+
+
+def test_no_claim_of_wer_without_independent_text():
+    result = score(ref(), pred())
+    assert result["lexical_accuracy"]["WER"]["reference_units"] == 0
+    assert result["lexical_accuracy"]["CER"]["reference_units"] == 0
+    assert all(not row["source_word_accuracy_validated"] for row in result["regions"])
+
+
 def test_double_counting_overlapping_intervals_is_prevented():
     p = pred()
     p["regions"][0]["observations"] = [
