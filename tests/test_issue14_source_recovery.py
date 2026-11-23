@@ -136,6 +136,29 @@ def test_source_turn_ids_audio_event_bound_and_source_lineage_preserved():
     assert r1["source_start"] is None
 
 
+def test_zero_duration_forced_alignment_rejected_not_crashed():
+    result = inspect_forced_alignment([
+        {"start_s": 1261.1, "end_s": 1261.1},
+        {"start_s": 1261.2, "end_s": 1261.2},
+        {"start_s": 1261.4, "end_s": 1261.6},
+    ], source_region={"start_s": 1261, "end_s": 1264})
+    assert result["status"] == "rejected"
+    assert "excessive_zero_duration" in result["reasons"]
+
+
+def test_distinct_candidate_texts_have_same_event_id_but_different_revision_ids():
+    old = assemble_source_turn_revision(
+        ledger(), audio_event_id="event_1", chosen_observation_id="asr_1",
+        candidate_source_text="Bonjour", selection_basis="legacy_provisional"
+    )
+    revised = assemble_source_turn_revision(
+        ledger(), audio_event_id="event_1", chosen_observation_id="asr_1",
+        candidate_source_text="Bonsoir", selection_basis="multi_asr_provisional"
+    )
+    assert old["source_turn_id"] == revised["source_turn_id"]
+    assert old["source_revision_id"] != revised["source_revision_id"]
+
+
 def test_source_selection_cannot_use_unproven_observation_identity():
     with pytest.raises(ValueError, match="not present"):
         assemble_source_turn_revision(

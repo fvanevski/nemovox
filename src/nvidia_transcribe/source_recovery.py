@@ -106,8 +106,11 @@ def plan_source_recovery(
     raw_proposals: list[dict[str, Any]] = []
     for gap in incomplete:
         a, b = _interval(gap, start="infer_start_s", end="infer_end_s")
-        if not gap.get("raw_response_sha256") or gap.get("reason") != "generation_limit_exhausted" and gap.get("reason") != "pathological_generation_loop":
-            raise ValueError("Incomplete chunk needs authenticated raw SHA and integrity failure reason")
+        digest = gap.get("raw_response_sha256")
+        if (not isinstance(digest, str) or len(digest) != 64
+                or any(c not in "0123456789abcdef" for c in digest.lower())
+                or gap.get("reason") not in {"generation_limit_exhausted", "pathological_generation_loop"}):
+            raise ValueError("Incomplete chunk needs a SHA-256 digest and integrity failure reason")
         raw_proposals.append({
             "start_s": a, "end_s": b, "reason": "generation_incomplete",
             "evidence_ids": [str(gap["raw_response_sha256"])],
@@ -219,7 +222,12 @@ def inspect_forced_alignment(
     zero = 0
     prev_start = lo
     for unit in words:
-        a, b = _interval(unit)
+        a, b = unit.get("start_s"), unit.get("end_s")
+        if (any(not isinstance(x, (int, float)) or isinstance(x, bool) or not math.isfinite(x) for x in (a, b))
+                or not (0 <= a <= b)):
+            errors.append("invalid_word_interval")
+            continue
+        a, b = float(a), float(b)
         if a < lo - .05 or b > hi + .05:
             errors.append("word_outside_source_region")
         if a < prev_start - .001:
@@ -272,6 +280,9 @@ def assemble_source_turn_revision(
     return {
         "schema": "nemovox-source-turn-revision/v1",
         "source_turn_id": _id("src_turn", [ledger["media_fingerprint_sha256"], audio_event_id]),
+        "source_revision_id": _id("src_revision", [ledger["media_fingerprint_sha256"], audio_event_id,
+                                           chosen_observation_id, candidate_source_text, selection_basis,
+                                           source_start_s, source_end_s]),
         "audio_event_id": audio_event_id,
         "source_language": ledger.get("source_language"),
         "source_text": candidate_source_text,
