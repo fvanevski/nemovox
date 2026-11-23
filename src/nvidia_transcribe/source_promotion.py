@@ -16,6 +16,7 @@ import os
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, Mapping
+import unicodedata
 
 from nvidia_transcribe.source_reconciliation import SCHEMA as DOSSIER_SCHEMA
 from nvidia_transcribe.source_recovery import LANGUAGES, _id, _interval, _overlap
@@ -79,6 +80,12 @@ def _str(value: Any, field: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{field} must be nonempty text")
     return value.strip()
+
+
+def _source_text_echo_key(value: str) -> str:
+    """Exact normalized lexical equality for a QUARANTINE flag, never deletion."""
+    folded = unicodedata.normalize("NFKC", value).casefold()
+    return " ".join("".join(ch if ch.isalnum() else " " for ch in folded).split())
 
 
 def _same_bounds(left: tuple[float, float], right: tuple[float, float], eps: float = 0.001) -> bool:
@@ -339,6 +346,14 @@ def promote_bounded_source_turns(
             # Partially linked legacy text is NOT a reason to discard a
             # newly heard real phrase. Keep both source observations, expose
             # the unresolved overlap, and prohibit replacing partial rows.
+            # A directly heard phrase can coexist in the immutable ledger
+            # with only PART of its old model transcript. Automatically
+            # appending it to the rendered contract would double the same
+            # acoustic event, while dropping the original would erase
+            # unverified material. Keep the reviewed text in the dossier,
+            # quarantine its presentation and retain the partial legacy row.
+            if partial:
+                reasons.append("reviewed_event_has_partial_legacy_audio_ownership")
             if replacement_ids and not set(replacement_ids) <= eligible:
                 reasons.append("requested_supersession_not_proven_by_immutable_source_units")
         if replacement_ids and not reviewed:
@@ -382,6 +397,30 @@ def promote_bounded_source_turns(
             # A speech detector and bounded ASR could be rediscovering a
             # phrase already present in v1; this cannot be inferred away.
             reasons.append("model_candidate_collides_with_existing_legacy_speech")
+        if not reviewed:
+            # A very near IDENTICAL source phrase can be an ASR boundary
+            # echo even if the two provisional time intervals do not
+            # overlap (H1 versus utt-0027). Never deduplicate either real
+            # source observation: hold only the unreviewed model addition.
+            own_key = _source_text_echo_key(candidate["source_text"])
+            for utterance in original:
+                old_start, old_end = utterance.get("source_start"), utterance.get("source_end")
+                if (not isinstance(old_start, (int, float))
+                        or not isinstance(old_end, (int, float))
+                        or isinstance(old_start, bool) or isinstance(old_end, bool)
+                        or not math.isfinite(old_start) or not math.isfinite(old_end)):
+                    continue
+                gap = max(0.0, old_start - b, a - old_end)
+                if gap <= 2.5 and own_key and own_key == _source_text_echo_key(
+                    str(utterance.get("source_text") or "")
+                ):
+                    reasons.append("model_only_nearby_identical_source_possible_echo")
+                    break
+        if reviewed and lineage is None and overlapping_legacy and not replacement_ids:
+            # With no verified immutable source-unit map, a reviewed
+            # overlapping voice may be an old wrong transcript OR a
+            # distinct simultaneous speaker. Do not choose silently.
+            reasons.append("reviewed_overlap_requires_acoustic_unit_disambiguation")
         if reviewed:
             event_id = _id("src_turn", [media, eid])
             if event_id != reviewed.get("source_turn_id"):
@@ -406,6 +445,9 @@ def promote_bounded_source_turns(
                     candidate["source_text"].encode("utf-8")
                 ).hexdigest(),
                 "overlapping_legacy_utterance_ids": overlapping_legacy,
+                "partially_attributed_legacy_utterance_ids": sorted(
+                    partially_linked_by_event.get(eid, set())
+                ),
                 "cannot_be_presented_as_accepted_speech": True,
                 "model_text_scope_screen": (
                     density if not reviewed else None
