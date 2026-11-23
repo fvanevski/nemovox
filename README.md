@@ -96,6 +96,47 @@ nvidia-transcribe generate-subtitles \
   --re-render
 ```
 
+### Reviewed source revision (explicit offline opt-in)
+
+The `apply-reviewed-revision` CLI consumes immutable ASR source evidence,
+independently reviewed audio-event reconciliation, a digest-pinned **explicit**
+selection of complete source-unit components, an original recording, and
+revision-specific English translation receipts. It is a separate, model-free
+path; the default subtitle generator remains unchanged. This feature requires
+host qualification before relying on it for the media library.
+
+```sh
+# Default: no writes and no model calls, validates the selected evidence
+nvidia-transcribe apply-reviewed-revision \
+  --original-recording /private/recording.contract.json \
+  --source-evidence /private/source-evidence.v1.json \
+  --review-dossier /private/candidate_reconciliation_dossier.json \
+  --selection /private/approved-components.json
+
+# Explicitly create one NEW private revised contract and SRT/ASS set
+nvidia-transcribe apply-reviewed-revision \
+  --original-recording /private/recording.contract.json \
+  --source-evidence /private/source-evidence.v1.json \
+  --review-dossier /private/candidate_reconciliation_dossier.json \
+  --selection /private/approved-components.json \
+  --previous-translated /private/translated.contract.json \
+  --translation-receipts /private/revision-translation-receipts.json \
+  --local-voice-review /private/local-acoustic-voice-review.json \
+  --output-dir /private/new-reviewed-output \
+  --episode-stem my_episode --apply
+```
+
+The selection is `nemovox-reviewed-component-selection/v1` JSON containing
+`selected_component_ids`, `expected_plan_sha256`, and
+`recording_content_sha256`, `ledger_content_sha256`,
+`dossier_content_sha256`. These bind the current recomputed reviewed-unit
+partition and three original evidence inputs. Incomplete components are
+rejected, and `--apply` refuses an existing output directory. Riva/ASR/VLM
+inference and live sidecar export are NOT invoked; new reviewed turns require
+pre-existing translation receipts tied to each source revision. Local reviewed
+voice tags remain distinct from global speaker identity. No automatic disposal
+of ambiguous raw ASR overlaps or invention of word-level timing occurs.
+
 ---
 
 ## Repository Layout
