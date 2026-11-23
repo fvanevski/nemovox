@@ -1,0 +1,692 @@
+{
+  "schema": "nemovox-issue14-c2-challenger-summary/v1",
+  "source_authority": "none_read_only_evidence_only",
+  "environment": {
+    "python_venv": "/workspace/pyannote/.venv/bin/python",
+    "packages": {
+      "whisperx": "3.8.6",
+      "faster_whisper": "1.2.1",
+      "ctranslate2": "4.8.1",
+      "pyannote_audio": "4.0.7",
+      "torch": "2.13.0+cu130"
+    },
+    "cached_models_used": [
+      {
+        "role": "asr_primary_challenger",
+        "repo_id": "Systran/faster-whisper-large-v3",
+        "revision": "edaa852ec7e145841d8ffdb056a99866b5f0a478"
+      },
+      {
+        "role": "asr_speed_comparator",
+        "repo_id": "mobiuslabsgmbh/faster-whisper-large-v3-turbo",
+        "revision": "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf"
+      },
+      {
+        "role": "diarization_challenger",
+        "repo_id": "pyannote/speaker-diarization-community-1",
+        "revision": "3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+      }
+    ],
+    "whisperx_forced_alignment": {
+      "fr": "NOT_EXECUTED (pre-run torch hub cache absent; whisperx.load_align_model bypassed HF_HUB_OFFLINE=1 via torch.hub, download removed to preserve cache non-mutation)",
+      "zh": "NOT_EXECUTED (aligner_assets_not_cached_offline)"
+    }
+  },
+  "window_count": 18,
+  "fr_window_count": 14,
+  "zh_window_count": 4,
+  "total_audio_duration_s": 366.979,
+  "windows": [
+    {
+      "case_id": "FR_W01_recap_tincio",
+      "language": "fr",
+      "media_fingerprint_sha256": "8d6e97fa0c3b0c674baa4e1864e72ada463dd4f448c7f9e3e6aacfb8249548e9",
+      "interval_s": [
+        25.0,
+        50.0
+      ],
+      "duration_s": 25.0,
+      "wav_sha256": "346e43f5c3a7575767c63676defbbcb0010e52e91fd78bad276e9ae685021344",
+      "wav_bytes": 800078,
+      "purpose": "W01a/W01b theme song + early recap drift",
+      "whisper_large_v3": {
+        "segment_count": 2,
+        "char_count": 97,
+        "text_sha256": "6e3d53f82e725247",
+        "wall_s": 1.091
+      },
+      "whisper_large_v3_turbo": {
+        "segment_count": 2,
+        "char_count": 97,
+        "text_sha256": "bf08e7815e9c2696",
+        "wall_s": 0.291
+      },
+      "pyannote_community_1": {
+        "speaker_count": 2,
+        "overlapping_turn_count": 8,
+        "exclusive_turn_count": 8,
+        "overlap_region_count": 0,
+        "overlap_regions": [],
+        "wall_s": 1.31
+      }
+    },
+    {
+      "case_id": "FR_W01_chase_shout",
+      "language": "fr",
+      "media_fingerprint_sha256": "8d6e97fa0c3b0c674baa4e1864e72ada463dd4f448c7f9e3e6aacfb8249548e9",
+      "interval_s": [
+        56.0,
+        84.0
+      ],
+      "duration_s": 28.0,
+      "wav_sha256": "96895946ec6d0b2ac2caa6ad765a7400a9e2c33f981ed44bc81f8fddc8bfa4f2",
+      "wav_bytes": 896078,
+      "purpose": "W01c omitted shout + W01d split",
+      "whisper_large_v3": {
+        "segment_count": 5,
+        "char_count": 184,
+        "text_sha256": "af22435634700693",
+        "wall_s": 0.626
+      },
+      "whisper_large_v3_turbo": {
+        "segment_count": 7,
+        "char_count": 212,
+        "text_sha256": "eb426c9a94b6544b",
+        "wall_s": 0.389
+      },
+      "pyannote_community_1": {
+        "speaker_count": 3,
+        "overlapping_turn_count": 9,
+        "exclusive_turn_count": 9,
+        "overlap_region_count": 0,
+        "overlap_regions": [],
+        "wall_s": 0.21
+      }
+    },
+    {
+      "case_id": "FR_W02b_child_voices",
+      "language": "fr",
+      "media_fingerprint_sha256": "8d6e97fa0c3b0c674baa4e1864e72ada463dd4f448c7f9e3e6aacfb8249548e9",
+      "interval_s": [
+        212.0,
+        236.0
+      ],
+      "duration_s": 24.0,
+      "wav_sha256": "1b201610b1fd9690704866fe493a16013deeddf60afbd15faf70a09da7146133",
+      "wav_bytes": 768078,
+      "purpose": "W02b child-voice separation regression control",
+      "whisper_large_v3": {
+        "segment_count": 7,
+        "char_count": 358,
+        "text_sha256": "a447f3e81246ecdb",
+        "wall_s": 0.855
+      },
+      "whisper_large_v3_turbo": {
+        "segment_count": 7,
+        "char_count": 355,
+        "text_sha256": "422503ca1fd9e0a0",
+        "wall_s": 0.423
+      },
+      "pyannote_community_1": {
+        "speaker_count": 1,
+        "overlapping_turn_count": 2,
+        "exclusive_turn_count": 2,
+        "overlap_region_count": 0,
+        "overlap_regions": [],
+        "wall_s": 0.171
+      }
+    },
+    {
+      "case_id": "FR_W02a_drift",
+      "language": "fr",
+      "media_fingerprint_sha256": "8d6e97fa0c3b0c674baa4e1864e72ada463dd4f448c7f9e3e6aacfb8249548e9",
+      "interval_s": [
+        235.0,
+        246.0
+      ],
+      "duration_s": 11.0,
+      "wav_sha256": "45b58de28de151363fa490241e551ac3422b98afd1f02520e474fe9540af5c11",
+      "wav_bytes": 352078,
+      "purpose": "W02a -38s CTC drift",
+      "whisper_large_v3": {
+        "segment_count": 2,
+        "char_count": 116,
+        "text_sha256": "771bb6bdb01feec2",
+        "wall_s": 0.413
+      },
+      "whisper_large_v3_turbo": {
+        "segment_count": 2,
+        "char_count": 90,
+        "text_sha256": "8242ed990ec0ca87",
+        "wall_s": 0.27
+      },
+      "pyannote_community_1": {
+        "speaker_count": 1,
+        "overlapping_turn_count": 2,
+        "exclusive_turn_count": 2,
+        "overlap_region_count": 0,
+        "overlap_regions": [],
+        "wall_s": 0.047
+      }
+    },
+    {
+      "case_id": "FR_W02c_w02d_c02",
+      "language": "fr",
+      "media_fingerprint_sha256": "8d6e97fa0c3b0c674baa4e1864e72ada463dd4f448c7f9e3e6aacfb8249548e9",
+      "interval_s": [
+        258.0,
+        286.0
+      ],
+      "duration_s": 28.0,
+      "wav_sha256": "5dc7b4818757cc251e6ed8b6dcfc6da6a40499792422037df0e22cfa090cd3e6",
+      "wav_bytes": 896078,
+      "purpose": "W02c/W02d boundary + c02 compressed echo",
+      "whisper_large_v3": {
+        "segment_count": 9,
+        "char_count": 418,
+        "text_sha256": "63852fe7fa33a315",
+        "wall_s": 1.038
+      },
+      "whisper_large_v3_turbo": {
+        "segment_count": 5,
+        "char_count": 434,
+        "text_sha256": "99c72c49373d7824",
+        "wall_s": 0.493
+      },
+      "pyannote_community_1": {
+        "speaker_count": 2,
+        "overlapping_turn_count": 15,
+        "exclusive_turn_count": 17,
+        "overlap_region_count": 1,
+        "overlap_regions": [
+          {
+            "abs_start_s": 261.946,
+            "abs_end_s": 262.368,
+            "duration_s": 0.422,
+            "speakers": [
+              "SPEAKER_00",
+              "SPEAKER_01"
+            ]
+          }
+        ],
+        "wall_s": 0.214
+      }
+    },
+    {
+      "case_id": "FR_c03_density",
+      "language": "fr",
+      "media_fingerprint_sha256": "8d6e97fa0c3b0c674baa4e1864e72ada463dd4f448c7f9e3e6aacfb8249548e9",
+      "interval_s": [
+        302.0,
+        311.0
+      ],
+      "duration_s": 9.0,
+      "wav_sha256": "60ab98a120107dde4fffdf820f17b50d84c1779c438db032e162cea0bd7531bc",
+      "wav_bytes": 288078,
+      "purpose": "c03 CTC multiword compression false-positive check",
+      "whisper_large_v3": {
+        "segment_count": 3,
+        "char_count": 143,
+        "text_sha256": "0de1bc346e9dfdeb",
+        "wall_s": 0.477
+      },
+      "whisper_large_v3_turbo": {
+        "segment_count": 3,
+        "char_count": 144,
+        "text_sha256": "948acd006c145fa4",
+        "wall_s": 0.299
+      },
+      "pyannote_community_1": {
+        "speaker_count": 1,
+        "overlapping_turn_count": 3,
+        "exclusive_turn_count": 3,
+        "overlap_region_count": 0,
+        "overlap_regions": [],
+        "wall_s": 0.033
+      }
+    },
+    {
+      "case_id": "FR_S02_early",
+      "language": "fr",
+      "media_fingerprint_sha256": "8d6e97fa0c3b0c674baa4e1864e72ada463dd4f448c7f9e3e6aacfb8249548e9",
+      "interval_s": [
+        336.0,
+        345.0
+      ],
+      "duration_s": 9.0,
+      "wav_sha256": "7161091eba2d48cea5cf64278cacb7b3c3af8e83463b4e8251c02101c3423122",
+      "wav_bytes": 288078,
+      "purpose": "S02 early CTC window 337.5-341.5",
+      "whisper_large_v3": {
+        "segment_count": 2,
+        "char_count": 124,
+        "text_sha256": "a94d33dccdd85d7a",
+        "wall_s": 0.421
+      },
+      "whisper_large_v3_turbo": {
+        "segment_count": 4,
+        "char_count": 121,
+        "text_sha256": "357f368ea9f68476",
+        "wall_s": 0.315
+      },
+      "pyannote_community_1": {
+        "speaker_count": 2,
+        "overlapping_turn_count": 3,
+        "exclusive_turn_count": 2,
+        "overlap_region_count": 1,
+        "overlap_regions": [
+          {
+            "abs_start_s": 339.895,
+            "abs_end_s": 341.144,
+            "duration_s": 1.249,
+            "speakers": [
+              "SPEAKER_00",
+              "SPEAKER_01"
+            ]
+          }
+        ],
+        "wall_s": 0.032
+      }
+    },
+    {
+      "case_id": "FR_S02_H2_boundary",
+      "language": "fr",
+      "media_fingerprint_sha256": "8d6e97fa0c3b0c674baa4e1864e72ada463dd4f448c7f9e3e6aacfb8249548e9",
+      "interval_s": [
+        354.0,
+        368.0
+      ],
+      "duration_s": 14.0,
+      "wav_sha256": "0fe5e78d24eee93fd7e255f3c57bef6cdc1356dc079dc4e2f1614d15e4dff2fb",
+      "wav_bytes": 448078,
+      "purpose": "S02 360s straddled overlap + H2 reanchored 364.7-366.2",
+      "whisper_large_v3": {
+        "segment_count": 3,
+        "char_count": 71,
+        "text_sha256": "83319bb0b94e9bc5",
+        "wall_s": 0.401
+      },
+      "whisper_large_v3_turbo": {
+        "segment_count": 3,
+        "char_count": 76,
+        "text_sha256": "de89a132d2409141",
+        "wall_s": 0.282
+      },
+      "pyannote_community_1": {
+        "speaker_count": 1,
+        "overlapping_turn_count": 2,
+        "exclusive_turn_count": 2,
+        "overlap_region_count": 0,
+        "overlap_regions": [],
+        "wall_s": 0.069
+      }
+    },
+    {
+      "case_id": "FR_C1_clean",
+      "language": "fr",
+      "media_fingerprint_sha256": "8d6e97fa0c3b0c674baa4e1864e72ada463dd4f448c7f9e3e6aacfb8249548e9",
+      "interval_s": [
+        685.0,
+        699.0
+      ],
+      "duration_s": 14.0,
+      "wav_sha256": "169952f64b9b9ab17c8818dba7c987d6f4bc24a0dceb65322fd8a2bce29422f4",
+      "wav_bytes": 448078,
+      "purpose": "C1 29-token clean mid-core control",
+      "whisper_large_v3": {
+        "segment_count": 4,
+        "char_count": 167,
+        "text_sha256": "b002dccb932ef93c",
+        "wall_s": 0.564
+      },
+      "whisper_large_v3_turbo": {
+        "segment_count": 5,
+        "char_count": 182,
+        "text_sha256": "1b6d9b73d6a34c81",
+        "wall_s": 0.339
+      },
+      "pyannote_community_1": {
+        "speaker_count": 1,
+        "overlapping_turn_count": 3,
+        "exclusive_turn_count": 3,
+        "overlap_region_count": 0,
+        "overlap_regions": [],
+        "wall_s": 0.068
+      }
+    },
+    {
+      "case_id": "FR_W03a_W03b",
+      "language": "fr",
+      "media_fingerprint_sha256": "8d6e97fa0c3b0c674baa4e1864e72ada463dd4f448c7f9e3e6aacfb8249548e9",
+      "interval_s": [
+        984.0,
+        1014.0
+      ],
+      "duration_s": 29.979,
+      "wav_sha256": "b38242ad7db84df7b624bd7bb92b70efa12fbc33d5bc0dc79c297bb1dd4e5413",
+      "wav_bytes": 959406,
+      "purpose": "W03a duplicate + W03b 11w CTC compression/drift",
+      "whisper_large_v3": {
+        "segment_count": 10,
+        "char_count": 414,
+        "text_sha256": "df82511e753c90ca",
+        "wall_s": 1.086
+      },
+      "whisper_large_v3_turbo": {
+        "segment_count": 10,
+        "char_count": 373,
+        "text_sha256": "dd41fe8412fcc21b",
+        "wall_s": 0.527
+      },
+      "pyannote_community_1": {
+        "speaker_count": 1,
+        "overlapping_turn_count": 6,
+        "exclusive_turn_count": 6,
+        "overlap_region_count": 0,
+        "overlap_regions": [],
+        "wall_s": 0.242
+      }
+    },
+    {
+      "case_id": "FR_C2_repeat",
+      "language": "fr",
+      "media_fingerprint_sha256": "8d6e97fa0c3b0c674baa4e1864e72ada463dd4f448c7f9e3e6aacfb8249548e9",
+      "interval_s": [
+        1016.0,
+        1036.0
+      ],
+      "duration_s": 20.0,
+      "wav_sha256": "31980c7970f68358f319f93aa1f1d51080c60cfeb18470df8de5f9eba32ef594",
+      "wav_bytes": 640078,
+      "purpose": "C2 genuine repeat + concurrent speaker",
+      "whisper_large_v3": {
+        "segment_count": 3,
+        "char_count": 120,
+        "text_sha256": "1d4ee9a793e07d99",
+        "wall_s": 0.469
+      },
+      "whisper_large_v3_turbo": {
+        "segment_count": 4,
+        "char_count": 119,
+        "text_sha256": "2faf349ff724ab25",
+        "wall_s": 0.319
+      },
+      "pyannote_community_1": {
+        "speaker_count": 1,
+        "overlapping_turn_count": 7,
+        "exclusive_turn_count": 7,
+        "overlap_region_count": 0,
+        "overlap_regions": [],
+        "wall_s": 0.134
+      }
+    },
+    {
+      "case_id": "FR_W04c_reanchored",
+      "language": "fr",
+      "media_fingerprint_sha256": "8d6e97fa0c3b0c674baa4e1864e72ada463dd4f448c7f9e3e6aacfb8249548e9",
+      "interval_s": [
+        1261.0,
+        1271.0
+      ],
+      "duration_s": 10.0,
+      "wav_sha256": "fa497c78ae11bb65c6ba9f6394b53a631818739c553e1b3db92cb6aeeb7f9114",
+      "wav_bytes": 320078,
+      "purpose": "W04c reanchored 1264.3-1266.3 + fanfare negative control",
+      "whisper_large_v3": {
+        "segment_count": 2,
+        "char_count": 109,
+        "text_sha256": "4130c34ba798047b",
+        "wall_s": 0.406
+      },
+      "whisper_large_v3_turbo": {
+        "segment_count": 1,
+        "char_count": 33,
+        "text_sha256": "5b57b1ca0451418d",
+        "wall_s": 0.233
+      },
+      "pyannote_community_1": {
+        "speaker_count": 1,
+        "overlapping_turn_count": 1,
+        "exclusive_turn_count": 1,
+        "overlap_region_count": 0,
+        "overlap_regions": [],
+        "wall_s": 0.03
+      }
+    },
+    {
+      "case_id": "FR_S04_shouts",
+      "language": "fr",
+      "media_fingerprint_sha256": "8d6e97fa0c3b0c674baa4e1864e72ada463dd4f448c7f9e3e6aacfb8249548e9",
+      "interval_s": [
+        1304.0,
+        1331.0
+      ],
+      "duration_s": 27.0,
+      "wav_sha256": "6e676e14c13c92008d425f2b829a1a32899fb4a25250615116c976ee25f1c4bc",
+      "wav_bytes": 864078,
+      "purpose": "S04 density split + 1327/1329 Alerte shouts",
+      "whisper_large_v3": {
+        "segment_count": 8,
+        "char_count": 469,
+        "text_sha256": "00fcb50e740f905b",
+        "wall_s": 1.009
+      },
+      "whisper_large_v3_turbo": {
+        "segment_count": 8,
+        "char_count": 466,
+        "text_sha256": "ef0e62fb0cc140c9",
+        "wall_s": 0.507
+      },
+      "pyannote_community_1": {
+        "speaker_count": 2,
+        "overlapping_turn_count": 6,
+        "exclusive_turn_count": 5,
+        "overlap_region_count": 1,
+        "overlap_regions": [
+          {
+            "abs_start_s": 1328.702,
+            "abs_end_s": 1328.77,
+            "duration_s": 0.068,
+            "speakers": [
+              "SPEAKER_00",
+              "SPEAKER_01"
+            ]
+          }
+        ],
+        "wall_s": 0.202
+      }
+    },
+    {
+      "case_id": "FR_W05a_S05",
+      "language": "fr",
+      "media_fingerprint_sha256": "8d6e97fa0c3b0c674baa4e1864e72ada463dd4f448c7f9e3e6aacfb8249548e9",
+      "interval_s": [
+        1350.0,
+        1378.0
+      ],
+      "duration_s": 28.0,
+      "wav_sha256": "950c5a12270abdb39792c804552185d0ddb647445909c802db786658c6e6219d",
+      "wav_bytes": 896078,
+      "purpose": "W05a 6-word child omission + S05 narrator/Pichu",
+      "whisper_large_v3": {
+        "segment_count": 5,
+        "char_count": 418,
+        "text_sha256": "d0dbc3f62b0ee956",
+        "wall_s": 0.938
+      },
+      "whisper_large_v3_turbo": {
+        "segment_count": 11,
+        "char_count": 482,
+        "text_sha256": "babd8fe4aaf95ef9",
+        "wall_s": 0.551
+      },
+      "pyannote_community_1": {
+        "speaker_count": 2,
+        "overlapping_turn_count": 5,
+        "exclusive_turn_count": 5,
+        "overlap_region_count": 0,
+        "overlap_regions": [],
+        "wall_s": 0.211
+      }
+    },
+    {
+      "case_id": "ZH_525_handoff",
+      "language": "zh",
+      "media_fingerprint_sha256": "ef9cb723d6b2e8663fc62ac617ecb949608a45dce9633f88043a0c3fb541f13d",
+      "interval_s": [
+        515.0,
+        532.0
+      ],
+      "duration_s": 17.0,
+      "wav_sha256": "0469ac8e868a54a99d36475bd118692a7810a93b348a8135b02828ecaa97e08b",
+      "wav_bytes": 544078,
+      "purpose": "EP166 525.16s multi-speaker handoff",
+      "whisper_large_v3": {
+        "segment_count": 5,
+        "char_count": 48,
+        "text_sha256": "a9dd8db270afd01c",
+        "wall_s": 0.622
+      },
+      "whisper_large_v3_turbo": {
+        "segment_count": 4,
+        "char_count": 47,
+        "text_sha256": "0802a3357f48f0b9",
+        "wall_s": 0.329
+      },
+      "pyannote_community_1": {
+        "speaker_count": 1,
+        "overlapping_turn_count": 3,
+        "exclusive_turn_count": 3,
+        "overlap_region_count": 0,
+        "overlap_regions": [],
+        "wall_s": 0.103
+      }
+    },
+    {
+      "case_id": "ZH_overlap_865",
+      "language": "zh",
+      "media_fingerprint_sha256": "ef9cb723d6b2e8663fc62ac617ecb949608a45dce9633f88043a0c3fb541f13d",
+      "interval_s": [
+        860.0,
+        884.0
+      ],
+      "duration_s": 24.0,
+      "wav_sha256": "3ef08008ebdae80edda8337ffb1fb37ad8779bfbb7f1e59d02ad12aa6c158201",
+      "wav_bytes": 768078,
+      "purpose": "EP166 multi-speaker overlap control",
+      "whisper_large_v3": {
+        "segment_count": 9,
+        "char_count": 86,
+        "text_sha256": "5ae918de7239fc15",
+        "wall_s": 0.819
+      },
+      "whisper_large_v3_turbo": {
+        "segment_count": 13,
+        "char_count": 90,
+        "text_sha256": "c7a655a4a6388093",
+        "wall_s": 0.477
+      },
+      "pyannote_community_1": {
+        "speaker_count": 1,
+        "overlapping_turn_count": 9,
+        "exclusive_turn_count": 9,
+        "overlap_region_count": 0,
+        "overlap_regions": [],
+        "wall_s": 0.165
+      }
+    },
+    {
+      "case_id": "ZH_untimed_1000",
+      "language": "zh",
+      "media_fingerprint_sha256": "ef9cb723d6b2e8663fc62ac617ecb949608a45dce9633f88043a0c3fb541f13d",
+      "interval_s": [
+        997.0,
+        1018.0
+      ],
+      "duration_s": 21.0,
+      "wav_sha256": "2ee13bd34aa051ebe5e7b84bc3f0f1c438fd99544377a24f5c398c049d960abd",
+      "wav_bytes": 672078,
+      "purpose": "EP166 OOV/untimed transition region",
+      "whisper_large_v3": {
+        "segment_count": 9,
+        "char_count": 82,
+        "text_sha256": "dfdc4fc1a7a56c8b",
+        "wall_s": 0.766
+      },
+      "whisper_large_v3_turbo": {
+        "segment_count": 9,
+        "char_count": 82,
+        "text_sha256": "ab130bd17c6c214c",
+        "wall_s": 0.432
+      },
+      "pyannote_community_1": {
+        "speaker_count": 2,
+        "overlapping_turn_count": 11,
+        "exclusive_turn_count": 11,
+        "overlap_region_count": 0,
+        "overlap_regions": [],
+        "wall_s": 0.148
+      }
+    },
+    {
+      "case_id": "ZH_c14_tail",
+      "language": "zh",
+      "media_fingerprint_sha256": "ef9cb723d6b2e8663fc62ac617ecb949608a45dce9633f88043a0c3fb541f13d",
+      "interval_s": [
+        1260.0,
+        1288.0
+      ],
+      "duration_s": 28.0,
+      "wav_sha256": "738cd090c454ad51f96aa21d52d3b913f48a954d8f84954a0a0e2b932cf674f8",
+      "wav_bytes": 896078,
+      "purpose": "EP166 chunk 14 untimed speech region",
+      "whisper_large_v3": {
+        "segment_count": 1,
+        "char_count": 19,
+        "text_sha256": "c6957f0627b2a636",
+        "wall_s": 0.315
+      },
+      "whisper_large_v3_turbo": {
+        "segment_count": 1,
+        "char_count": 40,
+        "text_sha256": "d6b90306bbaeb4da",
+        "wall_s": 0.272
+      },
+      "pyannote_community_1": {
+        "speaker_count": 0,
+        "overlapping_turn_count": 0,
+        "exclusive_turn_count": 0,
+        "overlap_region_count": 0,
+        "overlap_regions": [],
+        "wall_s": 0.025
+      }
+    }
+  ],
+  "component_findings": {
+    "source_text": "Whisper large-v3 recovered clean French lexical wording on S02/W04c/S04/C1/C2 and corrected ZH 525s ('不死骨' vs Nemotron '不死谷'), but missed FR W05a ('Oh! Il joue avec des cailloux!'), misheard H2 ('Fais-toi' vs 'Fais voir.'), and hallucinated ('由 Amara.org 社群提供的字幕') on ZH_c14_tail instrumental/silence. large-v3-turbo caught W05a/W01c shouts but hallucinated 'Sous-titrage Société Radio-Canada' on W04c fanfare and dropped W04c speech.",
+    "timing": "WhisperX forced alignment NOT_EXECUTED offline. Faster-whisper raw word/segment times accurately localized W02a (238.5-241.5s vs Nemotron -38s drift), S02 (355.1-359.6s), and W03b (985.8-1007.4s vs Nemotron compressed 1009s), confirming Nemotron CTC drift/compression is acoustic misalignment rather than spoken speed.",
+    "diarization": "pyannote/speaker-diarization-community-1 cleanly separated adult vs child/Pichu on FR_W05a_S05 (1352.63-1354.23; 1370.80-1374.82) and FR_W01_chase_shout (3 speakers), but collapsed alternating Tao/Zia child voices into 1 speaker on FR_W02b_child_voices (matching full-episode /workspace/pyannote run regression), collapsed S02+H2 into 1 speaker, and collapsed ZH_525_handoff and ZH_overlap_865 into 1 speaker.",
+    "english_consequence": "Challenger raw ASR + audio review confirm S02 polarity ('C'est pas notre Nakal...'), W04c ('Mes amis ! Changement de cap !'), and ZH 525s ('不死骨'), showing source errors propagate directly to English unless fixed upstream.",
+    "wer_cer_der": "UNVERIFIED (no human full-episode word/RTTM ground truth)."
+  },
+  "conditional_full_shadow_run": {
+    "executed": false,
+    "reason": "18 bounded clips plus existing read-only full-episode /workspace/pyannote FR run already establish exact strengths/regressions (turbo fanfare hallucination, v3 W05a omission & ZH music hallucination, pyannote W02b child collapse & ZH speaker collapse). Full FR/ZH shadow passes omitted for speed and safety."
+  },
+  "adoption_recommendation_to_central": {
+    "raw_asr": "secondary_observational_challenger_only (do not replace Nemotron default; use only as gated cross-check where Nemotron drops/loops, never trusting Whisper on music/silence without VAD/speech corroboration)",
+    "forced_alignment": "evidence_only_deferred (requires explicit pre-cached local aligner models; cannot certify word truth alone)",
+    "diarization": "no_unconditional_replacement (pyannote helps adult-vs-child/Pichu boundaries on W05a/S05 but fails child-vs-child W02b and ZH 525s/865s speaker separation; keep TitaNet/Nemotron with targeted acoustic-turn review)"
+  },
+  "gpu_nonmutation": {
+    "vram_before": {
+      "used_mib": 3103,
+      "free_mib": 29024,
+      "total_mib": 32607
+    },
+    "vram_after_verified_restored": {
+      "used_mib": 3103,
+      "free_mib": 29024
+    }
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "wer_cer": "UNVERIFIED",
+  "translator": "Riva-Translate-4B-Instruct-v2 (style=natural, refinement=off, translation_review=off, ass_layout=standard)",
+  "comparison": {
+    "legacy_vetted_central_309": {
+      "utterances": 234,
+      "renderable_cues": 309,
+      "unrenderable_cues": 0,
+      "ass_top_lane": 26,
+      "cps_gt_18": 67,
+      "cps_gt_22": 30,
+      "consec_dup": 6,
+      "srt_sha256": "19f81a50cd4b44bc7a37b87e1a60dc1eeb2d5f87e8d83b3eb697f9b3b7e4a5bd"
+    },
+    "prior_default_290": {
+      "utterances": 217,
+      "renderable_cues": 290,
+      "unrenderable_cues": 0,
+      "ass_top_lane": 20,
+      "cps_gt_18": 58,
+      "cps_gt_22": 29,
+      "consec_dup": 7,
+      "srt_sha256": "017d17f79c92a23e169d673470d9f8678eaf4b4eb66ed3a394aa01e16170eca5"
+    },
+    "new_default_fr_287_plus_3_unrenderable": {
+      "utterances": 217,
+      "renderable_cues": 287,
+      "unrenderable_cues": 3,
+      "ass_top_lane": 13,
+      "cps_gt_18": 62,
+      "cps_gt_22": 27,
+      "max_cps": 155.3,
+      "consec_dup": 4,
+      "peak_vram_mib": 8024.05,
+      "srt_sha256": "5f16850d8b68b0f9bc8fa99cf0edad1d1ec59812f2ea1a74264216ae8b0d72c3",
+      "ass_sha256": "807858cd3f5585b1f3f166e61f6a940063b4b7fc7527857e29af2c3259097ff1",
+      "key_event_checks": {
+        "s02_polarity": "PASS (utt-0069 357.31-359.849s: 'It wasn't our Nakall who thought of that!')",
+        "w05a_recovered": "PASS (utt-0212 1352.66-1353.909s: 'He's playing with rocks!')",
+        "w03b_unverified_not_rendered": "PASS (utt-0148..0150 untimed -> 3 unrenderable cues withheld from SRT/ASS)",
+        "s05_pichu_separated": "PASS (utt-0215 SPK_25 separated from Narrator SPK_26)"
+      }
+    }
+  },
+  "resume_and_offline_rerender_exact_match": {
+    "resume_cache_hits": 217,
+    "resume_srt_sha256_match": true,
+    "offline_rerender_srt_sha256_match": true,
+    "offline_rerender_ass_sha256_match": true
+  },
+  "studio_smoke": {
+    "live_studio_health": {
+      "status": "ok",
+      "backend": "local",
+      "ffmpeg": true,
+      "ytdlp": true,
+      "media_roots": [
+        "/workspace/nvidia-transcribe/outputs",
+        "/home/filip/Videos",
+        "/opt/mcog",
+        "/workspace/pyannote/outputs/sources"
+      ]
+    },
+    "live_studio_jobs_before": 10,
+    "live_studio_jobs_after": 10,
+    "isolated_smoke_status_code": 202,
+    "isolated_smoke_state": "complete",
+    "isolated_smoke_artifacts": [
+      {
+        "name": "recording.contract.json",
+        "path": "asr/recording.contract.json",
+        "url": "/api/jobs/c5b68dd63a73449abf74f5add5448786/artifact/asr/recording.contract.json"
+      },
+      {
+        "name": "transcript.txt",
+        "path": "asr/transcript.txt",
+        "url": "/api/jobs/c5b68dd63a73449abf74f5add5448786/artifact/asr/transcript.txt"
+      }
+    ],
+    "isolated_smoke_preview_keys": [
+      "kind",
+      "cues"
+    ],
+    "isolated_smoke_preview_utterances": 0,
+    "isolated_smoke_cleaned_up": true
+  }
+}

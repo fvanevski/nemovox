@@ -1,0 +1,47 @@
+{
+  "validated_source_sha": "af9bd948c3eec613a4b43ab11af0b0abac781864",
+  "validated_source_tree": "abb3f8c76c99fb975deb054966963c9077bf080e",
+  "admitted_pr_head_sha": "e3e129ffa1f941d3199fe032276ab791756f4696",
+  "gates": [
+    {
+      "name": "compileall",
+      "exit_code": 0
+    },
+    {
+      "name": "focused_issue14_9_files",
+      "exit_code": 0,
+      "passed": 117,
+      "failed": 0,
+      "skipped": 0,
+      "warnings": 1
+    },
+    {
+      "name": "full_non_gpu_suite",
+      "exit_code": 0,
+      "passed": 406,
+      "failed": 0,
+      "skipped": 0,
+      "warnings": 1
+    },
+    {
+      "name": "studio_api_with_pythonpath",
+      "exit_code": 0,
+      "passed": 26,
+      "failed": 0,
+      "skipped": 0,
+      "warnings": 0
+    },
+    {
+      "name": "studio_full_cpu_with_pythonpath",
+      "exit_code": 0,
+      "passed": 50,
+      "failed": 0,
+      "skipped": 0,
+      "warnings": 0
+    },
+    {
+      "name": "git_diff_check",
+      "exit_code": 0
+    }
+  ]
+}
