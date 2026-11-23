@@ -20,7 +20,10 @@ def source():
             {"id": "asr_c28", "infer_start_s": 1100, "infer_end_s": 1154,
              "raw_response_sha256": "c" * 64},
         ],
-        "lexical_observations": [],
+        "lexical_observations": [
+            {"id": "unit_a", "asr_observation_id": "asr_orig"},
+            {"id": "unit_b", "asr_observation_id": "asr_c28"},
+        ],
         "cross_chunk_correspondence_candidates": [{
             "id": "corr_false", "left_observation_unit_ids": ["unit_a"],
             "right_observation_unit_ids": ["unit_b"],
@@ -148,6 +151,46 @@ def test_incomplete_model_generation_does_not_promote_partial_words():
     out = reconcile_source_observations(src, plan, q, audited_events=audited)
     assert out["model_windows"][0]["status"] == "incomplete_generation_do_not_accept"
     assert out["diagnostics"]["challenger_windows_incomplete"] == 1
+
+
+def test_cross_chunk_candidate_only_resolves_with_positive_audio_event_unit_provenance():
+    src, plan, q, audited = setup()
+    reviewed = audited["events"][1]
+    reviewed.update({
+        "linked_source_unit_ids": ["unit_a", "unit_b"],
+        "same_audio_event_verified": True,
+        "review_method": "direct_audio_listening",
+        "review_evidence_sha256": "f" * 64,
+    })
+    dossier = reconcile_source_observations(src, plan, q, audited_events=audited)
+    corr = dossier["echo_correspondence_hypotheses"][0]
+    assert corr["decision"] == "same_audio_event_reviewed_keep_observation_lineage"
+    assert corr["positively_verified_event_id"] == "c28_heard"
+    assert corr["source_unit_observations_deleted"] == 0
+
+    reviewed.pop("same_audio_event_verified")
+    with pytest.raises(ValueError, match="positive independent"):
+        reconcile_source_observations(src, plan, q, audited_events=audited)
+
+
+def test_same_lexical_phrase_reviewed_in_two_distinct_audio_events_is_not_deleted():
+    src, plan, q, audited = setup()
+    first = audited["events"][1]
+    second = copy.deepcopy(first)
+    second["id"] = "second_voice"
+    second["start_s"], second["end_s"] = 1136, 1140
+    first.update({
+        "linked_source_unit_ids": ["unit_a"], "same_audio_event_verified": True,
+        "review_method": "direct_audio_listening", "review_evidence_sha256": "f" * 64,
+    })
+    second.update({
+        "linked_source_unit_ids": ["unit_b"], "same_audio_event_verified": True,
+        "review_method": "direct_audio_listening", "review_evidence_sha256": "e" * 64,
+    })
+    audited["events"].append(second)
+    result = reconcile_source_observations(src, plan, q, audited_events=audited)
+    assert result["echo_correspondence_hypotheses"][0]["decision"] == "distinct_audio_events_reviewed_preserve_both"
+    assert result["diagnostics"]["source_unit_observations_deleted"] == 0
 
 
 def test_audio_event_ids_not_deduced_from_similar_model_text():

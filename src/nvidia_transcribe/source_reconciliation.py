@@ -152,6 +152,10 @@ def reconcile_source_observations(
     observed_ids = {row.get("id") for row in ledger.get("asr_observations") or []}
     if len(observed_ids) != len(ledger.get("asr_observations") or []) or None in observed_ids:
         raise ValueError("Invalid or repeated ASR ledger observation IDs")
+    lexical_ids = [r.get("id") for r in ledger.get("lexical_observations") or []]
+    if None in lexical_ids or len(set(lexical_ids)) != len(lexical_ids):
+        raise ValueError("Lexical unit identities must be unique and nonempty")
+    valid_unit_ids = set(lexical_ids)
     ledger_windows = []
     for row in ledger.get("asr_observations") or []:
         a, b = _interval(row, start="infer_start_s", end="infer_end_s")
@@ -173,6 +177,10 @@ def reconcile_source_observations(
     turns = []
     regions = []
     seen_events = set()
+    # Only a direct acoustic review may bind *individual unit IDs* to a
+    # single event. Never infer this assignment from word similarity,
+    # CTC displacement or a 24-second challenger window.
+    unit_to_reviewed_event: dict[str, str] = {}
     for ev in (audited_events or {}).get("events") or []:
         eid = ev.get("id")
         if not isinstance(eid, str) or not eid or eid in seen_events:
@@ -184,6 +192,20 @@ def reconcile_source_observations(
             raise ValueError("Unknown audited acoustic event kind")
         if ev.get("acoustic_truth") != "independently_auditioned":
             raise ValueError("Event cannot be treated as audited without independent listening")
+        linked = ev.get("linked_source_unit_ids") or []
+        if not isinstance(linked, list) or any(not isinstance(x, str) for x in linked):
+            raise ValueError("Linked source unit identities must be a list")
+        if len(set(linked)) != len(linked) or any(x not in valid_unit_ids for x in linked):
+            raise ValueError("Linked source units must exist uniquely in the ledger")
+        if linked:
+            if (ev.get("same_audio_event_verified") is not True
+                    or ev.get("review_method") != "direct_audio_listening"):
+                raise ValueError("Linking units needs positive independent audio-event review")
+            _digest(ev.get("review_evidence_sha256"), "review_evidence_sha256")
+            for unit_id in linked:
+                if unit_id in unit_to_reviewed_event:
+                    raise ValueError("One lexical source unit cannot be bound to two independent events")
+                unit_to_reviewed_event[unit_id] = eid
         reviewed = ev.get("source_text_verified") is True
         text = ev.get("source_text")
         if reviewed:
@@ -239,6 +261,7 @@ def reconcile_source_observations(
             "challenger_window_context_ids": qwen_windows,
             "legacy_asr_window_context_ids": nemotron_windows,
             "model_windows_do_not_localize_or_verify_words": True,
+            "positive_audio_event_unit_ids": list(linked),
             "shared_non_speech_risk": any(s["kind"] in {"singing", "music", "sfx"} for s in supporting_activity),
             "speaker_identity_accepted": False,
             "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity",
@@ -250,13 +273,27 @@ def reconcile_source_observations(
         if not rid or rid in seen_corr:
             raise ValueError("Invalid or repeated cross-chunk candidate ID")
         seen_corr.add(rid)
+        left = list(row.get("left_observation_unit_ids") or [])
+        right = list(row.get("right_observation_unit_ids") or [])
+        resolved_left = {unit_to_reviewed_event.get(u) for u in left}
+        resolved_right = {unit_to_reviewed_event.get(u) for u in right}
+        decision = "preserve_both_until_positive_audio_event_adjudication"
+        matched_event = None
+        if left and right and None not in resolved_left | resolved_right:
+            if len(resolved_left | resolved_right) == 1:
+                matched_event = next(iter(resolved_left))
+                decision = "same_audio_event_reviewed_keep_observation_lineage"
+            elif len(resolved_left) == len(resolved_right) == 1:
+                decision = "distinct_audio_events_reviewed_preserve_both"
         echo_hypotheses.append({
             "id": rid,
-            "left_observation_unit_ids": list(row.get("left_observation_unit_ids") or []),
-            "right_observation_unit_ids": list(row.get("right_observation_unit_ids") or []),
+            "left_observation_unit_ids": left,
+            "right_observation_unit_ids": right,
             "ctc_relative_offset_hypothesis_s": row.get("ctc_relative_offset_hypothesis_s"),
             "repeated_phrase_ambiguity": row.get("repeated_phrase_ambiguity"),
-            "decision": "preserve_both_until_positive_audio_event_adjudication",
+            "positively_verified_event_id": matched_event,
+            "decision": decision,
+            "source_unit_observations_deleted": 0,
         })
     return {
         "schema": SCHEMA,
@@ -285,7 +322,15 @@ def reconcile_source_observations(
             "model_only_source_turns_automatically_accepted": 0,
             "reviewed_audio_source_turns": len(turns),
             "audited_events_without_verbatim_source_text": len(regions) - len(turns),
-            "unresolved_echo_candidates": len(echo_hypotheses),
+            "unresolved_echo_candidates": sum(
+                r["decision"] == "preserve_both_until_positive_audio_event_adjudication"
+                for r in echo_hypotheses
+            ),
+            "audio_reviewed_same_event_correspondences": sum(
+                r["decision"] == "same_audio_event_reviewed_keep_observation_lineage"
+                for r in echo_hypotheses
+            ),
+            "source_unit_observations_deleted": 0,
         },
     }
 
