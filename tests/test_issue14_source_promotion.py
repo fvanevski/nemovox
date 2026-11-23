@@ -376,6 +376,8 @@ def test_positive_event_lineage_allows_explicit_same_event_supersession():
     original = baseline()
     event_id = _id("src_turn", [MEDIA, "heard_turn"])
     original["utterances"][0]["source_turn_id"] = event_id
+    original["utterances"][0]["source_start"] = 30.0
+    original["utterances"][0]["source_end"] = 32.0
     a = reviewed_candidate(supersedes_legacy_utterance_ids=["legacy_1"])
     result = promote_bounded_source_turns(
         original, dossier(), segments(a), activity=activity()
@@ -385,6 +387,19 @@ def test_positive_event_lineage_allows_explicit_same_event_supersession():
     assert len(result["utterances"]) == 1
     assert result["utterances"][0]["source_turn_id"] == event_id
     assert original["utterances"][0]["id"] == "legacy_1"
+
+
+def test_same_event_id_cannot_erase_a_wildly_displaced_legacy_utterance():
+    original = baseline()
+    original["utterances"][0]["source_turn_id"] = _id("src_turn", [MEDIA, "heard_turn"])
+    result = promote_bounded_source_turns(
+        original, dossier(),
+        segments(reviewed_candidate(supersedes_legacy_utterance_ids=["legacy_1"])),
+        activity=activity(),
+    )
+    assert result["source_promotion"]["new_source_turns"] == 0
+    assert "legacy_supersession_audio_bounds_unverified" in result["source_promotion"]["quarantined"][0]["reasons"]
+    assert result["utterances"][0]["id"] == "legacy_1"
 
 
 def test_mismatched_media_and_reviewed_attestation_rejected():

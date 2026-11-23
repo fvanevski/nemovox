@@ -278,6 +278,16 @@ def promote_bounded_source_turns(
             )
             if _id("src_turn", [media, eid]) not in lineage:
                 reasons.append("legacy_turn_lacks_positive_same_event_lineage")
+            old_s, old_e = original_turn.get("source_start"), original_turn.get("source_end")
+            # Matching IDs are necessary but not alone sufficient to erase
+            # legacy content if its placement is wildly inconsistent with
+            # the purported same acoustic event. Preserve for audit.
+            if (not isinstance(old_s, (int, float))
+                    or not isinstance(old_e, (int, float))
+                    or isinstance(old_s, bool) or isinstance(old_e, bool)
+                    or not math.isfinite(old_s) or not math.isfinite(old_e)
+                    or old_s > old_e or _overlap(a-3, b+3, old_s, old_e) <= 0):
+                reasons.append("legacy_supersession_audio_bounds_unverified")
 
         overlapping_legacy = []
         for utterance, uid in zip(original, original_ids):
@@ -384,6 +394,7 @@ def promote_bounded_source_turns(
             "independent_non_speech_only_acoustic_reference_blocks_model_promotion": True,
             "no_source_unit_deletion": True,
             "legacy_supersession_requires_existing_same_event_id": True,
+            "legacy_supersession_requires_plausible_event_time": True,
             "word_timing_and_speaker_identity_not_certified": True,
         },
         "accepted": [
