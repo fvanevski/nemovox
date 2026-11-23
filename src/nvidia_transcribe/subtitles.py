@@ -53,6 +53,7 @@ class SubtitleCue:
     unrenderable: bool = False
     overflow: bool = False
     grouped_utterance_ids: list[str] = field(default_factory=list)
+    source_turn_ids: list[str] = field(default_factory=list)
     conflicts: list[str] = field(default_factory=list)
 
 
@@ -213,6 +214,8 @@ def build_display_cues(
             continue
         uid = str(utt.get("utterance_id") or utt.get("id") or f"utt-{idx:04d}")
         grouped = [str(g) for g in (utt.get("grouped_utterance_ids") or [uid])]
+        src_refs = [str(x) for x in (utt.get("source_turn_ids") or
+                                     ([utt["source_turn_id"]] if utt.get("source_turn_id") else []))]
         spk = str(utt.get("speaker_id") or utt.get("global_speaker_id") or "SPK_UNK")
         text = _select_utterance_display_text(utt)
         if not text:
@@ -232,6 +235,7 @@ def build_display_cues(
                     timing_status="unavailable",
                     unrenderable=True,
                     grouped_utterance_ids=grouped,
+                    source_turn_ids=src_refs,
                     conflicts=["unrenderable_no_usable_timing"],
                 )
             )
@@ -307,6 +311,7 @@ def build_display_cues(
                     timing_status=t_status,
                     unrenderable=False,
                     grouped_utterance_ids=grouped,
+                    source_turn_ids=src_refs,
                     conflicts=conflicts,
                 )
             )
@@ -369,28 +374,33 @@ def _deduplicate_concurrent_echo_cues(
     *,
     prio: dict[str, int],
 ) -> tuple[list[SubtitleCue], list[SubtitleCue]]:
-    """Suppress identical/near-identical concurrent echo cues produced by chunk-overlap ASR."""
-    from difflib import SequenceMatcher
+    """Remove only replayed render copies of the SAME source event.
 
+    Similar English, approximate timing and even identical spoken sentences
+    cannot establish a shared acoustic event: two real speakers can say the
+    same phrase. Grouped source-turn lineage wins over legacy utterance IDs.
+    """
     kept: list[SubtitleCue] = []
     suppressed: list[SubtitleCue] = []
     ordered = sorted(cues, key=lambda c: (_acoustic_bounds(c)[0], prio.get(c.speaker, len(prio))))
-    for c in ordered:
-        nc = _norm_dup_cue_text(c.text)
-        cs, ce = _acoustic_bounds(c)
-        is_dup = False
-        if len(nc.split()) >= 4:
+    for cue in ordered:
+        current_refs = frozenset(cue.source_turn_ids or cue.grouped_utterance_ids or [cue.utterance_id])
+        cs, ce = _acoustic_bounds(cue)
+        duplicated = False
+        if current_refs:
             for prev in kept:
+                previous_refs = frozenset(prev.source_turn_ids or prev.grouped_utterance_ids or [prev.utterance_id])
+                if current_refs != previous_refs or (cue.source_turn_ids and not prev.source_turn_ids) or (prev.source_turn_ids and not cue.source_turn_ids):
+                    continue
                 ps, pe = _acoustic_bounds(prev)
-                if min(ce, pe) - max(cs, ps) >= 0.4:
-                    np = _norm_dup_cue_text(prev.text)
-                    if nc == np or SequenceMatcher(None, nc, np).ratio() >= 0.85:
-                        is_dup = True
-                        break
-        if is_dup:
-            suppressed.append(c)
+                if (abs(cs - ps) <= 0.1 and abs(ce - pe) <= 0.1
+                        and _norm_dup_cue_text(cue.text) == _norm_dup_cue_text(prev.text)):
+                    duplicated = True
+                    break
+        if duplicated:
+            suppressed.append(cue)
         else:
-            kept.append(c)
+            kept.append(cue)
     return kept, suppressed
 
 
@@ -498,6 +508,7 @@ def assign_subtitle_lanes(
             unrenderable=False,
             overflow=False,
             grouped_utterance_ids=list(c.grouped_utterance_ids),
+            source_turn_ids=list(c.source_turn_ids),
             conflicts=list(c.conflicts),
         )
 
