@@ -15,6 +15,7 @@
 
 ## Provenance & Evaluation Rules
 - Preserve source-language transcription and original Unicode text verbatim alongside any English translation; never overwrite source transcripts with translations.
+- Chronology/untimed-audit passes may change a translated row's display `id` while preserving its source identity in `original_utterance_id`. Join retained translations to their immutable original source identity, validate a one-to-one mapping and unchanged source fields, and explicitly remap grouping/duplicate references. Never assume the translated display `id` is a stable ASR-source owner or silently attach English to the wrong source turn.
 - Convert excerpt-relative timestamps to absolute media timestamps using recorded crop offsets (`source_offset_s`).
 - Never fabricate missing timestamps, confidence scores, or speaker mappings.
 - Keep CPU-only unit tests strictly separated from live GPU inference tests (`-m "not gpu"`).

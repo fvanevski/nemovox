@@ -190,6 +190,10 @@ def assemble_revised_translation(
         "fresh_translations_supplied": len(received),
         "missing_fresh_translation_ids": missing,
         "old_translation_reused_only_when_source_unchanged": True,
+        "historical_translation_renumbered_rows": sum(
+            row["id"] != source_id for source_id, row in prior.items()
+        ),
+        "historical_translation_identity_map_sha256": _hash(prior_display_to_source),
         "original_recording_mutated": False,
         "enabled": enable,
     }
