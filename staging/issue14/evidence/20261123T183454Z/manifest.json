@@ -1,0 +1,64 @@
+{
+  "schema": "nemovox-evidence-manifest/v1",
+  "run_id": "20261123T183454Z",
+  "admitted_pr_head_sha": "9162dc6fa9abe2ea73325e74a7e74bd1add67ade",
+  "validated_central_source_sha": "7bb957ed829649d965445c0aee91bf062b698849",
+  "file_count": 11,
+  "files": [
+    {
+      "path": "COMMAND_SHAPE_FRICTION.txt",
+      "sha256": "e5f7364ebedfd32b52a5bb99e1c9031b741b5412bc22224d82884ebe35cfd425",
+      "bytes": 2634
+    },
+    {
+      "path": "README.md",
+      "sha256": "68cf33dd17ce098a63a3748c604358e33736f9abd61c680cfe0500bd7dff5629",
+      "bytes": 2741
+    },
+    {
+      "path": "review/issue14-independent-anchors-summary.md",
+      "sha256": "c516fc118fabd26cd1c0b60e0879d319e5f1353b3eadb9aa80736f85bc258855",
+      "bytes": 3098
+    },
+    {
+      "path": "source-identity.json",
+      "sha256": "f3576b53fa5d37722db520a93fb9ff238a1e92036a87d0d44bb3036ed0844522",
+      "bytes": 1912
+    },
+    {
+      "path": "validation/audio-reviewed-turns.json",
+      "sha256": "698eab635e595621b3f2c3461d71cad3f64a929a4dc301db696997f03fafe40e",
+      "bytes": 6160
+    },
+    {
+      "path": "validation/audiovisual-experiment.json",
+      "sha256": "22872075ca4e4e36c3046b3377f151ff6b4f6b42d982319a3c8ee8fd0a68b586",
+      "bytes": 24285
+    },
+    {
+      "path": "validation/cases-22-matrix.json",
+      "sha256": "7fceb9315aea357ea18557b15760dc7dae00c3590163dbdca0eaf30bcbcddcee",
+      "bytes": 6098
+    },
+    {
+      "path": "validation/challenger-timing-replay.json",
+      "sha256": "8a2c4b89c4d174669dd62e7233712d40526b9e5f1334f71364dcba85cadad501",
+      "bytes": 16832
+    },
+    {
+      "path": "validation/cpu-gates.json",
+      "sha256": "45005829bafc4293be662f77e0fbc53586ba0e14943cd9262fb6dca383d527d1",
+      "bytes": 1653
+    },
+    {
+      "path": "validation/mandarin-control.json",
+      "sha256": "78cfa9e1db5b7f15b8061e91216e5ca2b7d328ae7f6bb00b5844214b992fa02e",
+      "bytes": 1278
+    },
+    {
+      "path": "validation/resource-nonmutation.json",
+      "sha256": "8276bca6804df39d0c43c904720c3c6baa0fe5edd8fd5d4e7e03ee3f73a4e70b",
+      "bytes": 528
+    }
+  ]
+}

@@ -1,0 +1,581 @@
+{
+  "schema": "nemovox-issue14-audiovisual-experiment/v1",
+  "execution_status": "EXECUTED",
+  "production_pipeline_integrated": false,
+  "frozen_audio_only_baseline_sha256": "a0024f7d663d44a7e5401651f7c7c354881a707cad35cba396d8e8cd91d10b63",
+  "av_frames_manifest_sha256": "ce87350a1b377f407ec0d74f85e9d283a5f8a65441238d1fb67815746b61df2d",
+  "capability_probe": {
+    "resource_name": "text_local",
+    "model_id": "chat",
+    "capability_status": "SUPPORTED",
+    "http_status": 200,
+    "elapsed_s": 2.469,
+    "frames_visible_reported": 24,
+    "service_state_before": "inactive",
+    "service_state_during": "active",
+    "service_state_after": "inactive",
+    "vram_before_mib": 3105,
+    "vram_loaded_mib": 30675,
+    "vram_after_mib": 3103
+  },
+  "protocol": {
+    "pass1_isolation": "frames + grid/PTS timestamps ONLY; zero transcripts, audio, or speaker hints",
+    "pass2_inputs": "frozen Pass 1 visual JSON + immutable pre-vision audio baseline JSON + contact sheets",
+    "all_16_scene_passes_parsed": true
+  },
+  "scenes": [
+    {
+      "scene_id": "AV_W02b_child_turns",
+      "language": "fr",
+      "interval_s": [
+        212.0,
+        236.0
+      ],
+      "sparse_frames_count": 24,
+      "dense_frames_count": 35,
+      "pass1_visual_segments_count": 7,
+      "pass1_shot_transitions_count": 5,
+      "pass1_parse_error": null,
+      "pass2_parse_error": null,
+      "pass2_non_speech_trap_check": {
+        "has_non_speech_interval": false,
+        "non_speech_interval_s": null,
+        "false_speech_attribution_detected": false,
+        "explanation": "All six audio turns in the frozen baseline are speech (two alternating child voices); no non-speech SFX/fanfare/music interval is present, so no visual activity was mis-attributed as speech."
+      },
+      "pass2_turns": [
+        {
+          "turn_id": "W02b_turn_1",
+          "interval_s": [
+            212.05,
+            215.55
+          ],
+          "fusion_verdict": "partially_corroborated",
+          "speaker_change_support": "not_applicable",
+          "audio_only_decision_changed": false,
+          "qualitative_confidence": "low",
+          "backing_frame_ids_count": 5
+        },
+        {
+          "turn_id": "W02b_turn_2",
+          "interval_s": [
+            215.7,
+            218.25
+          ],
+          "fusion_verdict": "corroborated",
+          "speaker_change_support": "supported",
+          "audio_only_decision_changed": true,
+          "qualitative_confidence": "medium",
+          "backing_frame_ids_count": 5
+        },
+        {
+          "turn_id": "W02b_turn_3",
+          "interval_s": [
+            218.6,
+            220.05
+          ],
+          "fusion_verdict": "corroborated",
+          "speaker_change_support": "supported",
+          "audio_only_decision_changed": true,
+          "qualitative_confidence": "medium",
+          "backing_frame_ids_count": 5
+        },
+        {
+          "turn_id": "W02b_turn_4",
+          "interval_s": [
+            220.2,
+            222.0
+          ],
+          "fusion_verdict": "partially_corroborated",
+          "speaker_change_support": "supported",
+          "audio_only_decision_changed": false,
+          "qualitative_confidence": "medium",
+          "backing_frame_ids_count": 5
+        },
+        {
+          "turn_id": "W02b_turn_5",
+          "interval_s": [
+            222.05,
+            231.5
+          ],
+          "fusion_verdict": "corroborated",
+          "speaker_change_support": "supported",
+          "audio_only_decision_changed": false,
+          "qualitative_confidence": "medium",
+          "backing_frame_ids_count": 5
+        },
+        {
+          "turn_id": "W02b_turn_6",
+          "interval_s": [
+            231.9,
+            235.85
+          ],
+          "fusion_verdict": "partially_corroborated",
+          "speaker_change_support": "unobservable",
+          "audio_only_decision_changed": true,
+          "qualitative_confidence": "low",
+          "backing_frame_ids_count": 3
+        }
+      ],
+      "audio_only_decision_changed_count": 3,
+      "fusion_summary": "Visual evidence supports the audio-only conclusion of two alternating child voices and grounds the speaker identities on screen: the pale-robe+bird figure (Tao) corresponds to Voice A and the white-tunic figure to Voice B for the middle turns, with the hard cuts aligning closely to the audio speaker-change boundaries. The opening wide two-shot leaves the on-screen speaker unobservable (small/distant faces), and the final turn shows a tension where the on-screen lip motion (Tao) conflicts with the audio's Voice B label, likely a boundary offset or an off-screen speaker with a reaction shot. No audio-only decision was overturned, but the visual evidence provides real corroboration of on-screen speakers for turns 2-3 and counterevidence for the final turn's speaker label, while the headband figure's role and the final-turn mapping remain unresolved."
+    },
+    {
+      "scene_id": "AV_W02d_handoff",
+      "language": "fr",
+      "interval_s": [
+        280.0,
+        308.0
+      ],
+      "sparse_frames_count": 14,
+      "dense_frames_count": 0,
+      "pass1_visual_segments_count": 3,
+      "pass1_shot_transitions_count": 5,
+      "pass1_parse_error": null,
+      "pass2_parse_error": null,
+      "pass2_non_speech_trap_check": {
+        "has_non_speech_interval": false,
+        "non_speech_interval_s": null,
+        "false_speech_attribution_detected": false,
+        "explanation": "The audio baseline flags no SFX/fanfare/music interval within 280-308s; the night-ocean scenery (281-289s) is backed by continuous adult-male narration, so wave/moon visual activity is not misread as speech, and no off-screen speaker was forced onto the scenery shot."
+      },
+      "pass2_turns": [
+        {
+          "turn_id": "W02d_turn_1",
+          "interval_s": [
+            280.0,
+            287.4
+          ],
+          "fusion_verdict": "inconclusive_or_offscreen",
+          "speaker_change_support": "unobservable",
+          "audio_only_decision_changed": false,
+          "qualitative_confidence": "low",
+          "backing_frame_ids_count": 4
+        },
+        {
+          "turn_id": "W02d_turn_2",
+          "interval_s": [
+            287.5,
+            292.0
+          ],
+          "fusion_verdict": "counterevidence",
+          "speaker_change_support": "contradicted",
+          "audio_only_decision_changed": true,
+          "qualitative_confidence": "medium",
+          "backing_frame_ids_count": 3
+        },
+        {
+          "turn_id": "W02d_turn_3",
+          "interval_s": [
+            292.0,
+            297.0
+          ],
+          "fusion_verdict": "inconclusive_or_offscreen",
+          "speaker_change_support": "supported",
+          "audio_only_decision_changed": false,
+          "qualitative_confidence": "medium",
+          "backing_frame_ids_count": 2
+        },
+        {
+          "turn_id": "W02d_turn_4",
+          "interval_s": [
+            297.0,
+            304.6
+          ],
+          "fusion_verdict": "partially_corroborated",
+          "speaker_change_support": "supported",
+          "audio_only_decision_changed": false,
+          "qualitative_confidence": "low",
+          "backing_frame_ids_count": 4
+        },
+        {
+          "turn_id": "W02d_turn_5",
+          "interval_s": [
+            304.6,
+            308.0
+          ],
+          "fusion_verdict": "partially_corroborated",
+          "speaker_change_support": "supported",
+          "audio_only_decision_changed": false,
+          "qualitative_confidence": "medium",
+          "backing_frame_ids_count": 2
+        }
+      ],
+      "audio_only_decision_changed_count": 1,
+      "fusion_summary": "Visual evidence left most audio-only speaker identities unresolved (three audio voices vs. two on-screen adults plus off-screen child voices), but it provided real counterevidence to the 287.5s speaker-change boundary: the on-screen adult man's open mouth at 291s plus the textual continuation 'Et de magie' suggest the adult man, not a child/female voice, is speaking, marking audio_only_decision_changed true for turn 2. The 292s and 304.6s boundaries are supported by visual cuts and mouth-state changes (open-to-closed at 292s, cut to heavyset/reclining men at 304s), while the child voices in turns 3-4 appear off-screen (on-screen adults in listening poses at 293-295s). No non-speech trap was present."
+    },
+    {
+      "scene_id": "AV_S02_H2_boundary",
+      "language": "fr",
+      "interval_s": [
+        354.0,
+        368.0
+      ],
+      "sparse_frames_count": 14,
+      "dense_frames_count": 0,
+      "pass1_visual_segments_count": 7,
+      "pass1_shot_transitions_count": 6,
+      "pass1_parse_error": null,
+      "pass2_parse_error": null,
+      "pass2_non_speech_trap_check": {
+        "has_non_speech_interval": true,
+        "non_speech_interval_s": [
+          359.7,
+          364.4
+        ],
+        "false_speech_attribution_detected": false,
+        "explanation": "The 359.7-364.4 interval is visually dominated by a bird/beak closeup and a distant campfire with no resolvable human faces, so the visual activity was not misread as on-screen speech."
+      },
+      "pass2_turns": [
+        {
+          "turn_id": "S02_turn_1",
+          "interval_s": [
+            355.1,
+            359.6
+          ],
+          "fusion_verdict": "partially_corroborated",
+          "speaker_change_support": "supported",
+          "audio_only_decision_changed": false,
+          "qualitative_confidence": "medium",
+          "backing_frame_ids_count": 6
+        },
+        {
+          "turn_id": "S02_non_speech_laser",
+          "interval_s": [
+            359.7,
+            364.4
+          ],
+          "fusion_verdict": "corroborated",
+          "speaker_change_support": "supported",
+          "audio_only_decision_changed": false,
+          "qualitative_confidence": "high",
+          "backing_frame_ids_count": 4
+        },
+        {
+          "turn_id": "S02_turn_2",
+          "interval_s": [
+            364.4,
+            367.6
+          ],
+          "fusion_verdict": "inconclusive_or_offscreen",
+          "speaker_change_support": "unobservable",
+          "audio_only_decision_changed": false,
+          "qualitative_confidence": "low",
+          "backing_frame_ids_count": 4
+        }
+      ],
+      "audio_only_decision_changed_count": 0,
+      "fusion_summary": "Visual evidence partially corroborates the first child-voice turn through active mouth movement in the closeup, but does not resolve the exact speaker identity. It strongly corroborates the non-speech laser/SFX interval by showing no visible speaker, and leaves the final quiet male turn off-screen/unobservable. No audio-only conclusion was changed by the visual evidence."
+    },
+    {
+      "scene_id": "AV_C2_repeat_overlap",
+      "language": "fr",
+      "interval_s": [
+        1021.0,
+        1035.0
+      ],
+      "sparse_frames_count": 14,
+      "dense_frames_count": 0,
+      "pass1_visual_segments_count": 5,
+      "pass1_shot_transitions_count": 4,
+      "pass1_parse_error": null,
+      "pass2_parse_error": null,
+      "pass2_non_speech_trap_check": {
+        "has_non_speech_interval": false,
+        "non_speech_interval_s": null,
+        "false_speech_attribution_detected": false,
+        "explanation": "The frozen audio baseline lists only speech turns (no explicit non_speech_interval_s). The dark interior scenery/object shot (frames 006-008, glowing light + ornate device + smoke) contains no readable faces, so its visual activity (light, smoke, tiny distant figures) is NOT turned into on-screen speech; the off-screen voices of the adjacent turns are not forced onto this scenery shot. The final hand-with-object frame (014) likewise has no face and is not attributed a speaker."
+      },
+      "pass2_turns": [
+        {
+          "turn_id": "C2_turn_1_overlap",
+          "interval_s": [
+            1023.2,
+            1026.5
+          ],
+          "fusion_verdict": "partially_corroborated",
+          "speaker_change_support": "unobservable",
+          "audio_only_decision_changed": false,
+          "qualitative_confidence": "medium",
+          "backing_frame_ids_count": 4
+        },
+        {
+          "turn_id": "C2_turn_2",
+          "interval_s": [
+            1028.5,
+            1032.8
+          ],
+          "fusion_verdict": "partially_corroborated",
+          "speaker_change_support": "unobservable",
+          "audio_only_decision_changed": false,
+          "qualitative_confidence": "medium",
+          "backing_frame_ids_count": 7
+        }
+      ],
+      "audio_only_decision_changed_count": 0,
+      "fusion_summary": "Visual evidence corroborates on-screen speech activity for both audited turns (active close-up face for the child voice in turn 1; active white-shirt figure in the brick room for turn 2) and correctly leaves the dark-interior scenery shot without an on-screen speaker. However, it does NOT resolve the off-screen female voice, does NOT confirm the 'adult male' identity, and does NOT separate the two-voice overlap in turn 1. No audio-only conclusion was changed; speaker identities and the off-screen female remain unresolved."
+    },
+    {
+      "scene_id": "AV_W04c_fanfare_trap",
+      "language": "fr",
+      "interval_s": [
+        1261.0,
+        1271.0
+      ],
+      "sparse_frames_count": 10,
+      "dense_frames_count": 0,
+      "pass1_visual_segments_count": 5,
+      "pass1_shot_transitions_count": 4,
+      "pass1_parse_error": null,
+      "pass2_parse_error": null,
+      "pass2_non_speech_trap_check": {
+        "has_non_speech_interval": true,
+        "non_speech_interval_s": [
+          1261.0,
+          1263.8
+        ],
+        "false_speech_attribution_detected": false,
+        "explanation": "The fanfare interval contains only a smoke-covered outdoor landscape with no visible faces or mouth motion, so the visual evidence does not convert the non-speech audio into an on-screen speech event."
+      },
+      "pass2_turns": [
+        {
+          "turn_id": "W04c_non_speech_fanfare",
+          "interval_s": [
+            1261.0,
+            1263.8
+          ],
+          "fusion_verdict": "corroborated",
+          "speaker_change_support": "not_applicable",
+          "audio_only_decision_changed": false,
+          "qualitative_confidence": "high",
+          "backing_frame_ids_count": 3
+        },
+        {
+          "turn_id": "W04c_turn_1",
+          "interval_s": [
+            1264.1,
+            1266.3
+          ],
+          "fusion_verdict": "corroborated",
+          "speaker_change_support": "supported",
+          "audio_only_decision_changed": false,
+          "qualitative_confidence": "high",
+          "backing_frame_ids_count": 3
+        },
+        {
+          "turn_id": "W04c_turn_2",
+          "interval_s": [
+            1266.36,
+            1270.6
+          ],
+          "fusion_verdict": "inconclusive_or_offscreen",
+          "speaker_change_support": "unobservable",
+          "audio_only_decision_changed": false,
+          "qualitative_confidence": "medium",
+          "backing_frame_ids_count": 5
+        }
+      ],
+      "audio_only_decision_changed_count": 0,
+      "fusion_summary": "Visual evidence corroborates the male shout by showing the red-bearded man with active mouth movement, confirms the fanfare negative control by showing no faces during the non-speech interval, and leaves the female question visually unresolved because the female speaker is not clearly shown speaking for most of her turn."
+    },
+    {
+      "scene_id": "AV_S05_pichu_shouts",
+      "language": "fr",
+      "interval_s": [
+        1350.0,
+        1378.0
+      ],
+      "sparse_frames_count": 14,
+      "dense_frames_count": 20,
+      "pass1_visual_segments_count": 6,
+      "pass1_shot_transitions_count": 5,
+      "pass1_parse_error": null,
+      "pass2_parse_error": null,
+      "pass2_non_speech_trap_check": {
+        "has_non_speech_interval": false,
+        "non_speech_interval_s": null,
+        "false_speech_attribution_detected": false,
+        "explanation": "No explicit non-speech SFX/fanfare/music interval is flagged. The animated bird's active beak motion is treated as visual corroboration for the high-pitched parrot/Pichu voice, not as fake human speech."
+      },
+      "pass2_turns": [
+        {
+          "turn_id": "S05_narrator_1",
+          "interval_s": [
+            1350.0,
+            1352.0
+          ],
+          "fusion_verdict": "inconclusive_or_offscreen",
+          "speaker_change_support": "unobservable",
+          "audio_only_decision_changed": false,
+          "qualitative_confidence": "high",
+          "backing_frame_ids_count": 1
+        },
+        {
+          "turn_id": "S05_child_W05a",
+          "interval_s": [
+            1352.0,
+            1354.1
+          ],
+          "fusion_verdict": "inconclusive_or_offscreen",
+          "speaker_change_support": "unobservable",
+          "audio_only_decision_changed": false,
+          "qualitative_confidence": "high",
+          "backing_frame_ids_count": 1
+        },
+        {
+          "turn_id": "S05_narrator_2",
+          "interval_s": [
+            1354.1,
+            1370.7
+          ],
+          "fusion_verdict": "inconclusive_or_offscreen",
+          "speaker_change_support": "unobservable",
+          "audio_only_decision_changed": false,
+          "qualitative_confidence": "high",
+          "backing_frame_ids_count": 9
+        },
+        {
+          "turn_id": "S05_parrot_or_pichu",
+          "interval_s": [
+            1370.8,
+            1374.8
+          ],
+          "fusion_verdict": "partially_corroborated",
+          "speaker_change_support": "supported",
+          "audio_only_decision_changed": true,
+          "qualitative_confidence": "medium",
+          "backing_frame_ids_count": 18
+        },
+        {
+          "turn_id": "S05_narrator_3",
+          "interval_s": [
+            1374.9,
+            1377.5
+          ],
+          "fusion_verdict": "inconclusive_or_offscreen",
+          "speaker_change_support": "unobservable",
+          "audio_only_decision_changed": false,
+          "qualitative_confidence": "high",
+          "backing_frame_ids_count": 2
+        }
+      ],
+      "audio_only_decision_changed_count": 1,
+      "fusion_summary": "Visual evidence leaves the narrator and child turns off-screen/unobservable because no readable human faces are present. The only meaningful audiovisual change is for the parrot/Pichu turn, where the animated bird overlay's active beak motion provides partial visual corroboration for the high-pitched non-human voice; no audio-only conclusion is contradicted."
+    },
+    {
+      "scene_id": "AV_ZH_525_handoff",
+      "language": "zh",
+      "interval_s": [
+        515.0,
+        532.0
+      ],
+      "sparse_frames_count": 17,
+      "dense_frames_count": 18,
+      "pass1_visual_segments_count": 6,
+      "pass1_shot_transitions_count": 6,
+      "pass1_parse_error": null,
+      "pass2_parse_error": null,
+      "pass2_non_speech_trap_check": {
+        "has_non_speech_interval": false,
+        "non_speech_interval_s": null,
+        "false_speech_attribution_detected": false,
+        "explanation": "No non-speech SFX/fanfare/music interval is present in the frozen audio baseline; visual activity such as the glowing hand and subtitle changes is not treated as speech, and the only active mouth cue is the white-haired figure in the dense two-shot."
+      },
+      "pass2_turns": [
+        {
+          "turn_id": "ZH_elder_1",
+          "interval_s": [
+            515.0,
+            524.5
+          ],
+          "fusion_verdict": "corroborated",
+          "speaker_change_support": "unobservable",
+          "audio_only_decision_changed": true,
+          "qualitative_confidence": "medium",
+          "backing_frame_ids_count": 7
+        },
+        {
+          "turn_id": "ZH_younger_echo",
+          "interval_s": [
+            524.6,
+            526.4
+          ],
+          "fusion_verdict": "inconclusive_or_offscreen",
+          "speaker_change_support": "unobservable",
+          "audio_only_decision_changed": false,
+          "qualitative_confidence": "medium",
+          "backing_frame_ids_count": 8
+        },
+        {
+          "turn_id": "ZH_elder_2",
+          "interval_s": [
+            526.4,
+            532.0
+          ],
+          "fusion_verdict": "partially_corroborated",
+          "speaker_change_support": "unobservable",
+          "audio_only_decision_changed": false,
+          "qualitative_confidence": "medium",
+          "backing_frame_ids_count": 7
+        }
+      ],
+      "audio_only_decision_changed_count": 1,
+      "fusion_summary": "Visual evidence corroborates the elder male as the visible speaker for the first turn via active mouth movement and closely matching subtitles, but it does not resolve the younger male echo turn and leaves the final elder turn as likely voiceover/off-screen because mouths are closed/static. The audio-only speaker-change structure remains largely unresolved except for stronger visual support for the elder in the first turn."
+    },
+    {
+      "scene_id": "AV_ZH_c14_music_trap",
+      "language": "zh",
+      "interval_s": [
+        1260.0,
+        1276.0
+      ],
+      "sparse_frames_count": 8,
+      "dense_frames_count": 0,
+      "pass1_visual_segments_count": 2,
+      "pass1_shot_transitions_count": 1,
+      "pass1_parse_error": null,
+      "pass2_parse_error": null,
+      "pass2_non_speech_trap_check": {
+        "has_non_speech_interval": true,
+        "non_speech_interval_s": [
+          1260.0,
+          1276.0
+        ],
+        "false_speech_attribution_detected": false,
+        "explanation": "The interval is explicitly a non-speech negative control. Visual evidence does not create a speech attribution: the first segment has no faces, and the later segment shows only closed, static profile mouths with no lip movement, so the instrumental/music audio is not visually converted into fake speech."
+      },
+      "pass2_turns": [
+        {
+          "turn_id": "ZH_c14_non_speech_music",
+          "interval_s": [
+            1260.0,
+            1276.0
+          ],
+          "fusion_verdict": "corroborated",
+          "speaker_change_support": "not_applicable",
+          "audio_only_decision_changed": false,
+          "qualitative_confidence": "high",
+          "backing_frame_ids_count": 8
+        }
+      ],
+      "audio_only_decision_changed_count": 0,
+      "fusion_summary": "Visual evidence leaves the audio-only non-speech conclusion unchanged and corroborates it: no faces are present in the abstract background segment, and the later character segment shows closed static mouths with no observable speech motion."
+    }
+  ],
+  "non_speech_traps_passed": 3,
+  "non_speech_false_attributions": 0,
+  "empirical_conclusions": {
+    "where_vision_helped": [
+      "W02b child turns (5 fps dense): cut boundaries (~215.7s, ~218.7s, ~220.2s) and clear lip changes corroborate alternating child speaker switches missed by both Nemotron and pyannote.",
+      "W04c (1261-1263.8s), S02 (359.7-364.4s), ZH_c14 (1260-1276s): cleanly confirmed faceless/static non-speech traps with 0 false speech attributions.",
+      "S05 Pichu turn (1370.8-1374.8s, 4 fps dense): animated bird overlay beak movement corroborated the parrot voice where human speakers stayed distant/off-screen.",
+      "ZH_525_handoff (5 fps dense): active elder mouth movement at 523.6-524.4s + burned-in Chinese subtitle corroborated turn 1 while keeping echo/continuation honest."
+    ],
+    "where_vision_failed_or_remained_insufficient": [
+      "Off-screen narration & voices (W02d night ocean 280-287.4s, S05 narrator, W04c female turn, C2 overlapping female plea): vision cannot localize speakers not visible in frame.",
+      "Animation lip-flap & reaction shots (W02b ~220.9s cut leading 222.0s audio by ~1s, W02b_turn_6 tension, W02d_turn_2 counterevidence flag): visual cuts can mislead speaker attribution.",
+      "Overlapping voices (C2 1023.2-1026.5s): single visible close-up face cannot separate simultaneous speakers.",
+      "Production verdict: keep vision strictly out of the production ASR/subtitle pipeline; at most optional offline diagnostic review aid under explicit ModelLifecycle admission."
+    ]
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "schema": "nemovox-issue14-cpu-gates/v1",
+  "run_id": "20261123T183454Z",
+  "worktree_path": "/workspace/nemovox-issue14-independent-anchors",
+  "python_venvs": {
+    "core_venv_import_path": "/workspace/nemovox-issue14-independent-anchors/src/nvidia_transcribe/source_challenger_timing.py",
+    "studio_venv_import_path": "/workspace/nemovox-issue14-independent-anchors/src/nvidia_transcribe/source_challenger_timing.py"
+  },
+  "checks": [
+    {
+      "name": "compileall",
+      "command": "/workspace/nvidia-transcribe/.venv/bin/python -m compileall -q src tests",
+      "exit_code": 0
+    },
+    {
+      "name": "pytest_issue14_focused",
+      "command": "PYTHONPATH=src:. /workspace/nvidia-transcribe/.venv/bin/pytest -q tests/test_issue14_source_challenger_timing.py tests/test_issue14_timing_boundaries.py tests/test_issue14_source_unit_lineage.py tests/test_issue14_source_reconciliation.py",
+      "exit_code": 0,
+      "summary": "50 passed, 1 warning in 0.12s",
+      "passed": 50
+    },
+    {
+      "name": "pytest_cpu_full_core_venv",
+      "command": "PYTHONPATH=src:. /workspace/nvidia-transcribe/.venv/bin/pytest -q -m 'not gpu'",
+      "exit_code": 0,
+      "summary": "411 passed, 1 warning in 10.26s",
+      "passed": 411
+    },
+    {
+      "name": "pytest_cpu_full_studio_venv",
+      "command": "PYTHONPATH=src:. /workspace/nvidia-transcribe/.venv-studio/bin/pytest -q -m 'not gpu'",
+      "exit_code": 0,
+      "summary": "411 passed in 10.38s",
+      "passed": 411
+    },
+    {
+      "name": "git_diff_check",
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "no_new_model_runs_executed_for_asr": true
+}

@@ -1,0 +1,18 @@
+COMMAND_SHAPE_FRICTION (issue14-independent-anchors campaign)
+
+1. Isolated worktree Python import path for pytest (core .venv & .venv-studio)
+   - requested: `/workspace/nvidia-transcribe/.venv/bin/pytest -q tests/test_issue14_source_challenger_timing.py ...` and `PYTHONPATH=src /workspace/nvidia-transcribe/.venv/bin/pytest -q -m "not gpu"`
+   - observation_1: Without `PYTHONPATH`, `.venv` resolved `nvidia_transcribe` via its editable install pointing at `/workspace/nvidia-transcribe/src` (main branch), causing `ModuleNotFoundError: No module named 'nvidia_transcribe.source_challenger_timing'`. Status: recovered_after_retry.
+   - observation_2: With `PYTHONPATH=src` alone, `tests/test_issue14_model_challenge.py` failed collection with `ModuleNotFoundError: No module named 'evaluations'` because pytest dropped CWD (`.`) when `PYTHONPATH` omitted `.`. Status: recovered_after_retry.
+   - replacement: `PYTHONPATH=src:. /workspace/nvidia-transcribe/.venv/bin/pytest ...` and `PYTHONPATH=src:. /workspace/nvidia-transcribe/.venv-studio/bin/pytest ...` -> both resolved worktree `src/` and root `evaluations/` and passed 411/411 non-GPU tests (`executed_succeeded`).
+
+2. Phase 3b Qwen3.8 thinking budget vs chat completion `max_tokens`
+   - requested: Initial Pass 1 + Pass 2 run in `run_phase_3b_av.py` with `max_tokens=3072` against `nemovox-text-review.service` (`--thinking-budget 16384`).
+   - observation: Server returned HTTP 200 on all 16 scene passes, but 3/8 Pass 1 and 6/8 Pass 2 calls hit `finish_reason="length"` at 3072 completion tokens (reasoning_tokens consumed 1967-3072 tokens before JSON finished), leaving `parsed_json=None`. Status: recovered_after_retry.
+   - replacement: Increased client `max_tokens=16384` (still bounded inside `--max-tokens 32768 --max-context 262144`) and re-executed the entire Pass 1 + Pass 2 run under fresh `ModelLifecycle` scope -> 16/16 scene passes returned HTTP 200 and parsed cleanly (`p1_err=None`, `p2_err=None`, `executed_succeeded`).
+
+3. ModelLifecycle cleanup socket hygiene (`ss -Htn state established`)
+   - preventive_shape: Used `Connection: close` per HTTP request plus 1.0s settle before exiting `ModelLifecycle.endpoint(text_resource)` so `_external_clients(8001)` verified zero established TCP sockets and stopped `nemovox-text-review.service` cleanly on first exit (`executed_succeeded`).
+
+4. Non-repo status check on `/workspace/pyannote`
+   - observation: Avoided treating `/workspace/pyannote` assumptions as source edits; verified clean status via `git -C /workspace/pyannote status --short` alongside `ls -la /workspace/pyannote` (`executed_succeeded`).
