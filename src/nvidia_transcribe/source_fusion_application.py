@@ -167,6 +167,21 @@ def build_reviewed_source_revision(
             "source_revision_provenance": {"review_evidence_sha256": review_sha,
                                             "original_recording_sha256": plan["recording_content_sha256"]},
         })
+        # Alternate raw observations remain in the immutable source ledger.
+        # Record their reviewed same-occurrence disposition without adding
+        # another rendered word or falsely certifying word-level timing.
+        alternates = region.get("reviewed_alternate_source_observations") or []
+        if alternates:
+            if (not isinstance(alternates, list) or any(
+                not isinstance(x, dict) or x.get("preferred_owned_source_unit_id") not in group_units
+                or x.get("source_unit_id") not in raw_units
+                or x.get("source_unit_id") in group_units
+                or x.get("status") != "same_occurrence_reviewed_alternate_not_an_output_unit"
+                for x in alternates)):
+                raise ValueError("Reviewed raw alternate lacks source-unit ownership")
+            if len({x["source_unit_id"] for x in alternates}) != len(alternates):
+                raise ValueError("Duplicate reviewed alternate source unit")
+            new_turns[-1]["reviewed_alternate_source_observations"] = deepcopy(alternates)
     original = recording.get("utterances")
     if not isinstance(original, list):
         raise ValueError("Expected immutable original utterances")

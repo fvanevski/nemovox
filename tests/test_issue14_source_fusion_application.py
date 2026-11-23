@@ -125,3 +125,30 @@ def test_selected_component_cannot_claim_missing_or_repeated_unit(monkeypatch):
     with pytest.raises(ValueError,match='Incomplete or duplicate'):
         a.build_reviewed_source_revision(recording,ledger,dossier,
             selected_component_ids=['component1'],expected_plan_sha256=digest,enable=True)
+
+
+def test_reviewed_alternates_are_preserved_as_evidence_not_extra_subtitle_units(monkeypatch):
+    recording,ledger,dossier,plan=source_inputs(monkeypatch,events=1)
+    ledger['lexical_observations'].append(
+        {'id':'raw_alternate','chunk_index':0,'source_ordinal':2,'text':'Yes'})
+    ledger['asr_observations'][0]['infer_end_s']=90
+    dossier['audited_audio_regions'][0]['reviewed_alternate_source_observations']=[{
+        'source_unit_id':'raw_alternate','preferred_owned_source_unit_id':'raw0',
+        'status':'same_occurrence_reviewed_alternate_not_an_output_unit',
+        'review_evidence_sha256':'a'*64}]
+    plan['source_ledger_content_sha256']=_digest(ledger)
+    plan['reconciliation_dossier_content_sha256']=_digest(dossier)
+    result=a.build_reviewed_source_revision(recording,ledger,dossier,
+        selected_component_ids=['component1'],expected_plan_sha256=_digest(plan),enable=True)
+    turn=result['new_recording']['utterances'][0]
+    assert turn['source_unit_lineage_ids']==['raw0','raw1']
+    assert turn['reviewed_alternate_source_observations'][0]['source_unit_id']=='raw_alternate'
+    assert turn['source_words']==[]
+    assert result['report']['source_unit_observations_deleted']==0
+    assert len(recording['utterances'])==2
+    dossier['audited_audio_regions'][0]['reviewed_alternate_source_observations'][0][
+        'preferred_owned_source_unit_id']='unowned_owner'
+    plan['reconciliation_dossier_content_sha256']=_digest(dossier)
+    with pytest.raises(ValueError,match='lacks source-unit ownership'):
+        a.build_reviewed_source_revision(recording,ledger,dossier,
+            selected_component_ids=['component1'],expected_plan_sha256=_digest(plan),enable=True)
