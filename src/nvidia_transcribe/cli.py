@@ -151,6 +151,25 @@ def build_parser() -> argparse.ArgumentParser:
     recover.add_argument("--model", required=True)
     recover.add_argument("--lease-path", required=True)
     recover.add_argument("--journal", required=True)
+
+    review = sub.add_parser(
+        "apply-reviewed-revision",
+        help="Preview or explicitly render a pinned, complete reviewed source revision without model calls.",
+    )
+    review.add_argument("--original-recording", required=True)
+    review.add_argument("--source-evidence", required=True)
+    review.add_argument("--review-dossier", required=True)
+    review.add_argument("--selection", required=True,
+                        help="JSON with reviewed component IDs, plan SHA and source/dossier digests.")
+    review.add_argument("--previous-translated", default=None)
+    review.add_argument("--translation-receipts", default=None)
+    review.add_argument("--local-voice-review", default=None)
+    review.add_argument("--output-dir", default=None,
+                        help="New private directory, must not already exist.")
+    review.add_argument("--episode-stem", default=None)
+    review.add_argument("--formats", default="srt,ass")
+    review.add_argument("--apply", action="store_true",
+                        help="Create the private revised recording, translated contract and SRT/ASS. Default is read-only preview.")
     return p
 
 
@@ -179,6 +198,31 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"status": "FAIL", "error": str(exc)}, indent=2), file=sys.stderr)
             return 2
         print(json.dumps(summary.to_dict(), indent=2))
+        return 0
+
+    if args.command == "apply-reviewed-revision":
+        # Deliberately no resource registry, model lifecycle or translation
+        # worker: all source and English revision evidence already exists.
+        from nvidia_transcribe.reviewed_revision_runner import run_reviewed_revision
+        formats = tuple(v.strip().lower() for v in args.formats.split(",") if v.strip())
+        try:
+            report = run_reviewed_revision(
+                original_recording_path=args.original_recording,
+                source_evidence_path=args.source_evidence,
+                review_dossier_path=args.review_dossier,
+                selection_path=args.selection,
+                previous_translated_path=args.previous_translated,
+                translation_receipts_path=args.translation_receipts,
+                local_voice_review_path=args.local_voice_review,
+                output_dir=args.output_dir,
+                episode_stem=args.episode_stem,
+                formats=formats,
+                apply=args.apply,
+            )
+        except (OSError, ValueError, TypeError, KeyError) as exc:
+            print(json.dumps({"status": "ERROR", "error": str(exc)}), file=sys.stderr)
+            return 1
+        print(json.dumps(report, ensure_ascii=False, indent=2))
         return 0
 
     if args.command in ("transcribe", "process-media", "generate-subtitles"):
