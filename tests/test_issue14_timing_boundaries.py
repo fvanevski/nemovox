@@ -312,7 +312,11 @@ def test_straddled_single_word_or_nonmatching_overlap_is_not_promoted():
     right = _phrase(["What", "a", "different", "phrase"], 357.3, "SPK_RIGHT", .18)
     merged, diag = reconcile_chunk_boundaries([left, right], _chunks(360))
     assert diag["straddled_overlap_source"]["source_units_preserved_unlocalized"] == 0
-    assert not merged
+    assert not any(u.get("boundary_provenance") == "straddled_overlap_source_unlocalized"
+                   for u in merged)
+    # Independent preexisting extended-right-context recovery may still
+    # preserve a separate source hypothesis. This negative control targets
+    # only the new cross-chunk corroboration rule.
 
 
 def test_straddled_duplicate_does_not_compete_with_existing_core_speech():
