@@ -6,8 +6,8 @@ ISSUE_NUMBER=14
 PR_NUMBER=15
 BRANCH=issue/14-longform-timing-boundaries
 MAIN_PREVIOUS_SHA=8f6c03cbc70e84bf1970ba364207a02c9fe22b44
-CENTRAL_SOURCE_SHA=91011e5b188d4c3e5665f45f9d75b8af54351b01
-CENTRAL_SOURCE_TREE=d028068404312155766941ae9bff391790ee427e
+CENTRAL_SOURCE_SHA=fc38ba614ec2e145c1efd6ba8389db27a80efde0
+CENTRAL_SOURCE_TREE=3f13a1681225e457fa90914846e1894d38aa6cb8
 CONTROLLING_DESIGN=staging/issue14/SOURCE_RECONCILIATION_DESIGN.md
 LATEST_HOST_EVIDENCE=e681203de5eb03bb1fb6a88d34db6e32beb3ee6f:staging/issue14/evidence/20261123T013938Z/
 MODEL_EVIDENCE=cbebbc0e13b854bc866f76e96932936699f1dd67:staging/issue14/evidence/20261123T011017Z/
@@ -53,7 +53,7 @@ Use a plan that actually admits the independently completed Qwen floor windows; 
 
 ## Phase 4. Small positive acoustic identity adjudication
 
-Use the authenticated prior human-auditioned region ledger as event time/classification evidence but do NOT invent verbatim source text where it was not recorded. Select a bounded positive sample (2-5 useful regions, NOT all 23 min): W04c/H2/c28 rescue, one real repeat C1/C2, and a SFX-to-dialogue false correspondence are strong candidates. If direct host audio audition is available, separately record a handful of exact source words/characters and positive mapping of explicit source unit IDs to independently heard audio event IDs. Store method, event ID, bounds, corresponding original response unit IDs, review-evidence SHA and whether source_text_verified=true. Any mapping without actual listening or known direct audition provenance remains unresolved. Do not claim the agent listened if it only inspected model outputs.
+Use the authenticated prior human-auditioned region ledger as event time/classification evidence but do NOT invent verbatim source text where it was not recorded. Select a bounded positive sample (2-5 useful regions, NOT all 23 min): W04c/H2/c28 rescue, one real repeat C1/C2, and a SFX-to-dialogue false correspondence are strong candidates. If direct host audio audition is available, separately record a handful of exact source words/characters and positive mapping of explicit source unit IDs to independently heard audio event IDs. Store method, event ID, bounds, corresponding original response unit IDs, review-evidence SHA and whether source_text_verified=true. Any mapping without actual listening or known direct audition provenance remains unresolved. A reviewed lexical unit's owning ASR inference audio window MUST intersect the claimed event window; CTC offsets can drift but the input audio window cannot. Include one negative test with disjoint owning inference window. Do not claim the agent listened if it only inspected model outputs.
 
 Exercise both outcomes: same acoustic event (cross-request repeats can share one event identity without deleting either original observation) and different speech events (similar source text must stay distinct). Include a false Qwen song/SFX control, a real W04c positive speech event, Mandarin overlap at 525.16, and incomplete c28/c14. Treat forced alignment as provisional: last packet proved false Mandarin text on SFX can receive positive monotonic timestamps. You need not rerun Qwen or aligner GPU inference unless archived evidence is genuinely incomplete and a tightly bounded owned-model diagnostic is essential. No production v1 recording/translation/renderer edits.
 
