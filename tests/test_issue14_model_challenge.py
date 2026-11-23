@@ -32,7 +32,7 @@ def pred():
     return {
         "schema": "nemovox-issue14-model-predictions/v1",
         "media_fingerprint_sha256": "media-a",
-        "model": {"repo_id": "test/model", "revision": "a" * 40},
+        "model": {"repo_id": "test/model", "revision": "a" * 40, "task": "asr"},
         "regions": [{
             "id": "H2", "status": "ok",
             "observations": [
@@ -112,6 +112,18 @@ def test_no_claim_of_wer_without_independent_text():
     assert result["lexical_accuracy"]["WER"]["reference_units"] == 0
     assert result["lexical_accuracy"]["CER"]["reference_units"] == 0
     assert all(not row["source_word_accuracy_validated"] for row in result["regions"])
+
+
+def test_vad_never_needs_asr_text_even_with_private_verified_reference():
+    r = ref()
+    r["regions"][0].update(
+        {"source_text_verified": True, "source_text": "Bonjour tout le monde", "language": "fr"}
+    )
+    p = pred()
+    p["model"]["task"] = "vad"
+    result = score(r, p)
+    assert result["scored_regions"] == 2
+    assert result["lexical_accuracy"]["WER"]["reference_units"] == 0
 
 
 def test_double_counting_overlapping_intervals_is_prevented():

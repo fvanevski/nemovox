@@ -125,6 +125,8 @@ def score(reference: dict[str, Any], prediction: dict[str, Any]) -> dict[str, An
     model = prediction.get("model")
     if not isinstance(model, dict) or not model.get("repo_id") or not model.get("revision"):
         raise ValueError("Missing exact model ID/revision")
+    if model.get("task") not in {"vad", "diarization", "asr", "alignment"}:
+        raise ValueError("Model task must be vad|diarization|asr|alignment")
     if set(pred) != set(ref):
         raise ValueError("Prediction must explicitly include each reference region, even skipped runs")
     rows: list[dict[str, Any]] = []
@@ -185,7 +187,7 @@ def score(reference: dict[str, Any], prediction: dict[str, Any]) -> dict[str, An
         }
         # Exact lexical accuracy is evaluated only against explicitly verified
         # private source text. A VAD/diarization output without text has no WER.
-        if region.get("source_text_verified") is True:
+        if region.get("source_text_verified") is True and model["task"] == "asr":
             gold = region.get("source_text")
             hypothesis = trial.get("source_text")
             language = region.get("language")
