@@ -1,0 +1,16 @@
+COMMAND_SHAPE_FRICTION:
+  encountered=yes
+  events:
+    - scenario=zh_ep166_initial_strict_replay
+      requested_shape=PYTHONPATH=src <HOST_NEMOVOX_VENV>/bin/python -m nvidia_transcribe.source_event_replay --asr-dir <PRIVATE_ZH166_ASR_DIR> --output <PRIVATE_OUTPUT>/zh_ep166.source-evidence.json
+      effective_shape=executed_failed (ValueError: Cached chunk 14 is incomplete (generation_limit_exhausted))
+      rewrite_provenance=none
+      event_kind=execution_failure
+      execution_effect=recovered_after_retry
+      correction_or_annotation=zh_ep166 chunk 14 hit finish_reason=length (16384 completion_tokens) despite manifest status=completed; retried cleanly with --forensic-incomplete to new output file zh_ep166.forensic.json
+      replacement_shape=PYTHONPATH=src <HOST_NEMOVOX_VENV>/bin/python -m nvidia_transcribe.source_event_replay --asr-dir <PRIVATE_ZH166_ASR_DIR> --output <PRIVATE_OUTPUT>/zh_ep166.forensic.json --forensic-incomplete
+      recipe_reference=none
+      resource_reference=staging/issue14/HANDOFF_SOURCE_EVENTS.md
+      contract_conflict=no
+      durable_gap_candidate=no
+  omitted_sensitive_values=yes
