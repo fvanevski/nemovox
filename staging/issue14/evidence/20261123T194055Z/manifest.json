@@ -1,0 +1,54 @@
+{
+  "schema": "nemovox-evidence-manifest/v1",
+  "run_id": "20261123T194055Z",
+  "admitted_pr_head_sha": "ba14ef8d2020fe77a0cbf0549f56139b64dbd60d",
+  "validated_central_source_sha": "420173025dd28837adc91dfdb970227f3795124e",
+  "file_count": 9,
+  "files": [
+    {
+      "path": "COMMAND_SHAPE_FRICTION.txt",
+      "sha256": "c76bf087ef2ba8cd86eb2400f50325829d16fbed8a5d294a6540434014951b70",
+      "bytes": 1150
+    },
+    {
+      "path": "README.md",
+      "sha256": "62ef4d66e9ba710054c81f7f8ccc3e55fd1b6429eb14ff656360d5a36aad5874",
+      "bytes": 2268
+    },
+    {
+      "path": "review/issue14-evidence-fusion-summary.md",
+      "sha256": "bab6537bc714216500bc0f1ba1533c7c1bd06b03e2da9959c28db12c9e6d897a",
+      "bytes": 1175
+    },
+    {
+      "path": "source-identity.json",
+      "sha256": "fd3dff847aeea16ce81d20f03ee8fe70c4148a653079d6afca35444e756fef30",
+      "bytes": 1419
+    },
+    {
+      "path": "validation/application-gate-gaps.json",
+      "sha256": "5259cbfc625dc43f1b3b38634b0281c9daf81102b431251f50ee6e55f49b24ad",
+      "bytes": 1949
+    },
+    {
+      "path": "validation/cpu-gates.json",
+      "sha256": "83a8b30d4dd0fa88bbc0b036a98a563f9b9d64cf63e11cdb91f3e4b1c26345f1",
+      "bytes": 1924
+    },
+    {
+      "path": "validation/evidence-fusion-cases.json",
+      "sha256": "4ce86718757f3f07c0d13688909df5a7daf665e5cab533900a831ba2cdf4cc31",
+      "bytes": 13422
+    },
+    {
+      "path": "validation/opt-in-source-revision.json",
+      "sha256": "30c5338cdeb8d0978186959f5461749c0d66228748e00b1c9ae5f75305e43970",
+      "bytes": 2275
+    },
+    {
+      "path": "validation/source-unit-partitions.json",
+      "sha256": "c9190e8c0a40945617cb1b9b8a3a78fbbda61a27c6384800e7f84df2cad4ad86",
+      "bytes": 11549
+    }
+  ]
+}

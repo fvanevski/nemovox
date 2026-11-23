@@ -1,0 +1,298 @@
+{
+  "schema": "nemovox-issue14-source-unit-partitions-report/v1",
+  "partition_plan_sha256": "48ea4dfeea98815c20af587227aca415b3832a49a26490026425f11b8ded9ba1",
+  "recording_content_sha256": "48c0e1cb1fd04941a126ba402e895280d6ac0c27461e7c7d4242b77b94a10281",
+  "source_ledger_content_sha256": "8c0edd52b6ebc277b3526c883801764228038cf322641730bf85fb363d4ed364",
+  "reconciliation_dossier_content_sha256": "e63712039f617ceb8f419985c5863e39ce960f697f18fe5237fcbb7b40114f94",
+  "total_legacy_utterances": 217,
+  "total_original_source_units": 2008,
+  "accounted_for_reviewed_units": 149,
+  "plan_diagnostics": {
+    "fully_partitioned": 8,
+    "missing_or_unreviewed": 209
+  },
+  "connected_components_summary": {
+    "total": 213,
+    "complete_reviewed": 6,
+    "blocked_incomplete_reviewed": 3,
+    "unreviewed": 204
+  },
+  "complete_reviewed_components": [
+    {
+      "id": "ea9d42d678ab9df3a0f83a227c329d24bea851245947fede4bc59a89a3ec63ba",
+      "legacy_utterance_ids": [
+        "utt-0036"
+      ],
+      "reviewed_event_ids": [
+        "w02b_ev_3",
+        "w02b_ev_4_ord100",
+        "w02b_ev_5_ord101_127"
+      ],
+      "unowned_reviewed_unit_ids": [],
+      "status": "complete_reviewed_component_requires_application_gate"
+    },
+    {
+      "id": "0aaa56b93d366a3dea5d5db527c24411cd4959a3147e9e0ecf59feccbaa84aaa",
+      "legacy_utterance_ids": [
+        "utt-0037"
+      ],
+      "reviewed_event_ids": [
+        "w02b_ev_6_final"
+      ],
+      "unowned_reviewed_unit_ids": [],
+      "status": "complete_reviewed_component_requires_application_gate"
+    },
+    {
+      "id": "65526cfc9df6f431d292a29ead77fb8e58f06a1882e7d6fa3476a5a5e4386e9a",
+      "legacy_utterance_ids": [
+        "utt-0148",
+        "utt-0152"
+      ],
+      "reviewed_event_ids": [
+        "w03b_ambrosius_ophir_saba"
+      ],
+      "unowned_reviewed_unit_ids": [],
+      "status": "complete_reviewed_component_requires_application_gate"
+    },
+    {
+      "id": "c16ebce5c973a9b54a4db8de0b288bed6206054d4b7f0b97fe717d177730f3d3",
+      "legacy_utterance_ids": [
+        "utt-0149"
+      ],
+      "reviewed_event_ids": [
+        "w03b_esteban_tao_shout"
+      ],
+      "unowned_reviewed_unit_ids": [],
+      "status": "complete_reviewed_component_requires_application_gate"
+    },
+    {
+      "id": "47668b0ea25f6900acfe2f649606defc93c9bc7110e1f89356724146dad67da5",
+      "legacy_utterance_ids": [
+        "utt-0153"
+      ],
+      "reviewed_event_ids": [
+        "w03b_savaient_viendrions"
+      ],
+      "unowned_reviewed_unit_ids": [],
+      "status": "complete_reviewed_component_requires_application_gate"
+    },
+    {
+      "id": "6b0f13b22a8afc00e52156ab082ca28a297b3298d42b6846301188bf43a7a1bf",
+      "legacy_utterance_ids": [
+        "utt-0187",
+        "utt-0188"
+      ],
+      "reviewed_event_ids": [
+        "w04a_turn_esteban_question",
+        "w04a_turn_zia_reply"
+      ],
+      "unowned_reviewed_unit_ids": [],
+      "status": "complete_reviewed_component_requires_application_gate"
+    }
+  ],
+  "blocked_incomplete_reviewed_components": [
+    {
+      "id": "7cb782e00fd5f4fb4e00404dcf12e375d33a6e6f5ecabf6a7558fc148eede5df",
+      "legacy_utterance_ids": [
+        "utt-0034"
+      ],
+      "reviewed_event_ids": [
+        "w02b_ev_1",
+        "w02b_ev_2"
+      ],
+      "unowned_reviewed_unit_ids": [],
+      "status": "blocked_incomplete_reviewed_component"
+    },
+    {
+      "id": "d0df05376076afb5b20e91c9df1c70fed3c8db7fbf3df1731fe1bf721cec9b5c",
+      "legacy_utterance_ids": [
+        "utt-0147",
+        "utt-0150"
+      ],
+      "reviewed_event_ids": [
+        "w03a_bateau_volant"
+      ],
+      "unowned_reviewed_unit_ids": [
+        "unit_3c0f0084a89c8b0683362807",
+        "unit_4f58f55feb79e28dbd3a98f5",
+        "unit_8e7cb0882b9b8463d43df24d",
+        "unit_bfb845acbdaf6601e6b5022f"
+      ],
+      "status": "blocked_incomplete_reviewed_component"
+    },
+    {
+      "id": "3688881d0a34aa8d1cf5205fbf6bfaa8ef979f31926f31d49a7a63f852c53af8",
+      "legacy_utterance_ids": [
+        "utt-0154",
+        "utt-0156"
+      ],
+      "reviewed_event_ids": [
+        "w03b_interroges_eglises_repartant"
+      ],
+      "unowned_reviewed_unit_ids": [],
+      "status": "blocked_incomplete_reviewed_component"
+    }
+  ],
+  "focused_utterances": [
+    {
+      "legacy_utterance_id": "utt-0034",
+      "existing_lineage_status": "partial_or_multiple_reviewed_audio_events",
+      "partition_status": "blocked_incomplete_reviewed_component",
+      "connected_component_id": "7cb782e00fd5f4fb4e00404dcf12e375d33a6e6f5ecabf6a7558fc148eede5df",
+      "connected_component_status": "blocked_incomplete_reviewed_component",
+      "accounted_vs_original_units": "20/26",
+      "reviewed_event_ids": [
+        "w02b_ev_1",
+        "w02b_ev_2"
+      ],
+      "unowned_reviewed_unit_count": 0
+    },
+    {
+      "legacy_utterance_id": "utt-0036",
+      "existing_lineage_status": "partial_or_multiple_reviewed_audio_events",
+      "partition_status": "complete_reviewed_unit_partition_requires_application_gate",
+      "connected_component_id": "ea9d42d678ab9df3a0f83a227c329d24bea851245947fede4bc59a89a3ec63ba",
+      "connected_component_status": "complete_reviewed_component_requires_application_gate",
+      "accounted_vs_original_units": "31/31",
+      "reviewed_event_ids": [
+        "w02b_ev_3",
+        "w02b_ev_4_ord100",
+        "w02b_ev_5_ord101_127"
+      ],
+      "unowned_reviewed_unit_count": 0
+    },
+    {
+      "legacy_utterance_id": "utt-0037",
+      "existing_lineage_status": "fully_same_event_time_plausible",
+      "partition_status": "complete_reviewed_unit_partition_requires_application_gate",
+      "connected_component_id": "0aaa56b93d366a3dea5d5db527c24411cd4959a3147e9e0ecf59feccbaa84aaa",
+      "connected_component_status": "complete_reviewed_component_requires_application_gate",
+      "accounted_vs_original_units": "12/12",
+      "reviewed_event_ids": [
+        "w02b_ev_6_final"
+      ],
+      "unowned_reviewed_unit_count": 0
+    },
+    {
+      "legacy_utterance_id": "utt-0147",
+      "existing_lineage_status": "fully_same_event_time_plausible",
+      "partition_status": "blocked_incomplete_reviewed_component",
+      "connected_component_id": "d0df05376076afb5b20e91c9df1c70fed3c8db7fbf3df1731fe1bf721cec9b5c",
+      "connected_component_status": "blocked_incomplete_reviewed_component",
+      "accounted_vs_original_units": "10/10",
+      "reviewed_event_ids": [
+        "w03a_bateau_volant"
+      ],
+      "unowned_reviewed_unit_count": 4
+    },
+    {
+      "legacy_utterance_id": "utt-0148",
+      "existing_lineage_status": "fully_same_event_time_plausible",
+      "partition_status": "complete_reviewed_unit_partition_requires_application_gate",
+      "connected_component_id": "65526cfc9df6f431d292a29ead77fb8e58f06a1882e7d6fa3476a5a5e4386e9a",
+      "connected_component_status": "complete_reviewed_component_requires_application_gate",
+      "accounted_vs_original_units": "11/11",
+      "reviewed_event_ids": [
+        "w03b_ambrosius_ophir_saba"
+      ],
+      "unowned_reviewed_unit_count": 0
+    },
+    {
+      "legacy_utterance_id": "utt-0149",
+      "existing_lineage_status": "fully_same_event_time_plausible",
+      "partition_status": "complete_reviewed_unit_partition_requires_application_gate",
+      "connected_component_id": "c16ebce5c973a9b54a4db8de0b288bed6206054d4b7f0b97fe717d177730f3d3",
+      "connected_component_status": "complete_reviewed_component_requires_application_gate",
+      "accounted_vs_original_units": "2/2",
+      "reviewed_event_ids": [
+        "w03b_esteban_tao_shout"
+      ],
+      "unowned_reviewed_unit_count": 0
+    },
+    {
+      "legacy_utterance_id": "utt-0150",
+      "existing_lineage_status": "fully_same_event_timing_displaced_or_missing",
+      "partition_status": "blocked_incomplete_reviewed_component",
+      "connected_component_id": "d0df05376076afb5b20e91c9df1c70fed3c8db7fbf3df1731fe1bf721cec9b5c",
+      "connected_component_status": "blocked_incomplete_reviewed_component",
+      "accounted_vs_original_units": "6/6",
+      "reviewed_event_ids": [
+        "w03a_bateau_volant"
+      ],
+      "unowned_reviewed_unit_count": 4
+    },
+    {
+      "legacy_utterance_id": "utt-0152",
+      "existing_lineage_status": "fully_same_event_timing_displaced_or_missing",
+      "partition_status": "complete_reviewed_unit_partition_requires_application_gate",
+      "connected_component_id": "65526cfc9df6f431d292a29ead77fb8e58f06a1882e7d6fa3476a5a5e4386e9a",
+      "connected_component_status": "complete_reviewed_component_requires_application_gate",
+      "accounted_vs_original_units": "18/18",
+      "reviewed_event_ids": [
+        "w03b_ambrosius_ophir_saba"
+      ],
+      "unowned_reviewed_unit_count": 0
+    },
+    {
+      "legacy_utterance_id": "utt-0153",
+      "existing_lineage_status": "fully_same_event_time_plausible",
+      "partition_status": "complete_reviewed_unit_partition_requires_application_gate",
+      "connected_component_id": "47668b0ea25f6900acfe2f649606defc93c9bc7110e1f89356724146dad67da5",
+      "connected_component_status": "complete_reviewed_component_requires_application_gate",
+      "accounted_vs_original_units": "5/5",
+      "reviewed_event_ids": [
+        "w03b_savaient_viendrions"
+      ],
+      "unowned_reviewed_unit_count": 0
+    },
+    {
+      "legacy_utterance_id": "utt-0154",
+      "existing_lineage_status": "fully_same_event_timing_displaced_or_missing",
+      "partition_status": "blocked_incomplete_reviewed_component",
+      "connected_component_id": "3688881d0a34aa8d1cf5205fbf6bfaa8ef979f31926f31d49a7a63f852c53af8",
+      "connected_component_status": "blocked_incomplete_reviewed_component",
+      "accounted_vs_original_units": "18/18",
+      "reviewed_event_ids": [
+        "w03b_interroges_eglises_repartant"
+      ],
+      "unowned_reviewed_unit_count": 0
+    },
+    {
+      "legacy_utterance_id": "utt-0156",
+      "existing_lineage_status": "partial_or_multiple_reviewed_audio_events",
+      "partition_status": "blocked_incomplete_reviewed_component",
+      "connected_component_id": "3688881d0a34aa8d1cf5205fbf6bfaa8ef979f31926f31d49a7a63f852c53af8",
+      "connected_component_status": "blocked_incomplete_reviewed_component",
+      "accounted_vs_original_units": "1/3",
+      "reviewed_event_ids": [
+        "w03b_interroges_eglises_repartant"
+      ],
+      "unowned_reviewed_unit_count": 0
+    },
+    {
+      "legacy_utterance_id": "utt-0187",
+      "existing_lineage_status": "fully_same_event_timing_displaced_or_missing",
+      "partition_status": "complete_reviewed_unit_partition_requires_application_gate",
+      "connected_component_id": "6b0f13b22a8afc00e52156ab082ca28a297b3298d42b6846301188bf43a7a1bf",
+      "connected_component_status": "complete_reviewed_component_requires_application_gate",
+      "accounted_vs_original_units": "4/4",
+      "reviewed_event_ids": [
+        "w04a_turn_esteban_question"
+      ],
+      "unowned_reviewed_unit_count": 0
+    },
+    {
+      "legacy_utterance_id": "utt-0188",
+      "existing_lineage_status": "partial_or_multiple_reviewed_audio_events",
+      "partition_status": "complete_reviewed_unit_partition_requires_application_gate",
+      "connected_component_id": "6b0f13b22a8afc00e52156ab082ca28a297b3298d42b6846301188bf43a7a1bf",
+      "connected_component_status": "complete_reviewed_component_requires_application_gate",
+      "accounted_vs_original_units": "11/11",
+      "reviewed_event_ids": [
+        "w04a_turn_esteban_question",
+        "w04a_turn_zia_reply"
+      ],
+      "unowned_reviewed_unit_count": 0
+    }
+  ]
+}

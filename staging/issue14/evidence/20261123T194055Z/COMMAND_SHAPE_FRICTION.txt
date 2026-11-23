@@ -1,0 +1,10 @@
+COMMAND_SHAPE_FRICTION (issue14-evidence-fusion campaign)
+
+1. Isolated worktree interpreter import flag (`PYTHONPATH=src:.`)
+   - command: `PYTHONPATH=src:. /workspace/nvidia-transcribe/.venv/bin/python -m pytest ...` and `.venv-studio/bin/python -m pytest ...`
+   - behavior: Resolved both `evidence_fusion` and `source_fusion_application` cleanly from `/workspace/nemovox-issue14-evidence-fusion/src` plus root `evaluations/` (`70 passed` focused, `425 passed` core `.venv`, `425 passed` Studio `.venv-studio`, `executed_succeeded`).
+
+2. Shell chaining with `python3 - <<PY &&` stdin EOF truncation
+   - requested: `python3 - <<PY >> "$PRIV/logs/prior_evidence_auth.log" && \n import ...`
+   - observation: Placing `&& \` on the heredoc start line evaluated subsequent lines as shell/aborted heredoc stream in task-438 (`NameError: name 'tarfile' is not defined`), while remaining chained CPU gates succeeded cleanly. Status: recovered_after_retry.
+   - replacement: Executed prior-archive and Section B validation cleanly inside standalone script `run_section_a_b.py` (`executed_succeeded`: 94/94 checksums, 8/8 public members, 16/16 chunk SHAs).
