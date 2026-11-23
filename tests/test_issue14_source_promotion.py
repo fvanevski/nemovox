@@ -234,6 +234,53 @@ def test_short_fr_and_rapid_zh_model_speech_are_not_blanket_rejected():
     assert out["utterances"][-1]["source_text_scope_screen"]["unit"] == "han_characters"
 
 
+def test_provisional_near_identical_source_phrase_is_held_not_text_deduplicated():
+    old = baseline()
+    old["utterances"].append({
+        "id": "legacy_nearby_phrase", "source_text": "À demain !",
+        "source_start": 52.35, "source_end": 53.5,
+        "speaker_id": "SPK_001", "alignment_status": "ctc_aligned",
+    })
+    doc = promote_bounded_source_turns(
+        old, dossier(), segments(provisional_candidate()), activity=activity()
+    )
+    assert doc["source_promotion"]["new_model_provisional_turns"] == 0
+    q = doc["source_promotion"]["quarantined"][0]
+    assert "model_only_nearby_identical_source_possible_echo" in q["reasons"]
+    # The original utterance remains, even if an independent new speech
+    # occurrence ultimately turns out to explain the model-only candidate.
+    assert {u["id"] for u in doc["utterances"]} == {
+        "legacy_1", "legacy_nearby_phrase"
+    }
+
+
+def test_reviewed_overlapping_legacy_requires_positive_acoustic_disambiguation():
+    old = baseline()
+    old["utterances"].append({
+        "id": "misrecognized_same_time", "source_text": "Edward.",
+        "source_start": 30.1, "source_end": 32.1,
+        "speaker_id": "SPK_005", "alignment_status": "ctc_aligned",
+    })
+    doc = promote_bounded_source_turns(
+        old, dossier(), segments(reviewed_candidate()), activity=activity()
+    )
+    assert doc["source_promotion"]["new_audio_review_attested_turns"] == 0
+    q = doc["source_promotion"]["quarantined"][0]
+    assert "reviewed_overlap_requires_acoustic_unit_disambiguation" in q["reasons"]
+    assert {u["id"] for u in doc["utterances"]} == {
+        "legacy_1", "misrecognized_same_time"
+    }
+
+
+def test_reviewed_distinct_nonoverlapping_repeated_words_keep_separate_event_ids():
+    # Text similarity alone is never a reason to suppress directly reviewed
+    # speech at a separate time, including legitimate rapid repetitions.
+    doc = promote_bounded_source_turns(
+        baseline(), dossier(), segments(reviewed_candidate()), activity=activity()
+    )
+    assert doc["source_promotion"]["new_audio_review_attested_turns"] == 1
+
+
 def test_song_only_lyrics_not_accepted_even_with_qwen_model_text():
     song = candidate("song_model_guess", 80, 90, "Lyrics invented by model",
                      context_window_ids=["qwen_window_03"],

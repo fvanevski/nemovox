@@ -155,16 +155,21 @@ def test_unmapped_or_partial_unit_must_remain_in_legacy_output():
             in out["source_promotion"]["quarantined"][0]["reasons"])
 
 
-def test_partially_linked_prior_model_text_does_not_delete_directly_heard_speech():
+def test_partially_linked_reviewed_speech_remains_in_dossier_without_duplicate_render():
     recording, ledger, dossier, segments = fixtures()
     dossier["audited_audio_regions"][0]["positive_audio_event_unit_ids"] = ["lex_0"]
     out = promote_bounded_source_turns(
         recording, dossier, segments, source_evidence=ledger
     )
-    assert out["source_promotion"]["new_audio_review_attested_turns"] == 1
+    # This is the W04c/utt-0208 failure shape: one acoustic event is already
+    # partially represented in the legacy source. Neither erase the partial
+    # original nor emit an additional complete copy of that same event.
+    assert out["source_promotion"]["new_audio_review_attested_turns"] == 0
     assert out["source_promotion"]["preserved_legacy_utterance_count"] == 2
-    assert out["source_promotion"]["accepted"][0][
-        "partially_attributed_legacy_utterance_ids"] == ["legacy_a"]
+    q = out["source_promotion"]["quarantined"][0]
+    assert q["partially_attributed_legacy_utterance_ids"] == ["legacy_a"]
+    assert "reviewed_event_has_partial_legacy_audio_ownership" in q["reasons"]
+    assert [u["id"] for u in out["utterances"]] == ["legacy_a", "legacy_b"]
 
 
 def test_cross_run_raw_asr_digest_and_inference_window_cannot_reuse_ordinal():
