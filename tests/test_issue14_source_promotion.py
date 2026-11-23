@@ -207,7 +207,8 @@ def test_false_sfx_voice_activation_plus_qwen_exclamation_is_quarantined():
     assert out["source_promotion"]["new_source_turns"] == 0
     assert ("high_nonlexical_risk_without_independent_speech_corroboration"
             in out["source_promotion"]["quarantined"][0]["reasons"])
-    # Independent corroborating source may remain PROVISIONAL, never human truth.
+    # Even two models cannot overturn an independently auditioned negative
+    # recording band without also independently hearing an overlapping voice.
     acoustic["intervals"].append({
         "id": "silero_second_source", "source": "SileroVAD", "kind": "speech",
         "start_s": 80.2, "end_s": 81.5,
@@ -216,8 +217,26 @@ def test_false_sfx_voice_activation_plus_qwen_exclamation_is_quarantined():
     out = promote_bounded_source_turns(
         baseline(), dossier(), segments(candidate_sfx), activity=acoustic
     )
-    assert out["source_promotion"]["new_model_provisional_turns"] == 1
-    assert out["utterances"][-1]["source_text_human_reference_verified"] is False
+    assert out["source_promotion"]["new_model_provisional_turns"] == 0
+    assert "contradicts_independently_auditioned_non_speech" in out["source_promotion"]["quarantined"][0]["reasons"]
+
+
+def test_two_independent_positive_detectors_may_keep_unaudited_mixed_sfx_provisional():
+    acoustic = activity()
+    acoustic["intervals"].extend([
+        {"id": "aed_speech", "source": "FireRedAED", "kind": "speech", "start_s": 60, "end_s": 62},
+        {"id": "silero_speech", "source": "SileroVAD", "kind": "speech", "start_s": 60, "end_s": 62},
+        {"id": "effect", "source": "FireRedAED", "kind": "sfx", "start_s": 60, "end_s": 62},
+    ])
+    event = candidate("possible_voice", 60, 62, "Regarde !",
+                      context_window_ids=["qwen_window_02"],
+                      bounded_asr=model_evidence(57, 65, "Regarde !"),
+                      speech_activity_ids=["aed_speech", "silero_speech"])
+    result = promote_bounded_source_turns(
+        baseline(), dossier(), segments(event), activity=acoustic
+    )
+    assert result["source_promotion"]["new_model_provisional_turns"] == 1
+    assert result["utterances"][-1]["source_text_human_reference_verified"] is False
 
 
 def test_audited_singing_kind_conflict_is_rejected():

@@ -184,6 +184,25 @@ def promote_bounded_source_turns(
             basis = "reviewed"
         else:
             basis = "model_provisional"
+            # A direct independent audition of ONLY music/SFX/singing is
+            # stronger contrary evidence than any number of model activity
+            # flags. However, an overlapping independently heard SPEECH
+            # region means real simultaneous voice remains possible.
+            audited_overlaps = [
+                region for region in regions.values()
+                if _overlap(a, b, *_interval(region)) > 0
+            ]
+            negative_dominant = any(
+                region.get("kind") in {"singing", "sfx", "silence", "nonlexical_vocalization"}
+                and _overlap(a, b, *_interval(region)) >= 0.5*(b-a)
+                for region in audited_overlaps
+            )
+            independently_heard_speech = any(
+                region.get("kind") in {"speech", "lexical_shout"}
+                for region in audited_overlaps
+            )
+            if negative_dominant and not independently_heard_speech:
+                reasons.append("contradicts_independently_auditioned_non_speech")
             bound = candidate.get("bounded_asr") or {}
             if not isinstance(bound, dict):
                 raise ValueError("bounded_asr must be an object")
@@ -362,6 +381,7 @@ def promote_bounded_source_turns(
             "model_only_may_not_replace_legacy": True,
             "no_auto_music_sfx_source": True,
             "dominant_singing_sfx_requires_two_independent_speech_sources_or_direct_review": True,
+            "independent_non_speech_only_acoustic_reference_blocks_model_promotion": True,
             "no_source_unit_deletion": True,
             "legacy_supersession_requires_existing_same_event_id": True,
             "word_timing_and_speaker_identity_not_certified": True,
