@@ -1,0 +1,2291 @@
+{
+  "case_count": 22,
+  "cases": [
+    {
+      "case_id": "W01a",
+      "status": "FAIL_UNCHANGED_TIMING_DRIFT",
+      "classification": "genuine_timing_error",
+      "note": "Single theme token displaced +55s (82.7s) in both orig16 replay and default_fr_job",
+      "orig16_baseline": [
+        {
+          "id": "utt-0002",
+          "start": 27.74,
+          "end": 27.955,
+          "spk": "SPK_00"
+        },
+        {
+          "id": "utt-0003",
+          "start": 27.74,
+          "end": 28.745,
+          "spk": "SPK_01"
+        },
+        {
+          "id": "utt-0004",
+          "start": 29.8,
+          "end": 30.745,
+          "spk": "SPK_01"
+        },
+        {
+          "id": "utt-0011",
+          "start": 78.12,
+          "end": 82.877,
+          "spk": "SPK_02"
+        },
+        {
+          "id": "utt-0013",
+          "start": 81.943,
+          "end": 82.565,
+          "spk": "SPK_03"
+        },
+        {
+          "id": "utt-0014",
+          "start": 82.743,
+          "end": 82.957,
+          "spk": "SPK_00"
+        }
+      ],
+      "orig16_replay": [
+        {
+          "id": "utt-0002",
+          "start": 27.74,
+          "end": 27.955,
+          "spk": "SPK_00"
+        },
+        {
+          "id": "utt-0003",
+          "start": 27.74,
+          "end": 28.745,
+          "spk": "SPK_01"
+        },
+        {
+          "id": "utt-0004",
+          "start": 29.8,
+          "end": 30.745,
+          "spk": "SPK_01"
+        },
+        {
+          "id": "utt-0011",
+          "start": 78.12,
+          "end": 82.877,
+          "spk": "SPK_02"
+        },
+        {
+          "id": "utt-0013",
+          "start": 81.943,
+          "end": 82.565,
+          "spk": "SPK_03"
+        },
+        {
+          "id": "utt-0014",
+          "start": 82.743,
+          "end": 82.957,
+          "spk": "SPK_00"
+        }
+      ],
+      "default_fr_new": [
+        {
+          "id": "utt-0008",
+          "start": 78.12,
+          "end": 82.877,
+          "spk": "SPK_02"
+        },
+        {
+          "id": "utt-0010",
+          "start": 81.703,
+          "end": 82.755,
+          "spk": "SPK_03"
+        }
+      ]
+    },
+    {
+      "case_id": "W01b",
+      "status": "FAIL_UNCHANGED_TIMING_DRIFT",
+      "classification": "genuine_timing_error",
+      "note": "2 opening tokens pulled -34s/-29s early into recap (43.7s/49.2s) in both runs",
+      "orig16_baseline": [
+        {
+          "id": "utt-0011",
+          "start": 78.12,
+          "end": 82.877,
+          "spk": "SPK_02"
+        },
+        {
+          "id": "utt-0005",
+          "start": 43.711,
+          "end": 50.99,
+          "spk": "SPK_01"
+        },
+        {
+          "id": "utt-0006",
+          "start": 43.711,
+          "end": 43.926,
+          "spk": "SPK_02"
+        },
+        {
+          "id": "utt-0007",
+          "start": 49.23,
+          "end": 49.445,
+          "spk": "SPK_02"
+        }
+      ],
+      "orig16_replay": [
+        {
+          "id": "utt-0011",
+          "start": 78.12,
+          "end": 82.877,
+          "spk": "SPK_02"
+        },
+        {
+          "id": "utt-0005",
+          "start": 43.711,
+          "end": 50.99,
+          "spk": "SPK_01"
+        },
+        {
+          "id": "utt-0006",
+          "start": 43.711,
+          "end": 43.926,
+          "spk": "SPK_02"
+        },
+        {
+          "id": "utt-0007",
+          "start": 49.23,
+          "end": 49.445,
+          "spk": "SPK_02"
+        }
+      ],
+      "default_fr_new": [
+        {
+          "id": "utt-0008",
+          "start": 78.12,
+          "end": 82.877,
+          "spk": "SPK_02"
+        },
+        {
+          "id": "utt-0002",
+          "start": 43.711,
+          "end": 50.99,
+          "spk": "SPK_01"
+        },
+        {
+          "id": "utt-0003",
+          "start": 43.711,
+          "end": 43.926,
+          "spk": "SPK_02"
+        },
+        {
+          "id": "utt-0004",
+          "start": 49.23,
+          "end": 49.445,
+          "spk": "SPK_02"
+        }
+      ]
+    },
+    {
+      "case_id": "W01c",
+      "status": "PARTIAL_UPSTREAM_ASR_OMISSION",
+      "classification": "genuine_missing_source",
+      "note": "Shouted line at ~58s omitted by chunk_000 ASR in both runs",
+      "orig16_baseline": [
+        {
+          "id": "utt-0008",
+          "start": 51.71,
+          "end": 58.866,
+          "spk": "SPK_01"
+        },
+        {
+          "id": "utt-0009",
+          "start": 59.56,
+          "end": 59.775,
+          "spk": "SPK_03"
+        }
+      ],
+      "orig16_replay": [
+        {
+          "id": "utt-0008",
+          "start": 51.71,
+          "end": 58.866,
+          "spk": "SPK_01"
+        },
+        {
+          "id": "utt-0009",
+          "start": 59.56,
+          "end": 59.775,
+          "spk": "SPK_03"
+        }
+      ],
+      "default_fr_new": [
+        {
+          "id": "utt-0005",
+          "start": 51.71,
+          "end": 58.866,
+          "spk": "SPK_01"
+        }
+      ]
+    },
+    {
+      "case_id": "W01d",
+      "status": "PARTIAL_IMPROVED_IN_DEFAULT_FR",
+      "classification": "genuine_timing_error_in_orig16_resolved_in_default",
+      "note": "Orig16 replay still split +20s; new default_fr_job kept phrase intact at 61.77-63.75s",
+      "orig16_baseline": [
+        {
+          "id": "utt-0009",
+          "start": 59.56,
+          "end": 59.775,
+          "spk": "SPK_03"
+        },
+        {
+          "id": "utt-0010",
+          "start": 61.33,
+          "end": 61.545,
+          "spk": "SPK_03"
+        },
+        {
+          "id": "utt-0011",
+          "start": 78.12,
+          "end": 82.877,
+          "spk": "SPK_02"
+        },
+        {
+          "id": "utt-0012",
+          "start": 80.29,
+          "end": 80.805,
+          "spk": "SPK_03"
+        },
+        {
+          "id": "utt-0013",
+          "start": 81.943,
+          "end": 82.565,
+          "spk": "SPK_03"
+        },
+        {
+          "id": "utt-0014",
+          "start": 82.743,
+          "end": 82.957,
+          "spk": "SPK_00"
+        }
+      ],
+      "orig16_replay": [
+        {
+          "id": "utt-0009",
+          "start": 59.56,
+          "end": 59.775,
+          "spk": "SPK_03"
+        },
+        {
+          "id": "utt-0010",
+          "start": 61.33,
+          "end": 61.545,
+          "spk": "SPK_03"
+        },
+        {
+          "id": "utt-0011",
+          "start": 78.12,
+          "end": 82.877,
+          "spk": "SPK_02"
+        },
+        {
+          "id": "utt-0012",
+          "start": 80.29,
+          "end": 80.805,
+          "spk": "SPK_03"
+        },
+        {
+          "id": "utt-0013",
+          "start": 81.943,
+          "end": 82.565,
+          "spk": "SPK_03"
+        },
+        {
+          "id": "utt-0014",
+          "start": 82.743,
+          "end": 82.957,
+          "spk": "SPK_00"
+        }
+      ],
+      "default_fr_new": [
+        {
+          "id": "utt-0006",
+          "start": 60.76,
+          "end": 60.975,
+          "spk": "SPK_03"
+        },
+        {
+          "id": "utt-0007",
+          "start": 61.77,
+          "end": 63.746,
+          "spk": "SPK_01"
+        },
+        {
+          "id": "utt-0008",
+          "start": 78.12,
+          "end": 82.877,
+          "spk": "SPK_02"
+        },
+        {
+          "id": "utt-0009",
+          "start": 80.103,
+          "end": 80.318,
+          "spk": "SPK_03"
+        },
+        {
+          "id": "utt-0010",
+          "start": 81.703,
+          "end": 82.755,
+          "spk": "SPK_03"
+        }
+      ]
+    },
+    {
+      "case_id": "W02a",
+      "status": "FAIL_UNCHANGED_TIMING_DRIFT",
+      "classification": "genuine_timing_error",
+      "note": "Early tokens pulled ~202-210s in orig16 and 210-216s in default_fr_job",
+      "orig16_baseline": [
+        {
+          "id": "utt-0041",
+          "start": 240.6,
+          "end": 242.898,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0034",
+          "start": 196.68,
+          "end": 210.099,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0035",
+          "start": 202.44,
+          "end": 203.375,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0036",
+          "start": 209.0,
+          "end": 209.215,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0037",
+          "start": 210.12,
+          "end": 217.986,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0038",
+          "start": 210.12,
+          "end": 210.335,
+          "spk": "SPK_08"
+        }
+      ],
+      "orig16_replay": [
+        {
+          "id": "utt-0041",
+          "start": 240.6,
+          "end": 242.898,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0034",
+          "start": 196.68,
+          "end": 210.099,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0035",
+          "start": 202.44,
+          "end": 203.375,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0036",
+          "start": 209.0,
+          "end": 209.215,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0037",
+          "start": 210.12,
+          "end": 217.986,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0038",
+          "start": 210.12,
+          "end": 210.335,
+          "spk": "SPK_08"
+        }
+      ],
+      "default_fr_new": [
+        {
+          "id": "utt-0037",
+          "start": 240.41,
+          "end": 242.435,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0038",
+          "start": 240.92,
+          "end": 241.135,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0029",
+          "start": 196.68,
+          "end": 210.099,
+          "spk": "SPK_06"
+        },
+        {
+          "id": "utt-0030",
+          "start": 210.12,
+          "end": 217.986,
+          "spk": "SPK_06"
+        },
+        {
+          "id": "utt-0031",
+          "start": 210.12,
+          "end": 210.335,
+          "spk": "SPK_07"
+        }
+      ]
+    },
+    {
+      "case_id": "W02b",
+      "status": "PARTIAL_DIARIZATION_COLLAPSE",
+      "classification": "speaker_collapse",
+      "note": "Alternating Tao/Zia turns remain merged under single speaker tag; Qwen collision candidate quarantined",
+      "orig16_baseline": [
+        {
+          "id": "utt-0034",
+          "start": 196.68,
+          "end": 210.099,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0037",
+          "start": 210.12,
+          "end": 217.986,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0038",
+          "start": 210.12,
+          "end": 210.335,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0039",
+          "start": 218.67,
+          "end": 231.321,
+          "spk": "SPK_07"
+        }
+      ],
+      "orig16_replay": [
+        {
+          "id": "utt-0034",
+          "start": 196.68,
+          "end": 210.099,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0037",
+          "start": 210.12,
+          "end": 217.986,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0038",
+          "start": 210.12,
+          "end": 210.335,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0039",
+          "start": 218.67,
+          "end": 231.321,
+          "spk": "SPK_07"
+        }
+      ],
+      "default_fr_new": [
+        {
+          "id": "utt-0029",
+          "start": 196.68,
+          "end": 210.099,
+          "spk": "SPK_06"
+        },
+        {
+          "id": "utt-0030",
+          "start": 210.12,
+          "end": 217.986,
+          "spk": "SPK_06"
+        },
+        {
+          "id": "utt-0031",
+          "start": 210.12,
+          "end": 210.335,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0032",
+          "start": 213.8,
+          "end": 214.015,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0033",
+          "start": 216.44,
+          "end": 216.62,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0034",
+          "start": 217.32,
+          "end": 217.535,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0035",
+          "start": 218.67,
+          "end": 231.321,
+          "spk": "SPK_06"
+        }
+      ]
+    },
+    {
+      "case_id": "W02c",
+      "status": "PARTIAL_DEDUP_GAIN_IN_ORIG16",
+      "classification": "duplicate_speech_reduced",
+      "note": "Orig16 replay deduplicated 34/44 duplicate tokens (10 inflection/short-run residuals); default_fr_job kept duplicate across speaker streams",
+      "orig16_baseline": [
+        {
+          "id": "utt-0048",
+          "start": 259.26,
+          "end": 261.055,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0049",
+          "start": 260.2,
+          "end": 262.883,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0050",
+          "start": 261.94,
+          "end": 262.155,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0042",
+          "start": 243.32,
+          "end": 257.748,
+          "spk": "SPK_09"
+        },
+        {
+          "id": "utt-0043",
+          "start": 243.44,
+          "end": 249.77,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0044",
+          "start": 248.6,
+          "end": 248.815,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0045",
+          "start": 253.48,
+          "end": 253.695,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0046",
+          "start": 255.24,
+          "end": 256.895,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0047",
+          "start": 257.8,
+          "end": 258.971,
+          "spk": "SPK_09"
+        },
+        {
+          "id": "utt-0051",
+          "start": 280.04,
+          "end": 289.034,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0052",
+          "start": 280.76,
+          "end": 280.975,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0053",
+          "start": 282.07,
+          "end": 282.895,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0054",
+          "start": 282.69,
+          "end": 291.485,
+          "spk": "SPK_10"
+        },
+        {
+          "id": "utt-0055",
+          "start": 285.17,
+          "end": 285.695,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0056",
+          "start": 286.68,
+          "end": 289.975,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0057",
+          "start": 290.0,
+          "end": 291.273,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0058",
+          "start": 290.85,
+          "end": 291.375,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0059",
+          "start": 297.12,
+          "end": 299.378,
+          "spk": "SPK_10"
+        },
+        {
+          "id": "utt-0060",
+          "start": 297.48,
+          "end": 298.655,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0061",
+          "start": 297.48,
+          "end": 299.385,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0062",
+          "start": 303.59,
+          "end": 304.44,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0063",
+          "start": 304.72,
+          "end": 312.99,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0064",
+          "start": 304.8,
+          "end": 307.058,
+          "spk": "SPK_10"
+        },
+        {
+          "id": "utt-0065",
+          "start": 304.84,
+          "end": 306.655,
+          "spk": "SPK_08"
+        }
+      ],
+      "orig16_replay": [
+        {
+          "id": "utt-0048",
+          "start": 259.26,
+          "end": 261.055,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0049",
+          "start": 260.2,
+          "end": 262.883,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0050",
+          "start": 261.94,
+          "end": 262.155,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0042",
+          "start": 243.32,
+          "end": 257.748,
+          "spk": "SPK_09"
+        },
+        {
+          "id": "utt-0043",
+          "start": 243.44,
+          "end": 249.77,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0044",
+          "start": 248.6,
+          "end": 248.815,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0045",
+          "start": 253.48,
+          "end": 253.695,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0046",
+          "start": 255.24,
+          "end": 256.895,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0047",
+          "start": 257.8,
+          "end": 258.971,
+          "spk": "SPK_09"
+        },
+        {
+          "id": "utt-0051",
+          "start": 280.04,
+          "end": 289.034,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0052",
+          "start": 280.76,
+          "end": 280.975,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0053",
+          "start": 282.07,
+          "end": 282.695,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0054",
+          "start": 282.69,
+          "end": 291.485,
+          "spk": "SPK_10"
+        },
+        {
+          "id": "utt-0055",
+          "start": 290.0,
+          "end": 291.273,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0056",
+          "start": 297.12,
+          "end": 299.378,
+          "spk": "SPK_10"
+        },
+        {
+          "id": "utt-0057",
+          "start": 297.48,
+          "end": 298.655,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0058",
+          "start": 298.96,
+          "end": 299.385,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0059",
+          "start": 303.59,
+          "end": 304.44,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0060",
+          "start": 304.8,
+          "end": 307.058,
+          "spk": "SPK_10"
+        },
+        {
+          "id": "utt-0061",
+          "start": 304.84,
+          "end": 306.655,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0062",
+          "start": 305.72,
+          "end": 316.142,
+          "spk": "SPK_07"
+        }
+      ],
+      "default_fr_new": [
+        {
+          "id": "utt-0050",
+          "start": 259.9,
+          "end": 262.37,
+          "spk": "SPK_06"
+        },
+        {
+          "id": "utt-0051",
+          "start": 265.48,
+          "end": 270.43,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0039",
+          "start": 243.32,
+          "end": 258.971,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0040",
+          "start": 244.12,
+          "end": 245.385,
+          "spk": "SPK_06"
+        },
+        {
+          "id": "utt-0041",
+          "start": 244.52,
+          "end": 245.935,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0042",
+          "start": 246.44,
+          "end": 246.655,
+          "spk": "SPK_06"
+        },
+        {
+          "id": "utt-0043",
+          "start": 246.93,
+          "end": 247.395,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0044",
+          "start": 248.6,
+          "end": 248.815,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0045",
+          "start": 249.24,
+          "end": 249.455,
+          "spk": "SPK_06"
+        },
+        {
+          "id": "utt-0046",
+          "start": 250.52,
+          "end": 250.735,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0047",
+          "start": 251.8,
+          "end": 252.85,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0048",
+          "start": 255.0,
+          "end": 256.815,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0049",
+          "start": 257.24,
+          "end": 258.015,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0052",
+          "start": 280.04,
+          "end": 284.875,
+          "spk": "SPK_06"
+        },
+        {
+          "id": "utt-0053",
+          "start": 280.76,
+          "end": 280.975,
+          "spk": "SPK_09"
+        },
+        {
+          "id": "utt-0054",
+          "start": 282.07,
+          "end": 282.895,
+          "spk": "SPK_09"
+        },
+        {
+          "id": "utt-0055",
+          "start": 282.69,
+          "end": 291.485,
+          "spk": "SPK_10"
+        },
+        {
+          "id": "utt-0056",
+          "start": 285.48,
+          "end": 285.972,
+          "spk": "SPK_06"
+        },
+        {
+          "id": "utt-0057",
+          "start": 289.88,
+          "end": 291.4,
+          "spk": "SPK_06"
+        },
+        {
+          "id": "utt-0058",
+          "start": 297.12,
+          "end": 299.378,
+          "spk": "SPK_10"
+        },
+        {
+          "id": "utt-0059",
+          "start": 297.48,
+          "end": 299.385,
+          "spk": "SPK_09"
+        },
+        {
+          "id": "utt-0060",
+          "start": 302.97,
+          "end": 304.44,
+          "spk": "SPK_06"
+        },
+        {
+          "id": "utt-0061",
+          "start": 304.72,
+          "end": 312.99,
+          "spk": "SPK_09"
+        },
+        {
+          "id": "utt-0062",
+          "start": 304.8,
+          "end": 307.058,
+          "spk": "SPK_10"
+        },
+        {
+          "id": "utt-0063",
+          "start": 304.84,
+          "end": 306.495,
+          "spk": "SPK_06"
+        }
+      ]
+    },
+    {
+      "case_id": "W02d",
+      "status": "PARTIAL_SPEAKER_MIX",
+      "classification": "speaker_collapse",
+      "note": "Speaker mixing remains in chunk_003 (orig16 reduced interleaving from W02c dedup)",
+      "orig16_baseline": [
+        {
+          "id": "utt-0051",
+          "start": 280.04,
+          "end": 289.034,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0052",
+          "start": 280.76,
+          "end": 280.975,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0053",
+          "start": 282.07,
+          "end": 282.895,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0054",
+          "start": 282.69,
+          "end": 291.485,
+          "spk": "SPK_10"
+        },
+        {
+          "id": "utt-0055",
+          "start": 285.17,
+          "end": 285.695,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0056",
+          "start": 286.68,
+          "end": 289.975,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0057",
+          "start": 290.0,
+          "end": 291.273,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0058",
+          "start": 290.85,
+          "end": 291.375,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0059",
+          "start": 297.12,
+          "end": 299.378,
+          "spk": "SPK_10"
+        },
+        {
+          "id": "utt-0060",
+          "start": 297.48,
+          "end": 298.655,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0061",
+          "start": 297.48,
+          "end": 299.385,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0062",
+          "start": 303.59,
+          "end": 304.44,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0063",
+          "start": 304.72,
+          "end": 312.99,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0064",
+          "start": 304.8,
+          "end": 307.058,
+          "spk": "SPK_10"
+        },
+        {
+          "id": "utt-0065",
+          "start": 304.84,
+          "end": 306.655,
+          "spk": "SPK_08"
+        }
+      ],
+      "orig16_replay": [
+        {
+          "id": "utt-0051",
+          "start": 280.04,
+          "end": 289.034,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0052",
+          "start": 280.76,
+          "end": 280.975,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0053",
+          "start": 282.07,
+          "end": 282.695,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0054",
+          "start": 282.69,
+          "end": 291.485,
+          "spk": "SPK_10"
+        },
+        {
+          "id": "utt-0055",
+          "start": 290.0,
+          "end": 291.273,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0056",
+          "start": 297.12,
+          "end": 299.378,
+          "spk": "SPK_10"
+        },
+        {
+          "id": "utt-0057",
+          "start": 297.48,
+          "end": 298.655,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0058",
+          "start": 298.96,
+          "end": 299.385,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0059",
+          "start": 303.59,
+          "end": 304.44,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0060",
+          "start": 304.8,
+          "end": 307.058,
+          "spk": "SPK_10"
+        },
+        {
+          "id": "utt-0061",
+          "start": 304.84,
+          "end": 306.655,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0062",
+          "start": 305.72,
+          "end": 316.142,
+          "spk": "SPK_07"
+        }
+      ],
+      "default_fr_new": [
+        {
+          "id": "utt-0052",
+          "start": 280.04,
+          "end": 284.875,
+          "spk": "SPK_06"
+        },
+        {
+          "id": "utt-0053",
+          "start": 280.76,
+          "end": 280.975,
+          "spk": "SPK_09"
+        },
+        {
+          "id": "utt-0054",
+          "start": 282.07,
+          "end": 282.895,
+          "spk": "SPK_09"
+        },
+        {
+          "id": "utt-0055",
+          "start": 282.69,
+          "end": 291.485,
+          "spk": "SPK_10"
+        },
+        {
+          "id": "utt-0056",
+          "start": 285.48,
+          "end": 285.972,
+          "spk": "SPK_06"
+        },
+        {
+          "id": "utt-0057",
+          "start": 289.88,
+          "end": 291.4,
+          "spk": "SPK_06"
+        },
+        {
+          "id": "utt-0058",
+          "start": 297.12,
+          "end": 299.378,
+          "spk": "SPK_10"
+        },
+        {
+          "id": "utt-0059",
+          "start": 297.48,
+          "end": 299.385,
+          "spk": "SPK_09"
+        },
+        {
+          "id": "utt-0060",
+          "start": 302.97,
+          "end": 304.44,
+          "spk": "SPK_06"
+        },
+        {
+          "id": "utt-0061",
+          "start": 304.72,
+          "end": 312.99,
+          "spk": "SPK_09"
+        },
+        {
+          "id": "utt-0062",
+          "start": 304.8,
+          "end": 307.058,
+          "spk": "SPK_10"
+        },
+        {
+          "id": "utt-0063",
+          "start": 304.84,
+          "end": 306.495,
+          "spk": "SPK_06"
+        }
+      ]
+    },
+    {
+      "case_id": "W03a",
+      "status": "PARTIAL_DEDUP_GAIN_IN_ORIG16",
+      "classification": "duplicate_speech_reduced",
+      "note": "Orig16 replay deduplicated 18 tokens across c10->c11 while keeping interjections & <8 cross-speaker tokens; default_fr_job preserved cross-speaker overlap",
+      "orig16_baseline": [
+        {
+          "id": "utt-0168",
+          "start": 985.8,
+          "end": 988.963,
+          "spk": "SPK_18"
+        },
+        {
+          "id": "utt-0169",
+          "start": 990.28,
+          "end": 991.564,
+          "spk": "SPK_18"
+        },
+        {
+          "id": "utt-0170",
+          "start": 996.77,
+          "end": 998.949,
+          "spk": "SPK_19"
+        },
+        {
+          "id": "utt-0171",
+          "start": 996.83,
+          "end": 998.665,
+          "spk": "SPK_04"
+        }
+      ],
+      "orig16_replay": [
+        {
+          "id": "utt-0165",
+          "start": 985.8,
+          "end": 988.963,
+          "spk": "SPK_18"
+        },
+        {
+          "id": "utt-0166",
+          "start": 990.28,
+          "end": 991.358,
+          "spk": "SPK_18"
+        },
+        {
+          "id": "utt-0167",
+          "start": 996.77,
+          "end": 998.949,
+          "spk": "SPK_19"
+        },
+        {
+          "id": "utt-0168",
+          "start": 996.83,
+          "end": 998.665,
+          "spk": "SPK_04"
+        }
+      ],
+      "default_fr_new": [
+        {
+          "id": "utt-0149",
+          "start": 985.8,
+          "end": 988.963,
+          "spk": "SPK_18"
+        },
+        {
+          "id": "utt-0150",
+          "start": 990.28,
+          "end": 990.514,
+          "spk": "SPK_18"
+        },
+        {
+          "id": "utt-0151",
+          "start": 996.77,
+          "end": 998.949,
+          "spk": "SPK_20"
+        },
+        {
+          "id": "utt-0152",
+          "start": 996.92,
+          "end": 998.945,
+          "spk": "SPK_19"
+        }
+      ]
+    },
+    {
+      "case_id": "W03b",
+      "status": "FAIL_UNCHANGED_TIMING_AND_SPEAKER",
+      "classification": "genuine_timing_error",
+      "note": "CTC +12-16s drift + intra-chunk speaker merge unchanged",
+      "orig16_baseline": [
+        {
+          "id": "utt-0172",
+          "start": 1009.0,
+          "end": 1010.275,
+          "spk": "SPK_04"
+        },
+        {
+          "id": "utt-0173",
+          "start": 1009.0,
+          "end": 1010.05,
+          "spk": "SPK_19"
+        },
+        {
+          "id": "utt-0174",
+          "start": 1010.9,
+          "end": 1014.035,
+          "spk": "SPK_04"
+        },
+        {
+          "id": "utt-0175",
+          "start": 1016.68,
+          "end": 1017.375,
+          "spk": "SPK_19"
+        },
+        {
+          "id": "utt-0176",
+          "start": 1016.77,
+          "end": 1017.805,
+          "spk": "SPK_04"
+        },
+        {
+          "id": "utt-0177",
+          "start": 1023.4,
+          "end": 1026.279,
+          "spk": "SPK_19"
+        },
+        {
+          "id": "utt-0178",
+          "start": 1023.61,
+          "end": 1026.175,
+          "spk": "SPK_04"
+        },
+        {
+          "id": "utt-0179",
+          "start": 1028.84,
+          "end": 1034.711,
+          "spk": "SPK_19"
+        },
+        {
+          "id": "utt-0180",
+          "start": 1028.96,
+          "end": 1029.785,
+          "spk": "SPK_04"
+        }
+      ],
+      "orig16_replay": [
+        {
+          "id": "utt-0169",
+          "start": 1009.0,
+          "end": 1010.275,
+          "spk": "SPK_04"
+        },
+        {
+          "id": "utt-0170",
+          "start": 1009.0,
+          "end": 1010.05,
+          "spk": "SPK_19"
+        },
+        {
+          "id": "utt-0171",
+          "start": 1010.9,
+          "end": 1014.035,
+          "spk": "SPK_04"
+        },
+        {
+          "id": "utt-0172",
+          "start": 1016.68,
+          "end": 1017.375,
+          "spk": "SPK_19"
+        },
+        {
+          "id": "utt-0173",
+          "start": 1016.77,
+          "end": 1017.805,
+          "spk": "SPK_04"
+        },
+        {
+          "id": "utt-0174",
+          "start": 1023.4,
+          "end": 1026.279,
+          "spk": "SPK_19"
+        },
+        {
+          "id": "utt-0175",
+          "start": 1023.61,
+          "end": 1026.175,
+          "spk": "SPK_04"
+        },
+        {
+          "id": "utt-0176",
+          "start": 1028.84,
+          "end": 1034.711,
+          "spk": "SPK_19"
+        },
+        {
+          "id": "utt-0177",
+          "start": 1028.96,
+          "end": 1029.785,
+          "spk": "SPK_04"
+        }
+      ],
+      "default_fr_new": [
+        {
+          "id": "utt-0153",
+          "start": 1008.97,
+          "end": 1010.335,
+          "spk": "SPK_19"
+        },
+        {
+          "id": "utt-0154",
+          "start": 1009.0,
+          "end": 1010.05,
+          "spk": "SPK_20"
+        },
+        {
+          "id": "utt-0155",
+          "start": 1010.9,
+          "end": 1014.035,
+          "spk": "SPK_19"
+        },
+        {
+          "id": "utt-0156",
+          "start": 1016.68,
+          "end": 1017.375,
+          "spk": "SPK_20"
+        },
+        {
+          "id": "utt-0157",
+          "start": 1016.77,
+          "end": 1017.805,
+          "spk": "SPK_19"
+        },
+        {
+          "id": "utt-0158",
+          "start": 1023.4,
+          "end": 1026.279,
+          "spk": "SPK_20"
+        },
+        {
+          "id": "utt-0159",
+          "start": 1023.61,
+          "end": 1026.175,
+          "spk": "SPK_19"
+        },
+        {
+          "id": "utt-0160",
+          "start": 1028.84,
+          "end": 1034.711,
+          "spk": "SPK_20"
+        },
+        {
+          "id": "utt-0161",
+          "start": 1028.96,
+          "end": 1029.785,
+          "spk": "SPK_19"
+        }
+      ]
+    },
+    {
+      "case_id": "W03c",
+      "status": "PARTIAL_CONSERVATIVE_PRESERVATION",
+      "classification": "intentional_safety_guard",
+      "note": "4-word cross-speaker displaced phrase intentionally preserved absent acoustic evidence",
+      "orig16_baseline": [
+        {
+          "id": "utt-0187",
+          "start": 1072.28,
+          "end": 1075.375,
+          "spk": "SPK_19"
+        },
+        {
+          "id": "utt-0188",
+          "start": 1073.0,
+          "end": 1073.455,
+          "spk": "SPK_04"
+        },
+        {
+          "id": "utt-0189",
+          "start": 1073.88,
+          "end": 1074.585,
+          "spk": "SPK_04"
+        },
+        {
+          "id": "utt-0190",
+          "start": 1085.54,
+          "end": 1087.095,
+          "spk": "SPK_19"
+        }
+      ],
+      "orig16_replay": [
+        {
+          "id": "utt-0184",
+          "start": 1072.28,
+          "end": 1075.375,
+          "spk": "SPK_19"
+        },
+        {
+          "id": "utt-0185",
+          "start": 1073.0,
+          "end": 1073.455,
+          "spk": "SPK_04"
+        },
+        {
+          "id": "utt-0186",
+          "start": 1073.88,
+          "end": 1074.585,
+          "spk": "SPK_04"
+        },
+        {
+          "id": "utt-0187",
+          "start": 1085.54,
+          "end": 1087.095,
+          "spk": "SPK_19"
+        }
+      ],
+      "default_fr_new": [
+        {
+          "id": "utt-0168",
+          "start": 1072.28,
+          "end": 1075.458,
+          "spk": "SPK_20"
+        },
+        {
+          "id": "utt-0169",
+          "start": 1073.0,
+          "end": 1073.455,
+          "spk": "SPK_19"
+        },
+        {
+          "id": "utt-0170",
+          "start": 1073.88,
+          "end": 1074.585,
+          "spk": "SPK_19"
+        },
+        {
+          "id": "utt-0171",
+          "start": 1085.54,
+          "end": 1087.095,
+          "spk": "SPK_20"
+        },
+        {
+          "id": "utt-0172",
+          "start": 1085.59,
+          "end": 1086.815,
+          "spk": "SPK_21"
+        }
+      ]
+    },
+    {
+      "case_id": "W04a",
+      "status": "PARTIAL_IMPROVED_IN_DEFAULT_FR",
+      "classification": "genuine_timing_error_in_orig16_improved_in_default",
+      "note": "Orig16 replay split -27s/+17s; default_fr_job anchored at 1231.16-1232.72s; agent audio review attested 7w question at [1230.5,1232.9]",
+      "orig16_baseline": [
+        {
+          "id": "utt-0202",
+          "start": 1203.25,
+          "end": 1204.231,
+          "spk": "SPK_19"
+        },
+        {
+          "id": "utt-0203",
+          "start": 1233.06,
+          "end": 1236.939,
+          "spk": "SPK_21"
+        },
+        {
+          "id": "utt-0204",
+          "start": 1248.54,
+          "end": 1248.905,
+          "spk": "SPK_19"
+        },
+        {
+          "id": "utt-0205",
+          "start": 1249.81,
+          "end": 1250.025,
+          "spk": "SPK_19"
+        }
+      ],
+      "orig16_replay": [
+        {
+          "id": "utt-0199",
+          "start": 1203.25,
+          "end": 1204.231,
+          "spk": "SPK_19"
+        },
+        {
+          "id": "utt-0200",
+          "start": 1233.06,
+          "end": 1236.939,
+          "spk": "SPK_21"
+        },
+        {
+          "id": "utt-0201",
+          "start": 1248.54,
+          "end": 1248.905,
+          "spk": "SPK_19"
+        },
+        {
+          "id": "utt-0202",
+          "start": 1249.81,
+          "end": 1250.025,
+          "spk": "SPK_19"
+        }
+      ],
+      "default_fr_new": [
+        {
+          "id": "utt-0185",
+          "start": 1231.16,
+          "end": 1232.724,
+          "spk": "SPK_22"
+        },
+        {
+          "id": "utt-0186",
+          "start": 1233.06,
+          "end": 1236.939,
+          "spk": "SPK_23"
+        }
+      ]
+    },
+    {
+      "case_id": "W04b",
+      "status": "PASS",
+      "classification": "complete_neighbor_selected",
+      "note": "Orig16 replay selected complete c14:3..10 (1253.16-1255.47s); vetted overlay superseded truncated utt-0206; default_fr_job emitted complete sentence at 1253.16-1255.19s",
+      "orig16_baseline": [
+        {
+          "id": "utt-0206",
+          "start": 1253.16,
+          "end": 1255.98,
+          "spk": "SPK_19"
+        },
+        {
+          "id": "utt-0207",
+          "start": 1254.61,
+          "end": 1254.825,
+          "spk": "SPK_21"
+        }
+      ],
+      "orig16_replay": [
+        {
+          "id": "utt-0203",
+          "start": 1253.16,
+          "end": 1255.474,
+          "spk": "SPK_22"
+        },
+        {
+          "id": "utt-0204",
+          "start": 1254.61,
+          "end": 1254.825,
+          "spk": "SPK_21"
+        }
+      ],
+      "default_fr_new": [
+        {
+          "id": "utt-0187",
+          "start": 1253.16,
+          "end": 1255.193,
+          "spk": "SPK_20"
+        },
+        {
+          "id": "utt-0188",
+          "start": 1253.88,
+          "end": 1254.095,
+          "spk": "SPK_22"
+        }
+      ]
+    },
+    {
+      "case_id": "W04c",
+      "status": "PASS_REANCHORED_AND_PARTIAL_HELD",
+      "classification": "partial_legacy_protected",
+      "note": "Reanchored audio [1264.3,1266.3]; partial utt-0208 (5/7) and displaced utt-0207 (1254.61s) preserved; W04c held in dossier without double render; default_fr_job dropped orphan 1254.61s 'Mes'",
+      "orig16_baseline": [
+        {
+          "id": "utt-0208",
+          "start": 1264.36,
+          "end": 1266.575,
+          "spk": "SPK_21"
+        },
+        {
+          "id": "utt-0209",
+          "start": 1266.36,
+          "end": 1270.345,
+          "spk": "SPK_01"
+        },
+        {
+          "id": "utt-0206",
+          "start": 1253.16,
+          "end": 1255.98,
+          "spk": "SPK_19"
+        },
+        {
+          "id": "utt-0207",
+          "start": 1254.61,
+          "end": 1254.825,
+          "spk": "SPK_21"
+        }
+      ],
+      "orig16_replay": [
+        {
+          "id": "utt-0205",
+          "start": 1264.36,
+          "end": 1266.575,
+          "spk": "SPK_21"
+        },
+        {
+          "id": "utt-0206",
+          "start": 1266.36,
+          "end": 1270.345,
+          "spk": "SPK_01"
+        },
+        {
+          "id": "utt-0203",
+          "start": 1253.16,
+          "end": 1255.474,
+          "spk": "SPK_22"
+        },
+        {
+          "id": "utt-0204",
+          "start": 1254.61,
+          "end": 1254.825,
+          "spk": "SPK_21"
+        }
+      ],
+      "default_fr_new": [
+        {
+          "id": "utt-0189",
+          "start": 1264.36,
+          "end": 1266.575,
+          "spk": "SPK_22"
+        },
+        {
+          "id": "utt-0190",
+          "start": 1266.36,
+          "end": 1270.345,
+          "spk": "SPK_20"
+        },
+        {
+          "id": "utt-0187",
+          "start": 1253.16,
+          "end": 1255.193,
+          "spk": "SPK_20"
+        },
+        {
+          "id": "utt-0188",
+          "start": 1253.88,
+          "end": 1254.095,
+          "spk": "SPK_22"
+        }
+      ]
+    },
+    {
+      "case_id": "W05a",
+      "status": "PASS_RECOVERED_IN_BOTH",
+      "classification": "extended_right_context_recovered",
+      "note": "All 6 child words recovered at 1352.01-1353.855s in BOTH orig16 replay and fresh default_fr_job (c14->c15); c15 narrator untouched",
+      "orig16_baseline": [
+        {
+          "id": "utt-0230",
+          "start": 1346.57,
+          "end": 1351.95,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0231",
+          "start": 1354.26,
+          "end": 1367.465,
+          "spk": "SPK_08"
+        }
+      ],
+      "orig16_replay": [
+        {
+          "id": "utt-0227",
+          "start": 1346.57,
+          "end": 1351.95,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0228",
+          "start": 1352.01,
+          "end": 1352.21,
+          "spk": "SPK_22"
+        },
+        {
+          "id": "utt-0229",
+          "start": 1352.68,
+          "end": 1353.855,
+          "spk": "SPK_22"
+        },
+        {
+          "id": "utt-0230",
+          "start": 1354.26,
+          "end": 1367.465,
+          "spk": "SPK_08"
+        }
+      ],
+      "default_fr_new": [
+        {
+          "id": "utt-0211",
+          "start": 1346.57,
+          "end": 1351.95,
+          "spk": "SPK_25"
+        },
+        {
+          "id": "utt-0212",
+          "start": 1352.01,
+          "end": 1352.21,
+          "spk": "SPK_24"
+        },
+        {
+          "id": "utt-0213",
+          "start": 1352.68,
+          "end": 1353.855,
+          "spk": "SPK_24"
+        },
+        {
+          "id": "utt-0214",
+          "start": 1354.26,
+          "end": 1367.465,
+          "spk": "SPK_25"
+        }
+      ]
+    },
+    {
+      "case_id": "C1",
+      "status": "PASS",
+      "classification": "negative_control_clean",
+      "note": "29-token mid-core passage intact verbatim with 0 conflicts in orig16 replay, vetted overlays, and default_fr_job",
+      "orig16_baseline": [
+        {
+          "id": "utt-0112",
+          "start": 687.55,
+          "end": 696.487,
+          "spk": "SPK_15"
+        }
+      ],
+      "orig16_replay": [
+        {
+          "id": "utt-0109",
+          "start": 687.55,
+          "end": 696.487,
+          "spk": "SPK_15"
+        }
+      ],
+      "default_fr_new": [
+        {
+          "id": "utt-0107",
+          "start": 687.55,
+          "end": 696.487,
+          "spk": "SPK_14"
+        }
+      ]
+    },
+    {
+      "case_id": "C2",
+      "status": "PASS",
+      "classification": "negative_control_repeat",
+      "note": "Genuine immediate repeat + concurrent speaker preserved verbatim across all runs",
+      "orig16_baseline": [
+        {
+          "id": "utt-0177",
+          "start": 1023.4,
+          "end": 1026.279,
+          "spk": "SPK_19"
+        },
+        {
+          "id": "utt-0178",
+          "start": 1023.61,
+          "end": 1026.175,
+          "spk": "SPK_04"
+        }
+      ],
+      "orig16_replay": [
+        {
+          "id": "utt-0174",
+          "start": 1023.4,
+          "end": 1026.279,
+          "spk": "SPK_19"
+        },
+        {
+          "id": "utt-0175",
+          "start": 1023.61,
+          "end": 1026.175,
+          "spk": "SPK_04"
+        }
+      ],
+      "default_fr_new": [
+        {
+          "id": "utt-0158",
+          "start": 1023.4,
+          "end": 1026.279,
+          "spk": "SPK_20"
+        },
+        {
+          "id": "utt-0159",
+          "start": 1023.61,
+          "end": 1026.175,
+          "spk": "SPK_19"
+        }
+      ]
+    },
+    {
+      "case_id": "S01",
+      "status": "PARTIAL_IMPROVED_IN_DEFAULT_FR",
+      "classification": "fragmentation_control",
+      "note": "Orig16 2-shard split unchanged; default_fr_job kept turn unfragmented (95.26-99.23s)",
+      "orig16_baseline": [
+        {
+          "id": "utt-0015",
+          "start": 92.6,
+          "end": 95.153,
+          "spk": "SPK_04"
+        },
+        {
+          "id": "utt-0016",
+          "start": 93.16,
+          "end": 93.375,
+          "spk": "SPK_05"
+        },
+        {
+          "id": "utt-0017",
+          "start": 94.38,
+          "end": 94.595,
+          "spk": "SPK_05"
+        },
+        {
+          "id": "utt-0018",
+          "start": 95.74,
+          "end": 98.985,
+          "spk": "SPK_05"
+        },
+        {
+          "id": "utt-0019",
+          "start": 99.01,
+          "end": 104.673,
+          "spk": "SPK_04"
+        }
+      ],
+      "orig16_replay": [
+        {
+          "id": "utt-0015",
+          "start": 92.6,
+          "end": 95.153,
+          "spk": "SPK_04"
+        },
+        {
+          "id": "utt-0016",
+          "start": 93.16,
+          "end": 93.375,
+          "spk": "SPK_05"
+        },
+        {
+          "id": "utt-0017",
+          "start": 94.38,
+          "end": 94.595,
+          "spk": "SPK_05"
+        },
+        {
+          "id": "utt-0018",
+          "start": 95.74,
+          "end": 98.985,
+          "spk": "SPK_05"
+        },
+        {
+          "id": "utt-0019",
+          "start": 99.01,
+          "end": 104.673,
+          "spk": "SPK_04"
+        }
+      ],
+      "default_fr_new": [
+        {
+          "id": "utt-0011",
+          "start": 92.6,
+          "end": 95.153,
+          "spk": "SPK_04"
+        },
+        {
+          "id": "utt-0012",
+          "start": 95.26,
+          "end": 99.225,
+          "spk": "SPK_03"
+        },
+        {
+          "id": "utt-0013",
+          "start": 99.01,
+          "end": 104.673,
+          "spk": "SPK_04"
+        }
+      ]
+    },
+    {
+      "case_id": "S02",
+      "status": "PASS_IN_VETTED_MISSING_IN_DEFAULT_FR",
+      "classification": "negation_polarity_vs_boundary_miss",
+      "note": "Orig16 & vetted Riva preserved negation ('It wasn't our Nakal...'); default_fr_job c03 placed words past 360s and c04 placed them at 337.88s (<360s core), omitting turn from default_fr_job utterances",
+      "orig16_baseline": [
+        {
+          "id": "utt-0068",
+          "start": 337.4,
+          "end": 341.778,
+          "spk": "SPK_10"
+        },
+        {
+          "id": "utt-0069",
+          "start": 337.72,
+          "end": 339.055,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0070",
+          "start": 337.88,
+          "end": 340.825,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0071",
+          "start": 339.5,
+          "end": 340.035,
+          "spk": "SPK_07"
+        }
+      ],
+      "orig16_replay": [
+        {
+          "id": "utt-0065",
+          "start": 337.4,
+          "end": 341.778,
+          "spk": "SPK_10"
+        },
+        {
+          "id": "utt-0066",
+          "start": 337.72,
+          "end": 339.055,
+          "spk": "SPK_07"
+        },
+        {
+          "id": "utt-0067",
+          "start": 337.88,
+          "end": 340.825,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0068",
+          "start": 339.5,
+          "end": 340.035,
+          "spk": "SPK_07"
+        }
+      ],
+      "default_fr_new": [
+        {
+          "id": "utt-0066",
+          "start": 337.4,
+          "end": 341.778,
+          "spk": "SPK_10"
+        },
+        {
+          "id": "utt-0067",
+          "start": 337.4,
+          "end": 341.225,
+          "spk": "SPK_06"
+        },
+        {
+          "id": "utt-0068",
+          "start": 337.4,
+          "end": 337.615,
+          "spk": "SPK_09"
+        },
+        {
+          "id": "utt-0069",
+          "start": 338.95,
+          "end": 341.005,
+          "spk": "SPK_09"
+        }
+      ]
+    },
+    {
+      "case_id": "S03",
+      "status": "PARTIAL_NO_REGRESSION",
+      "classification": "asr_orthographic_variant",
+      "note": "c12 'en mur\u00e9e!' preserved without false suffix promotion across all runs",
+      "orig16_baseline": [
+        {
+          "id": "utt-0198",
+          "start": 1164.64,
+          "end": 1172.214,
+          "spk": "SPK_19"
+        }
+      ],
+      "orig16_replay": [
+        {
+          "id": "utt-0195",
+          "start": 1164.64,
+          "end": 1172.214,
+          "spk": "SPK_19"
+        }
+      ],
+      "default_fr_new": [
+        {
+          "id": "utt-0181",
+          "start": 1164.64,
+          "end": 1172.214,
+          "spk": "SPK_20"
+        }
+      ]
+    },
+    {
+      "case_id": "S04",
+      "status": "FAIL_UNCHANGED_TIMING_SPLIT",
+      "classification": "genuine_timing_error_high_cps",
+      "note": "Split across 10s (1304.85->1315.04s) in orig16 & vetted; 76.67-90.2 max CPS",
+      "orig16_baseline": [
+        {
+          "id": "utt-0217",
+          "start": 1304.78,
+          "end": 1316.388,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0218",
+          "start": 1304.85,
+          "end": 1305.065,
+          "spk": "SPK_21"
+        },
+        {
+          "id": "utt-0219",
+          "start": 1315.04,
+          "end": 1315.25,
+          "spk": "SPK_21"
+        },
+        {
+          "id": "utt-0220",
+          "start": 1316.92,
+          "end": 1324.483,
+          "spk": "SPK_08"
+        }
+      ],
+      "orig16_replay": [
+        {
+          "id": "utt-0214",
+          "start": 1304.78,
+          "end": 1316.388,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0215",
+          "start": 1304.85,
+          "end": 1305.065,
+          "spk": "SPK_21"
+        },
+        {
+          "id": "utt-0216",
+          "start": 1315.04,
+          "end": 1315.25,
+          "spk": "SPK_21"
+        },
+        {
+          "id": "utt-0217",
+          "start": 1316.92,
+          "end": 1324.483,
+          "spk": "SPK_08"
+        }
+      ],
+      "default_fr_new": [
+        {
+          "id": "utt-0198",
+          "start": 1304.78,
+          "end": 1316.388,
+          "spk": "SPK_25"
+        },
+        {
+          "id": "utt-0199",
+          "start": 1308.12,
+          "end": 1308.335,
+          "spk": "SPK_22"
+        },
+        {
+          "id": "utt-0200",
+          "start": 1315.26,
+          "end": 1315.695,
+          "spk": "SPK_22"
+        },
+        {
+          "id": "utt-0201",
+          "start": 1316.92,
+          "end": 1324.483,
+          "spk": "SPK_25"
+        }
+      ]
+    },
+    {
+      "case_id": "S05",
+      "status": "PARTIAL_TURN_COLLAPSE",
+      "classification": "speaker_collapse",
+      "note": "Narrator + Pichu merged in single speaker tag at 1367.47-1370.63s; tail preserved",
+      "orig16_baseline": [
+        {
+          "id": "utt-0231",
+          "start": 1354.26,
+          "end": 1367.465,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0232",
+          "start": 1367.47,
+          "end": 1370.625,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0233",
+          "start": 1375.02,
+          "end": 1376.938,
+          "spk": "SPK_08"
+        }
+      ],
+      "orig16_replay": [
+        {
+          "id": "utt-0230",
+          "start": 1354.26,
+          "end": 1367.465,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0231",
+          "start": 1367.47,
+          "end": 1370.625,
+          "spk": "SPK_08"
+        },
+        {
+          "id": "utt-0232",
+          "start": 1375.02,
+          "end": 1376.938,
+          "spk": "SPK_08"
+        }
+      ],
+      "default_fr_new": [
+        {
+          "id": "utt-0214",
+          "start": 1354.26,
+          "end": 1367.465,
+          "spk": "SPK_25"
+        },
+        {
+          "id": "utt-0215",
+          "start": 1367.47,
+          "end": 1370.625,
+          "spk": "SPK_25"
+        },
+        {
+          "id": "utt-0216",
+          "start": 1375.02,
+          "end": 1376.938,
+          "spk": "SPK_25"
+        }
+      ]
+    }
+  ]
+}

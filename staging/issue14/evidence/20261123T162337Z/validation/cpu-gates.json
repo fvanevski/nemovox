@@ -1,0 +1,39 @@
+{
+  "validated_source_sha": "8c0244bc22176b8e5f1ce2d2e6e3480505d9ce4e",
+  "validated_source_tree": "cc3cb0c1721fcc416d308d8392b789cdc7b63801",
+  "admitted_pr_head_sha": "f3af69feb470bc6ce2dd1ffd5eff5c8802cd91c6",
+  "gates": [
+    {
+      "name": "compileall",
+      "exit_code": 0
+    },
+    {
+      "name": "focused_issue14_suite",
+      "exit_code": 0,
+      "passed": 112,
+      "failed": 0,
+      "skipped": 0,
+      "warnings": 1
+    },
+    {
+      "name": "full_non_gpu_suite",
+      "exit_code": 0,
+      "passed": 400,
+      "failed": 0,
+      "skipped": 0,
+      "warnings": 1
+    },
+    {
+      "name": "studio_cpu_suite",
+      "exit_code": 0,
+      "passed": 50,
+      "failed": 0,
+      "skipped": 0,
+      "warnings": 0
+    },
+    {
+      "name": "git_diff_check",
+      "exit_code": 0
+    }
+  ]
+}

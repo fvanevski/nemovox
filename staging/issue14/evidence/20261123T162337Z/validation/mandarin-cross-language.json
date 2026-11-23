@@ -1,0 +1,10 @@
+{
+  "recording_utterances_input": 285,
+  "exact_unit_match": "2832/2901",
+  "c14_unmatched_incomplete_units": 69,
+  "untimed_utterances_preserved_unrenderable": 41,
+  "reviewed_turn1_elder_disposition": "HELD (quarantined due to reviewed_event_has_partial_legacy_audio_ownership on utt-0062 18/28 units); utt-0062 and utt-0064 preserved intact",
+  "reviewed_turn2_turn3_disposition": "Superseded utt-0063 (5/5) and utt-0065 (10/10) cleanly",
+  "output_utterances": 285,
+  "prior_english_renders_note": "Prior 285/304 baseline and 285/305 vetted Riva English renders remain genuine prior renders, not re-run after ZH_overlap_turn1_elder hold on 8c0244bc."
+}

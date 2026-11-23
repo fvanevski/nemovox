@@ -1,0 +1,72 @@
+{
+  "media_fingerprint_sha256": "8d6e97fa0c3b0c674baa4e1864e72ada463dd4f448c7f9e3e6aacfb8249548e9",
+  "duration_s": 1379.901,
+  "chunk_config": {
+    "chunk_seconds": 90.0,
+    "context_seconds": 10.0,
+    "min_tail_seconds": 15.0,
+    "chunk_policy": "fixed",
+    "chunk_plan": {
+      "schema": "fixed/v1",
+      "policy": "fixed"
+    }
+  },
+  "initial_attempt": {
+    "completed_chunks": 12,
+    "failed_chunk": 12,
+    "finish_reason": "length",
+    "reason": "generation_limit_exhausted",
+    "completion_tokens": 16384,
+    "raw_text_chars": 49165,
+    "post_loop_guard_chars": 565,
+    "loop_guard_removed_chars": 48600,
+    "rejected_archive_sha256": "2f1ec500cc1bf02fa34afe3b67fd3874f4400180db95b939d6581abf3e2aacd5",
+    "fail_closed_no_contract_emitted": true
+  },
+  "resumed_completion": {
+    "resumed_chunks": 12,
+    "completed_chunks": 16,
+    "all_finish_reasons_stop": true,
+    "total_wall_time_s": 107.4132,
+    "source_evidence_lexical_observations": 2450,
+    "orig16_source_evidence_lexical_observations": 2415,
+    "timing_audit_quarantined_units": 0,
+    "timing_audit_large_gaps": 66,
+    "boundary_reconciliation": {
+      "deduplicated_units": 277,
+      "recovered_boundary_units": 19,
+      "sequence_deduplicated_units": 226,
+      "sequence_promoted_units": 0,
+      "sequence_ambiguities": 9,
+      "extended_recovered_units": 6,
+      "extended_recovery_examples": [
+        {
+          "boundary_s": 1350.0,
+          "left_chunk": 14,
+          "right_chunk": 15,
+          "source_unit_indices": [
+            252,
+            253,
+            254,
+            255,
+            256,
+            257
+          ],
+          "start_s": 1352.01,
+          "end_s": 1353.855,
+          "recovered_units": 6
+        }
+      ],
+      "extended_ambiguities": 7
+    },
+    "speaker_reconciliation": {
+      "raw_local_speaker_count": 43,
+      "reconciled_global_speaker_count": 26,
+      "unknown_speaker_count": 0,
+      "ambiguous_matches": 7,
+      "collisions_prevented": 3
+    },
+    "utterance_count": 217,
+    "untimed_utterances": 0
+  }
+}
