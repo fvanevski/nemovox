@@ -425,8 +425,18 @@ def promote_bounded_source_turns(
             event_id = _id("src_turn", [media, eid])
             if event_id != reviewed.get("source_turn_id"):
                 raise ValueError("Reviewed source event ID does not match canonical lineage")
-            rev_id = reviewed.get("source_revision_id")
-            _str(rev_id, "source_revision_id")
+            rev_id = _str(reviewed.get("source_revision_id"), "source_revision_id")
+            # SourceEvent ID stays stable across a corrected audition, but
+            # the revision identity must change if bounds/text/audio-review
+            # evidence change. Do not permit an old wrong-time attestation
+            # to be silently copied onto a newly timed subtitle.
+            expected_rev = _id("src_revision", [
+                media, eid, reviewed["source_text"],
+                _sha(reviewed["review_evidence_sha256"], "review_evidence_sha256"),
+                float(reviewed["source_start"]), float(reviewed["source_end"]),
+            ])
+            if rev_id != expected_rev:
+                raise ValueError("Reviewed source revision does not bind its acoustic bounds and review evidence")
             status = "audio_review_attested_source"
         else:
             event_id = _id("src_turn", [media, eid])
@@ -527,6 +537,7 @@ def promote_bounded_source_turns(
             "no_source_unit_deletion": True,
             "legacy_supersession_requires_existing_same_event_id": True,
             "legacy_supersession_requires_plausible_event_time": True,
+            "reviewed_revision_id_binds_text_bounds_and_audio_review_digest": True,
             "optional_positive_all_unit_lineage_enables_legacy_supersession": True,
             "no_automatic_legacy_suppression_from_similarity_or_ctc": True,
             "word_timing_and_speaker_identity_not_certified": True,

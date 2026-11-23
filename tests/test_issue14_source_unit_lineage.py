@@ -68,7 +68,9 @@ def fixtures():
             "schema": "nemovox-source-turn-revision/v1",
             "audio_event_id": "event_a",
             "source_turn_id": turn_id,
-            "source_revision_id": _id("src_revision", ["review", "event_a"]),
+            "source_revision_id": _id(
+                "src_revision", [MEDIA, "event_a", "Bonjour monde", SHA, 10.0, 12.0]
+            ),
             "source_start": 10.0, "source_end": 12.0,
             "source_text": "Bonjour monde",
             "source_language": "fr",

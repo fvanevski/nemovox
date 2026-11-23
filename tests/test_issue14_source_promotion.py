@@ -46,7 +46,9 @@ def dossier():
             "schema": "nemovox-source-turn-revision/v1",
             "audio_event_id": "heard_turn",
             "source_turn_id": reviewed_id,
-            "source_revision_id": _id("src_revision", ["review", "heard_turn"]),
+            "source_revision_id": _id(
+                "src_revision", [MEDIA, "heard_turn", "Attention !", SHA, 30.0, 32.0]
+            ),
             "source_start": 30.0, "source_end": 32.0,
             "source_text": "Attention !",
             "source_language": LANGUAGE,
@@ -507,6 +509,24 @@ def test_same_event_id_cannot_erase_a_wildly_displaced_legacy_utterance():
     assert result["source_promotion"]["new_source_turns"] == 0
     assert "legacy_supersession_audio_bounds_unverified" in result["source_promotion"]["quarantined"][0]["reasons"]
     assert result["utterances"][0]["id"] == "legacy_1"
+
+
+def test_reviewed_source_revision_cannot_reuse_stale_bounds_or_review_digest():
+    d = dossier()
+    reviewed = d["source_turns_audio_review_attested"][0]
+    reviewed["source_start"] = 30.2
+    with pytest.raises(ValueError, match="reviewed source text|acoustic bounds|Candidate source bounds|mismatch"):
+        promote_bounded_source_turns(
+            baseline(), d, segments(reviewed_candidate()), activity=activity()
+        )
+    # A tampered revision with correct bounds but changed attestation digest
+    # MUST fail independently of legacy overlap or model speech flags.
+    d = dossier()
+    d["source_turns_audio_review_attested"][0]["review_evidence_sha256"] = "f" * 64
+    with pytest.raises(ValueError, match="source revision does not bind"):
+        promote_bounded_source_turns(
+            baseline(), d, segments(reviewed_candidate()), activity=activity()
+        )
 
 
 def test_mismatched_media_and_reviewed_attestation_rejected():
