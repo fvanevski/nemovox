@@ -218,6 +218,15 @@ def promote_bounded_source_turns(
         for uid in replacement_ids:
             if uid in used_supersessions:
                 raise ValueError("Legacy utterance claimed by multiple source events")
+            # Never delete an unrelated legacy turn merely because its time
+            # overlaps this reviewed speech. Supersession requires positive
+            # event-ID lineage already on that v1-compatible utterance.
+            original_turn = original[original_ids.index(uid)]
+            lineage = original_turn.get("source_turn_ids") or (
+                [original_turn["source_turn_id"]] if original_turn.get("source_turn_id") else []
+            )
+            if _id("src_turn", [media, eid]) not in lineage:
+                reasons.append("legacy_turn_lacks_positive_same_event_lineage")
 
         overlapping_legacy = []
         for utterance, uid in zip(original, original_ids):
@@ -319,6 +328,7 @@ def promote_bounded_source_turns(
             "model_only_may_not_replace_legacy": True,
             "no_auto_music_sfx_source": True,
             "no_source_unit_deletion": True,
+            "legacy_supersession_requires_existing_same_event_id": True,
             "word_timing_and_speaker_identity_not_certified": True,
         },
         "accepted": [
@@ -328,6 +338,7 @@ def promote_bounded_source_turns(
                 "source_revision_id": x["utterance"]["source_revision_id"],
                 "status": x["utterance"]["source_acceptance_status"],
                 "supersedes_legacy_utterance_ids": x["supersedes"],
+                "original_legacy_utterances_preserved_in_input": True,
                 "overlapping_legacy_utterance_ids": x["overlapping_legacy_utterance_ids"],
             }
             for x in accepted
