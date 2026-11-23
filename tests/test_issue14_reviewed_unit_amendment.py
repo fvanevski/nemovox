@@ -3,29 +3,40 @@ from copy import deepcopy
 import pytest
 from nvidia_transcribe.evidence_fusion import _digest
 from nvidia_transcribe.reviewed_unit_amendment import apply_reviewed_unit_amendments, SCHEMA
+from nvidia_transcribe.source_recovery import _id
 
 MEDIA="m"
 H="a"*64
 
 def example():
-    recording={"source":{"fingerprint_sha256":MEDIA},"source_language":"fr",
-               "utterances":[{"id":"old","source_words":[
-                   {"chunk_index":0,"source_unit_index":0,"text":"we"},
-                   {"chunk_index":0,"source_unit_index":1,"text":"go"}]}]}
-    ledger={"media_fingerprint_sha256":MEDIA,"source_language":"fr",
+    recording={"schema_version":"nemotron-recording-contract/v1",
+               "source":{"fingerprint_sha256":MEDIA},"source_language":"fr",
+               "processing":{"chunks":[
+                   {"chunk_index":0,"raw_response_sha256":H,"infer_start_s":0,"infer_end_s":20},
+                   {"chunk_index":1,"raw_response_sha256":H,"infer_start_s":5,"infer_end_s":25}]},
+               "utterances":[{"id":"old","source_start":10,"source_end":12,"source_words":[
+                   {"chunk_index":0,"source_unit_index":0,"text":"we","unit_type":"word"},
+                   {"chunk_index":0,"source_unit_index":1,"text":"go","unit_type":"word"}]}]}
+    ledger={"schema_version":"nemovox-source-evidence/v1",
+            "media_fingerprint_sha256":MEDIA,"source_language":"fr",
             "asr_observations":[{"id":"asr0","chunk_index":0,"infer_start_s":0,"infer_end_s":20,
                                  "raw_response_sha256":H},
                                 {"id":"asr1","chunk_index":1,"infer_start_s":5,"infer_end_s":25,
                                  "raw_response_sha256":H}],
-            "lexical_observations":[{"id":"owned0","chunk_index":0,"source_ordinal":0,"text":"we"},
-                                    {"id":"owned1","chunk_index":0,"source_ordinal":1,"text":"go"},
-                                    {"id":"other","chunk_index":1,"source_ordinal":0,"text":"we"}]}
+            "lexical_observations":[{"id":"owned0","chunk_index":0,"source_ordinal":0,"text":"we","unit_type":"word"},
+                                    {"id":"owned1","chunk_index":0,"source_ordinal":1,"text":"go","unit_type":"word"},
+                                    {"id":"other","chunk_index":1,"source_ordinal":0,"text":"we","unit_type":"word"}]}
+    turn_id=_id("src_turn",[MEDIA,"event"])
     dossier={"schema":"nemovox-source-reconciliation/v1","media_fingerprint_sha256":MEDIA,
              "source_language":"fr",
              "audited_audio_regions":[{"audio_event_id":"event","source_status":"audio_review_attested",
+                                        "start_s":10,"end_s":12,
+                                        "reviewed_source_turn_id":turn_id,
                                         "positive_audio_event_unit_ids":["owned0","other"]}],
              "source_turns_audio_review_attested":[{"audio_event_id":"event",
-                "source_status":"audio_review_attested_source","reviewer_has_attested_direct_audio_listening":True,
+                "source_turn_id":turn_id,"source_status":"audio_review_attested_source",
+                "selection_basis":"independent_audio_review",
+                "reviewer_has_attested_direct_audio_listening":True,
                 "source_start":10,"source_end":12}]}
     actions=[
         {"kind":"assign_owned_unit","source_unit_id":"owned1","audio_event_id":"event"},

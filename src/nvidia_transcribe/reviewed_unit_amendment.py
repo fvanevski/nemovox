@@ -16,6 +16,7 @@ import math
 from typing import Any, Mapping
 
 from nvidia_transcribe.evidence_fusion import _digest
+from nvidia_transcribe.source_unit_lineage import bind_legacy_source_lineage
 
 SCHEMA = "nemovox-reviewed-unit-amendment/v1"
 _DOSSIER_SCHEMA = "nemovox-source-reconciliation/v1"
@@ -64,6 +65,10 @@ def apply_reviewed_unit_amendments(
         raise ValueError("Amendment media fingerprint or language mismatch")
     if dossier.get("schema") != _DOSSIER_SCHEMA:
         raise ValueError("Unsupported source reconciliation schema")
+    # Authenticate EVERY original source unit/chunk's raw response SHA, ASR
+    # input audio interval and legacy unit ownership before any amendment.
+    # The revised dossier will be validated by the same binder at application.
+    bind_legacy_source_lineage(recording, ledger, dossier)
     raw = {}
     coords = {}
     for item in ledger.get("lexical_observations") or []:
@@ -180,6 +185,7 @@ def apply_reviewed_unit_amendments(
         })
     if "reviewed_unit_amendment" in revised:
         raise ValueError("Reamendment requires a fresh authoritative dossier, not a chained overlay")
+    bind_legacy_source_lineage(recording, ledger, revised)
     revised["reviewed_unit_amendment"] = {
         "schema": SCHEMA, "source_dossier_sha256": _digest(dossier),
         "review_request_sha256": _digest(request),
