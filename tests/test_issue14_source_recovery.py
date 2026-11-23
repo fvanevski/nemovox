@@ -3,7 +3,7 @@ import pytest
 
 from nvidia_transcribe.source_recovery import (
     assemble_source_turn_revision, inspect_forced_alignment,
-    plan_source_recovery,
+    plan_source_recovery, project_source_turn_to_v1_utterance,
 )
 
 
@@ -179,6 +179,20 @@ def test_distinct_candidate_texts_have_same_event_id_but_different_revision_ids(
     )
     assert old["source_turn_id"] == revised["source_turn_id"]
     assert old["source_revision_id"] != revised["source_revision_id"]
+
+
+def test_v1_projection_keeps_source_revision_and_explicit_unknown_timing():
+    revision = assemble_source_turn_revision(
+        ledger(), audio_event_id="heard_original", chosen_observation_id="asr_1",
+        candidate_source_text="Le capitaine arrive", selection_basis="multi_asr_provisional"
+    )
+    utt = project_source_turn_to_v1_utterance(revision)
+    assert utt["source_turn_id"] == revision["source_turn_id"]
+    assert utt["source_revision_id"] == revision["source_revision_id"]
+    assert utt["source_observation_ids"] == ["asr_1"]
+    assert utt["source_start"] is None and utt["source_end"] is None
+    assert utt["speaker_id"] == "SPK_UNK"
+    assert utt["source_acceptance_status"] == "model_source_candidate_provisional"
 
 
 def test_source_selection_cannot_use_unproven_observation_identity():

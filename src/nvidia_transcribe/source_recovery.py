@@ -313,6 +313,43 @@ def assemble_source_turn_revision(
     }
 
 
+def project_source_turn_to_v1_utterance(revision: Mapping[str, Any]) -> dict[str, Any]:
+    """Explicit compatibility adapter: source-event lineage survives v1 MT/render.
+
+    Only a projection for known selected candidates. Does NOT certify
+    speaker identity, missing timestamps, or the recognized source words.
+    """
+    if revision.get("schema") != "nemovox-source-turn-revision/v1":
+        raise ValueError("Incorrect source revision schema")
+    if not revision.get("source_turn_id") or not revision.get("source_revision_id"):
+        raise ValueError("Source-turn identity and immutable revision identity required")
+    if not isinstance(revision.get("source_text"), str) or not revision["source_text"].strip():
+        raise ValueError("Cannot project an empty source transcript")
+    a, b = revision.get("source_start"), revision.get("source_end")
+    if (a is None) != (b is None):
+        raise ValueError("Cannot project partial unknown source timing")
+    if a is not None:
+        _interval({"start_s": a, "end_s": b})
+    return {
+        "id": revision["source_turn_id"],
+        "utterance_id": revision["source_turn_id"],
+        "source_turn_id": revision["source_turn_id"],
+        "source_turn_ids": [revision["source_turn_id"]],
+        "source_revision_id": revision["source_revision_id"],
+        "source_language": revision.get("source_language"),
+        "source_text": revision["source_text"],
+        "source_start": a,
+        "source_end": b,
+        "speaker_id": "SPK_UNK",
+        "alignment_status": "unverified",
+        "timestamp_provenance": {"source_revision_id": revision["source_revision_id"],
+                                 "status": "provisional_not_acoustic_truth"},
+        "source_acceptance_status": revision.get("source_status"),
+        "source_observation_ids": list(revision.get("source_observation_ids") or []),
+        "audio_event_id": revision.get("audio_event_id"),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-evidence", required=True, type=Path)
