@@ -199,6 +199,26 @@ def test_speaker_overlap_or_displaced_ctc_never_proves_same_event_deletion():
     assert not row["eligible_for_reviewed_same_event_supersession"]
 
 
+def test_mandarin_native_character_unit_mapping_and_unknown_indices_preserved():
+    recording, ledger, dossier, _ = fixtures()
+    recording["source_language"] = "zh"
+    ledger["source_language"] = "zh"
+    dossier["source_language"] = "zh"
+    for u in recording["utterances"]:
+        for word in u["source_words"]:
+            word["unit_type"] = "character"
+        u["source_characters"] = u.pop("source_words")
+    for lexical in ledger["lexical_observations"]:
+        lexical["unit_type"] = "character"
+    out = bind_legacy_source_lineage(recording, ledger, dossier)
+    assert out["legacy_utterances"][0]["status"] == "fully_same_event_time_plausible"
+    # Missing alignment/lexical ownership cannot be filled by guesses.
+    recording["utterances"][1]["source_characters"][1]["source_unit_index"] = 999
+    out = bind_legacy_source_lineage(recording, ledger, dossier)
+    assert out["legacy_utterances"][1]["status"] == "incomplete_or_unmatched_legacy_source_units"
+    assert out["diagnostics"]["missing_or_unmatched_units"] == 1
+
+
 def test_source_media_language_and_ambiguous_raw_id_rejected():
     recording, ledger, dossier, _ = fixtures()
     ledger["source_language"] = "zh"
