@@ -1,0 +1,2227 @@
+{
+  "schema": "nemovox-issue14-audio-event-reconciliation/v1",
+  "run_id": "20261123T022122Z",
+  "direct_audio_review_record_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98",
+  "dossiers": {
+    "fr_orig16_coverage_128": {
+      "schema": "nemovox-source-reconciliation/v1",
+      "media_fingerprint_sha256": "8d6e97fa0c3b0c674baa4e1864e72ada463dd4f448c7f9e3e6aacfb8249548e9",
+      "source_language": "fr",
+      "challenger_model": {
+        "repo_id": "Qwen/Qwen3-ASR-1.7B",
+        "revision": "7278e1e70fe206f11671096ffdd38061171dd6e5",
+        "pinned_language": "French"
+      },
+      "policy": {
+        "window_text_does_not_imply_event_text": true,
+        "model_agreement_is_not_acoustic_truth": true,
+        "alignment_is_not_transcript_verification": true,
+        "no_auto_drop_from_music_or_sfx": true,
+        "nonreviewed_source_turns_remain_unresolved": true,
+        "legacy_asr_observations_preserved_unchanged": true,
+        "source_fidelity_certified": false
+      },
+      "diagnostics": {
+        "challenger_windows_recorded": 63,
+        "challenger_windows_incomplete": 0,
+        "pending_challenger_requests": 29,
+        "model_only_source_turns_automatically_accepted": 0,
+        "reviewed_audio_source_turns": 4,
+        "audited_events_without_verbatim_source_text": 2,
+        "unresolved_echo_candidates": 28,
+        "audio_reviewed_same_event_correspondences": 2,
+        "source_unit_observations_deleted": 0
+      },
+      "unexecuted_request_count": 29,
+      "deferred_request_count": 0,
+      "audited_audio_regions": [
+        {
+          "id": "audio_region_d3e8959c1adf362f0133794b",
+          "audio_event_id": "B_w04_W04c_captain_shout",
+          "start_s": 1261.5,
+          "end_s": 1263.5,
+          "kind": "speech",
+          "reviewed_source_turn_id": "src_turn_b319a380a8d484228ccb4c3a",
+          "source_status": "audio_review_attested",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:B_w04_1230_1274:music:3",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            }
+          ],
+          "challenger_window_context_ids": [
+            "challenger_e8ac7a6f5a35619df9007b77"
+          ],
+          "legacy_asr_window_context_ids": [
+            "asr_4a533af7daf94ebd8ad22934",
+            "asr_754b266d3ba3f36c7caa2275"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [
+            "unit_2ca4e58c43fb9f98e7dead3a",
+            "unit_70b342f301e2471adb80b134",
+            "unit_93fd7425d9d53b37dd221f5b",
+            "unit_e19c219b4d8dde6df74c5db8",
+            "unit_d8ab6da009959cdee674102a",
+            "unit_fcbdc64128e528b242524511",
+            "unit_c2e4d5b07816b263f2374450",
+            "unit_e5c46dcd11fb4e938e730e8a",
+            "unit_9cc4215966ba5529b7cec6e9",
+            "unit_73481bae2dc7956a1010ec86"
+          ],
+          "unit_link_review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98",
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        },
+        {
+          "id": "audio_region_5faf385ec967bcecf4458d94",
+          "audio_event_id": "B_w04_on_a_reussi_tao",
+          "start_s": 1252.0,
+          "end_s": 1255.8,
+          "kind": "speech",
+          "reviewed_source_turn_id": "src_turn_fb84f0275f735833355a70a9",
+          "source_status": "audio_review_attested",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:B_w04_1230_1274:speech:7",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:B_w04_1230_1274:speech:8",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:B_w04_1230_1274:singing:1",
+              "kind": "singing",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:B_w04_1230_1274:music:3",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "silero_v6:B_w04_1230_1274:speech:3",
+              "kind": "speech",
+              "source": "snakers4/silero-vad@silero_vad_v6.onnx(faster-whisper)"
+            },
+            {
+              "id": "pyannote_comm1_cpu:B_w04_1230_1274:regular:11",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            },
+            {
+              "id": "pyannote_comm1_cpu:B_w04_1230_1274:regular:12",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            }
+          ],
+          "challenger_window_context_ids": [
+            "challenger_4f5f1ffbe1430cbe414bbae7",
+            "challenger_e8ac7a6f5a35619df9007b77"
+          ],
+          "legacy_asr_window_context_ids": [
+            "asr_4a533af7daf94ebd8ad22934",
+            "asr_754b266d3ba3f36c7caa2275"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [
+            "unit_24408ad0363672bb585b3fb9",
+            "unit_77301fa25ffe1c5c220cb213",
+            "unit_b38549f409a40f304d2b0f57",
+            "unit_02c37a47c5f2c3c879ce2152",
+            "unit_8e825eae05cc43789e373cab",
+            "unit_4fc49686675fb31904b64aa9",
+            "unit_ce3a1aaa00c78d8cc6e0985c",
+            "unit_200604ef8699c031235d327b",
+            "unit_c4e49224bf2a60a5044b5fc1",
+            "unit_621722eedbfb28fa4b634a12",
+            "unit_2c617021449eb397b541a687",
+            "unit_911f1f2da75904f94123e8c8",
+            "unit_230eb0863a38118d1904f8cd",
+            "unit_29a32a2c725235135ff79e34"
+          ],
+          "unit_link_review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98",
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        },
+        {
+          "id": "audio_region_f06142e6500ff4756fe71998",
+          "audio_event_id": "A_c28_03_heroic_rescue",
+          "start_s": 1131.5,
+          "end_s": 1136.0,
+          "kind": "speech",
+          "reviewed_source_turn_id": "src_turn_cd8c36c733f219af40a42b72",
+          "source_status": "audio_review_attested",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:A_c28_03_1123_1144:speech:2",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:A_c28_03_1123_1144:speech:3",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:A_c28_03_1123_1144:speech:4",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:A_c28_03_1123_1144:singing:1",
+              "kind": "singing",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:A_c28_03_1123_1144:music:0",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "pyannote_comm1_cpu:A_c28_03_1123_1144:regular:1",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            },
+            {
+              "id": "pyannote_comm1_cpu:A_c28_03_1123_1144:regular:2",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            }
+          ],
+          "challenger_window_context_ids": [
+            "challenger_b4505053445422d661014884"
+          ],
+          "legacy_asr_window_context_ids": [
+            "asr_7902b4aec8b80ba2f7021cdd"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [
+            "unit_1546e31c6b8bd4501927d488",
+            "unit_0aa50baafc7b4842b9025029",
+            "unit_40d6ac29b496e247d4100aa5",
+            "unit_099ad89c448c66fcd9589bb5",
+            "unit_59e0bdc06620cad7d73683b0",
+            "unit_9f7241efb9f72894eb7cdc41",
+            "unit_d0bc67fabe3d41d62c3eaeb8",
+            "unit_59c5ae7db510618bcd2ea0e9",
+            "unit_3d392615a794c27c00d45cdb"
+          ],
+          "unit_link_review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98",
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        },
+        {
+          "id": "audio_region_51f9ded576af72eae7654eb9",
+          "audio_event_id": "H2_opening_faites_voir",
+          "start_s": 362.5,
+          "end_s": 364.2,
+          "kind": "speech",
+          "reviewed_source_turn_id": "src_turn_2f6070415a12cd9585fe04d4",
+          "source_status": "audio_review_attested",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:H2_360_380:music:0",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            }
+          ],
+          "challenger_window_context_ids": [
+            "challenger_3da1ff879329129422c2b86d"
+          ],
+          "legacy_asr_window_context_ids": [
+            "asr_402abef6a68e0e2bccd23f5c",
+            "asr_8ba7b05768f5421bf2f896f7"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [],
+          "unit_link_review_evidence_sha256": null,
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        },
+        {
+          "id": "audio_region_cedc4fe345d481bcb81d695c",
+          "audio_event_id": "CTRL_song_25_40",
+          "start_s": 25.0,
+          "end_s": 40.0,
+          "kind": "singing",
+          "reviewed_source_turn_id": null,
+          "source_status": "audio_event_source_text_unverified",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:CTRL_song_25_40:singing:0",
+              "kind": "singing",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:CTRL_song_25_40:music:0",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "pyannote_comm1_cpu:CTRL_song_25_40:regular:0",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            },
+            {
+              "id": "pyannote_comm1_cpu:CTRL_song_25_40:regular:1",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            },
+            {
+              "id": "pyannote_comm1_cpu:CTRL_song_25_40:regular:2",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            },
+            {
+              "id": "pyannote_comm1_cpu:CTRL_song_25_40:regular:3",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            },
+            {
+              "id": "pyannote_comm1_cpu:CTRL_song_25_40:regular:4",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            },
+            {
+              "id": "pyannote_comm1_cpu:CTRL_song_25_40:regular:5",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            }
+          ],
+          "challenger_window_context_ids": [
+            "challenger_fa65e2a7293c4d6e5462cd74"
+          ],
+          "legacy_asr_window_context_ids": [
+            "asr_9c59494836c6d9ed27c7f090"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [],
+          "unit_link_review_evidence_sha256": null,
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        },
+        {
+          "id": "audio_region_0437ba308384010f1c0e251c",
+          "audio_event_id": "CTRL_sfx_1200_1216",
+          "start_s": 1200.0,
+          "end_s": 1216.0,
+          "kind": "sfx",
+          "reviewed_source_turn_id": null,
+          "source_status": "audio_event_source_text_unverified",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:CTRL_sfx_1200_1216:speech:0",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:CTRL_sfx_1200_1216:speech:1",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:CTRL_sfx_1200_1216:music:0",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            }
+          ],
+          "challenger_window_context_ids": [
+            "challenger_3ca4bc8673925afe91d2bd6b",
+            "challenger_daa98124b90480d5c0984544"
+          ],
+          "legacy_asr_window_context_ids": [
+            "asr_4a533af7daf94ebd8ad22934"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [],
+          "unit_link_review_evidence_sha256": null,
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        }
+      ],
+      "source_turns_audio_review_attested": [
+        {
+          "schema": "nemovox-source-turn-revision/v1",
+          "source_turn_id": "src_turn_b319a380a8d484228ccb4c3a",
+          "source_revision_id": "src_revision_1a849e5b8c814a77c1bb526e",
+          "audio_event_id": "B_w04_W04c_captain_shout",
+          "source_language": "fr",
+          "source_text_word_or_char_len": 7,
+          "source_text_sha256": "251094204a6ee102506f88c7a4435fa525c000c2ce8a29807c0423f8e9d9d97c",
+          "source_start": 1261.5,
+          "source_end": 1263.5,
+          "source_observation_ids": [
+            "asr_4a533af7daf94ebd8ad22934",
+            "asr_754b266d3ba3f36c7caa2275"
+          ],
+          "selection_basis": "independent_audio_review",
+          "source_status": "audio_review_attested_source",
+          "word_alignment_status": "unverified",
+          "speaker_identity_status": "unverified",
+          "review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98"
+        },
+        {
+          "schema": "nemovox-source-turn-revision/v1",
+          "source_turn_id": "src_turn_fb84f0275f735833355a70a9",
+          "source_revision_id": "src_revision_84fb30c44c1dc3324d43ee95",
+          "audio_event_id": "B_w04_on_a_reussi_tao",
+          "source_language": "fr",
+          "source_text_word_or_char_len": 9,
+          "source_text_sha256": "b00fe1b0de1a213ce99454b3786f4e8313c1403a0f3e52366e0cc6c3a629ab02",
+          "source_start": 1252.0,
+          "source_end": 1255.8,
+          "source_observation_ids": [
+            "asr_4a533af7daf94ebd8ad22934",
+            "asr_754b266d3ba3f36c7caa2275"
+          ],
+          "selection_basis": "independent_audio_review",
+          "source_status": "audio_review_attested_source",
+          "word_alignment_status": "unverified",
+          "speaker_identity_status": "unverified",
+          "review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98"
+        },
+        {
+          "schema": "nemovox-source-turn-revision/v1",
+          "source_turn_id": "src_turn_cd8c36c733f219af40a42b72",
+          "source_revision_id": "src_revision_483a4650df9a7bc08fcbbb67",
+          "audio_event_id": "A_c28_03_heroic_rescue",
+          "source_language": "fr",
+          "source_text_word_or_char_len": 12,
+          "source_text_sha256": "7af53f52c168e30b62eb91fec4f5df615a77a8ed3891e24e5455e5c9728a9bb3",
+          "source_start": 1131.5,
+          "source_end": 1136.0,
+          "source_observation_ids": [
+            "asr_7902b4aec8b80ba2f7021cdd"
+          ],
+          "selection_basis": "independent_audio_review",
+          "source_status": "audio_review_attested_source",
+          "word_alignment_status": "unverified",
+          "speaker_identity_status": "unverified",
+          "review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98"
+        },
+        {
+          "schema": "nemovox-source-turn-revision/v1",
+          "source_turn_id": "src_turn_2f6070415a12cd9585fe04d4",
+          "source_revision_id": "src_revision_9fd9938ef8115fc5c2014776",
+          "audio_event_id": "H2_opening_faites_voir",
+          "source_language": "fr",
+          "source_text_word_or_char_len": 2,
+          "source_text_sha256": "497c2bed3913b6003e97f8b693d36e76d27b1757fc559c39b0ae9e7ccb70bddf",
+          "source_start": 362.5,
+          "source_end": 364.2,
+          "source_observation_ids": [
+            "asr_402abef6a68e0e2bccd23f5c",
+            "asr_8ba7b05768f5421bf2f896f7"
+          ],
+          "selection_basis": "independent_audio_review",
+          "source_status": "audio_review_attested_source",
+          "word_alignment_status": "unverified",
+          "speaker_identity_status": "unverified",
+          "review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98"
+        }
+      ],
+      "resolved_echo_correspondences": [
+        {
+          "id": "corr_0f582eabd84ad4ed29cabea4",
+          "left_observation_unit_ids": [
+            "unit_24408ad0363672bb585b3fb9",
+            "unit_77301fa25ffe1c5c220cb213",
+            "unit_b38549f409a40f304d2b0f57",
+            "unit_02c37a47c5f2c3c879ce2152",
+            "unit_8e825eae05cc43789e373cab",
+            "unit_4fc49686675fb31904b64aa9",
+            "unit_ce3a1aaa00c78d8cc6e0985c"
+          ],
+          "right_observation_unit_ids": [
+            "unit_200604ef8699c031235d327b",
+            "unit_c4e49224bf2a60a5044b5fc1",
+            "unit_621722eedbfb28fa4b634a12",
+            "unit_2c617021449eb397b541a687",
+            "unit_911f1f2da75904f94123e8c8",
+            "unit_230eb0863a38118d1904f8cd",
+            "unit_29a32a2c725235135ff79e34"
+          ],
+          "ctc_relative_offset_hypothesis_s": 3.6143,
+          "repeated_phrase_ambiguity": false,
+          "positively_verified_event_id": "B_w04_on_a_reussi_tao",
+          "decision": "same_audio_event_reviewed_keep_observation_lineage",
+          "source_unit_observations_deleted": 0
+        },
+        {
+          "id": "corr_cd068a7f16d40047fbd0eee5",
+          "left_observation_unit_ids": [
+            "unit_2ca4e58c43fb9f98e7dead3a",
+            "unit_70b342f301e2471adb80b134",
+            "unit_93fd7425d9d53b37dd221f5b",
+            "unit_e19c219b4d8dde6df74c5db8",
+            "unit_d8ab6da009959cdee674102a"
+          ],
+          "right_observation_unit_ids": [
+            "unit_fcbdc64128e528b242524511",
+            "unit_c2e4d5b07816b263f2374450",
+            "unit_e5c46dcd11fb4e938e730e8a",
+            "unit_9cc4215966ba5529b7cec6e9",
+            "unit_73481bae2dc7956a1010ec86"
+          ],
+          "ctc_relative_offset_hypothesis_s": -1.968,
+          "repeated_phrase_ambiguity": false,
+          "positively_verified_event_id": "B_w04_W04c_captain_shout",
+          "decision": "same_audio_event_reviewed_keep_observation_lineage",
+          "source_unit_observations_deleted": 0
+        }
+      ]
+    },
+    "fr_full35_coverage_128": {
+      "schema": "nemovox-source-reconciliation/v1",
+      "media_fingerprint_sha256": "8d6e97fa0c3b0c674baa4e1864e72ada463dd4f448c7f9e3e6aacfb8249548e9",
+      "source_language": "fr",
+      "challenger_model": {
+        "repo_id": "Qwen/Qwen3-ASR-1.7B",
+        "revision": "7278e1e70fe206f11671096ffdd38061171dd6e5",
+        "pinned_language": "French"
+      },
+      "policy": {
+        "window_text_does_not_imply_event_text": true,
+        "model_agreement_is_not_acoustic_truth": true,
+        "alignment_is_not_transcript_verification": true,
+        "no_auto_drop_from_music_or_sfx": true,
+        "nonreviewed_source_turns_remain_unresolved": true,
+        "legacy_asr_observations_preserved_unchanged": true,
+        "source_fidelity_certified": false
+      },
+      "diagnostics": {
+        "challenger_windows_recorded": 63,
+        "challenger_windows_incomplete": 0,
+        "pending_challenger_requests": 53,
+        "model_only_source_turns_automatically_accepted": 0,
+        "reviewed_audio_source_turns": 7,
+        "audited_events_without_verbatim_source_text": 3,
+        "unresolved_echo_candidates": 28,
+        "audio_reviewed_same_event_correspondences": 2,
+        "source_unit_observations_deleted": 0
+      },
+      "unexecuted_request_count": 53,
+      "deferred_request_count": 0,
+      "audited_audio_regions": [
+        {
+          "id": "audio_region_d3e8959c1adf362f0133794b",
+          "audio_event_id": "B_w04_W04c_captain_shout",
+          "start_s": 1261.5,
+          "end_s": 1263.5,
+          "kind": "speech",
+          "reviewed_source_turn_id": "src_turn_b319a380a8d484228ccb4c3a",
+          "source_status": "audio_review_attested",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:B_w04_1230_1274:music:3",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            }
+          ],
+          "challenger_window_context_ids": [
+            "challenger_e8ac7a6f5a35619df9007b77"
+          ],
+          "legacy_asr_window_context_ids": [
+            "asr_c34edeeb5f98fda897d34402",
+            "asr_6cdd08b23e552a242d5130f7"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [
+            "unit_85a19ff2442a5711dde5d0df",
+            "unit_c47930b10fbfa1f9629b7c44",
+            "unit_f1b43bb58fdd221b6927a085",
+            "unit_001b37eceec01f81969ff3d1",
+            "unit_466cfed3e577e9cbfe294702",
+            "unit_8328f44166320f0e7171f197",
+            "unit_4e8e7e707085e6971545bc42",
+            "unit_97b6796668a36d7b28654c58",
+            "unit_f625892beb2a2d3f3a39ddea",
+            "unit_a5232773dc81e66899e15117"
+          ],
+          "unit_link_review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98",
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        },
+        {
+          "id": "audio_region_655a46db4a82328d3c0a1aa3",
+          "audio_event_id": "B_w04_female_narration",
+          "start_s": 1264.4,
+          "end_s": 1274.0,
+          "kind": "speech",
+          "reviewed_source_turn_id": null,
+          "source_status": "audio_event_source_text_unverified",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:B_w04_1230_1274:speech:9",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:B_w04_1230_1274:speech:10",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:B_w04_1230_1274:music:4",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:B_w04_1230_1274:music:5",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "silero_v6:B_w04_1230_1274:speech:4",
+              "kind": "speech",
+              "source": "snakers4/silero-vad@silero_vad_v6.onnx(faster-whisper)"
+            },
+            {
+              "id": "pyannote_comm1_cpu:B_w04_1230_1274:regular:13",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            }
+          ],
+          "challenger_window_context_ids": [
+            "challenger_e8ac7a6f5a35619df9007b77"
+          ],
+          "legacy_asr_window_context_ids": [
+            "asr_c34edeeb5f98fda897d34402",
+            "asr_6cdd08b23e552a242d5130f7"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [],
+          "unit_link_review_evidence_sha256": null,
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        },
+        {
+          "id": "audio_region_d4cf9c92d88504715fb33d47",
+          "audio_event_id": "B_w04_esteban_tao_question",
+          "start_s": 1230.5,
+          "end_s": 1233.2,
+          "kind": "speech",
+          "reviewed_source_turn_id": "src_turn_547fee63b64798359561b84b",
+          "source_status": "audio_review_attested",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:B_w04_1230_1274:speech:0",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:B_w04_1230_1274:music:0",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "silero_v6:B_w04_1230_1274:speech:0",
+              "kind": "speech",
+              "source": "snakers4/silero-vad@silero_vad_v6.onnx(faster-whisper)"
+            },
+            {
+              "id": "pyannote_comm1_cpu:B_w04_1230_1274:regular:0",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            },
+            {
+              "id": "pyannote_comm1_cpu:B_w04_1230_1274:regular:1",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            }
+          ],
+          "challenger_window_context_ids": [
+            "challenger_daa98124b90480d5c0984544",
+            "challenger_4f5f1ffbe1430cbe414bbae7"
+          ],
+          "legacy_asr_window_context_ids": [
+            "asr_92a9e3bcc5788c1aa1a9576a",
+            "asr_c34edeeb5f98fda897d34402"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [
+            "unit_c330ab0429bb7dfa2a7e687a",
+            "unit_e3fa90bdd7b3576c3125f9ba",
+            "unit_f029c4a7710320e4bebd800a",
+            "unit_c1384932b6a9d1b86541ec30",
+            "unit_8384ccdc51062f65fc75e9a0",
+            "unit_d9c30487dac4757f9ba1f7a4",
+            "unit_76d29f3e2631c603e5b20bc3"
+          ],
+          "unit_link_review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98",
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        },
+        {
+          "id": "audio_region_51f9ded576af72eae7654eb9",
+          "audio_event_id": "H2_opening_faites_voir",
+          "start_s": 362.5,
+          "end_s": 364.2,
+          "kind": "speech",
+          "reviewed_source_turn_id": "src_turn_2f6070415a12cd9585fe04d4",
+          "source_status": "audio_review_attested",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:H2_360_380:music:0",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            }
+          ],
+          "challenger_window_context_ids": [
+            "challenger_3da1ff879329129422c2b86d"
+          ],
+          "legacy_asr_window_context_ids": [
+            "asr_2f0a171645374e16c8d55a98"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [],
+          "unit_link_review_evidence_sha256": null,
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        },
+        {
+          "id": "audio_region_67464fb4ccb78bab86e92bfb",
+          "audio_event_id": "H2_tail_ambrosius",
+          "start_s": 375.5,
+          "end_s": 378.0,
+          "kind": "speech",
+          "reviewed_source_turn_id": "src_turn_41ea6f0f3b3d58e5d0d816e6",
+          "source_status": "audio_review_attested",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:H2_360_380:speech:2",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:H2_360_380:music:1",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "silero_v6:H2_360_380:speech:1",
+              "kind": "speech",
+              "source": "snakers4/silero-vad@silero_vad_v6.onnx(faster-whisper)"
+            },
+            {
+              "id": "pyannote_comm1_cpu:H2_360_380:regular:1",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            },
+            {
+              "id": "pyannote_comm1_cpu:H2_360_380:regular:2",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            }
+          ],
+          "challenger_window_context_ids": [
+            "challenger_3da1ff879329129422c2b86d",
+            "challenger_9836655a4aab231738b1947c"
+          ],
+          "legacy_asr_window_context_ids": [
+            "asr_2f0a171645374e16c8d55a98",
+            "asr_b1bd918c9edb915f9aa917c5"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [
+            "unit_92e83f00985684615bcf9dc7",
+            "unit_6fdfbf0e862d37399649aefd",
+            "unit_806e7f38ddacb0a4c2972f0f",
+            "unit_a8747c2f6818970fa50e6a30",
+            "unit_2c05e0ece9f19980c9bbad4d",
+            "unit_a9c7a7c92ea451c711a21a6a",
+            "unit_6d20bca493ede9ba09dc6966",
+            "unit_c1f3cb1d22d0e548c10797d4",
+            "unit_b76f04ae8318c734c82589cc",
+            "unit_55ba999e5675b8318eda7413",
+            "unit_806c63d50bd499c9edb0e6c2",
+            "unit_d8df9241689852691c07372b",
+            "unit_292d369a02d8a37fbd98dc2d",
+            "unit_4ed2181a545975652b968b10",
+            "unit_89a3381f6a224f57b9cf0301",
+            "unit_17b6a92012fd80973dd38d96"
+          ],
+          "unit_link_review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98",
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        },
+        {
+          "id": "audio_region_f06142e6500ff4756fe71998",
+          "audio_event_id": "A_c28_03_heroic_rescue",
+          "start_s": 1131.5,
+          "end_s": 1136.0,
+          "kind": "speech",
+          "reviewed_source_turn_id": "src_turn_cd8c36c733f219af40a42b72",
+          "source_status": "audio_review_attested",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:A_c28_03_1123_1144:speech:2",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:A_c28_03_1123_1144:speech:3",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:A_c28_03_1123_1144:speech:4",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:A_c28_03_1123_1144:singing:1",
+              "kind": "singing",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:A_c28_03_1123_1144:music:0",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "pyannote_comm1_cpu:A_c28_03_1123_1144:regular:1",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            },
+            {
+              "id": "pyannote_comm1_cpu:A_c28_03_1123_1144:regular:2",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            }
+          ],
+          "challenger_window_context_ids": [
+            "challenger_b4505053445422d661014884"
+          ],
+          "legacy_asr_window_context_ids": [],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [],
+          "unit_link_review_evidence_sha256": null,
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        },
+        {
+          "id": "audio_region_31e53f109837ac07d0c86d7e",
+          "audio_event_id": "CTRL_c2_repeat_1",
+          "start_s": 1022.8,
+          "end_s": 1024.7,
+          "kind": "speech",
+          "reviewed_source_turn_id": "src_turn_8f4e5ab43d9ca455eae1d0d5",
+          "source_status": "audio_review_attested",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:CTRL_c2_1022_1036:speech:0",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:CTRL_c2_1022_1036:speech:1",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:CTRL_c2_1022_1036:singing:0",
+              "kind": "singing",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:CTRL_c2_1022_1036:music:0",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "pyannote_comm1_cpu:CTRL_c2_1022_1036:regular:0",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            }
+          ],
+          "challenger_window_context_ids": [
+            "challenger_857b763216192b43ae5328f6"
+          ],
+          "legacy_asr_window_context_ids": [
+            "asr_18dd881416b0c01a6707b44f"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [
+            "unit_56fb8ce8ef0b0eeab303d059",
+            "unit_a6f2be8807f90ae6f96b6798",
+            "unit_bab0b254e0d64e4ca7a5553e",
+            "unit_f14930ce60d427ccdb911afd"
+          ],
+          "unit_link_review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98",
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        },
+        {
+          "id": "audio_region_ab015ece824060a5ddd15ca1",
+          "audio_event_id": "CTRL_c2_repeat_2",
+          "start_s": 1024.8,
+          "end_s": 1026.8,
+          "kind": "speech",
+          "reviewed_source_turn_id": "src_turn_e5e026ce3e6ddc2c92ae69d2",
+          "source_status": "audio_review_attested",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:CTRL_c2_1022_1036:speech:1",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:CTRL_c2_1022_1036:singing:0",
+              "kind": "singing",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:CTRL_c2_1022_1036:music:0",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "pyannote_comm1_cpu:CTRL_c2_1022_1036:regular:0",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            }
+          ],
+          "challenger_window_context_ids": [
+            "challenger_857b763216192b43ae5328f6"
+          ],
+          "legacy_asr_window_context_ids": [
+            "asr_18dd881416b0c01a6707b44f"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [
+            "unit_bb7447cf8859c2ae4173f386",
+            "unit_db08549ff2bef6a694e04ee2",
+            "unit_0b34341f1af690eb6c7b91f3",
+            "unit_d830d6415014a53195d5346b"
+          ],
+          "unit_link_review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98",
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        },
+        {
+          "id": "audio_region_cedc4fe345d481bcb81d695c",
+          "audio_event_id": "CTRL_song_25_40",
+          "start_s": 25.0,
+          "end_s": 40.0,
+          "kind": "singing",
+          "reviewed_source_turn_id": null,
+          "source_status": "audio_event_source_text_unverified",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:CTRL_song_25_40:singing:0",
+              "kind": "singing",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:CTRL_song_25_40:music:0",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "pyannote_comm1_cpu:CTRL_song_25_40:regular:0",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            },
+            {
+              "id": "pyannote_comm1_cpu:CTRL_song_25_40:regular:1",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            },
+            {
+              "id": "pyannote_comm1_cpu:CTRL_song_25_40:regular:2",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            },
+            {
+              "id": "pyannote_comm1_cpu:CTRL_song_25_40:regular:3",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            },
+            {
+              "id": "pyannote_comm1_cpu:CTRL_song_25_40:regular:4",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            },
+            {
+              "id": "pyannote_comm1_cpu:CTRL_song_25_40:regular:5",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            }
+          ],
+          "challenger_window_context_ids": [
+            "challenger_fa65e2a7293c4d6e5462cd74"
+          ],
+          "legacy_asr_window_context_ids": [
+            "asr_ac0f0e14ab879e9024bca290",
+            "asr_0719dc04158794d6f8485964"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [],
+          "unit_link_review_evidence_sha256": null,
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        },
+        {
+          "id": "audio_region_0437ba308384010f1c0e251c",
+          "audio_event_id": "CTRL_sfx_1200_1216",
+          "start_s": 1200.0,
+          "end_s": 1216.0,
+          "kind": "sfx",
+          "reviewed_source_turn_id": null,
+          "source_status": "audio_event_source_text_unverified",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:CTRL_sfx_1200_1216:speech:0",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:CTRL_sfx_1200_1216:speech:1",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:CTRL_sfx_1200_1216:music:0",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            }
+          ],
+          "challenger_window_context_ids": [
+            "challenger_3ca4bc8673925afe91d2bd6b",
+            "challenger_daa98124b90480d5c0984544"
+          ],
+          "legacy_asr_window_context_ids": [
+            "asr_bb2d4df6ea645568745632f8",
+            "asr_92a9e3bcc5788c1aa1a9576a"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [],
+          "unit_link_review_evidence_sha256": null,
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        }
+      ],
+      "source_turns_audio_review_attested": [
+        {
+          "schema": "nemovox-source-turn-revision/v1",
+          "source_turn_id": "src_turn_b319a380a8d484228ccb4c3a",
+          "source_revision_id": "src_revision_1a849e5b8c814a77c1bb526e",
+          "audio_event_id": "B_w04_W04c_captain_shout",
+          "source_language": "fr",
+          "source_text_word_or_char_len": 7,
+          "source_text_sha256": "251094204a6ee102506f88c7a4435fa525c000c2ce8a29807c0423f8e9d9d97c",
+          "source_start": 1261.5,
+          "source_end": 1263.5,
+          "source_observation_ids": [
+            "asr_c34edeeb5f98fda897d34402",
+            "asr_6cdd08b23e552a242d5130f7"
+          ],
+          "selection_basis": "independent_audio_review",
+          "source_status": "audio_review_attested_source",
+          "word_alignment_status": "unverified",
+          "speaker_identity_status": "unverified",
+          "review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98"
+        },
+        {
+          "schema": "nemovox-source-turn-revision/v1",
+          "source_turn_id": "src_turn_547fee63b64798359561b84b",
+          "source_revision_id": "src_revision_60389c5389d63c0d41ce15c1",
+          "audio_event_id": "B_w04_esteban_tao_question",
+          "source_language": "fr",
+          "source_text_word_or_char_len": 8,
+          "source_text_sha256": "05bffdb4fa0079fc9e5ae0e0ff31795d2e2a934b6ce457a7e89fd2d8151c13df",
+          "source_start": 1230.5,
+          "source_end": 1233.2,
+          "source_observation_ids": [
+            "asr_92a9e3bcc5788c1aa1a9576a",
+            "asr_c34edeeb5f98fda897d34402"
+          ],
+          "selection_basis": "independent_audio_review",
+          "source_status": "audio_review_attested_source",
+          "word_alignment_status": "unverified",
+          "speaker_identity_status": "unverified",
+          "review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98"
+        },
+        {
+          "schema": "nemovox-source-turn-revision/v1",
+          "source_turn_id": "src_turn_2f6070415a12cd9585fe04d4",
+          "source_revision_id": "src_revision_9fd9938ef8115fc5c2014776",
+          "audio_event_id": "H2_opening_faites_voir",
+          "source_language": "fr",
+          "source_text_word_or_char_len": 2,
+          "source_text_sha256": "497c2bed3913b6003e97f8b693d36e76d27b1757fc559c39b0ae9e7ccb70bddf",
+          "source_start": 362.5,
+          "source_end": 364.2,
+          "source_observation_ids": [
+            "asr_2f0a171645374e16c8d55a98"
+          ],
+          "selection_basis": "independent_audio_review",
+          "source_status": "audio_review_attested_source",
+          "word_alignment_status": "unverified",
+          "speaker_identity_status": "unverified",
+          "review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98"
+        },
+        {
+          "schema": "nemovox-source-turn-revision/v1",
+          "source_turn_id": "src_turn_41ea6f0f3b3d58e5d0d816e6",
+          "source_revision_id": "src_revision_f42504ccaa64238aa3db9321",
+          "audio_event_id": "H2_tail_ambrosius",
+          "source_language": "fr",
+          "source_text_word_or_char_len": 8,
+          "source_text_sha256": "5fb47665cedbfe1d57a520e062422482639efcffc8d9e867e28a9a1f9c058dee",
+          "source_start": 375.5,
+          "source_end": 378.0,
+          "source_observation_ids": [
+            "asr_2f0a171645374e16c8d55a98",
+            "asr_b1bd918c9edb915f9aa917c5"
+          ],
+          "selection_basis": "independent_audio_review",
+          "source_status": "audio_review_attested_source",
+          "word_alignment_status": "unverified",
+          "speaker_identity_status": "unverified",
+          "review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98"
+        },
+        {
+          "schema": "nemovox-source-turn-revision/v1",
+          "source_turn_id": "src_turn_cd8c36c733f219af40a42b72",
+          "source_revision_id": "src_revision_483a4650df9a7bc08fcbbb67",
+          "audio_event_id": "A_c28_03_heroic_rescue",
+          "source_language": "fr",
+          "source_text_word_or_char_len": 12,
+          "source_text_sha256": "7af53f52c168e30b62eb91fec4f5df615a77a8ed3891e24e5455e5c9728a9bb3",
+          "source_start": 1131.5,
+          "source_end": 1136.0,
+          "source_observation_ids": [],
+          "selection_basis": "independent_audio_review",
+          "source_status": "audio_review_attested_source",
+          "word_alignment_status": "unverified",
+          "speaker_identity_status": "unverified",
+          "review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98"
+        },
+        {
+          "schema": "nemovox-source-turn-revision/v1",
+          "source_turn_id": "src_turn_8f4e5ab43d9ca455eae1d0d5",
+          "source_revision_id": "src_revision_bb3feda0c9f10c478641da96",
+          "audio_event_id": "CTRL_c2_repeat_1",
+          "source_language": "fr",
+          "source_text_word_or_char_len": 5,
+          "source_text_sha256": "9d8119e7265abb2b2a3b20efea77e6b5443ec99187841a7409215dd5abb4d216",
+          "source_start": 1022.8,
+          "source_end": 1024.7,
+          "source_observation_ids": [
+            "asr_18dd881416b0c01a6707b44f"
+          ],
+          "selection_basis": "independent_audio_review",
+          "source_status": "audio_review_attested_source",
+          "word_alignment_status": "unverified",
+          "speaker_identity_status": "unverified",
+          "review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98"
+        },
+        {
+          "schema": "nemovox-source-turn-revision/v1",
+          "source_turn_id": "src_turn_e5e026ce3e6ddc2c92ae69d2",
+          "source_revision_id": "src_revision_36b465226332d2a5107d9979",
+          "audio_event_id": "CTRL_c2_repeat_2",
+          "source_language": "fr",
+          "source_text_word_or_char_len": 5,
+          "source_text_sha256": "9d8119e7265abb2b2a3b20efea77e6b5443ec99187841a7409215dd5abb4d216",
+          "source_start": 1024.8,
+          "source_end": 1026.8,
+          "source_observation_ids": [
+            "asr_18dd881416b0c01a6707b44f"
+          ],
+          "selection_basis": "independent_audio_review",
+          "source_status": "audio_review_attested_source",
+          "word_alignment_status": "unverified",
+          "speaker_identity_status": "unverified",
+          "review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98"
+        }
+      ],
+      "resolved_echo_correspondences": [
+        {
+          "id": "corr_bdb8e24948694b4a1cee64fa",
+          "left_observation_unit_ids": [
+            "unit_92e83f00985684615bcf9dc7",
+            "unit_6fdfbf0e862d37399649aefd",
+            "unit_806e7f38ddacb0a4c2972f0f",
+            "unit_a8747c2f6818970fa50e6a30",
+            "unit_2c05e0ece9f19980c9bbad4d",
+            "unit_a9c7a7c92ea451c711a21a6a",
+            "unit_6d20bca493ede9ba09dc6966",
+            "unit_c1f3cb1d22d0e548c10797d4"
+          ],
+          "right_observation_unit_ids": [
+            "unit_b76f04ae8318c734c82589cc",
+            "unit_55ba999e5675b8318eda7413",
+            "unit_806c63d50bd499c9edb0e6c2",
+            "unit_d8df9241689852691c07372b",
+            "unit_292d369a02d8a37fbd98dc2d",
+            "unit_4ed2181a545975652b968b10",
+            "unit_89a3381f6a224f57b9cf0301",
+            "unit_17b6a92012fd80973dd38d96"
+          ],
+          "ctc_relative_offset_hypothesis_s": 0.0154,
+          "repeated_phrase_ambiguity": false,
+          "positively_verified_event_id": "H2_tail_ambrosius",
+          "decision": "same_audio_event_reviewed_keep_observation_lineage",
+          "source_unit_observations_deleted": 0
+        },
+        {
+          "id": "corr_c2eaf165c404fdbfad509dc7",
+          "left_observation_unit_ids": [
+            "unit_85a19ff2442a5711dde5d0df",
+            "unit_c47930b10fbfa1f9629b7c44",
+            "unit_f1b43bb58fdd221b6927a085",
+            "unit_001b37eceec01f81969ff3d1",
+            "unit_466cfed3e577e9cbfe294702"
+          ],
+          "right_observation_unit_ids": [
+            "unit_8328f44166320f0e7171f197",
+            "unit_4e8e7e707085e6971545bc42",
+            "unit_97b6796668a36d7b28654c58",
+            "unit_f625892beb2a2d3f3a39ddea",
+            "unit_a5232773dc81e66899e15117"
+          ],
+          "ctc_relative_offset_hypothesis_s": -0.0118,
+          "repeated_phrase_ambiguity": false,
+          "positively_verified_event_id": "B_w04_W04c_captain_shout",
+          "decision": "same_audio_event_reviewed_keep_observation_lineage",
+          "source_unit_observations_deleted": 0
+        }
+      ]
+    },
+    "fr_full35_selective_128": {
+      "schema": "nemovox-source-reconciliation/v1",
+      "media_fingerprint_sha256": "8d6e97fa0c3b0c674baa4e1864e72ada463dd4f448c7f9e3e6aacfb8249548e9",
+      "source_language": "fr",
+      "challenger_model": {
+        "repo_id": "Qwen/Qwen3-ASR-1.7B",
+        "revision": "7278e1e70fe206f11671096ffdd38061171dd6e5",
+        "pinned_language": "French"
+      },
+      "policy": {
+        "window_text_does_not_imply_event_text": true,
+        "model_agreement_is_not_acoustic_truth": true,
+        "alignment_is_not_transcript_verification": true,
+        "no_auto_drop_from_music_or_sfx": true,
+        "nonreviewed_source_turns_remain_unresolved": true,
+        "legacy_asr_observations_preserved_unchanged": true,
+        "source_fidelity_certified": false
+      },
+      "diagnostics": {
+        "challenger_windows_recorded": 0,
+        "challenger_windows_incomplete": 0,
+        "pending_challenger_requests": 53,
+        "model_only_source_turns_automatically_accepted": 0,
+        "reviewed_audio_source_turns": 7,
+        "audited_events_without_verbatim_source_text": 3,
+        "unresolved_echo_candidates": 28,
+        "audio_reviewed_same_event_correspondences": 2,
+        "source_unit_observations_deleted": 0
+      },
+      "unexecuted_request_count": 53,
+      "deferred_request_count": 0,
+      "audited_audio_regions": [
+        {
+          "id": "audio_region_d3e8959c1adf362f0133794b",
+          "audio_event_id": "B_w04_W04c_captain_shout",
+          "start_s": 1261.5,
+          "end_s": 1263.5,
+          "kind": "speech",
+          "reviewed_source_turn_id": "src_turn_b319a380a8d484228ccb4c3a",
+          "source_status": "audio_review_attested",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:B_w04_1230_1274:music:3",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            }
+          ],
+          "challenger_window_context_ids": [],
+          "legacy_asr_window_context_ids": [
+            "asr_c34edeeb5f98fda897d34402",
+            "asr_6cdd08b23e552a242d5130f7"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [
+            "unit_85a19ff2442a5711dde5d0df",
+            "unit_c47930b10fbfa1f9629b7c44",
+            "unit_f1b43bb58fdd221b6927a085",
+            "unit_001b37eceec01f81969ff3d1",
+            "unit_466cfed3e577e9cbfe294702",
+            "unit_8328f44166320f0e7171f197",
+            "unit_4e8e7e707085e6971545bc42",
+            "unit_97b6796668a36d7b28654c58",
+            "unit_f625892beb2a2d3f3a39ddea",
+            "unit_a5232773dc81e66899e15117"
+          ],
+          "unit_link_review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98",
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        },
+        {
+          "id": "audio_region_655a46db4a82328d3c0a1aa3",
+          "audio_event_id": "B_w04_female_narration",
+          "start_s": 1264.4,
+          "end_s": 1274.0,
+          "kind": "speech",
+          "reviewed_source_turn_id": null,
+          "source_status": "audio_event_source_text_unverified",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:B_w04_1230_1274:speech:9",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:B_w04_1230_1274:speech:10",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:B_w04_1230_1274:music:4",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:B_w04_1230_1274:music:5",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "silero_v6:B_w04_1230_1274:speech:4",
+              "kind": "speech",
+              "source": "snakers4/silero-vad@silero_vad_v6.onnx(faster-whisper)"
+            },
+            {
+              "id": "pyannote_comm1_cpu:B_w04_1230_1274:regular:13",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            }
+          ],
+          "challenger_window_context_ids": [],
+          "legacy_asr_window_context_ids": [
+            "asr_c34edeeb5f98fda897d34402",
+            "asr_6cdd08b23e552a242d5130f7"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [],
+          "unit_link_review_evidence_sha256": null,
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        },
+        {
+          "id": "audio_region_d4cf9c92d88504715fb33d47",
+          "audio_event_id": "B_w04_esteban_tao_question",
+          "start_s": 1230.5,
+          "end_s": 1233.2,
+          "kind": "speech",
+          "reviewed_source_turn_id": "src_turn_547fee63b64798359561b84b",
+          "source_status": "audio_review_attested",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:B_w04_1230_1274:speech:0",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:B_w04_1230_1274:music:0",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "silero_v6:B_w04_1230_1274:speech:0",
+              "kind": "speech",
+              "source": "snakers4/silero-vad@silero_vad_v6.onnx(faster-whisper)"
+            },
+            {
+              "id": "pyannote_comm1_cpu:B_w04_1230_1274:regular:0",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            },
+            {
+              "id": "pyannote_comm1_cpu:B_w04_1230_1274:regular:1",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            }
+          ],
+          "challenger_window_context_ids": [],
+          "legacy_asr_window_context_ids": [
+            "asr_92a9e3bcc5788c1aa1a9576a",
+            "asr_c34edeeb5f98fda897d34402"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [
+            "unit_c330ab0429bb7dfa2a7e687a",
+            "unit_e3fa90bdd7b3576c3125f9ba",
+            "unit_f029c4a7710320e4bebd800a",
+            "unit_c1384932b6a9d1b86541ec30",
+            "unit_8384ccdc51062f65fc75e9a0",
+            "unit_d9c30487dac4757f9ba1f7a4",
+            "unit_76d29f3e2631c603e5b20bc3"
+          ],
+          "unit_link_review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98",
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        },
+        {
+          "id": "audio_region_51f9ded576af72eae7654eb9",
+          "audio_event_id": "H2_opening_faites_voir",
+          "start_s": 362.5,
+          "end_s": 364.2,
+          "kind": "speech",
+          "reviewed_source_turn_id": "src_turn_2f6070415a12cd9585fe04d4",
+          "source_status": "audio_review_attested",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:H2_360_380:music:0",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            }
+          ],
+          "challenger_window_context_ids": [],
+          "legacy_asr_window_context_ids": [
+            "asr_2f0a171645374e16c8d55a98"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [],
+          "unit_link_review_evidence_sha256": null,
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        },
+        {
+          "id": "audio_region_67464fb4ccb78bab86e92bfb",
+          "audio_event_id": "H2_tail_ambrosius",
+          "start_s": 375.5,
+          "end_s": 378.0,
+          "kind": "speech",
+          "reviewed_source_turn_id": "src_turn_41ea6f0f3b3d58e5d0d816e6",
+          "source_status": "audio_review_attested",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:H2_360_380:speech:2",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:H2_360_380:music:1",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "silero_v6:H2_360_380:speech:1",
+              "kind": "speech",
+              "source": "snakers4/silero-vad@silero_vad_v6.onnx(faster-whisper)"
+            },
+            {
+              "id": "pyannote_comm1_cpu:H2_360_380:regular:1",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            },
+            {
+              "id": "pyannote_comm1_cpu:H2_360_380:regular:2",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            }
+          ],
+          "challenger_window_context_ids": [],
+          "legacy_asr_window_context_ids": [
+            "asr_2f0a171645374e16c8d55a98",
+            "asr_b1bd918c9edb915f9aa917c5"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [
+            "unit_92e83f00985684615bcf9dc7",
+            "unit_6fdfbf0e862d37399649aefd",
+            "unit_806e7f38ddacb0a4c2972f0f",
+            "unit_a8747c2f6818970fa50e6a30",
+            "unit_2c05e0ece9f19980c9bbad4d",
+            "unit_a9c7a7c92ea451c711a21a6a",
+            "unit_6d20bca493ede9ba09dc6966",
+            "unit_c1f3cb1d22d0e548c10797d4",
+            "unit_b76f04ae8318c734c82589cc",
+            "unit_55ba999e5675b8318eda7413",
+            "unit_806c63d50bd499c9edb0e6c2",
+            "unit_d8df9241689852691c07372b",
+            "unit_292d369a02d8a37fbd98dc2d",
+            "unit_4ed2181a545975652b968b10",
+            "unit_89a3381f6a224f57b9cf0301",
+            "unit_17b6a92012fd80973dd38d96"
+          ],
+          "unit_link_review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98",
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        },
+        {
+          "id": "audio_region_f06142e6500ff4756fe71998",
+          "audio_event_id": "A_c28_03_heroic_rescue",
+          "start_s": 1131.5,
+          "end_s": 1136.0,
+          "kind": "speech",
+          "reviewed_source_turn_id": "src_turn_cd8c36c733f219af40a42b72",
+          "source_status": "audio_review_attested",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:A_c28_03_1123_1144:speech:2",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:A_c28_03_1123_1144:speech:3",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:A_c28_03_1123_1144:speech:4",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:A_c28_03_1123_1144:singing:1",
+              "kind": "singing",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:A_c28_03_1123_1144:music:0",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "pyannote_comm1_cpu:A_c28_03_1123_1144:regular:1",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            },
+            {
+              "id": "pyannote_comm1_cpu:A_c28_03_1123_1144:regular:2",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            }
+          ],
+          "challenger_window_context_ids": [],
+          "legacy_asr_window_context_ids": [],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [],
+          "unit_link_review_evidence_sha256": null,
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        },
+        {
+          "id": "audio_region_31e53f109837ac07d0c86d7e",
+          "audio_event_id": "CTRL_c2_repeat_1",
+          "start_s": 1022.8,
+          "end_s": 1024.7,
+          "kind": "speech",
+          "reviewed_source_turn_id": "src_turn_8f4e5ab43d9ca455eae1d0d5",
+          "source_status": "audio_review_attested",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:CTRL_c2_1022_1036:speech:0",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:CTRL_c2_1022_1036:speech:1",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:CTRL_c2_1022_1036:singing:0",
+              "kind": "singing",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:CTRL_c2_1022_1036:music:0",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "pyannote_comm1_cpu:CTRL_c2_1022_1036:regular:0",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            }
+          ],
+          "challenger_window_context_ids": [],
+          "legacy_asr_window_context_ids": [
+            "asr_18dd881416b0c01a6707b44f"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [
+            "unit_56fb8ce8ef0b0eeab303d059",
+            "unit_a6f2be8807f90ae6f96b6798",
+            "unit_bab0b254e0d64e4ca7a5553e",
+            "unit_f14930ce60d427ccdb911afd"
+          ],
+          "unit_link_review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98",
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        },
+        {
+          "id": "audio_region_ab015ece824060a5ddd15ca1",
+          "audio_event_id": "CTRL_c2_repeat_2",
+          "start_s": 1024.8,
+          "end_s": 1026.8,
+          "kind": "speech",
+          "reviewed_source_turn_id": "src_turn_e5e026ce3e6ddc2c92ae69d2",
+          "source_status": "audio_review_attested",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:CTRL_c2_1022_1036:speech:1",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:CTRL_c2_1022_1036:singing:0",
+              "kind": "singing",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:CTRL_c2_1022_1036:music:0",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "pyannote_comm1_cpu:CTRL_c2_1022_1036:regular:0",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            }
+          ],
+          "challenger_window_context_ids": [],
+          "legacy_asr_window_context_ids": [
+            "asr_18dd881416b0c01a6707b44f"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [
+            "unit_bb7447cf8859c2ae4173f386",
+            "unit_db08549ff2bef6a694e04ee2",
+            "unit_0b34341f1af690eb6c7b91f3",
+            "unit_d830d6415014a53195d5346b"
+          ],
+          "unit_link_review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98",
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        },
+        {
+          "id": "audio_region_cedc4fe345d481bcb81d695c",
+          "audio_event_id": "CTRL_song_25_40",
+          "start_s": 25.0,
+          "end_s": 40.0,
+          "kind": "singing",
+          "reviewed_source_turn_id": null,
+          "source_status": "audio_event_source_text_unverified",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:CTRL_song_25_40:singing:0",
+              "kind": "singing",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:CTRL_song_25_40:music:0",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "pyannote_comm1_cpu:CTRL_song_25_40:regular:0",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            },
+            {
+              "id": "pyannote_comm1_cpu:CTRL_song_25_40:regular:1",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            },
+            {
+              "id": "pyannote_comm1_cpu:CTRL_song_25_40:regular:2",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            },
+            {
+              "id": "pyannote_comm1_cpu:CTRL_song_25_40:regular:3",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            },
+            {
+              "id": "pyannote_comm1_cpu:CTRL_song_25_40:regular:4",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            },
+            {
+              "id": "pyannote_comm1_cpu:CTRL_song_25_40:regular:5",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            }
+          ],
+          "challenger_window_context_ids": [],
+          "legacy_asr_window_context_ids": [
+            "asr_ac0f0e14ab879e9024bca290",
+            "asr_0719dc04158794d6f8485964"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [],
+          "unit_link_review_evidence_sha256": null,
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        },
+        {
+          "id": "audio_region_0437ba308384010f1c0e251c",
+          "audio_event_id": "CTRL_sfx_1200_1216",
+          "start_s": 1200.0,
+          "end_s": 1216.0,
+          "kind": "sfx",
+          "reviewed_source_turn_id": null,
+          "source_status": "audio_event_source_text_unverified",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:CTRL_sfx_1200_1216:speech:0",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:CTRL_sfx_1200_1216:speech:1",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:CTRL_sfx_1200_1216:music:0",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            }
+          ],
+          "challenger_window_context_ids": [],
+          "legacy_asr_window_context_ids": [
+            "asr_bb2d4df6ea645568745632f8",
+            "asr_92a9e3bcc5788c1aa1a9576a"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [],
+          "unit_link_review_evidence_sha256": null,
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        }
+      ],
+      "source_turns_audio_review_attested": [
+        {
+          "schema": "nemovox-source-turn-revision/v1",
+          "source_turn_id": "src_turn_b319a380a8d484228ccb4c3a",
+          "source_revision_id": "src_revision_1a849e5b8c814a77c1bb526e",
+          "audio_event_id": "B_w04_W04c_captain_shout",
+          "source_language": "fr",
+          "source_text_word_or_char_len": 7,
+          "source_text_sha256": "251094204a6ee102506f88c7a4435fa525c000c2ce8a29807c0423f8e9d9d97c",
+          "source_start": 1261.5,
+          "source_end": 1263.5,
+          "source_observation_ids": [
+            "asr_c34edeeb5f98fda897d34402",
+            "asr_6cdd08b23e552a242d5130f7"
+          ],
+          "selection_basis": "independent_audio_review",
+          "source_status": "audio_review_attested_source",
+          "word_alignment_status": "unverified",
+          "speaker_identity_status": "unverified",
+          "review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98"
+        },
+        {
+          "schema": "nemovox-source-turn-revision/v1",
+          "source_turn_id": "src_turn_547fee63b64798359561b84b",
+          "source_revision_id": "src_revision_60389c5389d63c0d41ce15c1",
+          "audio_event_id": "B_w04_esteban_tao_question",
+          "source_language": "fr",
+          "source_text_word_or_char_len": 8,
+          "source_text_sha256": "05bffdb4fa0079fc9e5ae0e0ff31795d2e2a934b6ce457a7e89fd2d8151c13df",
+          "source_start": 1230.5,
+          "source_end": 1233.2,
+          "source_observation_ids": [
+            "asr_92a9e3bcc5788c1aa1a9576a",
+            "asr_c34edeeb5f98fda897d34402"
+          ],
+          "selection_basis": "independent_audio_review",
+          "source_status": "audio_review_attested_source",
+          "word_alignment_status": "unverified",
+          "speaker_identity_status": "unverified",
+          "review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98"
+        },
+        {
+          "schema": "nemovox-source-turn-revision/v1",
+          "source_turn_id": "src_turn_2f6070415a12cd9585fe04d4",
+          "source_revision_id": "src_revision_9fd9938ef8115fc5c2014776",
+          "audio_event_id": "H2_opening_faites_voir",
+          "source_language": "fr",
+          "source_text_word_or_char_len": 2,
+          "source_text_sha256": "497c2bed3913b6003e97f8b693d36e76d27b1757fc559c39b0ae9e7ccb70bddf",
+          "source_start": 362.5,
+          "source_end": 364.2,
+          "source_observation_ids": [
+            "asr_2f0a171645374e16c8d55a98"
+          ],
+          "selection_basis": "independent_audio_review",
+          "source_status": "audio_review_attested_source",
+          "word_alignment_status": "unverified",
+          "speaker_identity_status": "unverified",
+          "review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98"
+        },
+        {
+          "schema": "nemovox-source-turn-revision/v1",
+          "source_turn_id": "src_turn_41ea6f0f3b3d58e5d0d816e6",
+          "source_revision_id": "src_revision_f42504ccaa64238aa3db9321",
+          "audio_event_id": "H2_tail_ambrosius",
+          "source_language": "fr",
+          "source_text_word_or_char_len": 8,
+          "source_text_sha256": "5fb47665cedbfe1d57a520e062422482639efcffc8d9e867e28a9a1f9c058dee",
+          "source_start": 375.5,
+          "source_end": 378.0,
+          "source_observation_ids": [
+            "asr_2f0a171645374e16c8d55a98",
+            "asr_b1bd918c9edb915f9aa917c5"
+          ],
+          "selection_basis": "independent_audio_review",
+          "source_status": "audio_review_attested_source",
+          "word_alignment_status": "unverified",
+          "speaker_identity_status": "unverified",
+          "review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98"
+        },
+        {
+          "schema": "nemovox-source-turn-revision/v1",
+          "source_turn_id": "src_turn_cd8c36c733f219af40a42b72",
+          "source_revision_id": "src_revision_483a4650df9a7bc08fcbbb67",
+          "audio_event_id": "A_c28_03_heroic_rescue",
+          "source_language": "fr",
+          "source_text_word_or_char_len": 12,
+          "source_text_sha256": "7af53f52c168e30b62eb91fec4f5df615a77a8ed3891e24e5455e5c9728a9bb3",
+          "source_start": 1131.5,
+          "source_end": 1136.0,
+          "source_observation_ids": [],
+          "selection_basis": "independent_audio_review",
+          "source_status": "audio_review_attested_source",
+          "word_alignment_status": "unverified",
+          "speaker_identity_status": "unverified",
+          "review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98"
+        },
+        {
+          "schema": "nemovox-source-turn-revision/v1",
+          "source_turn_id": "src_turn_8f4e5ab43d9ca455eae1d0d5",
+          "source_revision_id": "src_revision_bb3feda0c9f10c478641da96",
+          "audio_event_id": "CTRL_c2_repeat_1",
+          "source_language": "fr",
+          "source_text_word_or_char_len": 5,
+          "source_text_sha256": "9d8119e7265abb2b2a3b20efea77e6b5443ec99187841a7409215dd5abb4d216",
+          "source_start": 1022.8,
+          "source_end": 1024.7,
+          "source_observation_ids": [
+            "asr_18dd881416b0c01a6707b44f"
+          ],
+          "selection_basis": "independent_audio_review",
+          "source_status": "audio_review_attested_source",
+          "word_alignment_status": "unverified",
+          "speaker_identity_status": "unverified",
+          "review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98"
+        },
+        {
+          "schema": "nemovox-source-turn-revision/v1",
+          "source_turn_id": "src_turn_e5e026ce3e6ddc2c92ae69d2",
+          "source_revision_id": "src_revision_36b465226332d2a5107d9979",
+          "audio_event_id": "CTRL_c2_repeat_2",
+          "source_language": "fr",
+          "source_text_word_or_char_len": 5,
+          "source_text_sha256": "9d8119e7265abb2b2a3b20efea77e6b5443ec99187841a7409215dd5abb4d216",
+          "source_start": 1024.8,
+          "source_end": 1026.8,
+          "source_observation_ids": [
+            "asr_18dd881416b0c01a6707b44f"
+          ],
+          "selection_basis": "independent_audio_review",
+          "source_status": "audio_review_attested_source",
+          "word_alignment_status": "unverified",
+          "speaker_identity_status": "unverified",
+          "review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98"
+        }
+      ],
+      "resolved_echo_correspondences": [
+        {
+          "id": "corr_bdb8e24948694b4a1cee64fa",
+          "left_observation_unit_ids": [
+            "unit_92e83f00985684615bcf9dc7",
+            "unit_6fdfbf0e862d37399649aefd",
+            "unit_806e7f38ddacb0a4c2972f0f",
+            "unit_a8747c2f6818970fa50e6a30",
+            "unit_2c05e0ece9f19980c9bbad4d",
+            "unit_a9c7a7c92ea451c711a21a6a",
+            "unit_6d20bca493ede9ba09dc6966",
+            "unit_c1f3cb1d22d0e548c10797d4"
+          ],
+          "right_observation_unit_ids": [
+            "unit_b76f04ae8318c734c82589cc",
+            "unit_55ba999e5675b8318eda7413",
+            "unit_806c63d50bd499c9edb0e6c2",
+            "unit_d8df9241689852691c07372b",
+            "unit_292d369a02d8a37fbd98dc2d",
+            "unit_4ed2181a545975652b968b10",
+            "unit_89a3381f6a224f57b9cf0301",
+            "unit_17b6a92012fd80973dd38d96"
+          ],
+          "ctc_relative_offset_hypothesis_s": 0.0154,
+          "repeated_phrase_ambiguity": false,
+          "positively_verified_event_id": "H2_tail_ambrosius",
+          "decision": "same_audio_event_reviewed_keep_observation_lineage",
+          "source_unit_observations_deleted": 0
+        },
+        {
+          "id": "corr_c2eaf165c404fdbfad509dc7",
+          "left_observation_unit_ids": [
+            "unit_85a19ff2442a5711dde5d0df",
+            "unit_c47930b10fbfa1f9629b7c44",
+            "unit_f1b43bb58fdd221b6927a085",
+            "unit_001b37eceec01f81969ff3d1",
+            "unit_466cfed3e577e9cbfe294702"
+          ],
+          "right_observation_unit_ids": [
+            "unit_8328f44166320f0e7171f197",
+            "unit_4e8e7e707085e6971545bc42",
+            "unit_97b6796668a36d7b28654c58",
+            "unit_f625892beb2a2d3f3a39ddea",
+            "unit_a5232773dc81e66899e15117"
+          ],
+          "ctc_relative_offset_hypothesis_s": -0.0118,
+          "repeated_phrase_ambiguity": false,
+          "positively_verified_event_id": "B_w04_W04c_captain_shout",
+          "decision": "same_audio_event_reviewed_keep_observation_lineage",
+          "source_unit_observations_deleted": 0
+        }
+      ]
+    },
+    "zh_ep166_coverage_128": {
+      "schema": "nemovox-source-reconciliation/v1",
+      "media_fingerprint_sha256": "ef9cb723d6b2e8663fc62ac617ecb949608a45dce9633f88043a0c3fb541f13d",
+      "source_language": "zh",
+      "challenger_model": {
+        "repo_id": "Qwen/Qwen3-ASR-1.7B",
+        "revision": "7278e1e70fe206f11671096ffdd38061171dd6e5",
+        "pinned_language": "Chinese"
+      },
+      "policy": {
+        "window_text_does_not_imply_event_text": true,
+        "model_agreement_is_not_acoustic_truth": true,
+        "alignment_is_not_transcript_verification": true,
+        "no_auto_drop_from_music_or_sfx": true,
+        "nonreviewed_source_turns_remain_unresolved": true,
+        "legacy_asr_observations_preserved_unchanged": true,
+        "source_fidelity_certified": false
+      },
+      "diagnostics": {
+        "challenger_windows_recorded": 60,
+        "challenger_windows_incomplete": 0,
+        "pending_challenger_requests": 8,
+        "model_only_source_turns_automatically_accepted": 0,
+        "reviewed_audio_source_turns": 3,
+        "audited_events_without_verbatim_source_text": 0,
+        "unresolved_echo_candidates": 42,
+        "audio_reviewed_same_event_correspondences": 0,
+        "source_unit_observations_deleted": 0
+      },
+      "unexecuted_request_count": 8,
+      "deferred_request_count": 0,
+      "audited_audio_regions": [
+        {
+          "id": "audio_region_fcad3e5caa46ff02208f6807",
+          "audio_event_id": "ZH_overlap_turn1_elder",
+          "start_s": 518.1,
+          "end_s": 524.5,
+          "kind": "speech",
+          "reviewed_source_turn_id": "src_turn_3f161952c97715528133b190",
+          "source_status": "audio_review_attested",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:ZH_overlap_518_536:speech:0",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:ZH_overlap_518_536:speech:1",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:ZH_overlap_518_536:singing:0",
+              "kind": "singing",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:ZH_overlap_518_536:music:0",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "silero_v6:ZH_overlap_518_536:speech:0",
+              "kind": "speech",
+              "source": "snakers4/silero-vad@silero_vad_v6.onnx(faster-whisper)"
+            },
+            {
+              "id": "pyannote_comm1_cpu:ZH_overlap_518_536:regular:0",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            },
+            {
+              "id": "pyannote_comm1_cpu:ZH_overlap_518_536:regular:1",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            }
+          ],
+          "challenger_window_context_ids": [
+            "challenger_4be39bb03b9ee5b4afd0d4d3"
+          ],
+          "legacy_asr_window_context_ids": [
+            "asr_416b3217bf297f0e8f0767e0"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [
+            "unit_9b55a2a1061048c181f1a16e",
+            "unit_8a1dbf609adb72c62d37f8b2",
+            "unit_ff17708b7370a9ff53f868a6",
+            "unit_f0cbbeea2d29f370519ca039",
+            "unit_112755a9249a54ccc4b7482e",
+            "unit_6569d60084161448cdcd24f0",
+            "unit_34b064bf5d4819047a96ce0a",
+            "unit_af6336d10a66eeff02ce44a1",
+            "unit_e2780b225fb8e304861bf813",
+            "unit_7524bc65a3641e3ba3fc0de9",
+            "unit_c0e63606b9c9cc57b9af0134",
+            "unit_c8e9c144eb2a98a1ebaac5ae",
+            "unit_9a6bcc102d8c6ef3a944256e",
+            "unit_eaf035598ecffb84d50be26a",
+            "unit_742488d60c27dfd9cdd5b63f",
+            "unit_9bc9319ad6ad870a26bc9463",
+            "unit_d4acba44b0c52bc03d86870f",
+            "unit_c95e402b83a5c40e4f24db65",
+            "unit_00d45eae1a9f07ee44a99060"
+          ],
+          "unit_link_review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98",
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        },
+        {
+          "id": "audio_region_b6adc0fb29c09e0cbeb58e9e",
+          "audio_event_id": "ZH_overlap_turn2_young",
+          "start_s": 525.1,
+          "end_s": 526.7,
+          "kind": "speech",
+          "reviewed_source_turn_id": "src_turn_c326dfb65850d5008afc3e0e",
+          "source_status": "audio_review_attested",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:ZH_overlap_518_536:speech:2",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:ZH_overlap_518_536:speech:3",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:ZH_overlap_518_536:singing:1",
+              "kind": "singing",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:ZH_overlap_518_536:music:0",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "silero_v6:ZH_overlap_518_536:speech:1",
+              "kind": "speech",
+              "source": "snakers4/silero-vad@silero_vad_v6.onnx(faster-whisper)"
+            },
+            {
+              "id": "pyannote_comm1_cpu:ZH_overlap_518_536:regular:2",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            }
+          ],
+          "challenger_window_context_ids": [
+            "challenger_4be39bb03b9ee5b4afd0d4d3"
+          ],
+          "legacy_asr_window_context_ids": [
+            "asr_416b3217bf297f0e8f0767e0"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [
+            "unit_e28d01281b5dcca28542b281",
+            "unit_8245b8d4728658797b313301",
+            "unit_100ba53c31f29f6917a3207f",
+            "unit_c4e6034974eea2d0d1d0df22",
+            "unit_45ae443b0893857a6ec166cf"
+          ],
+          "unit_link_review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98",
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        },
+        {
+          "id": "audio_region_7876c63e531a65d0f45fbefe",
+          "audio_event_id": "ZH_overlap_turn3_elder",
+          "start_s": 526.7,
+          "end_s": 530.2,
+          "kind": "speech",
+          "reviewed_source_turn_id": "src_turn_31da4d658add0b38e19d6b40",
+          "source_status": "audio_review_attested",
+          "model_activity_evidence": [
+            {
+              "id": "firered_aed:ZH_overlap_518_536:speech:3",
+              "kind": "speech",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "firered_aed:ZH_overlap_518_536:music:0",
+              "kind": "music",
+              "source": "FireRedTeam/FireRedVAD@7990aaccc6b7aec1e527743bd30201f2c4a03b8c:FireRedAED"
+            },
+            {
+              "id": "silero_v6:ZH_overlap_518_536:speech:1",
+              "kind": "speech",
+              "source": "snakers4/silero-vad@silero_vad_v6.onnx(faster-whisper)"
+            },
+            {
+              "id": "pyannote_comm1_cpu:ZH_overlap_518_536:regular:2",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            },
+            {
+              "id": "pyannote_comm1_cpu:ZH_overlap_518_536:regular:3",
+              "kind": "speech",
+              "source": "pyannote/speaker-diarization-community-1@3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+            }
+          ],
+          "challenger_window_context_ids": [
+            "challenger_4be39bb03b9ee5b4afd0d4d3",
+            "challenger_2c68a98794b5120b60b2b5c9"
+          ],
+          "legacy_asr_window_context_ids": [
+            "asr_416b3217bf297f0e8f0767e0",
+            "asr_fd5f5e0e28c8167af2366c6e"
+          ],
+          "model_windows_do_not_localize_or_verify_words": true,
+          "positive_audio_event_unit_ids": [
+            "unit_9a4590f5b88f2a0368a7c250",
+            "unit_88f4fad68b018a01d1e17ec4",
+            "unit_055a82cb48728f643e2d299b",
+            "unit_4f3ea255a6be6c46fc42b51d",
+            "unit_64eaa25e13d886f5ab1bbdf0",
+            "unit_1d6b62fd24280eb2f1bca38e",
+            "unit_321eacbd94edf6a7df7bb1ee",
+            "unit_2b8546aaac7ad4f9d256987f",
+            "unit_e5fc6ff3f4d1a61777f1b419",
+            "unit_c1574eac7f2d70aa91281633"
+          ],
+          "unit_link_review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98",
+          "shared_non_speech_risk": true,
+          "speaker_identity_accepted": false,
+          "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity"
+        }
+      ],
+      "source_turns_audio_review_attested": [
+        {
+          "schema": "nemovox-source-turn-revision/v1",
+          "source_turn_id": "src_turn_3f161952c97715528133b190",
+          "source_revision_id": "src_revision_501306cdfca94f496fe5db22",
+          "audio_event_id": "ZH_overlap_turn1_elder",
+          "source_language": "zh",
+          "source_text_word_or_char_len": 22,
+          "source_text_sha256": "9d891911e8eaad24c9fbdebb522430abe0fa16564e4484bc9db5e5ddff644fa5",
+          "source_start": 518.1,
+          "source_end": 524.5,
+          "source_observation_ids": [
+            "asr_416b3217bf297f0e8f0767e0"
+          ],
+          "selection_basis": "independent_audio_review",
+          "source_status": "audio_review_attested_source",
+          "word_alignment_status": "unverified",
+          "speaker_identity_status": "unverified",
+          "review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98"
+        },
+        {
+          "schema": "nemovox-source-turn-revision/v1",
+          "source_turn_id": "src_turn_c326dfb65850d5008afc3e0e",
+          "source_revision_id": "src_revision_c22364c349c5a8c55851eed5",
+          "audio_event_id": "ZH_overlap_turn2_young",
+          "source_language": "zh",
+          "source_text_word_or_char_len": 5,
+          "source_text_sha256": "60f3327feaa2554ca8ea9d5ce1dfdcdf955262c2e3c35c0249dca98286f9b0fd",
+          "source_start": 525.1,
+          "source_end": 526.7,
+          "source_observation_ids": [
+            "asr_416b3217bf297f0e8f0767e0"
+          ],
+          "selection_basis": "independent_audio_review",
+          "source_status": "audio_review_attested_source",
+          "word_alignment_status": "unverified",
+          "speaker_identity_status": "unverified",
+          "review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98"
+        },
+        {
+          "schema": "nemovox-source-turn-revision/v1",
+          "source_turn_id": "src_turn_31da4d658add0b38e19d6b40",
+          "source_revision_id": "src_revision_be6310b14626346c01801769",
+          "audio_event_id": "ZH_overlap_turn3_elder",
+          "source_language": "zh",
+          "source_text_word_or_char_len": 11,
+          "source_text_sha256": "b7ec8cf92b1ff0262a9792ad134e221e9d68cb443f5d4bd376d91fe1a53a4a7e",
+          "source_start": 526.7,
+          "source_end": 530.2,
+          "source_observation_ids": [
+            "asr_416b3217bf297f0e8f0767e0",
+            "asr_fd5f5e0e28c8167af2366c6e"
+          ],
+          "selection_basis": "independent_audio_review",
+          "source_status": "audio_review_attested_source",
+          "word_alignment_status": "unverified",
+          "speaker_identity_status": "unverified",
+          "review_evidence_sha256": "5295c606ecb8ca5efd5cadaa4337f099f7e891b510f48306ae14f86ebbc9ab98"
+        }
+      ],
+      "resolved_echo_correspondences": []
+    }
+  },
+  "negative_and_control_checks": {
+    "raw_unverified_language_fail_closed_error": "Expected source media identity and supported source language",
+    "disjoint_window_error": "Reviewed unit has no parent audio-window overlap with the event",
+    "deferred_request_error": "Response for request that planner explicitly deferred",
+    "distinct_events_control_decision": "distinct_audio_events_reviewed_preserve_both",
+    "c2_repeat_distinct_turn_ids": [
+      "src_turn_8f4e5ab43d9ca455eae1d0d5",
+      "src_turn_e5e026ce3e6ddc2c92ae69d2"
+    ],
+    "v1_projection_count": 7
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "schema": "nemovox-evidence-manifest/v1",
+  "run_id": "20261123T022122Z",
+  "admitted_pr_head_sha": "52bc363b0d402a13da4ba678e518bcdc66cf31a7",
+  "central_source_sha": "fc38ba614ec2e145c1efd6ba8389db27a80efde0",
+  "member_count": 9,
+  "members": {
+    "README.md": {
+      "bytes": 2813,
+      "sha256": "5d06ff8279630fb30e08a70b278b26374016590bde30a9e9492d76d87b8f2161"
+    },
+    "source-identity.json": {
+      "bytes": 5869,
+      "sha256": "1c95b62b29b7d2fa7e45ef1b2877fa9a0092d035c9cd2c2266423feae138e264"
+    },
+    "validation/cpu-gates.json": {
+      "bytes": 1939,
+      "sha256": "22e61a458f0e8c2966e9df7e20fcb4e0908f2ed7286a2728c3e8cfd01c840fca"
+    },
+    "validation/planner-budget-comparison.json": {
+      "bytes": 14432,
+      "sha256": "d661f8c30e21629edaf033c18726d56ae37631879a9cf673ee7193f5ad885e99"
+    },
+    "validation/challenger-input-provenance.json": {
+      "bytes": 15850,
+      "sha256": "95330851096cf55060c6e44dfb689d2dbfb107078e32d77c3973ab59196368ca"
+    },
+    "validation/audio-event-reconciliation.json": {
+      "bytes": 98541,
+      "sha256": "2969ca80fcf83c23b77b24dd0312e86e50d9d881232d75525a401b843d693647"
+    },
+    "validation/source-fidelity-cases.md": {
+      "bytes": 5231,
+      "sha256": "525f746513e3a5d5df913bfa0c6b4de96c808a43456596c2ed7bdc207d8ebda0"
+    },
+    "review/architecture-readiness.md": {
+      "bytes": 3365,
+      "sha256": "da65448b45814441b2a0bd13ae3c80752b90a7fcbe05affd425a0e58b3619213"
+    },
+    "COMMAND_SHAPE_FRICTION.txt": {
+      "bytes": 83,
+      "sha256": "f24f6955934f69ac179326055d4371c14f0955f50e151f0c29c35d04bef0a7c2"
+    }
+  }
+}
