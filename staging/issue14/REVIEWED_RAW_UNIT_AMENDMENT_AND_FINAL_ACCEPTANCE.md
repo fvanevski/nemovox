@@ -1,6 +1,6 @@
 # Issue #14: Generalized raw source-unit amendment and long-form acceptance
 
-**Status:** Central source added to the existing draft PR #15 at 1f086156b4626b7bbd61d76b982cd9e90e42bcf6, tree be6b1d4c88baee2fa2019c8bdcc751c75de4e2aa. This NEW source has not passed host qualification. Issue #14 remains OPEN.
+**Status:** Central source/test latest at c53f2c3ea4a35c013ed06d7c5d4d72c0e87d9b82, tree 69d80d1dc6dbe9fb7c072225932bd112828142cf, on existing draft PR #15. This NEW source has not passed host qualification. Issue #14 remains OPEN.
 
 ## Prior verified acceptance and authority
 
