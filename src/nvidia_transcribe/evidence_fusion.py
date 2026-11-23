@@ -147,6 +147,13 @@ def prepare_evidence_review(case: Mapping[str, Any], policy: Mapping[str, Any]) 
         finally:
             stack.remove(oid)
 
+    def ancestor_ids(oid: str) -> set[str]:
+        found: set[str] = set()
+        for parent in by_id[oid].get("derived_from", []):
+            found.add(parent)
+            found.update(ancestor_ids(parent))
+        return found
+
     evaluated = []
     for oid, obs in by_id.items():
         source_families = sorted(roots(oid))
@@ -163,6 +170,7 @@ def prepare_evidence_review(case: Mapping[str, Any], policy: Mapping[str, Any]) 
             status, salience, reason = "consider", 1.0, "Unweighted observation; independently assess relevance"
         evaluated.append({"id": oid, "observation": obs,
                           "root_source_families": source_families,
+                          "upstream_observation_ids": sorted(ancestor_ids(oid)),
                           "applicability": status, "review_salience": salience,
                           "applicability_rationale": reason})
     candidates = case.get("candidates")
@@ -219,7 +227,10 @@ def adjudicate_review(review_request: Mapping[str, Any], response: Mapping[str, 
             raise ValueError("Invalid or conflicted evidence citations")
         if decision == "support" and not supporting:
             raise ValueError("Support requires at least one cited observation")
-        if any(all_obs[v]["applicability"] == "exclude" for v in supporting):
+        if any(all_obs[v]["applicability"] == "exclude" or
+               any(all_obs[parent]["applicability"] == "exclude"
+                   for parent in all_obs[v]["upstream_observation_ids"])
+               for v in supporting):
             raise ValueError("Reviewer used policy-excluded evidence as support")
         summary = _required_string(choice.get("rationale"), "review rationale")
         unresolved = choice.get("unresolved", [])
@@ -294,14 +305,58 @@ def plan_reviewed_source_partitions(
                         "reviewed_event_groups": [{"audio_event_id": eid, "source_unit_ids": members}
                                                   for eid, members in sorted(groups.items())],
                         "replacement_recording_created": False})
+    # An event may draw units from multiple legacy utterances. Never mark an
+    # individual row ready if another row in the SAME event component is
+    # incomplete or a reviewed unit has no owner in the original recording.
+    event_to_legacy: dict[str, set[str]] = defaultdict(set)
+    row_by_id = {row["legacy_utterance_id"]: row for row in results}
+    for row in results:
+        for group in row["reviewed_event_groups"]:
+            event_to_legacy[group["audio_event_id"]].add(row["legacy_utterance_id"])
+    visited_legacy: set[str] = set()
+    components = []
+    for row in results:
+        root = row["legacy_utterance_id"]
+        if root in visited_legacy:
+            continue
+        pending = [root]
+        legacy_ids: set[str] = set()
+        event_ids: set[str] = set()
+        while pending:
+            uid = pending.pop()
+            if uid in legacy_ids:
+                continue
+            legacy_ids.add(uid)
+            for group in row_by_id[uid]["reviewed_event_groups"]:
+                eid = group["audio_event_id"]
+                event_ids.add(eid)
+                pending.extend(event_to_legacy[eid] - legacy_ids)
+        visited_legacy.update(legacy_ids)
+        unowned = sorted(unit for unit, eid in by_unit.items()
+                         if eid in event_ids and unit not in all_identified_units)
+        component_ok = (not unowned and all(
+            row_by_id[uid]["partition_status"].startswith("complete")
+            for uid in legacy_ids))
+        status = ("complete_reviewed_component_requires_application_gate" if component_ok
+                  else "blocked_incomplete_reviewed_component")
+        cid = _digest({"legacy": sorted(legacy_ids), "events": sorted(event_ids)})
+        for uid in legacy_ids:
+            row_by_id[uid]["connected_component_id"] = cid
+            row_by_id[uid]["connected_component_status"] = status
+            row_by_id[uid]["unowned_reviewed_unit_ids"] = unowned
+            if not component_ok:
+                row_by_id[uid]["partition_status"] = status
+        components.append({"id": cid, "legacy_utterance_ids": sorted(legacy_ids),
+                           "reviewed_event_ids": sorted(event_ids),
+                           "unowned_reviewed_unit_ids": unowned, "status": status})
     return {"schema": PARTITION_SCHEMA, "media_fingerprint_sha256": lineage["media_fingerprint_sha256"],
             "source_language": lineage["source_language"],
             "recording_content_sha256": lineage["recording_content_sha256"],
             "source_ledger_content_sha256": lineage["source_ledger_content_sha256"],
             "reconciliation_dossier_content_sha256": lineage["reconciliation_dossier_content_sha256"],
-            "legacy_utterances": results,
+            "legacy_utterances": results, "connected_components": components,
             "diagnostics": {"fully_partitioned": sum(x["partition_status"].startswith("complete") for x in results),
-                            "missing_or_unreviewed": sum(x["partition_status"].startswith("incomplete") for x in results)},
+                            "missing_or_unreviewed": sum(not x["partition_status"].startswith("complete") for x in results)},
             "policy": {"allows_multiple_reviewed_events_per_legacy_utterance_in_dry_run": True,
                        "CTC_proximity_not_application_authority": True,
                        "application_requires_separate_reversible_source_contract": True,

@@ -168,3 +168,44 @@ def test_fusion_without_input_ancestry_and_support_without_citations_are_rejecte
                               for cid in ('split', 'retain')]}
     with pytest.raises(ValueError, match='at least one cited'):
         adjudicate_review(r, response)
+
+
+def test_excluded_ancestor_cannot_be_laundered_through_fused_model():
+    p=policy()
+    p['rules'].append({'match': {'claim_kind': 'mouth_motion_speaker_correspondence', 'scene_kind': 'animated'},
+                       'priority': 20, 'status': 'exclude', 'rationale': 'Disabled in this test.'})
+    r=prepare_evidence_review(case(),p)
+    response={'schema':'nemovox-evidence-model-review/v1','case_id':'sample_01',
+              'case_sha256':r['case_sha256'],'policy_sha256':r['policy_sha256'],
+              'decisions':[{'candidate_id':cid,'decision':'support',
+                            'supporting_evidence_ids':['model'],'contrary_evidence_ids':[],
+                            'rationale':'model based on excluded image','unresolved':[]}
+                           for cid in ('split','retain')]}
+    with pytest.raises(ValueError,match='policy-excluded'):
+        adjudicate_review(r,response)
+
+
+def test_partial_shared_reviewed_event_blocks_whole_partition_component(monkeypatch):
+    import sys,types
+    dummy=types.ModuleType('nvidia_transcribe.source_unit_lineage')
+    dummy.bind_legacy_source_lineage=lambda recording,ledger,dossier: {
+        'media_fingerprint_sha256':SHA,'source_language':'fr',
+        'recording_content_sha256':'0'*64,'source_ledger_content_sha256':'1'*64,
+        'reconciliation_dossier_content_sha256':'2'*64,
+        'legacy_utterances':[{'legacy_utterance_id':i,'status':'partial_or_multiple_reviewed_audio_events'}
+                             for i in ('old1','old2')]}
+    monkeypatch.setitem(sys.modules,'nvidia_transcribe.source_unit_lineage',dummy)
+    recording={'utterances':[
+        {'id':'old1','source_words':[{'chunk_index':0,'source_unit_index':0,'text':'Yes'}]},
+        {'id':'old2','source_words':[{'chunk_index':0,'source_unit_index':1,'text':'No'},
+                                    {'chunk_index':0,'source_unit_index':2,'text':'Wait'}]}]}
+    ledger={'lexical_observations':[{'id':f'raw{i}','chunk_index':0,'source_ordinal':i,
+                                    'text':x} for i,x in enumerate(('Yes','No','Wait'))]}
+    dossier={'source_turns_audio_review_attested':[{'audio_event_id':'same'}],
+            'audited_audio_regions':[{'audio_event_id':'same','positive_audio_event_unit_ids':['raw0','raw1']}]}
+    output=plan_reviewed_source_partitions(recording,ledger,dossier)
+    assert output['diagnostics']['fully_partitioned']==0
+    assert output['diagnostics']['missing_or_unreviewed']==2
+    assert len(output['connected_components'])==1
+    assert output['connected_components'][0]['status']=='blocked_incomplete_reviewed_component'
+    assert all(row['replacement_recording_created'] is False for row in output['legacy_utterances'])
