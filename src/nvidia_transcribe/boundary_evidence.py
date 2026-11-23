@@ -266,6 +266,150 @@ def reconcile_displaced_sequences(
     }
 
 
+def recover_ownerless_straddled_overlap(
+    tagged_by_chunk: list[list[dict[str, Any]]],
+    chunks: Sequence[Any],
+) -> dict[str, Any]:
+    """Preserve corroborated words with UNKNOWN time when both cores lose them.
+
+    Specifically, two overlapping inference requests can return a matching
+    3+ word sequence but assign contradictory CTC positions on opposite
+    sides of their shared core boundary. Neither observation belongs to
+    its nominal core, so ordinary boundary filtering silently loses both.
+    Preserve the more complete context phrase as an *untimed hypothesis*,
+    with exact original CTC estimates and corroborating source indices.
+    This is NOT proof of speech, an acoustic time or speaker identity.
+    """
+    recovered: list[dict[str, Any]] = []
+    unresolved: list[dict[str, Any]] = []
+    for i in range(len(chunks) - 1):
+        left_spec, right_spec = chunks[i:i + 2]
+        boundary = left_spec.core_end_s
+        if max(left_spec.infer_start_s, right_spec.infer_start_s) >= min(
+            left_spec.infer_end_s, right_spec.infer_end_s
+        ):
+            continue
+        left_units = [
+            u for u in tagged_by_chunk[i]
+            if (not u["_drop"] and not u["_in_core"]
+                and u.get("valid_timing") and u.get("_mid") is not None
+                and boundary <= _mid(u) <= min(left_spec.infer_end_s, boundary + 10)
+                and u.get("unit_type") != "character" and _norm(u.get("text", "")))
+        ]
+        right_units = [
+            u for u in tagged_by_chunk[i + 1]
+            if (not u["_drop"] and not u["_in_core"]
+                and u.get("valid_timing") and u.get("_mid") is not None
+                and max(right_spec.infer_start_s, boundary - 10) <= _mid(u) < boundary
+                and u.get("unit_type") != "character" and _norm(u.get("text", "")))
+        ]
+        def phrases(items: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
+            by_voice: dict[str, list[dict[str, Any]]] = {}
+            for unit in items:
+                key = _speaker(unit)
+                if key is not None:
+                    by_voice.setdefault(key, []).append(unit)
+            groups: list[list[dict[str, Any]]] = []
+            for stream in by_voice.values():
+                stream.sort(key=lambda x: x["_unit_idx"])
+                group: list[dict[str, Any]] = []
+                for unit in stream:
+                    if group and (unit["_unit_idx"] != group[-1]["_unit_idx"] + 1
+                                  or float(unit["start"]) - float(group[-1]["end"]) > .9
+                                  or _mid(unit) < _mid(group[-1]) - .2):
+                        groups.append(group)
+                        group = []
+                    group.append(unit)
+                if group:
+                    groups.append(group)
+            return [g for g in groups if 3 <= len(g) <= 30
+                    and float(g[-1]["end"]) - float(g[0]["start"]) <= 8.0]
+        left_phrases, right_phrases = phrases(left_units), phrases(right_units)
+        candidates = []
+        for left in left_phrases:
+            lt = [_norm(u["text"]) for u in left]
+            for right in right_phrases:
+                rt = [_norm(u["text"]) for u in right]
+                blocks = SequenceMatcher(None, lt, rt, autojunk=False).get_matching_blocks()
+                for block in blocks:
+                    if block.size < 3:
+                        continue
+                    shared = lt[block.a:block.a+block.size]
+                    if len(set(shared)) < 3 or sum(len(w) >= 4 for w in shared) < 2:
+                        continue
+                    if lt.count(shared[0]) != 1 or rt.count(shared[0]) != 1:
+                        continue
+                    # The corroborating core match must not be an already
+                    # owned occurrence elsewhere at this boundary.
+                    owned = [
+                        u for c in tagged_by_chunk[i:i+2] for u in c
+                        if u["_in_core"] and not u["_drop"] and
+                        u.get("_mid") is not None and
+                        abs(_mid(u) - boundary) <= 10
+                    ]
+                    owned_words = [_norm(u.get("text", "")) for u in owned]
+                    if SequenceMatcher(None, shared, owned_words, autojunk=False).find_longest_match(
+                        0, len(shared), 0, len(owned_words)
+                    ).size >= 3:
+                        unresolved.append({"boundary_s": boundary,
+                            "reason": "straddled_sequence_already_has_core_coverage",
+                            "left_chunk": left_spec.chunk_index, "right_chunk": right_spec.chunk_index})
+                        continue
+                    candidates.append((left, right, block.size))
+        # A cross-speaker or duplicated triple match can represent distinct
+        # simultaneous speech; never pick one if multiple plausible pairs.
+        pairs = {(tuple(u["_unit_idx"] for u in l), tuple(u["_unit_idx"] for u in r))
+                 for l, r, _ in candidates}
+        if len(pairs) != 1:
+            if candidates:
+                unresolved.append({"boundary_s": boundary,
+                    "reason": "ambiguous_straddled_audio_event_correspondence",
+                    "candidate_pairs": len(pairs)})
+            continue
+        left, right, shared_count = max(candidates, key=lambda x: x[2])
+        # Preserve the more complete *one* model observation. In the equal
+        # case prefer the right-side source, but no timestamp is promoted.
+        chosen = right if len(right) >= len(left) else left
+        if any(u["_drop"] or u["_in_core"] for u in chosen):
+            continue
+        for u in chosen:
+            u["ctc_hypothesis_start_s"] = u.get("start")
+            u["ctc_hypothesis_end_s"] = u.get("end")
+            u["start"] = None
+            u["end"] = None
+            u["valid_timing"] = False
+            u["_mid"] = None
+            u["_in_core"] = True
+            u["_recovered"] = True
+            u["_recovery_kind"] = "straddled_overlap_source_unlocalized"
+            u["alignment_status"] = "ctc_timing_suspect"
+            u["timing_evidence_status"] = "unverified_cross_boundary_ctc_conflict"
+            u["timing_evidence_reason"] = "both_chunks_outside_owning_core"
+            u["speaker_identity_accepted"] = False
+            u["global_speaker_id"] = f"SPK_UNK_BOUNDARY_{left_spec.chunk_index}_{right_spec.chunk_index}"
+        recovered.append({
+            "boundary_s": boundary,
+            "left_chunk": left_spec.chunk_index, "right_chunk": right_spec.chunk_index,
+            "left_source_unit_indices": [u["_unit_idx"] for u in left],
+            "right_source_unit_indices": [u["_unit_idx"] for u in right],
+            "retained_chunk": chosen[0]["_chunk_idx"],
+            "retained_source_indices": [u["_unit_idx"] for u in chosen],
+            "source_units_preserved_unlocalized": len(chosen),
+            "matching_lexical_tokens": shared_count,
+            "timing_truth_accepted": False,
+            "speaker_identity_accepted": False,
+        })
+    return {
+        "schema": "nemovox-straddled-core-source-evidence/v1",
+        "source_units_preserved_unlocalized": sum(
+            row["source_units_preserved_unlocalized"] for row in recovered
+        ),
+        "recovery_candidates": recovered,
+        "ambiguities": unresolved,
+        "no_new_acoustic_timestamp": True,
+    }
+
+
 def recover_extended_right_context(
     tagged_by_chunk: list[list[dict[str, Any]]],
     chunks: Sequence[Any],

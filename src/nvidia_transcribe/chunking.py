@@ -9,6 +9,7 @@ from typing import Any
 from nvidia_transcribe.boundary_evidence import (
     reconcile_displaced_sequences,
     recover_extended_right_context,
+    recover_ownerless_straddled_overlap,
 )
 
 
@@ -409,6 +410,10 @@ def reconcile_chunk_boundaries(
     # coherent missing phrase and a neighboring-coverage check.
     sequence_diag = reconcile_displaced_sequences(tagged_by_chunk, chunks)
     extended_diag = recover_extended_right_context(tagged_by_chunk, chunks)
+    # Two ASR contexts can agree on a phrase while each timestamps it
+    # outside its own nominal core. Preserve an untimed source hypothesis
+    # rather than silently dropping the entire phrase or inventing time.
+    straddled_diag = recover_ownerless_straddled_overlap(tagged_by_chunk, chunks)
     dedup_count += sequence_diag["sequence_deduplicated_units"]
     recovered_count += extended_diag["extended_recovered_units"]
 
@@ -452,4 +457,5 @@ def reconcile_chunk_boundaries(
         "dedup_examples": dedup_examples,
         "sequence_evidence": sequence_diag,
         "extended_recovery": extended_diag,
+        "straddled_overlap_source": straddled_diag,
     }
