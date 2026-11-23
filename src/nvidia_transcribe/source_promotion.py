@@ -336,8 +336,9 @@ def promote_bounded_source_turns(
             partial = partially_linked_by_event.get(eid, set())
             if eligible and set(replacement_ids) != eligible:
                 reasons.append("reviewed_same_event_requires_complete_explicit_supersession")
-            if partial:
-                reasons.append("reviewed_event_has_partially_mapped_legacy_turns")
+            # Partially linked legacy text is NOT a reason to discard a
+            # newly heard real phrase. Keep both source observations, expose
+            # the unresolved overlap, and prohibit replacing partial rows.
             if replacement_ids and not set(replacement_ids) <= eligible:
                 reasons.append("requested_supersession_not_proven_by_immutable_source_units")
         if replacement_ids and not reviewed:
@@ -451,6 +452,9 @@ def promote_bounded_source_turns(
             "utterance": selected,
             "supersedes": replacement_ids,
             "overlapping_legacy_utterance_ids": overlapping_legacy,
+            "partially_attributed_legacy_utterance_ids": sorted(
+                partially_linked_by_event.get(eid, set())
+            ),
         })
 
     retained = [u for u, uid in zip(original, original_ids) if uid not in used_supersessions]
@@ -495,6 +499,7 @@ def promote_bounded_source_turns(
                 "supersedes_legacy_utterance_ids": x["supersedes"],
                 "original_legacy_utterances_preserved_in_input": True,
                 "overlapping_legacy_utterance_ids": x["overlapping_legacy_utterance_ids"],
+                "partially_attributed_legacy_utterance_ids": x["partially_attributed_legacy_utterance_ids"],
             }
             for x in accepted
         ],
