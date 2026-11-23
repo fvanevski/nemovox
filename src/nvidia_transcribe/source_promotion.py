@@ -97,6 +97,14 @@ def promote_bounded_source_turns(
             raise ValueError("Duplicate reviewed audio event")
         if turn.get("schema") != "nemovox-source-turn-revision/v1":
             raise ValueError("Unsupported reviewed source-turn contract")
+        if (turn.get("source_status") != "audio_review_attested_source"
+                or turn.get("selection_basis") != "independent_audio_review"
+                or turn.get("reviewer_has_attested_direct_audio_listening") is not True
+                or turn.get("source_language") != language):
+            raise ValueError("Source event lacks positive direct audio-review attestation")
+        _sha(turn.get("review_evidence_sha256"), "direct audio-review evidence")
+        _str(turn.get("source_text"), "reviewed source text")
+        _interval(turn, start="source_start", end="source_end")
         verified_turns[eid] = turn
     regions = {}
     for region in dossier.get("audited_audio_regions") or []:
