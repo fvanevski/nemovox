@@ -102,6 +102,8 @@ def test_conflicting_claims_and_inference_exclusion_fail_closed():
         apply_reviewed_unit_amendments(r,l,d,q)
     r,l,d,q=example()
     l["asr_observations"][1]["infer_start_s"]=15
+    r["processing"]["chunks"][1]["infer_start_s"]=15
+    q["recording_content_sha256"]=_digest(r)
     q["ledger_content_sha256"]=_digest(l)
     with pytest.raises(ValueError,match="outside original"):
         apply_reviewed_unit_amendments(r,l,d,q)
