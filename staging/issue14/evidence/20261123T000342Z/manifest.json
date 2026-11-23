@@ -1,0 +1,62 @@
+{
+  "schema": "nemovox-issue14-evidence-manifest/v1",
+  "run_id": "20261123T000342Z",
+  "evidence_root": "staging/issue14/evidence/20261123T000342Z/",
+  "source_sha": "4c32acf659891fe999d2ae6e15f59ccb5750d92f",
+  "source_tree": "a4e866f53899fe159c99793ff8a78326a10b26f5",
+  "controlling_commit_sha": "0dac64e2ddcb706db188cb1f3084ea4fe4cc78b4",
+  "main_sha": "8f6c03cbc70e84bf1970ba364207a02c9fe22b44",
+  "member_count": 10,
+  "members": [
+    {
+      "path": "README.md",
+      "bytes": 4439,
+      "sha256": "76f6162017c41fc2ab0a01782ecc63f1bcf9cd64067b1417c89ea84a5c80e8e3"
+    },
+    {
+      "path": "source-identity.json",
+      "bytes": 13709,
+      "sha256": "f04f1a8ee3a1d6245d8c244c589ed7f8251def78766d0e61e5e88bc4a7031877"
+    },
+    {
+      "path": "validation/perception-method.md",
+      "bytes": 2976,
+      "sha256": "93ddcdc5d33b1c24833ceee266fdee4f7e46046465769167076c54c61c50388d"
+    },
+    {
+      "path": "validation/acoustic-event-ledger.jsonl",
+      "bytes": 17646,
+      "sha256": "b33d5450d8cf2616b6922a958170b1e15f19d0477b33ca57a8f4afeeb5349f98"
+    },
+    {
+      "path": "validation/candidate-observations.jsonl",
+      "bytes": 78815,
+      "sha256": "c0c278f4f66dc8ae669903eb2633b4b7011c17b43fcfe87f8f3cb6c01fc9ab6e"
+    },
+    {
+      "path": "validation/detector-contingency.json",
+      "bytes": 26645,
+      "sha256": "28de82d27c855f72b1654c0831e26975ca79317dd0f4f8fbc3f8eec212bfeb41"
+    },
+    {
+      "path": "validation/event-correspondence-matrix.md",
+      "bytes": 7342,
+      "sha256": "995f5dee9ecc19c80b1b0406926bd2300e1be20687bf522234049cd76c7202d4"
+    },
+    {
+      "path": "validation/pause-boundary-inputs.json",
+      "bytes": 36915,
+      "sha256": "45262767615d210426694dbca372662c464223cb556ef1f2dac7648676ed0955"
+    },
+    {
+      "path": "review/fixture-adjudication.md",
+      "bytes": 7490,
+      "sha256": "af39b63bf25bc52cdba82da54f2e378192bfabcb226c48638222a945e13fbcee"
+    },
+    {
+      "path": "COMMAND_SHAPE_FRICTION.txt",
+      "bytes": 962,
+      "sha256": "c0d27a2ade721a3613e503842a45575a874e3e36920e06b4659a661e04676f09"
+    }
+  ]
+}

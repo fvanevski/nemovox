@@ -1,0 +1,6 @@
+RUN_ID=20261123T000342Z
+COMMAND_SHAPE_FRICTION=yes
+EVENTS:
+- event_1: Tool python3 inline heredoc/quotes escaping in one inspection shell call produced SyntaxError on backslash-escaped inner f-string quotes; corrected cleanly by moving analysis to dedicated private .py scripts.
+- event_2: First version of private inspection script imported non-existent symbol `parse_salm_response` from `nvidia_transcribe.parser`; inspected `parser.py` and `run_primary_probes.py` and switched cleanly to `cleanup_generation_loops`, `recover_chunk_alignment`, `audit_ctc_timing_units`, `normalize_chunk_speakers`.
+- event_3: Notice count difference between early quick scan (`31` unpop>=1s) and rigorous interval overlap parse (`32` unpop>=1s across `full_35`): verified `c31` context-only `[1266.406, 1267.696]` (`1.29s`) had been omitted from an earlier pre-compaction summary line; verified all 35 raw JSONs directly on disk (`32` total = `24` in_core + `8` context_only).
