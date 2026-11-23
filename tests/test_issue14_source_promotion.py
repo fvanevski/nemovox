@@ -6,6 +6,7 @@ supersession, and distinct repeated real events cannot collapse by text.
 """
 from copy import deepcopy
 from pathlib import Path
+import hashlib
 
 import pytest
 
@@ -61,6 +62,8 @@ def dossier():
             {"audio_event_id": "song_only", "id": "audited_song",
              "start_s": 80.0, "end_s": 95.0, "kind": "singing"},
         ],
+        "challenger_model": {"repo_id": "Qwen/Qwen3-ASR-1.7B",
+                             "revision": "b" * 40, "pinned_language": "French"},
         "model_windows": [
             {"id": "qwen_window_01", "start_s": 22.0, "end_s": 46.0},
             {"id": "qwen_window_02", "start_s": 44.0, "end_s": 68.0},
@@ -99,13 +102,14 @@ def segments(*items):
     }
 
 
-def model_evidence(crop_start, crop_end, **extras):
+def model_evidence(crop_start, crop_end, text="À demain !", **extras):
     return {
         "model_repo_id": "Qwen/Qwen3-ASR-1.7B",
         "model_revision": "b" * 40,
         "crop_start_s": crop_start, "crop_end_s": crop_end,
         "audio_crop_sha256": "c" * 64,
         "raw_response_sha256": "d" * 64,
+        "source_text_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
         "finish_status": "completed", "language": "French",
         **extras,
     }
@@ -173,7 +177,7 @@ def test_positive_speech_plus_bounded_model_ASR_is_renderable_but_provisional(tm
 def test_song_only_lyrics_not_accepted_even_with_qwen_model_text():
     song = candidate("song_model_guess", 80, 90, "Lyrics invented by model",
                      context_window_ids=["qwen_window_03"],
-                     bounded_asr=model_evidence(78, 94),
+                     bounded_asr=model_evidence(78, 94, "Lyrics invented by model"),
                      speech_activity_ids=[])
     out = promote_bounded_source_turns(
         baseline(), dossier(), segments(song), activity=activity()
@@ -187,7 +191,7 @@ def test_false_sfx_voice_activation_plus_qwen_exclamation_is_quarantined():
     candidate_sfx = candidate(
         "sfx_guess", 80, 82, "Ah !",
         context_window_ids=["qwen_window_03"],
-        bounded_asr=model_evidence(78, 86),
+        bounded_asr=model_evidence(78, 86, "Ah !"),
         speech_activity_ids=["false_sfx_speech"],
     )
     acoustic = activity()
@@ -238,7 +242,7 @@ def test_window_wide_text_without_bounded_asr_is_not_promoted():
 
 def test_model_only_candidate_cannot_suppress_overlapping_legacy_utterance():
     a = candidate("overlap", 5.2, 6.2, "Different sound",
-                  bounded_asr=model_evidence(4, 10),
+                  bounded_asr=model_evidence(4, 10, "Different sound"),
                   speech_activity_ids=["fr_overlap"])
     ac = activity()
     ac["intervals"].append({
@@ -256,6 +260,7 @@ def test_similar_text_distinct_audio_event_ids_are_both_preserved():
     heard = reviewed_candidate()
     model = provisional_candidate()
     model["source_text"] = heard["source_text"]
+    model["bounded_asr"]["source_text_sha256"] = hashlib.sha256(model["source_text"].encode("utf-8")).hexdigest()
     out = promote_bounded_source_turns(
         baseline(), dossier(), segments(heard, model), activity=activity()
     )
@@ -270,6 +275,7 @@ def test_divergent_asr_candidates_for_same_audio_event_must_not_select_one():
     b = deepcopy(a)
     b["id"] = "candidate_alt"
     b["source_text"] = "Another plausible sentence"
+    b["bounded_asr"]["source_text_sha256"] = hashlib.sha256(b["source_text"].encode("utf-8")).hexdigest()
     out = promote_bounded_source_turns(
         baseline(), dossier(), segments(a, b), activity=activity()
     )
@@ -286,7 +292,35 @@ def test_wrong_model_language_and_audio_crop_are_rejected():
         )
     a = provisional_candidate()
     a["bounded_asr"]["crop_start_s"] = 51.0
-    with pytest.raises(ValueError, match="must contain"):
+    with pytest.raises(ValueError, match="tightly contain"):
+        promote_bounded_source_turns(
+            baseline(), dossier(), segments(a), activity=activity()
+        )
+
+
+def test_unbounded_full_context_cannot_impersonate_short_utterance():
+    a = provisional_candidate()
+    a["bounded_asr"]["crop_start_s"] = 44.0
+    a["bounded_asr"]["crop_end_s"] = 68.0
+    with pytest.raises(ValueError, match="tightly contain"):
+        promote_bounded_source_turns(
+            baseline(), dossier(), segments(a), activity=activity()
+        )
+
+
+def test_model_text_edit_without_authentic_transcript_digest_rejected():
+    a = provisional_candidate()
+    a["source_text"] = "Other model answer"
+    with pytest.raises(ValueError, match="authenticated digest"):
+        promote_bounded_source_turns(
+            baseline(), dossier(), segments(a), activity=activity()
+        )
+
+
+def test_new_model_checkpoint_not_in_reconciliation_dossier_rejected():
+    a = provisional_candidate()
+    a["bounded_asr"]["model_revision"] = "changed_revision"
+    with pytest.raises(ValueError, match="authenticated challenger"):
         promote_bounded_source_turns(
             baseline(), dossier(), segments(a), activity=activity()
         )
