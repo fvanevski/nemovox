@@ -343,11 +343,41 @@ def process_media(
                 require_ctc_timestamps=False,
                 source_offset_s=spec.infer_start_s,
             )
-            res = client.transcribe(wav_path, req_cfg)
-            raw_resp = res["raw_response"]
-            raw_text_dump = json.dumps(raw_resp, ensure_ascii=False, indent=2)
+            # One bounded, same-input retry is permitted ONLY for a raw
+            # generation-limit stop. The first response is never accepted or
+            # loop-cleaned into a transcript; retain its exact bytes and SHA
+            # in rejected/ before making another request. A second failure
+            # still raises IncompleteASRGeneration without a new contract.
+            generation_attempts: list[dict[str, Any]] = []
+            for generation_attempt in range(2):
+                res = client.transcribe(wav_path, req_cfg)
+                raw_resp = res["raw_response"]
+                raw_text_dump = json.dumps(raw_resp, ensure_ascii=False, indent=2)
+                attempt_integrity = audit_asr_generation(raw_resp)
+                attempt_sha = _sha256_text(raw_text_dump)
+                generation_attempts.append({
+                    "attempt": generation_attempt + 1,
+                    "raw_response_sha256": attempt_sha,
+                    "finish_reason": ((raw_resp.get("choices") or [{}])[0]).get("finish_reason"),
+                    "generation_status": attempt_integrity["status"],
+                    "generation_reason": attempt_integrity.get("reason"),
+                })
+                chunk_latencies.append(float(res["latency_s"]))
+                if (generation_attempt == 0
+                        and attempt_integrity["status"] == "incomplete"
+                        and attempt_integrity["reason"] == "generation_limit_exhausted"):
+                    rejected_path = (
+                        chunks_dir / "rejected"
+                        / f"chunk_{spec.chunk_index:03d}_{attempt_sha[:16]}.raw.json"
+                    )
+                    if not rejected_path.is_file():
+                        _atomic_write_text(rejected_path, raw_text_dump)
+                    generation_attempts[-1]["rejected_raw_response_path"] = str(rejected_path)
+                    # Retry the identical authenticated WAV and language
+                    # once, never a different or truncated audio span.
+                    continue
+                break
             _atomic_write_text(raw_path, raw_text_dump)
-            chunk_latencies.append(float(res["latency_s"]))
             entry = {
                 **spec.to_dict(),
                 "status": "completed",
@@ -357,9 +387,13 @@ def process_media(
                 "actual_wav_duration_s": actual_dur,
                 "raw_response_path": str(raw_path),
                 "raw_response_sha256": _sha256_text(raw_text_dump),
-                "latency_s": res["latency_s"],
+                "latency_s": sum(float(attempt["latency_s"])
+                                 for attempt in generation_attempts
+                                 if "latency_s" in attempt) if False else res["latency_s"],
                 "finish_reason": ((raw_resp.get("choices") or [{}])[0]).get("finish_reason"),
                 "usage": raw_resp.get("usage"),
+                "generation_attempts": generation_attempts,
+                "generation_limit_retry_attempted": len(generation_attempts) > 1,
             }
 
         # A response ending at the generation limit is not a completed
