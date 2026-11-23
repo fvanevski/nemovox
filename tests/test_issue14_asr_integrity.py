@@ -96,6 +96,46 @@ def test_legacy_completed_checkpoint_cannot_hide_length_finish(tmp_path, monkeyp
     assert json.loads(rejected.read_text()) == suspect
 
 
+def test_bounded_generation_retry_recovers_without_accepting_first_length_response(tmp_path, monkeypatch):
+    wav = tmp_path / "source.wav"
+    with wave.open(str(wav), "wb") as f:
+        f.setnchannels(1)
+        f.setsampwidth(2)
+        f.setframerate(16000)
+        f.writeframes(b"\x00\x00" * 16000 * 3)
+    bad = _response("<spk:0> " + "!" * 20000, "length")
+    good = _response("<spk:0> Bonjour.", "stop")
+    calls = []
+
+    def fake_transcribe(self, audio_path, config=None):
+        calls.append(Path(audio_path))
+        return {"raw_response": bad if len(calls) == 1 else good,
+                "contract": {"raw_text": "Bonjour."}, "latency_s": 0.2}
+
+    monkeypatch.setattr(NemotronVLLMClient, "transcribe", fake_transcribe)
+    root = tmp_path / "run"
+    result = process_media(
+        wav, output_dir=root, client=NemotronVLLMClient(model="stub"),
+        config=RecordingPipelineConfig(source_language="fr", speaker_embeddings="none")
+    )
+    assert calls == [root / "chunks" / "chunk_000.wav"] * 2
+    assert result["contract"]["utterances"]
+    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["asr_run_status"] == "completed"
+    entry = manifest["chunks"][0]
+    assert entry["generation_limit_retry_attempted"] is True
+    assert entry["generation_integrity"]["status"] == "complete"
+    assert [a["generation_status"] for a in entry["generation_attempts"]] == [
+        "incomplete", "complete"
+    ]
+    assert entry["latency_s"] == pytest.approx(0.4)
+    first = entry["generation_attempts"][0]
+    archived = Path(first["rejected_raw_response_path"])
+    assert archived.is_file()
+    assert json.loads(archived.read_text(encoding="utf-8")) == bad
+    assert json.loads((root / "chunks" / "chunk_000.raw.json").read_text(encoding="utf-8")) == good
+
+
 def test_failed_generation_preserves_raw_and_does_not_mark_resume_completed(tmp_path, monkeypatch):
     wav = tmp_path / "source.wav"
     with wave.open(str(wav), "wb") as f:
