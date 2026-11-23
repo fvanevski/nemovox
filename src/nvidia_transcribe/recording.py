@@ -35,6 +35,7 @@ from nvidia_transcribe.speakers import (
 from nvidia_transcribe.utterances import reconstruct_speaker_utterances
 from nvidia_transcribe.timing_evidence import audit_ctc_timing_units
 from nvidia_transcribe.speech_chunks import detect_silence_intervals, plan_pause_aware_chunks
+from nvidia_transcribe.source_events import build_source_evidence_ledger
 
 
 @dataclass(frozen=True)
@@ -663,7 +664,21 @@ def process_media(
         if ev.get("local_speaker_id") in local_to_global:
             ev["global_speaker_id"] = local_to_global[ev["local_speaker_id"]]
 
-    # Boundary deduplication & recovery.
+    # Preserve every native lexical observation BEFORE legacy boundary deletion,
+    # utterance reconstruction and translation. This observational ledger is
+    # deliberately not a source transcript or a suppression authority.
+    source_evidence = build_source_evidence_ledger(
+        media_fingerprint_sha256=media.fingerprint_sha256,
+        source_language=resolved_lang,
+        chunk_specs=chunks,
+        chunk_units=chunk_units_norm,
+        raw_response_sha256=[e["raw_response_sha256"] for e in chunk_manifest_entries],
+        raw_source_texts=raw_texts,
+        diarization_by_chunk=[rec["diarization"] for rec in native_records],
+    )
+
+    # Legacy v1 boundary behavior stays unchanged pending independent
+    # acoustic qualification of a source-event acceptance replacement.
     merged_units, boundary_diag = reconcile_chunk_boundaries(chunk_units_norm, chunks)
 
     # Independent per-speaker utterance reconstruction anchored to true chunk bounds.
@@ -714,8 +729,19 @@ def process_media(
 
     contract_path = out_dir / "recording.contract.json"
     transcript_path = out_dir / "transcript.txt"
+    source_evidence_path = out_dir / "source-evidence.v1.json"
+    source_evidence_text = json.dumps(source_evidence, ensure_ascii=False, indent=2)
+    _atomic_write_text(source_evidence_path, source_evidence_text)
     _atomic_write_text(contract_path, json.dumps(contract, ensure_ascii=False, indent=2))
     _atomic_write_text(transcript_path, _format_transcript_txt(contract))
+    # This manifest digest binds the extra sidecar to a completed ASR run;
+    # a standalone/stale sidecar is never proof of a current transcript.
+    manifest_state["source_evidence"] = {
+        "schema_version": source_evidence["schema_version"],
+        "path": str(source_evidence_path),
+        "sha256": _sha256_text(source_evidence_text),
+        "mode": "shadow_observation_only",
+    }
     manifest_state["asr_run_status"] = "completed"
     _atomic_write_text(manifest_path, json.dumps(manifest_state, ensure_ascii=False, indent=2))
 
@@ -723,6 +749,7 @@ def process_media(
         "contract": contract,
         "contract_path": str(contract_path),
         "transcript_path": str(transcript_path),
+        "source_evidence_path": str(source_evidence_path),
         "manifest_path": str(manifest_path),
         "total_wall_time_s": total_elapsed,
     }
