@@ -1,0 +1,14 @@
+COMMAND_SHAPE_FRICTION (issue14-w02b-adjudication campaign)
+
+1. ffmpeg `-vsync vfr` option removed in installed ffmpeg 7.x
+   - requested: `ffmpeg ... -vf "scale=640:-2,showinfo" -vsync vfr ...`
+   - observation: ffmpeg exited with code 8 (`Unrecognized option 'vsync'. Error splitting the argument list`). Status: recovered_after_retry.
+   - replacement: Switched to `-fps_mode vfr` (`executed_succeeded`).
+
+2. ffmpeg `-ss 215.0 -copyts -i ... -ss 219.800` showinfo pre-trim logging
+   - requested: Parse all `showinfo` lines (`n:`, `pts_time:`) 1:1 against output JPEGs.
+   - observation: Input-filter `showinfo` runs prior to output `-ss`/`-to` trimming, emitting 189 lines (`215.0..222.52s`) for 68 output frames (`[219.800, 222.480]`). Status: recovered_after_retry.
+   - replacement: Cross-checked `219.800 <= pts_time < 222.500` against `ffprobe -read_intervals 219.0%222.6 -show_entries frame=best_effort_timestamp_time` -> exact `68 == 68 == 68` match (`executed_succeeded`).
+
+3. Clean archive tar packaging without directory-walk duplicates
+   - preventive_shape: Earlier tarball used recursive directory walks yielding duplicate tar entries alongside `CHECKSUMS.sha256`. This packaging explicitly adds ONLY sorted leaf files with `recursive=False` and asserts `len(tar.getmembers()) == len(CHECKSUMS) + 1` (`executed_succeeded`).

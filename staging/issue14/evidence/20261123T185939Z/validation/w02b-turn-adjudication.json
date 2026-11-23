@@ -1,0 +1,149 @@
+{
+  "schema": "nemovox-issue14-w02b-turn-adjudication/v1",
+  "locked_before_visual_frames": true,
+  "audio_only_adjudication_sha256": "1ffb6b5349fe0b2c2d04d82c3fd7b75d3a1384bcb91b521d3eaa114eeea484fd",
+  "ordinal_100": {
+    "unit_id": "unit_be0c12232c62c487035804c4",
+    "source_ordinal": 100,
+    "ctc_hypothesis_s": [
+      220.28,
+      220.937
+    ],
+    "audited_interval_s": [
+      220.25,
+      220.7
+    ],
+    "voice": "Voice_B",
+    "review_wav_sha256": "53342b8c7c027b8055701fc6ef242d3964b632529f44194f64de812c6dbee2fd",
+    "review_wav_bounds_s": [
+      218.7,
+      222.6
+    ]
+  },
+  "ordinal_101": {
+    "unit_id": "unit_893da33a8142fd3a01c053e5",
+    "source_ordinal": 101,
+    "ctc_hypothesis_s": [
+      221.0,
+      222.158
+    ],
+    "audited_interval_s": [
+      221.05,
+      222.0
+    ],
+    "voice": "Voice_A",
+    "review_wav_sha256": "53342b8c7c027b8055701fc6ef242d3964b632529f44194f64de812c6dbee2fd",
+    "review_wav_bounds_s": [
+      218.7,
+      222.6
+    ]
+  },
+  "ordinal_100_vs_101_relation": "different (350ms silence [220.70, 221.05] separating Voice_B -> Voice_A; Whisper [220.22, 221.66] merged both and prior Nemotron collapsed to chunk_002:spk_1)",
+  "final_turn_ordinals_128_139": {
+    "source_ordinals": [
+      128,
+      139
+    ],
+    "audited_speech_interval_s": [
+      232.45,
+      235.85
+    ],
+    "voice": "Voice_A",
+    "pre_speech_breath_chuckle_interval_s": [
+      231.95,
+      232.45
+    ],
+    "pre_speech_breath_speaker_status": "UNRESOLVED",
+    "review_wav_sha256": "84191d20e8b4ab1d5f3b4931304f03a22388108f5d36102911ad01afd2419528",
+    "review_wav_bounds_s": [
+      231.4,
+      236.0
+    ],
+    "finding": "Lexical speech matches reference Voice_A timbre/cadence; resolves prior false Voice_B alternation artifact caused by merging 100/101."
+  },
+  "supported_turn_structure": {
+    "distinct_audible_voices": 2,
+    "speaker_alternation_turns": 5,
+    "pause_delimited_spoken_segments": 6,
+    "segments": [
+      {
+        "seg": 1,
+        "interval_s": [
+          212.05,
+          215.55
+        ],
+        "voice": "Voice_A",
+        "ordinal_range": [
+          77,
+          88
+        ]
+      },
+      {
+        "seg": 2,
+        "interval_s": [
+          215.7,
+          218.25
+        ],
+        "voice": "Voice_B",
+        "ordinal_range": [
+          89,
+          96
+        ]
+      },
+      {
+        "seg": 3,
+        "interval_s": [
+          218.6,
+          220.0
+        ],
+        "voice": "Voice_A",
+        "ordinal_range": [
+          97,
+          99
+        ]
+      },
+      {
+        "seg": 4,
+        "interval_s": [
+          220.25,
+          220.7
+        ],
+        "voice": "Voice_B",
+        "ordinal_range": [
+          100,
+          100
+        ]
+      },
+      {
+        "seg": 5,
+        "interval_s": [
+          221.05,
+          231.5
+        ],
+        "voice": "Voice_A",
+        "ordinal_range": [
+          101,
+          127
+        ]
+      },
+      {
+        "seg": 6,
+        "interval_s": [
+          232.45,
+          235.85
+        ],
+        "voice": "Voice_A",
+        "ordinal_range": [
+          128,
+          139
+        ]
+      }
+    ]
+  },
+  "secondary_visual_convergence_with_true_pts": {
+    "hard_cut_before_ord100_pts_s": 220.08,
+    "hard_cut_between_100_and_101_pts_s": 220.92,
+    "aligns_within_ms_of_silent_gap": "Right inside [220.70, 221.05] 350ms acoustic silence",
+    "character_identity_claim": "Visual alignment observed (pale-robe+bird <-> Voice_A, white-tunic <-> Voice_B); acoustic-only voice IDs remain canonical."
+  }
+}

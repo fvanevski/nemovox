@@ -1,0 +1,15 @@
+{
+  "schema": "nemovox-issue14-cpu-gates-reuse/v1",
+  "same_source_invariance": true,
+  "validated_central_source_sha": "7bb957ed829649d965445c0aee91bf062b698849",
+  "diff_cmd": "git diff --stat 7bb957ed829649d965445c0aee91bf062b698849..d8cff10d45d4c27bfdec719cf025621e12a9f3d9 -- src/ tests/",
+  "diff_result": "empty (none)",
+  "reused_test_receipts_from_head": "7c875d6f4a142c6f0f352188d52d54cd0f761277",
+  "reused_results": {
+    "compileall": "exit 0",
+    "pytest_focused_issue14": "50 passed",
+    "pytest_cpu_full_core_venv": "411 passed (PYTHONPATH=src:.)",
+    "pytest_cpu_full_studio_venv": "411 passed (PYTHONPATH=src:.)"
+  },
+  "no_new_model_or_vision_run": true
+}

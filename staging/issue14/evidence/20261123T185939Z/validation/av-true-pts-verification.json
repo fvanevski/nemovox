@@ -1,0 +1,28 @@
+{
+  "schema": "nemovox-issue14-av-true-pts-verification/v1",
+  "executed": true,
+  "new_vlm_calls": 0,
+  "source_interval_s": [
+    219.8,
+    222.5
+  ],
+  "ffprobe_v0_frame_count": 68,
+  "first_frame_pts_s": 219.8,
+  "last_frame_pts_s": 222.48,
+  "ffmpeg_copyts_showinfo_matched_all_68": true,
+  "hard_shot_cuts_detected": [
+    {
+      "frame_file": "frame_008.jpg",
+      "decoder_pts_ms": 220080,
+      "decoder_pts_s": 220.08,
+      "mean_abs_rgb_l1_diff": 53.01
+    },
+    {
+      "frame_file": "frame_029.jpg",
+      "decoder_pts_ms": 220920,
+      "decoder_pts_s": 220.92,
+      "mean_abs_rgb_l1_diff": 62.745
+    }
+  ],
+  "note": "Primary acoustic truth was locked prior to inspecting frames; true decoder PTS 220.080s and 220.920s corroborate both silent acoustic gaps separating ord 100 and ord 101."
+}
