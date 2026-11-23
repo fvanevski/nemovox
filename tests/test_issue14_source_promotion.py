@@ -153,7 +153,8 @@ def test_positive_speech_plus_bounded_model_ASR_is_renderable_but_provisional(tm
     assert doc["source_promotion"]["new_model_provisional_turns"] == 1
     added = next(u for u in doc["utterances"] if u["id"] != "legacy_1")
     assert added["source_text"] == "À demain !"
-    assert added["source_text_acoustically_verified"] is False
+    assert added["source_text_review_attested"] is False
+    assert added["source_text_human_reference_verified"] is False
     assert added["source_acceptance_status"] == "model_source_candidate_provisional"
     assert added["speaker_id"] == "SPK_UNK"
     translated, _ = translate_utterances(
@@ -180,6 +181,39 @@ def test_song_only_lyrics_not_accepted_even_with_qwen_model_text():
     assert out["source_promotion"]["new_source_turns"] == 0
     assert "no_positive_speech_activity_for_model_only_text" in out["source_promotion"]["quarantined"][0]["reasons"]
     assert all("Lyrics" not in u["source_text"] for u in out["utterances"])
+
+
+def test_false_sfx_voice_activation_plus_qwen_exclamation_is_quarantined():
+    candidate_sfx = candidate(
+        "sfx_guess", 80, 82, "Ah !",
+        context_window_ids=["qwen_window_03"],
+        bounded_asr=model_evidence(78, 86),
+        speech_activity_ids=["false_sfx_speech"],
+    )
+    acoustic = activity()
+    acoustic["intervals"].extend([
+        {"id": "false_sfx_speech", "source": "FireRedAED", "kind": "speech",
+         "start_s": 80, "end_s": 82},
+        {"id": "nonlexical", "source": "FireRedAED", "kind": "sfx",
+         "start_s": 80, "end_s": 82},
+    ])
+    out = promote_bounded_source_turns(
+        baseline(), dossier(), segments(candidate_sfx), activity=acoustic
+    )
+    assert out["source_promotion"]["new_source_turns"] == 0
+    assert ("high_nonlexical_risk_without_independent_speech_corroboration"
+            in out["source_promotion"]["quarantined"][0]["reasons"])
+    # Independent corroborating source may remain PROVISIONAL, never human truth.
+    acoustic["intervals"].append({
+        "id": "silero_second_source", "source": "SileroVAD", "kind": "speech",
+        "start_s": 80.2, "end_s": 81.5,
+    })
+    candidate_sfx["speech_activity_ids"].append("silero_second_source")
+    out = promote_bounded_source_turns(
+        baseline(), dossier(), segments(candidate_sfx), activity=acoustic
+    )
+    assert out["source_promotion"]["new_model_provisional_turns"] == 1
+    assert out["utterances"][-1]["source_text_human_reference_verified"] is False
 
 
 def test_audited_singing_kind_conflict_is_rejected():

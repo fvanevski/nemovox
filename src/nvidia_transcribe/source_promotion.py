@@ -208,12 +208,26 @@ def promote_bounded_source_turns(
                 raise ValueError("Speech support IDs must be a unique array")
             if not support_ids:
                 reasons.append("no_positive_speech_activity_for_model_only_text")
+            positive_families = set()
             for aid in support_ids:
                 support = activity_rows.get(aid)
                 if support is None or support.get("kind") not in {"speech", "lexical_shout"}:
                     raise ValueError("Claimed positive activity ID is not known speech")
                 if _overlap(a, b, *support["_bounds"]) <= 0:
                     raise ValueError("Positive speech support must intersect source event")
+                positive_families.add(support["source"])
+            # Singing and effects can trigger false speech detectors. Do not
+            # call this an absolute audio-negative test: if multiple
+            # independent families detect speech, retain provisional content.
+            # A single model's speech flag on predominantly song/SFX audio
+            # is insufficient to promote new, unreviewed model words.
+            nonlexical_dominance = any(
+                r.get("kind") in {"singing", "sfx", "nonlexical_vocalization"}
+                and _overlap(a, b, *r["_bounds"]) >= 0.5*(b-a)
+                for r in activity_rows.values()
+            )
+            if nonlexical_dominance and len(positive_families) < 2:
+                reasons.append("high_nonlexical_risk_without_independent_speech_corroboration")
 
         replacement_ids = candidate.get("supersedes_legacy_utterance_ids") or []
         if (not isinstance(replacement_ids, list) or len(set(replacement_ids)) != len(replacement_ids)
@@ -305,7 +319,8 @@ def promote_bounded_source_turns(
             "bounded_candidate_ids": [x["id"] for x in proposals],
             "source_window_context_ids": list(refs),
             "speaker_identity_accepted": False,
-            "source_text_acoustically_verified": bool(reviewed),
+            "source_text_review_attested": bool(reviewed),
+            "source_text_human_reference_verified": False,
         }
         accepted.append({
             "utterance": selected,
@@ -335,6 +350,7 @@ def promote_bounded_source_turns(
             "no_window_wide_text_as_localized_source": True,
             "model_only_may_not_replace_legacy": True,
             "no_auto_music_sfx_source": True,
+            "dominant_singing_sfx_requires_two_independent_speech_sources_or_direct_review": True,
             "no_source_unit_deletion": True,
             "legacy_supersession_requires_existing_same_event_id": True,
             "word_timing_and_speaker_identity_not_certified": True,
