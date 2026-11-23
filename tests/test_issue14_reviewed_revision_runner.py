@@ -87,3 +87,15 @@ def test_missing_fresh_receipt_or_invalid_output_stem_rejected(tmp_path, monkeyp
     with pytest.raises(ValueError,match='filename component'):
         runner.run_reviewed_revision(**dict(args,episode_stem='../unsafe'),apply=True)
     assert not args['output_dir'].exists()
+
+
+def test_render_failure_leaves_no_accepted_output_and_cleans_temporary_root(tmp_path, monkeypatch):
+    args=setup_case(tmp_path, monkeypatch)
+    def render_fails(*a, **kw):
+        (kw['output_dir']/'incomplete.srt').write_text('not accepted')
+        raise RuntimeError('simulated renderer failure')
+    monkeypatch.setattr(runner, 'render_subtitles', render_fails)
+    with pytest.raises(RuntimeError,match='simulated renderer failure'):
+        runner.run_reviewed_revision(**args,apply=True)
+    assert not args['output_dir'].exists()
+    assert not list(tmp_path.glob('.reviewed-revision-*'))
