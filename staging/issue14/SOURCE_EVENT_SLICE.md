@@ -10,7 +10,7 @@ This slice is one architectural integration campaign on existing draft PR #15, n
 
 ## Typed record relationships
 
-- `asr_observations`: stable immutable observation ID rooted in media fingerprint, original raw SHA and excerpt boundaries; retains recognized source text and the actual inference window.
+- `asr_observations`: stable immutable observation ID rooted in media fingerprint, original raw SHA and excerpt boundaries; retains a named loop-cleaned recognized-text projection and the actual inference window, while the unmodified raw response is authenticated by its SHA and retained privately.
 - `lexical_observations`: one source unit per upstream unit, with stable input-ordinal ID, its original Unicode text, local tag, non-authoritative global speaker hypothesis and separate CTC hypothesis/status. Never assigns accepted acoustic word time or speaker identity.
 - `local_turn_candidates`: source-local contiguous runs, *not* established physical speaker turns; useful for comparing source transcription to legacy utterances.
 - `cross_chunk_correspondence_candidates`: lexical sequence correspondence only when *actual inference windows overlap*. Four or more contiguous normalized units; original observations always survive, including repeated phrases, Chinese characters and potentially separate speakers. A proposed correspondence is never a deletion instruction, especially if CTC chronology is shifted or speakers disagree.
@@ -21,7 +21,7 @@ IDs are stable for identical raw source + media + excerpt identity, not asserted
 ## Acceptance for this slice
 
 1. CPU deterministic tests cover stable/different revisions, genuine repeats, CJK, unknown timing, displaced CTC, shared-vs-disjoint audio, speaker hypothesis disagreement and false activity flags; full CPU, Studio and frontend checks remain green.
-2. Existing 16-chunk and 35-chunk private cached runs can generate this ledger with exact input source/raw digests and without changing existing translation/ASS; compare before/after observable counts and mark coverage unverified. If raw source outputs are missing or mismatched, BLOCKED with evidence, not fabricated replay.
+2. Existing 16-chunk and 35-chunk private cached runs can generate this ledger with exact input source/raw digests and without changing existing translation/ASS; compare before/after observable counts and mark coverage unverified. If raw source outputs are missing or mismatched, BLOCKED with evidence, not fabricated replay. For historical c28 `finish=length`, the explicit `--forensic-incomplete` mode records a rejected/gap chunk without treating its lexical content as accepted; never mistake a partial ledger for episode coverage.
 3. Review the 22 primary W/C/S cases, H1-H4 and two Mandarin controls against immutable source-unit and correspondence IDs; identify recoverable event matches, missing-model words not represented by any observation, and false candidate matches. Report per-case precision/recall limits; avoid treating agreement among two Nemotron requests as independent acoustic validation.
 4. Perform a bounded **existing-model** host comparison only if it materially resolves one of those uncertainties, using Nemovox resource admission and no additional third-party weights or unowned GPU service disruption. No 23-minute full-episode rerun is necessary at this slice.
 5. Publish a complete sanitized, manifest-hashed evidence packet and exact source identity. Private WAV, transcriptions of full episodes, raw model payloads, credentials, model weights and proprietary media stay host-local.

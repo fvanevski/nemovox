@@ -67,6 +67,15 @@ def test_incomplete_generation_is_not_valid_even_if_manifest_claims_complete(tmp
         replay_cached_source_evidence(root)
 
 
+def test_forensic_replay_exposes_incomplete_chunk_without_accepting_its_words(tmp_path):
+    root = _cache(tmp_path, finish="length")
+    ledger = replay_cached_source_evidence(root, forensic_incomplete=True)
+    assert ledger["replay_provenance"]["mode"] == "offline_forensic_partial"
+    assert ledger["replay_provenance"]["rejected_or_incomplete_chunks"][0]["chunk_index"] == 0
+    assert ledger["lexical_observations"] == []
+    assert ledger["diagnostics"]["source_coverage_certified"] is False
+
+
 def test_archived_manifest_raw_response_path_cannot_redirect_reads(tmp_path):
     root = _cache(tmp_path)
     path = root / "manifest.json"
