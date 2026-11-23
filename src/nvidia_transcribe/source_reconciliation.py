@@ -157,12 +157,20 @@ def reconcile_source_observations(
         raise ValueError("Lexical unit identities must be unique and nonempty")
     valid_unit_ids = set(lexical_ids)
     ledger_windows = []
+    window_by_id: dict[str, tuple[float, float]] = {}
     for row in ledger.get("asr_observations") or []:
         a, b = _interval(row, start="infer_start_s", end="infer_end_s")
+        window_by_id[row["id"]] = (a, b)
         ledger_windows.append({
             "id": row["id"], "start_s": a, "end_s": b,
             "raw_response_sha256": _digest(row.get("raw_response_sha256"), "ASR response"),
         })
+    unit_source_window: dict[str, tuple[float, float]] = {}
+    for row in ledger.get("lexical_observations") or []:
+        owner = row.get("asr_observation_id")
+        if owner not in window_by_id:
+            raise ValueError("Source lexical unit lacks a valid parent ASR observation")
+        unit_source_window[row["id"]] = window_by_id[owner]
 
     acoustic_activity = []
     for row in (activity or {}).get("intervals") or []:
@@ -203,6 +211,11 @@ def reconcile_source_observations(
                 raise ValueError("Linking units needs positive independent audio-event review")
             _digest(ev.get("review_evidence_sha256"), "review_evidence_sha256")
             for unit_id in linked:
+                # No lexical observation from an inference request covering
+                # [25s, 45s] could have heard an event near 1132s. CTC can
+                # drift, but the request's *audio input bounds* cannot.
+                if _overlap(a, b, *unit_source_window[unit_id]) <= 0:
+                    raise ValueError("Reviewed unit has no parent audio-window overlap with the event")
                 if unit_id in unit_to_reviewed_event:
                     raise ValueError("One lexical source unit cannot be bound to two independent events")
                 unit_to_reviewed_event[unit_id] = eid
@@ -262,6 +275,9 @@ def reconcile_source_observations(
             "legacy_asr_window_context_ids": nemotron_windows,
             "model_windows_do_not_localize_or_verify_words": True,
             "positive_audio_event_unit_ids": list(linked),
+            "unit_link_review_evidence_sha256": (
+                ev.get("review_evidence_sha256") if linked else None
+            ),
             "shared_non_speech_risk": any(s["kind"] in {"singing", "music", "sfx"} for s in supporting_activity),
             "speaker_identity_accepted": False,
             "cross_chunk_echo_decision": "unresolved_without_positive_same_event_identity",

@@ -19,10 +19,13 @@ def source():
              "raw_response_sha256": "b" * 64},
             {"id": "asr_c28", "infer_start_s": 1100, "infer_end_s": 1154,
              "raw_response_sha256": "c" * 64},
+            {"id": "asr_c28_context", "infer_start_s": 1122, "infer_end_s": 1168,
+             "raw_response_sha256": "f" * 64},
         ],
         "lexical_observations": [
-            {"id": "unit_a", "asr_observation_id": "asr_orig"},
-            {"id": "unit_b", "asr_observation_id": "asr_c28"},
+            {"id": "unit_a", "asr_observation_id": "asr_c28"},
+            {"id": "unit_b", "asr_observation_id": "asr_c28_context"},
+            {"id": "unit_wrong_audio", "asr_observation_id": "asr_orig"},
         ],
         "cross_chunk_correspondence_candidates": [{
             "id": "corr_false", "left_observation_unit_ids": ["unit_a"],
@@ -191,6 +194,18 @@ def test_same_lexical_phrase_reviewed_in_two_distinct_audio_events_is_not_delete
     result = reconcile_source_observations(src, plan, q, audited_events=audited)
     assert result["echo_correspondence_hypotheses"][0]["decision"] == "distinct_audio_events_reviewed_preserve_both"
     assert result["diagnostics"]["source_unit_observations_deleted"] == 0
+
+
+def test_reviewed_unit_cannot_be_assigned_to_an_event_outside_its_audio_input():
+    src, plan, q, audited = setup()
+    audited["events"][1].update({
+        "linked_source_unit_ids": ["unit_wrong_audio"],
+        "same_audio_event_verified": True,
+        "review_method": "direct_audio_listening",
+        "review_evidence_sha256": "f" * 64,
+    })
+    with pytest.raises(ValueError, match="no parent audio-window overlap"):
+        reconcile_source_observations(src, plan, q, audited_events=audited)
 
 
 def test_audio_event_ids_not_deduced_from_similar_model_text():
