@@ -90,10 +90,11 @@ def audit_ctc_timing_units(
                          or this_mid > max(prev_mid, next_mid) + outlier_displacement_s)):
                 reasons.setdefault(this_i, "ctc_isolated_sequence_outlier")
 
-    # A coherent sequence can be compressed into an acoustically
-    # implausible 1-2 second CTC interval without an isolated outlier.
-    # Quarantine only a sustained 8+-word, 55+-character run that exceeds
-    # 38 source characters/s. We do NOT infer true timing or suppress text.
+    # A coherent sequence can be compressed into an implausible CTC
+    # interval without one isolated outlier. Check bounded 8-20-word
+    # subspans (rather than an entire long speaker run, which may contain
+    # ordinary pauses). A 35+ source-char/s, >=45-character, <=3s span is
+    # a conservative REVIEW trigger, not a claim of acoustically false text.
     # Short exclamations and ordinary rapid dialogue remain untouched.
     for speaker, indexes in by_speaker.items():
         runs: list[list[int]] = []
@@ -118,22 +119,34 @@ def audit_ctc_timing_units(
         for candidate in runs:
             if len(candidate) < 8:
                 continue
-            a = float(copied[candidate[0]]["start"])
-            b = float(copied[candidate[-1]]["end"])
-            span = b - a
-            if span <= 0 or span > 4.0:
-                continue
-            chars = sum(len(str(copied[i].get("text") or "")) for i in candidate)
-            if chars < 55 or chars / span <= 38.0:
-                continue
-            for i in candidate:
+            flagged: set[int] = set()
+            exemplars: list[tuple[list[int], int, float]] = []
+            for start in range(len(candidate) - 7):
+                for end in range(start + 8, min(len(candidate), start + 20) + 1):
+                    window = candidate[start:end]
+                    a = float(copied[window[0]]["start"])
+                    b = float(copied[window[-1]]["end"])
+                    span = b - a
+                    if span <= 0 or span > 3.0:
+                        continue
+                    chars = sum(len(str(copied[i].get("text") or "")) for i in window)
+                    if chars >= 45 and chars / span > 35.0:
+                        flagged.update(window)
+                        exemplars.append((window, chars, span))
+                        break
+            for i in flagged:
                 reasons.setdefault(i, "ctc_multiword_temporal_compression")
-            if len(dense_sequences) < 30:
+            if exemplars and len(dense_sequences) < 30:
+                # Summarize a single representative window per contiguous
+                # speaker run; per-unit flags retain full evidence.
+                window, chars, span = max(exemplars, key=lambda item: item[1]/item[2])
                 dense_sequences.append({
-                    "speaker": speaker, "first_source_unit": candidate[0],
-                    "last_source_unit": candidate[-1], "units": len(candidate),
-                    "source_characters": chars, "ctc_span_s": round(span, 4),
-                    "ctc_characters_per_second": round(chars / span, 2),
+                    "speaker": speaker, "first_source_unit": min(flagged),
+                    "last_source_unit": max(flagged),
+                    "units": len(flagged),
+                    "representative_source_characters": chars,
+                    "representative_ctc_span_s": round(span, 4),
+                    "representative_ctc_characters_per_second": round(chars / span, 2),
                     "reason": "multiword_density_requires_acoustic_review",
                 })
 
