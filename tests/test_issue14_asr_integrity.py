@@ -110,7 +110,7 @@ def test_failed_generation_preserves_raw_and_does_not_mark_resume_completed(tmp_
 
     def fake_transcribe(self, audio_path, config=None):
         calls.append(Path(audio_path).name)
-        raw = bad if len(calls) == 1 else good
+        raw = bad if len(calls) <= 2 else good
         return {"raw_response": raw, "contract": {"raw_text": "Bonjour."}, "latency_s": 0.01}
 
     monkeypatch.setattr(NemotronVLLMClient, "transcribe", fake_transcribe)
@@ -122,6 +122,8 @@ def test_failed_generation_preserves_raw_and_does_not_mark_resume_completed(tmp_
     assert manifest["asr_run_status"] == "incomplete_generation"
     assert manifest["chunks"][0]["status"] == "incomplete_generation"
     assert manifest["chunks"][0]["generation_integrity"]["reason"] == "generation_limit_exhausted"
+    assert manifest["chunks"][0]["generation_limit_retry_attempted"] is True
+    assert len(manifest["chunks"][0]["generation_attempts"]) == 2
     assert manifest["chunks"][0]["raw_response_sha256"]
     rejected = Path(manifest["chunks"][0]["rejected_raw_response_path"])
     assert rejected.parent.name == "rejected" and rejected.is_file()
@@ -130,7 +132,7 @@ def test_failed_generation_preserves_raw_and_does_not_mark_resume_completed(tmp_
     assert not (root / "recording.contract.json").exists()
 
     result = process_media(wav, output_dir=root, client=NemotronVLLMClient(model="stub"), config=cfg)
-    assert len(calls) == 2
+    assert len(calls) == 3
     assert result["contract"]["model_provenance"]["resumed_chunks"] == 0
     assert result["contract"]["utterances"]
     accepted = json.loads((root / "manifest.json").read_text(encoding="utf-8"))

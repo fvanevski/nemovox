@@ -359,6 +359,7 @@ def process_media(
                     "attempt": generation_attempt + 1,
                     "raw_response_sha256": attempt_sha,
                     "finish_reason": ((raw_resp.get("choices") or [{}])[0]).get("finish_reason"),
+                    "latency_s": float(res["latency_s"]),
                     "generation_status": attempt_integrity["status"],
                     "generation_reason": attempt_integrity.get("reason"),
                 })
@@ -387,9 +388,7 @@ def process_media(
                 "actual_wav_duration_s": actual_dur,
                 "raw_response_path": str(raw_path),
                 "raw_response_sha256": _sha256_text(raw_text_dump),
-                "latency_s": sum(float(attempt["latency_s"])
-                                 for attempt in generation_attempts
-                                 if "latency_s" in attempt) if False else res["latency_s"],
+                "latency_s": sum(attempt["latency_s"] for attempt in generation_attempts),
                 "finish_reason": ((raw_resp.get("choices") or [{}])[0]).get("finish_reason"),
                 "usage": raw_resp.get("usage"),
                 "generation_attempts": generation_attempts,
