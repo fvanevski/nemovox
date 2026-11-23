@@ -1,0 +1,34 @@
+{
+  "schema": "nemovox-issue14-canonical-source-identity/v1",
+  "run_id": "20261123T202749Z",
+  "repo": "fvanevski/nemovox",
+  "issue_number": 14,
+  "pr_number": 15,
+  "branch": "issue/14-longform-timing-boundaries",
+  "admitted_pr_head_sha": "a3aa626545d9b7b42d42c927067e99f34b6f50f4",
+  "validated_central_source_sha": "59a1b6a07613c1d7901f549af9c61db1d5db8696",
+  "validated_central_tree_sha": "14aabba2a241fdec636970ffb6a2a8bc07fff82e",
+  "base_main_sha": "8f6c03cbc70e84bf1970ba364207a02c9fe22b44",
+  "source_and_test_diff_vs_central": "none",
+  "prior_evidence_authenticated": {
+    "prior_public_manifest_path": "staging/issue14/evidence/20261123T195952Z/manifest.json",
+    "prior_public_manifest_sha256": "7c8cbde661d9a1914d9ab44ebcf57353e8aeed22422d36478e9dbd7c0417009b",
+    "prior_public_manifest_files_verified": "10/10",
+    "prior_private_archive_sha256": "d171504e8cfd361351348406b84f596973b3971e7692e15e4ad7f554e650e467",
+    "prior_private_archive_checksums_verified": "34/34",
+    "original_default_archive_sha256": "1b98ad231c3a15e98da41c76a9056d636f49a07819e298cbd1b55c46663aac4f",
+    "original_default_archive_checksums_verified": "56/56"
+  },
+  "untouched_host_inputs_sha256": {
+    "original_recording": "a67056da45130ae59bed594857372023c11e3c18a5f5b9bc85e167457b3b550e",
+    "previous_translated": "9422b3861743be135bf91baca40b43ef6de39b662f7032d78a1322b744df94fd",
+    "revised_recording": "dd1a497dad70d4b8bd047adc3f0306f5eed45b69fc972e2e6849130915b02900",
+    "candidate_dossier": "62127e987c26b26538e4ae27e69fcf5f734d98ab9c9d36ac8c3e53e185daab1a",
+    "local_voice_review": "3d57db67a58cff32ab3141a3dfffc4019ac98008616b73f52e5986b05b52a1aa",
+    "prior_voiced_contract": "61e931708e100abdabe9922161e086da538384f9fe73dd4fc1933e0917560dba",
+    "riva_9turn_receipts": "0bb7c643649801c07bff4ebb587d8749bb81dcd5aa6c50ac202d185b2dbe44b8",
+    "diagnostic_translated": "633172b80122158316e8ed77705d6c61e3eee86f709174d3d099bf374e648e9e"
+  },
+  "execution_mode": "CPU_ONLY",
+  "no_new_gpu_inference": true
+}

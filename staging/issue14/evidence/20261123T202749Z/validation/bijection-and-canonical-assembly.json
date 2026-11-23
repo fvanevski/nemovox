@@ -1,0 +1,169 @@
+{
+  "schema": "nemovox-issue14-canonical-assembly/v1",
+  "run_id": "20261123T202749Z",
+  "external_id_rekeying_applied": false,
+  "untouched_217_row_bijection": {
+    "original_utterance_count": 217,
+    "prior_translated_count": 217,
+    "renumbered_display_rows_count": 5,
+    "source_field_mismatches_count": 0,
+    "renumbered_display_rows": [
+      {
+        "display_id": "utt-0148",
+        "original_utterance_id": "utt-0150",
+        "source_start": null,
+        "source_end": null,
+        "grouped_utterance_ids": [
+          "utt-0148"
+        ],
+        "probable_duplicate_of": "utt-0147",
+        "source_text_sha256": "f0f0797060e0d140c00c646954f3b8d4325845a15c9332c6d6fb1dbf78104e3d",
+        "translated_text_sha256": "c8bcf4d67b2b05839d0ed25d79ff57a284f7ff2aaacabb65518a3765c9205014"
+      },
+      {
+        "display_id": "utt-0149",
+        "original_utterance_id": "utt-0151",
+        "source_start": null,
+        "source_end": null,
+        "grouped_utterance_ids": [
+          "utt-0149"
+        ],
+        "probable_duplicate_of": "utt-0151",
+        "source_text_sha256": "38a20ad381d9cd9e011821f6a4d3c19d4f34536ac33ffe68b957b341cc8645a9",
+        "translated_text_sha256": "5959667b6abb6f0c8602b833776e6408bf44dda05b64a2863e6030a5fff58b89"
+      },
+      {
+        "display_id": "utt-0150",
+        "original_utterance_id": "utt-0152",
+        "source_start": null,
+        "source_end": null,
+        "grouped_utterance_ids": [
+          "utt-0150"
+        ],
+        "probable_duplicate_of": "utt-0151",
+        "source_text_sha256": "c41a6128de5883308bc676014976cc46f7de8d33d2646bc382eae0ddafb2cf72",
+        "translated_text_sha256": "39721980f2db7f235ecd5f8d1c37011740d5fbab9bd11103fb3cd8960b96af18"
+      },
+      {
+        "display_id": "utt-0151",
+        "original_utterance_id": "utt-0148",
+        "source_start": 990.28,
+        "source_end": 993.992,
+        "grouped_utterance_ids": [
+          "utt-0151"
+        ],
+        "probable_duplicate_of": null,
+        "source_text_sha256": "ca30f5d64d963e48fb3041f72e519ae64b96d0d362197d0562ee2b1f8c70210e",
+        "translated_text_sha256": "49412f1c4404859357211efd11fab7581f4d992ccb3f853679c29ab5c7bbce97"
+      },
+      {
+        "display_id": "utt-0152",
+        "original_utterance_id": "utt-0149",
+        "source_start": 996.77,
+        "source_end": 998.949,
+        "grouped_utterance_ids": [
+          "utt-0152"
+        ],
+        "probable_duplicate_of": null,
+        "source_text_sha256": "6fd503dbace43d0edc81b9d5504bdbae36c2796f8c5b4186b2960beaf30accad",
+        "translated_text_sha256": "6fd503dbace43d0edc81b9d5504bdbae36c2796f8c5b4186b2960beaf30accad"
+      }
+    ]
+  },
+  "enable_false_behavior": {
+    "enabled": false,
+    "translated_contract_is_none": true,
+    "historical_translation_renumbered_rows": 5
+  },
+  "canonical_assemble_revised_translation": {
+    "total_utterances": 218,
+    "retained_checked_exact_source_and_translation_equality": 209,
+    "new_reviewed_checked": 9,
+    "superseded_original_utterances_count": 8,
+    "superseded_original_utterance_ids": [
+      "utt-0036",
+      "utt-0037",
+      "utt-0148",
+      "utt-0149",
+      "utt-0152",
+      "utt-0153",
+      "utt-0187",
+      "utt-0188"
+    ],
+    "bridge_report": {
+      "schema": "nemovox-revision-translation-bridge/v1",
+      "original_recording_sha256": "48c0e1cb1fd04941a126ba402e895280d6ac0c27461e7c7d4242b77b94a10281",
+      "original_translated_sha256": "ff69429429b5b8b1b0877523318c901378b9c0a4a7948d5f97c45f278f87e409",
+      "revised_recording_sha256": "41c8469be23ef156ae00e4f284b6391ad325838ce231f68390dd6639d43e04f2",
+      "source_fusion_report_sha256": "007a28d445504cd510b27f735db374cedd1d81a7958da1852957a90e92dc32ce",
+      "new_source_turn_ids": [
+        "src_turn_342e6920397acfeb63969595",
+        "src_turn_6c41e55fb098aaade547b27c",
+        "src_turn_6de0f1ddd6fa163e73d02bf3",
+        "src_turn_8c279d3228c89841c35f72d1",
+        "src_turn_bb3c03cf6b84d5cbd3c42dd7",
+        "src_turn_ca1ed9b4fcc188b5cc1b8eb7",
+        "src_turn_d2326c85c5d246f3202f7f42",
+        "src_turn_d34088b4bd1cea0244ea65c2",
+        "src_turn_e9ec06f37f1d3c32a521b4dc"
+      ],
+      "superseded_source_turn_ids": [
+        "utt-0036",
+        "utt-0037",
+        "utt-0148",
+        "utt-0149",
+        "utt-0152",
+        "utt-0153",
+        "utt-0187",
+        "utt-0188"
+      ],
+      "fresh_translations_supplied": 9,
+      "missing_fresh_translation_ids": [],
+      "old_translation_reused_only_when_source_unchanged": true,
+      "historical_translation_renumbered_rows": 5,
+      "historical_translation_identity_map_sha256": "85ae485bcf77c954781e518b459484669996fb28bd66e7d1cc46e0bb2636b578",
+      "original_recording_mutated": false,
+      "enabled": true
+    },
+    "canonical_translated_contract_sha256": "d4e37a4b1425a1165da152bb995bd422961267d223e9d31367df5ffb20a0e643",
+    "canonical_bridge_report_sha256": "58e5fd9439b8953b937d7b4877ab32a747bac1ecf74a0fadfc153aa861e709d8",
+    "canonical_revised_with_voices_sha256": "61e931708e100abdabe9922161e086da538384f9fe73dd4fc1933e0917560dba",
+    "inputs_mutated_in_memory_or_disk": false
+  },
+  "canonical_vs_prior_diagnostic_contract_diff": {
+    "source_and_translated_text_diffs": 0,
+    "metadata_only_row_diffs_count": 2,
+    "metadata_only_row_diffs": [
+      {
+        "id": "utt-0150",
+        "changed_keys": [
+          "historical_translated_row_id"
+        ],
+        "canonical_subset": {
+          "historical_translated_row_id": "utt-0148"
+        },
+        "diagnostic_subset": {
+          "historical_translated_row_id": null
+        }
+      },
+      {
+        "id": "utt-0151",
+        "changed_keys": [
+          "historical_probable_duplicate_of_superseded",
+          "historical_translated_row_id",
+          "probable_duplicate_of"
+        ],
+        "canonical_subset": {
+          "historical_probable_duplicate_of_superseded": "utt-0148",
+          "historical_translated_row_id": "utt-0149",
+          "probable_duplicate_of": null
+        },
+        "diagnostic_subset": {
+          "historical_probable_duplicate_of_superseded": null,
+          "historical_translated_row_id": null,
+          "probable_duplicate_of": "utt-0151"
+        }
+      }
+    ]
+  }
+}
