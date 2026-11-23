@@ -1,0 +1,44 @@
+{
+  "schema": "nemovox-evidence-manifest/v1",
+  "run_id": "20261123T011017Z",
+  "admitted_pr_head_sha": "3ec4f949f33cf0a7a30ebc55080bc263ebb4bdc3",
+  "member_count": 9,
+  "members": {
+    "README.md": {
+      "bytes": 1179,
+      "sha256": "82e7aeacae36ee6c46ba38adb76c10fd1543eeb370b9dbb2b0aade11d830c1ba"
+    },
+    "source-identity.json": {
+      "bytes": 1919,
+      "sha256": "736bf52925cdb45a8f2f6f35fe218af1b15c4f52068f2011ddc15ead312db07f"
+    },
+    "validation/model-inventory.json": {
+      "bytes": 5635,
+      "sha256": "052c23bdec039f13a6cbbbae1547429b8f8d291d43f0c24dda01af855f4ff53a"
+    },
+    "validation/model-scorecard.json": {
+      "bytes": 20931,
+      "sha256": "6ab98a99612930f9e4559bc8ca8cead76dc0cb63133023f4c9901f1587ca1926"
+    },
+    "validation/source-coverage.md": {
+      "bytes": 6556,
+      "sha256": "b9b9ac19cb19cf4fd2d6f64d4d9fcfedc3b8aab549e173ef3883f06e9adadd93"
+    },
+    "validation/timing-and-speakers.md": {
+      "bytes": 5954,
+      "sha256": "d1603d48db3003f80c9d07be5e5c94a29ef527cbf7fb059af5a962b7bc123e9c"
+    },
+    "validation/runtime-and-cost.json": {
+      "bytes": 2953,
+      "sha256": "c1fe99b0a046a84ee190dbd48c2ac8e2ac58d32d4f020f871bc75006c99a95a8"
+    },
+    "review/architecture-selection.md": {
+      "bytes": 5146,
+      "sha256": "ac57a60417f409e89a4b26cbfe824205c64f0c0a5bdb2a69d5dacf2fbd2473bb"
+    },
+    "COMMAND_SHAPE_FRICTION.txt": {
+      "bytes": 2614,
+      "sha256": "7aea88e67a44ef87d26503fe46e6ef33a9ca554367eff675b1040e8b28b2be97"
+    }
+  }
+}

@@ -1,0 +1,133 @@
+{
+  "schema": "nemovox-issue14-model-inventory/v1",
+  "run_id": "20261123T011017Z",
+  "models": [
+    {
+      "role": "baseline_asr_and_ctc",
+      "repo_id": "nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4",
+      "revision": "local_preexisting_checkpoint",
+      "license": "nvidia-open-model-license",
+      "acquisition_status": "preexisting_reused_unmodified_archived_observations",
+      "local_dir": "/workspace/models/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4",
+      "file_count": 24,
+      "total_bytes": 21577427198,
+      "config_sha256": "c6509c7a68ae4bd94fca06a39216029c233f8dc43428d6228fe425cfe4926313"
+    },
+    {
+      "role": "vad_baseline",
+      "repo_id": "snakers4/silero-vad",
+      "revision": "silero_vad_v6.onnx(faster-whisper)",
+      "license": "mit",
+      "acquisition_status": "preexisting_reused",
+      "local_dir": "<HOST_PYANNOTE_VENV>/faster_whisper/assets/silero_vad_v6.onnx",
+      "file_count": 1,
+      "total_bytes": 1245151,
+      "onnx_sha256": "4cbf549b8326f60f80f2536d9eefeb450a9abe83365a098031c89719f1be17d2"
+    },
+    {
+      "role": "diarization_baseline",
+      "repo_id": "pyannote/speaker-diarization-community-1",
+      "revision": "3533c8cf8e369892e6b79ff1bf80f7b0286a54ee",
+      "license": "cc-by-4.0 (hf_gated_pre_cached)",
+      "acquisition_status": "preexisting_hf_cache_reused_offline",
+      "local_dir": "<HOST_HF_CACHE>/models--pyannote--speaker-diarization-community-1/snapshots/3533c8cf8e369892e6b79ff1bf80f7b0286a54ee",
+      "file_count": 10,
+      "total_bytes": 33695573,
+      "config_sha256": "5ce2bfa9a938dc132cec1172592d65173cbb8f444ea1e4133f10f9391de155be"
+    },
+    {
+      "role": "vad_aed_challenger",
+      "repo_id": "FireRedTeam/FireRedVAD",
+      "revision": "7990aaccc6b7aec1e527743bd30201f2c4a03b8c",
+      "license": "apache-2.0",
+      "acquisition_status": "downloaded_new",
+      "local_dir": "/workspace/models/FireRedVAD",
+      "file_count": 9,
+      "total_bytes": 7035047,
+      "key_digests": {
+        "AED/model.pth.tar": {
+          "bytes": 2370097,
+          "sha256": "ad08a4e05b58ca328154e158d24cff57a2fe796ceabb63bb701544c3f7d4f7ad"
+        },
+        "Stream-VAD/model.pth.tar": {
+          "bytes": 2283513,
+          "sha256": "ec88a8ae8ac5f004cdbd20c1eac4a9e9d12067c3d51ac5b141afa1f921fb59c9"
+        },
+        "VAD/model.pth.tar": {
+          "bytes": 2368049,
+          "sha256": "63f4fb1b00a6b8607c118dd48efc18d5e40d67d99b7bf9aa7a8d61540cf23d71"
+        },
+        "config.yaml": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "inference_repo_commit": "c30ec49e8cc69642b0ee65362eba11b9d11c6e54"
+    },
+    {
+      "role": "diarization_challenger",
+      "repo_id": "nvidia/Nemotron-3-Diarization",
+      "revision": "52a432672732425e4c19765b9fec9b5810e6f4ba",
+      "license": "openmdw-1.1",
+      "acquisition_status": "preexisting_reused_unmodified",
+      "local_dir": "/workspace/models/Nemotron-3-Diarization",
+      "file_count": 16,
+      "total_bytes": 709855744,
+      "model_safetensors_sha256": "c074d86335b3b794f8fa5edc25594558f128bdb3914d27806a3a5a2e44963cb6",
+      "config_sha256": "dd795ec07ffa09acf18d231aa3fa8642aa5c521760953754e02559a7413b6873"
+    },
+    {
+      "role": "french_asr_challenger",
+      "repo_id": "nvidia/parakeet-tdt-0.6b-v3",
+      "revision": "541d1f99c6b0c3cd0b11a95167540bb8edefd82b",
+      "license": "cc-by-4.0",
+      "acquisition_status": "downloaded_new",
+      "local_dir": "/workspace/models/parakeet-tdt-0.6b-v3",
+      "file_count": 12,
+      "total_bytes": 5732941955,
+      "model_safetensors_sha256": "3a2026366188c8c68598edbbff92f8d11590a08e0ae2e6775544e7b07d6a5e11",
+      "config_sha256": "e747b85e1bdfd300c8b8ac63bac8dd5221f8fe9bc275b48d06c735fcd6971b6e"
+    },
+    {
+      "role": "fr_zh_asr_challenger",
+      "repo_id": "Qwen/Qwen3-ASR-1.7B",
+      "revision": "7278e1e70fe206f11671096ffdd38061171dd6e5",
+      "license": "apache-2.0",
+      "acquisition_status": "preexisting_reused_unmodified",
+      "local_dir": "/workspace/models/Qwen3-ASR-1.7B",
+      "file_count": 12,
+      "total_bytes": 4703114308,
+      "config_sha256": "2e74a751548b8ad7d7526d29365ad8144c345d8b412b1152d25dc6698452712f"
+    },
+    {
+      "role": "mandarin_asr_challenger",
+      "repo_id": "FireRedTeam/FireRedASR2-AED",
+      "revision": "2304afed56eacfee6256dee5937ed22ffa0b64ec",
+      "license": "apache-2.0",
+      "acquisition_status": "downloaded_new",
+      "local_dir": "/workspace/models/FireRedASR2-AED",
+      "file_count": 7,
+      "total_bytes": 4731895352,
+      "model_pth_tar_sha256": "4677cbd30988d63ed3e777f6a42a1e5260a3865317f6e15e488bef40954f7054",
+      "inference_repo_commit": "4e7d9aaf4482a47cec1724807026b9b151926eb5"
+    },
+    {
+      "role": "forced_aligner_challenger",
+      "repo_id": "Qwen/Qwen3-ForcedAligner-0.6B",
+      "revision": "c7cbfc2048c462b0d63a45797104fc9db3ad62b7",
+      "license": "apache-2.0",
+      "acquisition_status": "preexisting_reused_unmodified",
+      "local_dir": "/workspace/models/Qwen3-ForcedAligner-0.6B",
+      "file_count": 10,
+      "total_bytes": 1840072459,
+      "model_safetensors_sha256": "47831d0e82f96b20e9034dba01a075ee06436654719f6a68289e49f1b65ce0e7",
+      "config_sha256": "d616c65d46c4b90bdc651b0a0963ea932732241140f337f9bb6b0335a9c8ef09"
+    }
+  ],
+  "excluded_models": [
+    {
+      "repo_id": "nvidia/multitalker-parakeet-streaming-0.6b-v1",
+      "reason": "Requires external speaker activity and one instance per speaker; French/Mandarin accuracy unestablished; NVIDIA Open Model License."
+    }
+  ]
+}

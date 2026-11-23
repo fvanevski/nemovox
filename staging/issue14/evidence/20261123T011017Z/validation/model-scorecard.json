@@ -1,0 +1,788 @@
+{
+  "schema": "nemovox-issue14-model-scorecard/v1",
+  "run_id": "20261123T011017Z",
+  "scorer": "evaluations/issue14/model_challenge/score.py",
+  "scorer_note": "Event-level hit is temporal overlap against independently auditioned source events; not full-episode WER/CER or DER. WER/CER remain UNVERIFIED where human verbatim reference text is absent.",
+  "scored_models": {
+    "silero_vad_v6_fr": {
+      "model": {
+        "repo_id": "snakers4/silero-vad",
+        "revision": "silero_vad_v6.onnx(faster-whisper)",
+        "task": "vad"
+      },
+      "scored": 16,
+      "unscored": 0,
+      "summary": {
+        "reference_speech_events": 42,
+        "event_hit_any_overlap": 28,
+        "reference_speech_s": 175.1,
+        "reference_speech_covered_s": 119.864,
+        "non_speech_only_predicted_speech_s": 14.52
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "firered_vad_fr": {
+      "model": {
+        "repo_id": "FireRedTeam/FireRedVAD",
+        "revision": "7990aaccc6b7aec1e527743bd30201f2c4a03b8c",
+        "task": "vad"
+      },
+      "scored": 16,
+      "unscored": 0,
+      "summary": {
+        "reference_speech_events": 42,
+        "event_hit_any_overlap": 40,
+        "reference_speech_s": 175.1,
+        "reference_speech_covered_s": 154.03,
+        "non_speech_only_predicted_speech_s": 49.499
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "firered_stream_vad_fr": {
+      "model": {
+        "repo_id": "FireRedTeam/FireRedVAD-Stream",
+        "revision": "7990aaccc6b7aec1e527743bd30201f2c4a03b8c",
+        "task": "vad"
+      },
+      "scored": 16,
+      "unscored": 0,
+      "summary": {
+        "reference_speech_events": 42,
+        "event_hit_any_overlap": 40,
+        "reference_speech_s": 175.1,
+        "reference_speech_covered_s": 149.11,
+        "non_speech_only_predicted_speech_s": 48.41
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "firered_aed_fr": {
+      "model": {
+        "repo_id": "FireRedTeam/FireRedVAD-AED",
+        "revision": "7990aaccc6b7aec1e527743bd30201f2c4a03b8c",
+        "task": "vad"
+      },
+      "scored": 16,
+      "unscored": 0,
+      "summary": {
+        "reference_speech_events": 42,
+        "event_hit_any_overlap": 40,
+        "reference_speech_s": 175.1,
+        "reference_speech_covered_s": 146.44,
+        "non_speech_only_predicted_speech_s": 39.919
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "silero_vad_v6_zh": {
+      "model": {
+        "repo_id": "snakers4/silero-vad",
+        "revision": "silero_vad_v6.onnx(faster-whisper)",
+        "task": "vad"
+      },
+      "scored": 2,
+      "unscored": 0,
+      "summary": {
+        "reference_speech_events": 4,
+        "event_hit_any_overlap": 4,
+        "reference_speech_s": 17.5,
+        "reference_speech_covered_s": 13.368,
+        "non_speech_only_predicted_speech_s": 3.0
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "firered_vad_zh": {
+      "model": {
+        "repo_id": "FireRedTeam/FireRedVAD",
+        "revision": "7990aaccc6b7aec1e527743bd30201f2c4a03b8c",
+        "task": "vad"
+      },
+      "scored": 2,
+      "unscored": 0,
+      "summary": {
+        "reference_speech_events": 4,
+        "event_hit_any_overlap": 4,
+        "reference_speech_s": 17.5,
+        "reference_speech_covered_s": 13.7,
+        "non_speech_only_predicted_speech_s": 2.75
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "firered_stream_vad_zh": {
+      "model": {
+        "repo_id": "FireRedTeam/FireRedVAD-Stream",
+        "revision": "7990aaccc6b7aec1e527743bd30201f2c4a03b8c",
+        "task": "vad"
+      },
+      "scored": 2,
+      "unscored": 0,
+      "summary": {
+        "reference_speech_events": 4,
+        "event_hit_any_overlap": 4,
+        "reference_speech_s": 17.5,
+        "reference_speech_covered_s": 13.38,
+        "non_speech_only_predicted_speech_s": 2.8
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "firered_aed_zh": {
+      "model": {
+        "repo_id": "FireRedTeam/FireRedVAD-AED",
+        "revision": "7990aaccc6b7aec1e527743bd30201f2c4a03b8c",
+        "task": "vad"
+      },
+      "scored": 2,
+      "unscored": 0,
+      "summary": {
+        "reference_speech_events": 4,
+        "event_hit_any_overlap": 4,
+        "reference_speech_s": 17.5,
+        "reference_speech_covered_s": 10.07,
+        "non_speech_only_predicted_speech_s": 2.8
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "pyannote_clip_reg_fr": {
+      "model": {
+        "repo_id": "pyannote/speaker-diarization-community-1(regular)",
+        "revision": "3533c8cf8e369892e6b79ff1bf80f7b0286a54ee",
+        "task": "diarization"
+      },
+      "scored": 16,
+      "unscored": 0,
+      "summary": {
+        "reference_speech_events": 42,
+        "event_hit_any_overlap": 38,
+        "reference_speech_s": 175.1,
+        "reference_speech_covered_s": 132.607,
+        "non_speech_only_predicted_speech_s": 16.979
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "pyannote_clip_exc_fr": {
+      "model": {
+        "repo_id": "pyannote/speaker-diarization-community-1(exclusive)",
+        "revision": "3533c8cf8e369892e6b79ff1bf80f7b0286a54ee",
+        "task": "diarization"
+      },
+      "scored": 16,
+      "unscored": 0,
+      "summary": {
+        "reference_speech_events": 42,
+        "event_hit_any_overlap": 38,
+        "reference_speech_s": 175.1,
+        "reference_speech_covered_s": 132.607,
+        "non_speech_only_predicted_speech_s": 16.979
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "nem3_diar_clip_off_fr": {
+      "model": {
+        "repo_id": "nvidia/Nemotron-3-Diarization(offline)",
+        "revision": "52a432672732425e4c19765b9fec9b5810e6f4ba",
+        "task": "diarization"
+      },
+      "scored": 16,
+      "unscored": 0,
+      "summary": {
+        "reference_speech_events": 42,
+        "event_hit_any_overlap": 37,
+        "reference_speech_s": 175.1,
+        "reference_speech_covered_s": 131.69,
+        "non_speech_only_predicted_speech_s": 15.7
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "nem3_diar_clip_str_fr": {
+      "model": {
+        "repo_id": "nvidia/Nemotron-3-Diarization(streaming_low_latency)",
+        "revision": "52a432672732425e4c19765b9fec9b5810e6f4ba",
+        "task": "diarization"
+      },
+      "scored": 16,
+      "unscored": 0,
+      "summary": {
+        "reference_speech_events": 42,
+        "event_hit_any_overlap": 37,
+        "reference_speech_s": 175.1,
+        "reference_speech_covered_s": 128.84,
+        "non_speech_only_predicted_speech_s": 16.03
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "pyannote_clip_reg_zh": {
+      "model": {
+        "repo_id": "pyannote/speaker-diarization-community-1(regular)",
+        "revision": "3533c8cf8e369892e6b79ff1bf80f7b0286a54ee",
+        "task": "diarization"
+      },
+      "scored": 2,
+      "unscored": 0,
+      "summary": {
+        "reference_speech_events": 4,
+        "event_hit_any_overlap": 4,
+        "reference_speech_s": 17.5,
+        "reference_speech_covered_s": 13.027,
+        "non_speech_only_predicted_speech_s": 2.699
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "pyannote_clip_exc_zh": {
+      "model": {
+        "repo_id": "pyannote/speaker-diarization-community-1(exclusive)",
+        "revision": "3533c8cf8e369892e6b79ff1bf80f7b0286a54ee",
+        "task": "diarization"
+      },
+      "scored": 2,
+      "unscored": 0,
+      "summary": {
+        "reference_speech_events": 4,
+        "event_hit_any_overlap": 4,
+        "reference_speech_s": 17.5,
+        "reference_speech_covered_s": 13.027,
+        "non_speech_only_predicted_speech_s": 2.699
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "nem3_diar_clip_off_zh": {
+      "model": {
+        "repo_id": "nvidia/Nemotron-3-Diarization(offline)",
+        "revision": "52a432672732425e4c19765b9fec9b5810e6f4ba",
+        "task": "diarization"
+      },
+      "scored": 2,
+      "unscored": 0,
+      "summary": {
+        "reference_speech_events": 4,
+        "event_hit_any_overlap": 4,
+        "reference_speech_s": 17.5,
+        "reference_speech_covered_s": 10.15,
+        "non_speech_only_predicted_speech_s": 3.0
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "nem3_diar_clip_str_zh": {
+      "model": {
+        "repo_id": "nvidia/Nemotron-3-Diarization(streaming_low_latency)",
+        "revision": "52a432672732425e4c19765b9fec9b5810e6f4ba",
+        "task": "diarization"
+      },
+      "scored": 2,
+      "unscored": 0,
+      "summary": {
+        "reference_speech_events": 4,
+        "event_hit_any_overlap": 4,
+        "reference_speech_s": 17.5,
+        "reference_speech_covered_s": 10.49,
+        "non_speech_only_predicted_speech_s": 2.77
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "pyannote_full_reg_fr": {
+      "model": {
+        "repo_id": "pyannote/speaker-diarization-community-1(full_episode_regular)",
+        "revision": "3533c8cf8e369892e6b79ff1bf80f7b0286a54ee",
+        "task": "diarization"
+      },
+      "scored": 16,
+      "unscored": 0,
+      "summary": {
+        "reference_speech_events": 42,
+        "event_hit_any_overlap": 36,
+        "reference_speech_s": 175.1,
+        "reference_speech_covered_s": 131.437,
+        "non_speech_only_predicted_speech_s": 16.826
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "nem3_diar_full_off_fr": {
+      "model": {
+        "repo_id": "nvidia/Nemotron-3-Diarization(full_episode_offline)",
+        "revision": "52a432672732425e4c19765b9fec9b5810e6f4ba",
+        "task": "diarization"
+      },
+      "scored": 16,
+      "unscored": 0,
+      "summary": {
+        "reference_speech_events": 42,
+        "event_hit_any_overlap": 23,
+        "reference_speech_s": 175.1,
+        "reference_speech_covered_s": 100.17,
+        "non_speech_only_predicted_speech_s": 3.86
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "nem3_diar_full_str_fr": {
+      "model": {
+        "repo_id": "nvidia/Nemotron-3-Diarization(full_episode_streaming)",
+        "revision": "52a432672732425e4c19765b9fec9b5810e6f4ba",
+        "task": "diarization"
+      },
+      "scored": 16,
+      "unscored": 0,
+      "summary": {
+        "reference_speech_events": 42,
+        "event_hit_any_overlap": 27,
+        "reference_speech_s": 175.1,
+        "reference_speech_covered_s": 108.08,
+        "non_speech_only_predicted_speech_s": 3.95
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "nem35_orig16_asr_fr": {
+      "model": {
+        "repo_id": "nvidia/Nemotron-3.5-NVFP4(archived_orig16)",
+        "revision": "local:NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4",
+        "task": "asr"
+      },
+      "scored": 16,
+      "unscored": 0,
+      "summary": {
+        "reference_speech_events": 42,
+        "event_hit_any_overlap": 36,
+        "reference_speech_s": 175.1,
+        "reference_speech_covered_s": 124.227,
+        "non_speech_only_predicted_speech_s": 5.96
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "nem35_full35_asr_fr": {
+      "model": {
+        "repo_id": "nvidia/Nemotron-3.5-NVFP4(archived_full35)",
+        "revision": "local:NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4",
+        "task": "asr"
+      },
+      "scored": 13,
+      "unscored": 3,
+      "summary": {
+        "reference_speech_events": 37,
+        "event_hit_any_overlap": 30,
+        "reference_speech_s": 160.1,
+        "reference_speech_covered_s": 106.4236,
+        "non_speech_only_predicted_speech_s": 5.2783
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "nem35_zh166_asr_zh": {
+      "model": {
+        "repo_id": "nvidia/Nemotron-3.5-NVFP4(archived_zh166)",
+        "revision": "local:NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4",
+        "task": "asr"
+      },
+      "scored": 1,
+      "unscored": 1,
+      "summary": {
+        "reference_speech_events": 3,
+        "event_hit_any_overlap": 3,
+        "reference_speech_s": 10.0,
+        "reference_speech_covered_s": 5.996,
+        "non_speech_only_predicted_speech_s": 2.578
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "parakeet_tdt_v3_fr": {
+      "model": {
+        "repo_id": "nvidia/parakeet-tdt-0.6b-v3",
+        "revision": "541d1f99c6b0c3cd0b11a95167540bb8edefd82b",
+        "task": "asr"
+      },
+      "scored": 16,
+      "unscored": 0,
+      "summary": {
+        "reference_speech_events": 42,
+        "event_hit_any_overlap": 30,
+        "reference_speech_s": 175.1,
+        "reference_speech_covered_s": 81.18,
+        "non_speech_only_predicted_speech_s": 4.36
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "parakeet_tdt_v3_zh": {
+      "model": {
+        "repo_id": "nvidia/parakeet-tdt-0.6b-v3",
+        "revision": "541d1f99c6b0c3cd0b11a95167540bb8edefd82b",
+        "task": "asr"
+      },
+      "scored": 0,
+      "unscored": 2,
+      "summary": {
+        "reference_speech_events": 0,
+        "event_hit_any_overlap": 0,
+        "reference_speech_s": 0,
+        "reference_speech_covered_s": 0,
+        "non_speech_only_predicted_speech_s": 0
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "qwen3_asr_explicit_fr": {
+      "model": {
+        "repo_id": "Qwen/Qwen3-ASR-1.7B(explicit)",
+        "revision": "7278e1e70fe206f11671096ffdd38061171dd6e5",
+        "task": "asr"
+      },
+      "scored": 16,
+      "unscored": 0,
+      "summary": {
+        "reference_speech_events": 42,
+        "event_hit_any_overlap": 42,
+        "reference_speech_s": 175.1,
+        "reference_speech_covered_s": 175.1,
+        "non_speech_only_predicted_speech_s": 121.201
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "qwen3_asr_explicit_zh": {
+      "model": {
+        "repo_id": "Qwen/Qwen3-ASR-1.7B(explicit)",
+        "revision": "7278e1e70fe206f11671096ffdd38061171dd6e5",
+        "task": "asr"
+      },
+      "scored": 2,
+      "unscored": 0,
+      "summary": {
+        "reference_speech_events": 4,
+        "event_hit_any_overlap": 4,
+        "reference_speech_s": 17.5,
+        "reference_speech_covered_s": 17.5,
+        "non_speech_only_predicted_speech_s": 18.5
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "qwen3_asr_auto_fr": {
+      "model": {
+        "repo_id": "Qwen/Qwen3-ASR-1.7B(auto)",
+        "revision": "7278e1e70fe206f11671096ffdd38061171dd6e5",
+        "task": "asr"
+      },
+      "scored": 16,
+      "unscored": 0,
+      "summary": {
+        "reference_speech_events": 42,
+        "event_hit_any_overlap": 40,
+        "reference_speech_s": 175.1,
+        "reference_speech_covered_s": 168.6,
+        "non_speech_only_predicted_speech_s": 67.701
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "qwen3_asr_auto_zh": {
+      "model": {
+        "repo_id": "Qwen/Qwen3-ASR-1.7B(auto)",
+        "revision": "7278e1e70fe206f11671096ffdd38061171dd6e5",
+        "task": "asr"
+      },
+      "scored": 2,
+      "unscored": 0,
+      "summary": {
+        "reference_speech_events": 4,
+        "event_hit_any_overlap": 4,
+        "reference_speech_s": 17.5,
+        "reference_speech_covered_s": 17.5,
+        "non_speech_only_predicted_speech_s": 18.5
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "firered_asr2_aed_zh": {
+      "model": {
+        "repo_id": "FireRedTeam/FireRedASR2-AED",
+        "revision": "2304afed56eacfee6256dee5937ed22ffa0b64ec",
+        "task": "asr"
+      },
+      "scored": 2,
+      "unscored": 0,
+      "summary": {
+        "reference_speech_events": 4,
+        "event_hit_any_overlap": 3,
+        "reference_speech_s": 17.5,
+        "reference_speech_covered_s": 8.784,
+        "non_speech_only_predicted_speech_s": 2.86
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    },
+    "firered_asr2_aed_fr": {
+      "model": {
+        "repo_id": "FireRedTeam/FireRedASR2-AED",
+        "revision": "2304afed56eacfee6256dee5937ed22ffa0b64ec",
+        "task": "asr"
+      },
+      "scored": 0,
+      "unscored": 16,
+      "summary": {
+        "reference_speech_events": 0,
+        "event_hit_any_overlap": 0,
+        "reference_speech_s": 0,
+        "reference_speech_covered_s": 0,
+        "non_speech_only_predicted_speech_s": 0
+      },
+      "lexical": {
+        "WER": {
+          "reference_units": 0,
+          "edit_count": 0
+        },
+        "CER": {
+          "reference_units": 0,
+          "edit_count": 0
+        }
+      }
+    }
+  }
+}
