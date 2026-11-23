@@ -67,6 +67,33 @@ def bind_legacy_source_lineage(
     if ledger.get("source_language") != language or dossier.get("source_language") != language:
         raise ValueError("Recording/ledger/dossier source language mismatch")
 
+    # A pair of index numbers means nothing across DIFFERENT inference
+    # layouts. Authenticate the model response and actual input audio window
+    # for each source-observation chunk before any index-level join.
+    contract_chunks = {}
+    for chunk in ((recording.get("processing") or {}).get("chunks") or []):
+        idx = chunk.get("chunk_index")
+        if not isinstance(idx, int) or isinstance(idx, bool) or idx < 0 or idx in contract_chunks:
+            raise ValueError("Ambiguous recording chunk identity")
+        contract_chunks[idx] = chunk
+    if not contract_chunks:
+        raise ValueError("Recording contract lacks source chunk response identities")
+    observed_chunks = set()
+    for observation in ledger.get("asr_observations") or []:
+        idx = observation.get("chunk_index")
+        if idx not in contract_chunks or idx in observed_chunks:
+            raise ValueError("Source ledger chunk absent or repeated in recording")
+        observed_chunks.add(idx)
+        recorded = contract_chunks[idx]
+        if recorded.get("raw_response_sha256") != observation.get("raw_response_sha256"):
+            raise ValueError("Replay ledger does not match recording raw ASR response")
+        for edge in ("infer_start_s", "infer_end_s"):
+            old, new = recorded.get(edge), observation.get(edge)
+            if (not isinstance(old, (int, float)) or not isinstance(new, (int, float))
+                    or isinstance(old, bool) or isinstance(new, bool)
+                    or not math.isfinite(old) or not math.isfinite(new)
+                    or abs(old-new) > 0.001):
+                raise ValueError("Replay ledger ASR input window differs from recording")
     lexical_by_index: dict[tuple[int, int], dict[str, Any]] = {}
     lexical_ids = set()
     for lexical in ledger.get("lexical_observations") or []:
@@ -76,6 +103,8 @@ def bind_legacy_source_lineage(
             raise ValueError("Ambiguous or missing immutable lexical index/identity")
         if lexical.get("unit_type") not in ("word", "char"):
             raise ValueError("Unexpected source unit type")
+        if key[0] not in observed_chunks:
+            raise ValueError("Lexical unit refers to unverified source chunk")
         lexical_by_index[key] = dict(lexical)
         lexical_ids.add(ident)
 
@@ -209,6 +238,7 @@ def bind_legacy_source_lineage(
         },
         "policy": {
             "exact_index_text_mapping_not_string_similarity": True,
+            "raw_response_and_inference_audio_window_must_match": True,
             "all_units_must_belong_to_one_reviewed_audio_event": True,
             "timing_plausibility_is_separate_from_model_ctc_truth": True,
             "partial_or_displaced_utterances_are_preserved": True,
