@@ -129,10 +129,25 @@ def assemble_revised_translation(
             or original_recording.get("source_language") != lang):
         raise ValueError("Source media/language mismatch")
     originals = {u["id"]: u for u in original_recording.get("utterances") or []}
-    prior = {u["id"]: u for u in previous_translated.get("utterances") or []}
     revised = {u["id"]: u for u in revised_recording.get("utterances") or []}
+    # The historical untimed-chronology audit may reorder and renumber the
+    # translated contract. Its original_utterance_id is the source identity;
+    # the *current* translated row ID is only a presentation/order identity.
+    # Verify a complete bijection before reusing a single English word.
+    previous_rows = previous_translated.get("utterances") or []
+    prior: dict[str, dict[str, Any]] = {}
+    prior_display_to_source: dict[str, str] = {}
+    for translated_row in previous_rows:
+        display_id = translated_row.get("id")
+        source_id = translated_row.get("original_utterance_id", display_id)
+        if (not isinstance(display_id, str) or not display_id
+                or not isinstance(source_id, str) or not source_id
+                or display_id in prior_display_to_source or source_id in prior):
+            raise ValueError("Duplicate or invalid historical translation source identity")
+        prior_display_to_source[display_id] = source_id
+        prior[source_id] = translated_row
     if (len(originals) != len(original_recording.get("utterances") or [])
-            or len(prior) != len(previous_translated.get("utterances") or [])
+            or len(prior) != len(previous_rows)
             or len(revised) != len(revised_recording.get("utterances") or [])
             or set(originals) != set(prior)):
         raise ValueError("Duplicate utterance identity or baseline translation mismatch")
@@ -205,10 +220,44 @@ def assemble_revised_translation(
                 raise ValueError("Cannot reuse translation for changed retained source")
             if not str(translated.get("translated_text") or "").strip():
                 raise ValueError("Retained translation lacks valid English text")
-            grouping = list(translated.get("grouped_utterance_ids") or [uid])
-            if any(x in replaced for x in grouping) or translated.get("merged_into") in replaced:
+            def to_source_id(value: Any) -> str:
+                if not isinstance(value, str) or value not in prior_display_to_source:
+                    raise ValueError("Historical translation references unknown row ID")
+                return prior_display_to_source[value]
+
+            original_grouping = translated.get("grouped_utterance_ids") or [translated["id"]]
+            if not isinstance(original_grouping, list):
+                raise ValueError("Invalid historical translation grouping")
+            grouping = [to_source_id(x) for x in original_grouping]
+            if len(grouping) != len(set(grouping)):
+                raise ValueError("Historical translation grouping is ambiguous")
+            merged = translated.get("merged_into")
+            stable_merged = to_source_id(merged) if merged is not None else None
+            if any(x in replaced for x in grouping) or stable_merged in replaced:
                 raise ValueError("Retained translated turn depends on removed legacy ID")
             row = deepcopy(translated)
+            if translated["id"] != uid:
+                row["historical_translated_row_id"] = translated["id"]
+            row["id"] = uid
+            if "utterance_id" in row:
+                if to_source_id(row["utterance_id"]) != uid:
+                    raise ValueError("Contradictory retained translation utterance identity")
+                row["utterance_id"] = uid
+            row["original_utterance_id"] = uid
+            row["grouped_utterance_ids"] = grouping
+            if merged is not None:
+                row["merged_into"] = stable_merged
+            # Duplicate similarity is only a legacy *hypothesis*. Keep the
+            # historical reference for traceability, but don't advertise an
+            # obsolete dependency as an active source ID after supersession.
+            duplicate_of = translated.get("probable_duplicate_of")
+            if duplicate_of is not None:
+                stable_dup = to_source_id(duplicate_of)
+                if stable_dup in replaced:
+                    row["historical_probable_duplicate_of_superseded"] = stable_dup
+                    row.pop("probable_duplicate_of", None)
+                else:
+                    row["probable_duplicate_of"] = stable_dup
             # Preserve additional verified revision-local metadata without
             # treating local acoustic voice as global speaker identity.
             if "reviewed_local_acoustic_voice" in u:
