@@ -217,6 +217,11 @@ def test_short_fr_and_rapid_zh_model_speech_are_not_blanket_rejected():
     d = dossier()
     d["source_language"] = "zh"
     d["challenger_model"]["pinned_language"] = "Chinese"
+    # This is a model-only Mandarin case. The otherwise unrelated French
+    # independently reviewed event cannot be relabeled or reused as Chinese
+    # evidence. Remove that fixture, retaining production's fail-closed check.
+    d["source_turns_audio_review_attested"] = []
+    d["audited_audio_regions"] = []
     s = segments(candidate(
         "rapid_voice", 50, 51.6, "你好" * 6,
         context_window_ids=["qwen_window_02"],
