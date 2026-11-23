@@ -236,6 +236,57 @@ def test_same_long_statement_genuinely_repeated_twice_in_each_chunk_stays_distin
     assert [u["text"] for u in merged].count("beyond") >= 2
 
 
+def test_ownerless_boundary_s02_source_is_retained_unlocated_not_given_false_time():
+    # Boundary 360: chunk3 says a short negation *after* its core, chunk4
+    # has the longer corroborated phrase *before* its own core. Under plain
+    # core ownership BOTH observations are dropped.
+    left = [
+        _word("C'est", 364.87, "SPK_LEFT"),
+        _word("Edward.", 364.88, "SPK_OTHER"),
+        _word("pas", 364.98, "SPK_LEFT"),
+        _word("notre", 365.08, "SPK_LEFT"),
+    ]
+    right = _phrase(
+        ["C'est", "pas", "notre", "nacale", "qui", "aurait", "pensé", "à", "ça!"],
+        357.32, "SPK_RIGHT", .27,
+    )
+    merged, diag = reconcile_chunk_boundaries([left, right], _chunks(360.0))
+    ours = [u for u in merged if u.get("boundary_provenance") ==
+            "straddled_overlap_source_unlocalized"]
+    assert [u["text"] for u in ours] == [u["text"] for u in right]
+    assert diag["straddled_overlap_source"]["source_units_preserved_unlocalized"] == 9
+    assert all(
+        u["start"] is None and u["end"] is None
+        and not u["valid_timing"] and u["ctc_hypothesis_start_s"] is not None
+        and u["alignment_status"] == "ctc_timing_suspect"
+        and u["speaker_identity_accepted"] is False
+        and u["global_speaker_id"].startswith("SPK_UNK_BOUNDARY_")
+        for u in ours
+    )
+    assert any(u["text"] == "Edward." for u in merged) is False
+    # The original source lists remain untouched.
+    assert left[0]["start"] == 364.87 and right[0]["start"] == 357.32
+
+
+def test_straddled_single_word_or_nonmatching_overlap_is_not_promoted():
+    left = _phrase(["C'est", "pas", "notre"], 364.87, "SPK_LEFT", .15)
+    right = _phrase(["What", "a", "different", "phrase"], 357.3, "SPK_RIGHT", .18)
+    merged, diag = reconcile_chunk_boundaries([left, right], _chunks(360))
+    assert diag["straddled_overlap_source"]["source_units_preserved_unlocalized"] == 0
+    assert not merged
+
+
+def test_straddled_duplicate_does_not_compete_with_existing_core_speech():
+    left = _phrase(["C'est", "pas", "notre"], 364.87, "SPK_LEFT", .15)
+    right = _phrase(["C'est", "pas", "notre", "phrase"], 357.3, "SPK_RIGHT", .18)
+    owned = _phrase(["C'est", "pas", "notre", "phrase"], 360.5, "SPK_CORE", .15)
+    merged, diag = reconcile_chunk_boundaries(
+        [left, right + owned], _chunks(360)
+    )
+    assert diag["straddled_overlap_source"]["source_units_preserved_unlocalized"] == 0
+    assert any(u["text"] == "phrase" and u.get("global_speaker_id") == "SPK_CORE" for u in merged)
+
+
 def test_clean_mid_core_29_token_control_remains_intact() -> None:
     tokens = [f"word{i:02d}" for i in range(29)]
     left = _phrase(tokens, 680.0, "SPK_07", .31)

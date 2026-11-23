@@ -314,7 +314,7 @@ def recover_ownerless_straddled_overlap(
                 stream.sort(key=lambda x: x["_unit_idx"])
                 group: list[dict[str, Any]] = []
                 for unit in stream:
-                    if group and (unit["_unit_idx"] != group[-1]["_unit_idx"] + 1
+                    if group and (unit["_unit_idx"] - group[-1]["_unit_idx"] > 3
                                   or float(unit["start"]) - float(group[-1]["end"]) > .9
                                   or _mid(unit) < _mid(group[-1]) - .2):
                         groups.append(group)
