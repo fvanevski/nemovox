@@ -5,8 +5,8 @@ REPO_ID=fvanevski/nemovox
 ISSUE_NUMBER=14
 PR_NUMBER=15
 BRANCH=issue/14-longform-timing-boundaries
-CENTRAL_SOURCE_SHA=c395c18eba4e3e8e5c6e096642db08a1157d9472
-CENTRAL_SOURCE_TREE=04dc89ddbea29009eb044d80fb2e9fb45d60512a
+CENTRAL_SOURCE_SHA=81a429db4a8b090c3cff6199ec5e58a5e71ffd8f
+CENTRAL_SOURCE_TREE=f6245870dfe0dd6a6fea80b377292780ef16beb4
 BASE_MAIN_SHA=8f6c03cbc70e84bf1970ba364207a02c9fe22b44
 CONTROLLING_DESIGN=staging/issue14/EVIDENCE_FUSION_ARCHITECTURE.md
 PREVIOUS_PUBLIC_EVIDENCE=1f441c1171d6b0a0e566fcba3deecba3f074b845:staging/issue14/evidence/20261123T185939Z/
@@ -40,7 +40,7 @@ Use only actual discovered test paths, report any unavailable test rather than s
 
 Use the existing matching original French 16-chunk default job from /workspace/nemovox-issue14-default-recovery-private/default_fr_job/asr/{recording.contract.json,source-evidence.v1.json}, and the NEW /workspace/nemovox-issue14-w02b-adjudication-private/dossier/candidate_reconciliation_dossier.json. Match identical media fingerprint/language/chunk raw SHA and original inference-window bounds; do not join distinct run IDs. Verify the original private source file identity against prior manifest before calculating new partitions.
 
-Invoke nvidia_transcribe.evidence_fusion.plan_reviewed_source_partitions(recording, ledger, dossier) as an OFFLINE Python call, write to a NEW private scratch file (do not overwrite host jobs). Verify 2008/2008 original units and no duplicate source IDs, classify all 13 review-attested turns and compare with prior 5 eligible / 8 blocked legacy review. Do not force these exact counts as targets if actual lineage reports differ, explain with exact IDs. W02b utt-0036, W04a utt-0187/0188 and W03b utt-0154/0156 must receive general one-to-many coverage/unknown status from their raw-unit memberships, never use case-name selection logic. Report connected/partially connected event groups, unsupported units and whether any initial plan falsely claims completeness, especially source units shared by different ASR chunks.
+Invoke nvidia_transcribe.evidence_fusion.plan_reviewed_source_partitions(recording, ledger, dossier) as an OFFLINE Python call, write to a NEW private scratch file (do not overwrite host jobs). Verify 2008/2008 original units and no duplicate source IDs, classify all 13 review-attested turns and compare with prior 5 eligible / 8 blocked legacy review. Do not force these exact counts as targets if actual lineage reports differ, explain with exact IDs. Validate **entire reviewed-event connected components**: if an event spans two legacy utterances and one is only partly accounted for, neither is eligible for a replacement. Reject a fused-model support claim whose dependency ancestry includes a policy-excluded observation. W02b utt-0036, W04a utt-0187/0188 and W03b utt-0154/0156 must receive general one-to-many coverage/unknown status from their raw-unit memberships, never use case-name selection logic. Report connected/partially connected event groups, unsupported units and whether any initial plan falsely claims completeness, especially source units shared by different ASR chunks.
 
 Read code closely: source_unit_lineage's existing all-units-one-reviewed-event and ±3s guard remains valid as a gate for its OLD whole-utterance strategy. The new planner is a different dry-run representation, not authority to disable those checks in source_promotion. Do NOT modify original source contract, translate, render or apply new speaker IDs. If an input artifact lacks a required field, return a minimal schema repro to Central; do not fabricate missing lexical IDs.
 
@@ -65,8 +65,8 @@ Required handback:
  ISSUE14_EVIDENCE_FUSION:
    RESULT=PASS|PARTIAL|BLOCKED
    ADMITTED_PR_HEAD=<fullSHA>
-   VALIDATED_SOURCE_SHA=c395c18eba4e3e8e5c6e096642db08a1157d9472
-   VALIDATED_SOURCE_TREE=04dc89ddbea29009eb044d80fb2e9fb45d60512a
+   VALIDATED_SOURCE_SHA=81a429db4a8b090c3cff6199ec5e58a5e71ffd8f
+   VALIDATED_SOURCE_TREE=f6245870dfe0dd6a6fea80b377292780ef16beb4
    CURRENT_PR_HEAD=<fullSHA>
    MAIN_SHA=<fullSHA>
    SOURCE_DIFF=<none|paths/diffs>
