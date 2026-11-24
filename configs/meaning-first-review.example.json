@@ -14,6 +14,7 @@
     "light_thinking_budget": 0,
     "reasoned_thinking_budget": 1024,
     "light_effort": "none",
-    "reasoned_effort": "xhigh"
+    "reasoned_effort": "xhigh",
+    "abort_on_reasoning_starvation": true
   }
 }
