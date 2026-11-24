@@ -1,0 +1,24 @@
+{
+  "application_head": "3ab67bf499e845d4bef943c3e3cf370f4425974f",
+  "application_tree": "6f8fb0176cc395c05541d2dc3f37b68e5864ed4d",
+  "application_base": "8f6c03cbc70e84bf1970ba364207a02c9fe22b44",
+  "status": "CORRECTIONS_VERIFIED_LIVE_QUALITY_FAIL",
+  "publication_contains_media_or_private_dialogue": false,
+  "archive_host_local": {
+    "sha256": "9433a1af893e58c40034269f50e0791cb20de49e0f76fa7a7e374026df0b169a",
+    "bytes": 416828,
+    "member_count": 44,
+    "holds_bounded_audio": true
+  },
+  "raw_host_local_evidence_manifest_sha256": "3bebcf6aa3423309d7110d39e48adc173c09780ae5bbe4d273e2ed38e68bc2e9",
+  "public_members_sha256": {
+    "COMMAND_SHAPE_FRICTION.txt": "a4a018aeae1aa1d0c1148ab9f2cee0ec981b7a2fd39034705fbe371dd3c84d7b",
+    "README.md": "1fcb446581a0a245ab7b342f0427e79d85041b14cd4416e88a09744b92e4f1cc",
+    "candidate-files.txt": "36d8280c94ae4a684a90bec0317253729744cde2cddb1b129545c09f38e1d2d2",
+    "commands.md": "54ce263a22769c6b2f9507951586f196781bb5a8e075975cd638461cab4778e5",
+    "metrics.json": "26dad2178dbd307da969508139f0c0c5e0e57c3e64fc8bcfec6c0c94ad8df4d0",
+    "renderer-repro.json": "8a7e3df06f286800a4bab3a0a5d97ea5694f9116cafdf88cf5b21cae85aeb989",
+    "reproduce_overlap.py": "e7e3bfc26a0b93ddb98d4c47a541a4634b144e19e040924124cd6dd59d24b15c",
+    "runtime.json": "32d78a5c4056ed091a9295c27aa8b7cbfc1d71732cc2888f944f2617fa82c4a9"
+  }
+}

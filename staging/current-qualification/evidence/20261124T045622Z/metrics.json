@@ -1,0 +1,365 @@
+{
+  "candidate_commit": "3ab67bf499e845d4bef943c3e3cf370f4425974f",
+  "candidate_tree": "6f8fb0176cc395c05541d2dc3f37b68e5864ed4d",
+  "cpu": {
+    "targeted": {
+      "exit": 0,
+      "passed": 26
+    },
+    "original_reproduction": {
+      "exit": 0,
+      "inner_rerender_exit": 1,
+      "managed_asr_acquisitions": 0,
+      "displaced_status": "unresolved_possible_displaced_or_repeated_turn"
+    },
+    "focused": {
+      "exit": 0,
+      "passed": 62
+    },
+    "cli_full": {
+      "exit": 0,
+      "passed": 376
+    },
+    "studio_full": {
+      "exit": 0,
+      "passed": 376
+    },
+    "web": {
+      "test_exit": 0,
+      "tests": 14,
+      "build_exit": 0
+    },
+    "compile_exit": 0,
+    "consumer_scan_exit": 1,
+    "consumer_scan_matches": 0
+  },
+  "input_media": {
+    "fr_original_sha256": "0e77ce3c809e498b97ffe48b53575c29e10d8b08a039b78e2150cd0c845c81b0",
+    "zh_original_sha256": "2cfcffb70b4d168239afc47db3f763f2cac1d858512309bfc90085c4375ca0aa",
+    "zh_input_clip_sha256": "7870f012602c575c5e9d6a41ceed045388b42bb343eac35dbd69d0c5b36b4d79",
+    "zh_source_offset_s": 195.0,
+    "audio_stream": 0,
+    "container_stream_index": 1
+  },
+  "french": {
+    "language": "fr",
+    "source_duration_s": 1379.901,
+    "audio_stream": 0,
+    "recording_sha256": "a41bf1a0b47a7170310d666b1f42bf20a3e6883bacc435211eb945a41f59814b",
+    "recording_matches_at_generate_entry": true,
+    "original_rows": 185,
+    "canonical_rows": 187,
+    "original_known_speakers": {
+      "SPK_00": 2,
+      "SPK_01": 5,
+      "SPK_02": 2,
+      "SPK_03": 17,
+      "SPK_04": 2,
+      "SPK_05": 6,
+      "SPK_06": 2,
+      "SPK_07": 7,
+      "SPK_08": 1,
+      "SPK_09": 12,
+      "SPK_10": 5,
+      "SPK_12": 1,
+      "SPK_13": 9,
+      "SPK_14": 7,
+      "SPK_15": 1,
+      "SPK_16": 6,
+      "SPK_17": 22,
+      "SPK_18": 5,
+      "SPK_19": 14,
+      "SPK_20": 10,
+      "SPK_21": 3,
+      "SPK_22": 1,
+      "SPK_23": 6,
+      "SPK_24": 3,
+      "SPK_25": 1,
+      "SPK_26": 7,
+      "SPK_27": 2,
+      "SPK_28": 2,
+      "SPK_30": 15,
+      "SPK_29": 9
+    },
+    "canonical_unknown_speakers": 2,
+    "canonical_untimed_rows": 7,
+    "manifest_status": "completed",
+    "chunks": 35,
+    "chunk_plan": {
+      "schema": "pause_aware/v1",
+      "max_actual_infer_s": 54.0,
+      "selected_pause_count": 22,
+      "forced_cut_count": 12,
+      "fallback_used": true
+    },
+    "asr_elapsed_s": 199.1209,
+    "requested_chunk_seconds_sum": 105.73,
+    "resumed_chunks": 0,
+    "semantic_candidates": 3,
+    "text_advisory_outcomes": {
+      "advisory_only": 3
+    },
+    "discovery_deferred": 0,
+    "text_deferred_ids": 0,
+    "source_quality_status": "partial",
+    "acoustic_windows": 6,
+    "acoustic_windows_deferred": 27,
+    "acoustic_windows_unresolved": {
+      "unmatched_acoustic_observations": 4,
+      "no_unique_corroborated_event": 2
+    },
+    "acoustic_requests": 12,
+    "acoustic_decisions": {
+      "recovered_corroborated_turn": 2
+    },
+    "distinct_observations": 12,
+    "translation": {
+      "backend": "riva",
+      "resource_fingerprint": "51e174c84e775b5a5628be1117811fc126df47af95526fa9645492bda3096210",
+      "lang_pair": "fr-en",
+      "total_utterances": 187,
+      "cache_hits": 0,
+      "elapsed_s": 64.656,
+      "device_used": "cuda:0",
+      "dtype": "torch.bfloat16",
+      "load_s": 4.2696,
+      "infer_s": 54.3979,
+      "peak_vram_mib": 8026.3
+    },
+    "translation_review": {
+      "status": "completed",
+      "profile": "balanced",
+      "style": "natural",
+      "resource_fingerprint": "7c4ddcaf9e48cbcb1e675f1484eef3d9e08aadc9fc6b4a921c8f3f6c0a03cb2a",
+      "reviewed": 187,
+      "changed": 53,
+      "rejected_polarity": 0,
+      "cache_hits": 0,
+      "api_calls": 32,
+      "resource_blocked_reason": null,
+      "elapsed_s": 46.929
+    },
+    "review_status_counts": {
+      "unchanged": 134,
+      "corrected": 53
+    },
+    "riva_invocations": 1,
+    "riva_worker_exits": [
+      0
+    ],
+    "riva_payload_sha256": [
+      "d3a0db333d1f3e2b46bf36e501c1579748712d3e728a51722d20578526f3174f"
+    ],
+    "riva_received_items": 187,
+    "riva_canonical_coverage_exact": true,
+    "translated_rows": 187,
+    "retained_mt_exact": 187,
+    "retained_mt_expected": 187,
+    "subtitles_elapsed_s": 232.933,
+    "srt": [
+      {
+        "cues": 250,
+        "nonpositive_duration": 0,
+        "start_out_of_order": 0,
+        "median_cps": 14.03,
+        "above_25_cps": 7,
+        "max_line_chars": 42,
+        "max_cps": 157.5,
+        "below_1_2_s": 17,
+        "first_start_s": 4.08,
+        "last_end_s": 1376.93,
+        "max_end_s": 1376.93
+      }
+    ],
+    "ass_dialogue": [
+      250
+    ],
+    "hashes": {
+      "source-quality.json": "82265318637a2a6a61561c0919dd1989516ebf956e50e6361009ef0799cfd537",
+      "canonical-source.contract.json": "edbc4d03bc6d35555d607fd38320256e754d71b83be3c8b60873543515733ac6",
+      "translated.contract.json": "2494352f9f224cba6840a892056dca6e8d633557f031ddd861848891d2d1f0a6",
+      "subtitles.metadata.json": "ea40f096050443e55639c51f130c983e9a73b71c094fbe6ca111ee9fda48d3ef"
+    }
+  },
+  "mandarin": {
+    "language": "zh",
+    "source_duration_s": 72.0,
+    "audio_stream": 0,
+    "recording_sha256": "e9cf2e765bf044f599438485740c606664a25538eee1ade3a799ce0a4117c428",
+    "recording_matches_at_generate_entry": true,
+    "original_rows": 14,
+    "canonical_rows": 14,
+    "original_known_speakers": {
+      "SPK_00": 13,
+      "SPK_01": 1
+    },
+    "canonical_unknown_speakers": 0,
+    "canonical_untimed_rows": 2,
+    "manifest_status": "completed",
+    "chunks": 2,
+    "chunk_plan": {
+      "schema": "fixed/v1",
+      "max_actual_infer_s": null,
+      "selected_pause_count": null,
+      "forced_cut_count": null,
+      "fallback_used": null
+    },
+    "asr_elapsed_s": 95.2199,
+    "requested_chunk_seconds_sum": 2.982,
+    "resumed_chunks": 0,
+    "semantic_candidates": 0,
+    "text_advisory_outcomes": {},
+    "discovery_deferred": 0,
+    "text_deferred_ids": 0,
+    "source_quality_status": "partial",
+    "acoustic_windows": 3,
+    "acoustic_windows_deferred": 0,
+    "acoustic_windows_unresolved": {
+      "no_unique_corroborated_event": 2,
+      "unmatched_acoustic_observations": 1
+    },
+    "acoustic_requests": 6,
+    "acoustic_decisions": {},
+    "distinct_observations": 6,
+    "translation": {
+      "backend": "riva",
+      "resource_fingerprint": "51e174c84e775b5a5628be1117811fc126df47af95526fa9645492bda3096210",
+      "lang_pair": "zh-en",
+      "total_utterances": 14,
+      "cache_hits": 0,
+      "elapsed_s": 18.206,
+      "device_used": "cuda:0",
+      "dtype": "torch.bfloat16",
+      "load_s": 4.1327,
+      "infer_s": 8.0443,
+      "peak_vram_mib": 8025.11
+    },
+    "translation_review": {
+      "status": "completed",
+      "profile": "balanced",
+      "style": "natural",
+      "resource_fingerprint": "7c4ddcaf9e48cbcb1e675f1484eef3d9e08aadc9fc6b4a921c8f3f6c0a03cb2a",
+      "reviewed": 14,
+      "changed": 8,
+      "rejected_polarity": 0,
+      "cache_hits": 0,
+      "api_calls": 3,
+      "resource_blocked_reason": null,
+      "elapsed_s": 12.847
+    },
+    "review_status_counts": {
+      "unchanged": 6,
+      "corrected": 8
+    },
+    "riva_invocations": 1,
+    "riva_worker_exits": [
+      0
+    ],
+    "riva_payload_sha256": [
+      "567df1713dfabe172e24c7640f7674a6542ab65cd5edfea8fc099215480c5eed"
+    ],
+    "riva_received_items": 14,
+    "riva_canonical_coverage_exact": true,
+    "translated_rows": 14,
+    "retained_mt_exact": 14,
+    "retained_mt_expected": 14,
+    "subtitles_elapsed_s": 122.201,
+    "srt": [
+      {
+        "cues": 21,
+        "nonpositive_duration": 0,
+        "start_out_of_order": 0,
+        "median_cps": 19.23,
+        "above_25_cps": 6,
+        "max_line_chars": 42,
+        "max_cps": 43.39,
+        "below_1_2_s": 3,
+        "first_start_s": 0.119,
+        "last_end_s": 73.1,
+        "max_end_s": 73.1
+      }
+    ],
+    "ass_dialogue": [
+      21
+    ],
+    "hashes": {
+      "source-quality.json": "cc703f2e0dbdc573774f8f12327c15de842c43dce6a62ddaa5fe0d4cedaff113",
+      "canonical-source.contract.json": "1c58b678d747087983530fc696a2ab4e34b563441429f23fa1a4486eb6499d3b",
+      "translated.contract.json": "f35209f6af6e4f5afb3388f6ba66641dea36949482597687d26187a08dfa290a",
+      "subtitles.metadata.json": "c8111fa35de6897f45e2972198709c60db560e354888a7e6ca0471e84b03804c"
+    }
+  },
+  "studio_terminal": {
+    "initial_http": 202,
+    "state": "complete",
+    "error": null,
+    "stage_history": [
+      {
+        "id": "asr",
+        "status": "complete",
+        "detail": "",
+        "duration_s": 97.396
+      },
+      {
+        "id": "source_quality",
+        "status": "complete",
+        "detail": "partial",
+        "duration_s": 90.833
+      },
+      {
+        "id": "translation",
+        "status": "complete",
+        "detail": "",
+        "duration_s": 18.007
+      },
+      {
+        "id": "review",
+        "status": "complete",
+        "detail": "completed",
+        "duration_s": 13.205
+      },
+      {
+        "id": "condensation",
+        "status": "skipped",
+        "detail": "Optional condensation disabled"
+      },
+      {
+        "id": "render",
+        "status": "complete",
+        "detail": "",
+        "duration_s": 0.0
+      }
+    ],
+    "export": "disabled",
+    "artifact_suffix_counts": {
+      ".json": 4,
+      ".txt": 4,
+      ".srt": 1,
+      ".ass": 1
+    },
+    "preview_count": 21,
+    "elapsed_s": 220.403,
+    "persisted_terminal_exact": true,
+    "resubmitted": false
+  },
+  "rerender": {
+    "srt_and_ass_byte_identical": true,
+    "translated_contract_byte_identical": true,
+    "elapsed_s": 0.037,
+    "rendered_sha256": {
+      ".ass": "94c32e636ffc754c66884fe200064de4ecba809409036ba7b3c498fd3f279fec",
+      ".srt": "6bf7c2025b8f88dcdc89d3f7857032615631c87a6dc230364e31273919974009"
+    },
+    "riva_calls": 0,
+    "stage_summary": "reused_translated_contract"
+  },
+  "producer_exits": {
+    "fr_process_media": 0,
+    "fr_generate": 0,
+    "rerender": 0,
+    "studio_job_controller": 1,
+    "studio_durable_and_api_readback": 0,
+    "runtime_observer": 0,
+    "renderer_regression_repro": 1
+  }
+}
