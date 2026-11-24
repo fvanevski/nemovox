@@ -1,0 +1,262 @@
+{
+  "schema": "nemovox-issue14-ninfer-model-probe/v1",
+  "run_id": "20261124T020042Z",
+  "ninfer_git_sha": "a3a3dd5be6c2ecec1479017d5eee219d7a7e5784",
+  "installed_ninfer_openai_chat_thinking_budget_support": false,
+  "installed_ninfer_source_evidence": "/workspace/ninfer/src/serve/openai_chat_request.cpp:parse_chat_completion_request (lines 821-855) parses enable_thinking, preserve_thinking, and reasoning_effort (none/minimal/low/medium/high/xhigh/max), but does NOT parse thinking_budget (thinking_budget exists only in anthropic_messages_request.cpp:875) and ignores unknown JSON fields without HTTP 400.",
+  "resource": {
+    "name": "text_local",
+    "adapter": "openai_chat",
+    "model": "chat",
+    "endpoint": "http://127.0.0.1:8001/v1"
+  },
+  "lifecycle": {
+    "before": {
+      "state": "startable",
+      "ready": false,
+      "managed": true,
+      "startable": true
+    },
+    "during": {
+      "state": "ready_managed",
+      "ready": true,
+      "managed": true,
+      "startable": true
+    },
+    "after": {
+      "state": "startable",
+      "ready": false,
+      "managed": true,
+      "startable": true
+    }
+  },
+  "policy_sha256": "3e2de7736466d24aaefe081d84d607d4d534c2095239c7be4b7e422128f238fd",
+  "request_sha256": "ba75ec4ac05fd95ce1d3477171cc547b508731e4593fc072cda347b9e3ee3fcf",
+  "batch_summary": {
+    "model_calls": 6,
+    "tokens_reserved": 6912,
+    "source_or_subtitles_modified": false,
+    "model_review_execution_sha256": "db6fe27fb0b55a451a38e74c87ca0d996f21a8e27f3295f04bd736800391b32c"
+  },
+  "calls": [
+    {
+      "call_index": 0,
+      "case_id": "boundary_ccbf33cf64b16ef94668",
+      "outcome_status": "unaccepted_model_response",
+      "outcome_error": "Completion budget exhausted by reasoning before final JSON",
+      "prompt_sha256": "b7935ffe75b2826b70950bfc947570d6312d41d3baded34c260cddf349a0bdff",
+      "response_sha256": "cdd5b2e89f4db15a9b02282d924375b40b6ed4c6ddab3e8f3776bb8cf2a456cb",
+      "content_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "client_request_diagnostics": {
+        "reasoning_effort_requested": "xhigh",
+        "reasoning_effort_sent": "xhigh",
+        "reasoning_effort_fallback": false,
+        "thinking_budget_sent": 512,
+        "response_format_sent": true
+      },
+      "finish_reason": "length",
+      "usage": {
+        "completion_tokens": 1280,
+        "completion_tokens_details": {
+          "reasoning_tokens": 1280
+        },
+        "prompt_tokens": 2728,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 4008
+      },
+      "latency_s": 12.662
+    },
+    {
+      "call_index": 1,
+      "case_id": "boundary_567ba692421cf2d5ca68",
+      "outcome_status": "unaccepted_model_response",
+      "outcome_error": "Completion budget exhausted by reasoning before final JSON",
+      "prompt_sha256": "f6ae06e9ed918167b30a0aa7c6200b68b25c7eae472ad00f1b48f58b011d3abf",
+      "response_sha256": "934c5fc799c95fb3d61094731f1c7b58df07bc4ee50e2a6ec14a02fcae8a1061",
+      "content_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "client_request_diagnostics": {
+        "reasoning_effort_requested": "xhigh",
+        "reasoning_effort_sent": "xhigh",
+        "reasoning_effort_fallback": false,
+        "thinking_budget_sent": 512,
+        "response_format_sent": true
+      },
+      "finish_reason": "length",
+      "usage": {
+        "completion_tokens": 1280,
+        "completion_tokens_details": {
+          "reasoning_tokens": 1280
+        },
+        "prompt_tokens": 2365,
+        "prompt_tokens_details": {
+          "cached_tokens": 322
+        },
+        "total_tokens": 3645
+      },
+      "latency_s": 5.465
+    },
+    {
+      "call_index": 2,
+      "case_id": "boundary_bbaebd4d2a77a9923c74",
+      "outcome_status": "unaccepted_model_response",
+      "outcome_error": "Completion budget exhausted by reasoning before final JSON",
+      "prompt_sha256": "bdab861ab76f37ecf148aaca4ee606a4c39c2d7c12f4c2e736e7884ecb98fcfb",
+      "response_sha256": "94f59d32576a457fd90698bae4121ac83561576723aa3502122485d2ec6b0555",
+      "content_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "client_request_diagnostics": {
+        "reasoning_effort_requested": "xhigh",
+        "reasoning_effort_sent": "xhigh",
+        "reasoning_effort_fallback": false,
+        "thinking_budget_sent": 512,
+        "response_format_sent": true
+      },
+      "finish_reason": "length",
+      "usage": {
+        "completion_tokens": 1280,
+        "completion_tokens_details": {
+          "reasoning_tokens": 1280
+        },
+        "prompt_tokens": 1097,
+        "prompt_tokens_details": {
+          "cached_tokens": 322
+        },
+        "total_tokens": 2377
+      },
+      "latency_s": 5.017
+    },
+    {
+      "call_index": 3,
+      "case_id": "boundary_4a6c595a295df6633d6a",
+      "outcome_status": "unaccepted_model_response",
+      "outcome_error": "Completion budget exhausted by reasoning before final JSON",
+      "prompt_sha256": "bbb299a497d607bb1a5e4cc0353c3fdcd138c729c9c2781122342d707068f64b",
+      "response_sha256": "54f8cd68d6cd3712f242723b9b712aea643fdab53ed1e1bfe98c23822e41e29b",
+      "content_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "client_request_diagnostics": {
+        "reasoning_effort_requested": "xhigh",
+        "reasoning_effort_sent": "xhigh",
+        "reasoning_effort_fallback": false,
+        "thinking_budget_sent": 512,
+        "response_format_sent": true
+      },
+      "finish_reason": "length",
+      "usage": {
+        "completion_tokens": 1280,
+        "completion_tokens_details": {
+          "reasoning_tokens": 1280
+        },
+        "prompt_tokens": 1578,
+        "prompt_tokens_details": {
+          "cached_tokens": 322
+        },
+        "total_tokens": 2858
+      },
+      "latency_s": 4.879
+    },
+    {
+      "call_index": 4,
+      "case_id": "boundary_02e99af11eba174c2a23",
+      "outcome_status": "unaccepted_model_response",
+      "outcome_error": "Completion budget exhausted by reasoning before final JSON",
+      "prompt_sha256": "392a544e960fb3ebe4003d7cb600f5a6e91b2612b95419521f1aa56c7d72e2ca",
+      "response_sha256": "810c5fa7287aaaedc973551e7712b265c75f316a8ba83daa6dd53a6b1b592cb5",
+      "content_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "client_request_diagnostics": {
+        "reasoning_effort_requested": "xhigh",
+        "reasoning_effort_sent": "xhigh",
+        "reasoning_effort_fallback": false,
+        "thinking_budget_sent": 512,
+        "response_format_sent": true
+      },
+      "finish_reason": "length",
+      "usage": {
+        "completion_tokens": 1280,
+        "completion_tokens_details": {
+          "reasoning_tokens": 1280
+        },
+        "prompt_tokens": 1281,
+        "prompt_tokens_details": {
+          "cached_tokens": 322
+        },
+        "total_tokens": 2561
+      },
+      "latency_s": 5.081
+    },
+    {
+      "call_index": 5,
+      "case_id": "boundary_667041775030e7e00935",
+      "outcome_status": "unaccepted_model_response",
+      "outcome_error": "Completion budget exhausted by reasoning before final JSON",
+      "prompt_sha256": "4dc6e4787e55780eee485a060fde4a5366ec4f5c08a0c81daf7783e5044ad842",
+      "response_sha256": "47628a0280b24780f58c344d6abbaccd83748c0ab32434b08c5abfbea6224a22",
+      "content_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "client_request_diagnostics": {
+        "reasoning_effort_requested": "low",
+        "reasoning_effort_sent": "low",
+        "reasoning_effort_fallback": false,
+        "thinking_budget_sent": 128,
+        "response_format_sent": true
+      },
+      "finish_reason": "length",
+      "usage": {
+        "completion_tokens": 512,
+        "completion_tokens_details": {
+          "reasoning_tokens": 512
+        },
+        "prompt_tokens": 997,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 1509
+      },
+      "latency_s": 1.903
+    }
+  ],
+  "server_request_start_telemetry": [
+    {
+      "request_id": 1,
+      "requested_output_tokens": 1280,
+      "requested_reasoning_effort": "xhigh",
+      "enable_thinking": true,
+      "effective_thinking_budget": 16384
+    },
+    {
+      "request_id": 2,
+      "requested_output_tokens": 1280,
+      "requested_reasoning_effort": "xhigh",
+      "enable_thinking": true,
+      "effective_thinking_budget": 16384
+    },
+    {
+      "request_id": 3,
+      "requested_output_tokens": 1280,
+      "requested_reasoning_effort": "xhigh",
+      "enable_thinking": true,
+      "effective_thinking_budget": 16384
+    },
+    {
+      "request_id": 4,
+      "requested_output_tokens": 1280,
+      "requested_reasoning_effort": "xhigh",
+      "enable_thinking": true,
+      "effective_thinking_budget": 16384
+    },
+    {
+      "request_id": 5,
+      "requested_output_tokens": 1280,
+      "requested_reasoning_effort": "xhigh",
+      "enable_thinking": true,
+      "effective_thinking_budget": 16384
+    },
+    {
+      "request_id": 6,
+      "requested_output_tokens": 512,
+      "requested_reasoning_effort": "low",
+      "enable_thinking": true,
+      "effective_thinking_budget": 16384
+    }
+  ],
+  "optional_av_t3": "not_executed (not_required_per_handoff)"
+}
