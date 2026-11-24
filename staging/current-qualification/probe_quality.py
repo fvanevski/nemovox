@@ -432,6 +432,15 @@ def run_assessments(client, root, manifest, collected, output, independent, visu
     inputs = load(collected / "inputs.json")
     if inputs["prior_manifest_sha256"] != sha256(manifest["_path"]):
         raise ValueError("Collected evidence belongs to another prior manifest")
+    completion = load(collected / "collection-complete.json")
+    expected = [(region, mode) for region, item in inputs["regions"].items()
+                for mode in (MODES + (("translate",) if region in
+                             ("fr-omission", "zh-gap-second") else ())
+                             if item["variant"] == "base" else ("speaker",))]
+    if (len(expected) != 20 or completion.get("asr_requests") != len(expected)
+            or any(not (collected / f"{region}-{mode}.json").is_file()
+                   for region, mode in expected)):
+        raise ValueError("Incomplete collected ASR comparison")
     for target in TARGETS:
         name = target[0]
         prior = prior_context(root, manifest, target)
