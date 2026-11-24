@@ -81,6 +81,76 @@ def _atomic_write_text(path: Path, text: str) -> None:
         raise
 
 
+def _validate_resume_manifest_views(manifest: dict[str, Any], *, manifest_path: Path,
+                                    chunks_dir: Path) -> None:
+    """Reject contradictory identities before any checkpoint can be replaced.
+
+    The planned view owns parent checkpoints. The effective view is derived:
+    an unsplit observation must agree with its parent, whereas a recovered
+    leaf has an independent receipt and different raw path. Legacy manifests
+    have only one view. A disagreement is not an ordinary cache miss.
+    """
+    if "planned_chunks" not in manifest:
+        return
+    planned = {int(row["chunk_index"]): row for row in manifest["planned_chunks"]}
+    fields = ("raw_response_path", "raw_response_sha256", "wav_path", "wav_sha256",
+              "extraction_signature", "core_start_s", "core_end_s", "infer_start_s",
+              "infer_end_s", "status")
+    for effective in manifest.get("chunks", []):
+        index = int(effective["planned_chunk_index"])
+        parent = planned.get(index)
+        if (parent is not None and parent.get("status") == "completed_rechunked"
+                and effective.get("raw_response_path") != parent.get("raw_response_path")):
+            # Independent recovery receipts are verified by recover_generation.
+            continue
+        differences = [key for key in fields
+                       if parent is None or parent.get(key) != effective.get(key)]
+        if not differences:
+            continue
+        conflict = {
+            "planned_chunk_index": index,
+            "effective_chunk_index": effective["chunk_index"],
+            "differences": differences,
+            "planned": {key: parent.get(key) for key in fields} if parent else None,
+            "effective": {key: effective.get(key) for key in fields},
+        }
+        manifest["checkpoint_conflict"] = conflict
+        manifest["asr_run_status"] = "checkpoint_conflict"
+        # Only classify actual bytes as a known rejected generation if at
+        # least one of the existing receipts binds that exact parent file.
+        # Do not elect either inconsistent view as accepted authority.
+        raw_path = chunks_dir / f"chunk_{index:03d}.raw.json"
+        if (parent is not None
+                and parent.get("raw_response_path") == effective.get("raw_response_path") == str(raw_path)
+                and raw_path.is_file()):
+            raw_dump = raw_path.read_text(encoding="utf-8")
+            digest = _sha256_text(raw_dump)
+            conflict["observed_raw_sha256"] = digest
+            if digest in (parent.get("raw_response_sha256"), effective.get("raw_response_sha256")):
+                try:
+                    integrity = audit_asr_generation(json.loads(raw_dump))
+                except (ValueError, TypeError, AttributeError):
+                    integrity = None
+                if integrity and integrity["status"] == "incomplete":
+                    rejected = chunks_dir / "rejected" / f"chunk_{index:03d}_{digest[:16]}.raw.json"
+                    if not rejected.is_file():
+                        _atomic_write_text(rejected, raw_dump)
+                    for row in (parent, effective):
+                        # Retain the disagreeing receipt digests; the rejected
+                        # digest identifies the observed bytes, not acceptance.
+                        row.update(status="incomplete_generation", generation_integrity=integrity,
+                                   rejected_raw_response_path=str(rejected),
+                                   rejected_raw_response_sha256=digest)
+                    manifest["asr_run_status"] = "incomplete_generation"
+                    _atomic_write_text(manifest_path, json.dumps(manifest, ensure_ascii=False, indent=2))
+                    raise IncompleteASRGeneration(
+                        f"Chunk {index} ASR generation incomplete in conflicting checkpoint views; "
+                        f"rejected raw response retained at {rejected}. No replacement output produced."
+                    )
+        _atomic_write_text(manifest_path, json.dumps(manifest, ensure_ascii=False, indent=2))
+        raise RuntimeError(f"Chunk {index} checkpoint manifest views conflict: {', '.join(differences)}")
+
+
 def _extraction_signature(*, media: MediaInfo, spec: ChunkSpec, audio_stream_index: int, sample_rate_hz: int = 16000) -> str:
     payload = {
         "media_path": media.path,
@@ -267,6 +337,10 @@ def process_media(
                 existing_manifest = loaded
         except Exception:
             existing_manifest = {}
+
+    if existing_manifest:
+        _validate_resume_manifest_views(existing_manifest, manifest_path=manifest_path,
+                                        chunks_dir=chunks_dir)
 
     if not cfg.resume or not existing_manifest:
         # Invalidate any stale chunk WAVs / raw JSONs from an earlier or changed run

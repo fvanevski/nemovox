@@ -49,7 +49,8 @@ def test_long_pathological_loop_is_incomplete_even_if_server_says_stop():
     assert audit["reason"] == "pathological_generation_loop"
 
 
-def test_legacy_completed_checkpoint_cannot_hide_length_finish(tmp_path, monkeypatch):
+@pytest.mark.parametrize("manifest_view", ["effective", "legacy", "planned"])
+def test_legacy_completed_checkpoint_cannot_hide_length_finish(tmp_path, monkeypatch, manifest_view):
     """A previously accepted but exhausted response must fail on replay too."""
     import hashlib
 
@@ -80,7 +81,10 @@ def test_legacy_completed_checkpoint_cannot_hide_length_finish(tmp_path, monkeyp
     response_path.write_text(rendered, encoding="utf-8")
     manifest_path = root / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest["chunks"][0]["raw_response_sha256"] = hashlib.sha256(
+    if manifest_view == "legacy":
+        manifest.pop("planned_chunks")
+    target_view = "planned_chunks" if manifest_view == "planned" else "chunks"
+    manifest[target_view][0]["raw_response_sha256"] = hashlib.sha256(
         rendered.encode("utf-8")
     ).hexdigest()
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
@@ -94,6 +98,47 @@ def test_legacy_completed_checkpoint_cannot_hide_length_finish(tmp_path, monkeyp
     assert (root / "recording.contract.json").read_bytes() == original_contract
     rejected = Path(updated["chunks"][0]["rejected_raw_response_path"])
     assert json.loads(rejected.read_text()) == suspect
+    assert response_path.read_bytes() == rendered.encode("utf-8")
+    assert updated["asr_run_status"] == "incomplete_generation"
+    if manifest_view != "legacy":
+        assert updated["planned_chunks"][0]["status"] == "incomplete_generation"
+        assert updated["checkpoint_conflict"]["differences"] == ["raw_response_sha256"]
+
+
+def test_conflicting_complete_checkpoint_views_are_not_a_cache_miss(tmp_path, monkeypatch):
+    wav = tmp_path / "source.wav"
+    with wave.open(str(wav), "wb") as f:
+        f.setnchannels(1)
+        f.setsampwidth(2)
+        f.setframerate(16000)
+        f.writeframes(b"\x00\x00" * 16000 * 2)
+    calls = []
+    def fake(self, path, config=None):
+        calls.append(str(path))
+        return {"raw_response": _response("<spk:0> Bonjour."),
+                "contract": {"raw_text": "Bonjour."}, "latency_s": .01}
+    monkeypatch.setattr(NemotronVLLMClient, "transcribe", fake)
+    cfg = RecordingPipelineConfig(source_language="fr", speaker_embeddings="none")
+    root = tmp_path / "run"
+    client = NemotronVLLMClient(model="stub")
+    process_media(wav, output_dir=root, client=client, config=cfg)
+    raw = root / "chunks" / "chunk_000.raw.json"
+    raw_before = raw.read_bytes()
+    contract = root / "recording.contract.json"
+    contract_before = contract.read_bytes()
+    manifest_path = root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["chunks"][0]["raw_response_sha256"] = "0" * 64
+    manifest_path.write_text(json.dumps(manifest))
+    with pytest.raises(RuntimeError, match="checkpoint manifest views conflict"):
+        process_media(wav, output_dir=root, client=client, config=cfg)
+    assert len(calls) == 1
+    assert raw.read_bytes() == raw_before
+    assert contract.read_bytes() == contract_before
+    updated = json.loads(manifest_path.read_text())
+    assert updated["asr_run_status"] == "checkpoint_conflict"
+    assert updated["checkpoint_conflict"]["differences"] == ["raw_response_sha256"]
+    assert updated["chunks"][0]["raw_response_sha256"] == "0" * 64
 
 
 def test_bounded_generation_retry_recovers_without_accepting_first_length_response(tmp_path, monkeypatch):
