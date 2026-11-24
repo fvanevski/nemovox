@@ -8,12 +8,12 @@
   "reviewer_guidance": "Primary outcome: readable, grammatical, clear English that preserves narrative meaning, negation, causal claims, named entities where supportable, and actual turn-taking, NOT word-for-word correspondence. Compare original source/neighbor audio evidence, competing ASR lexical/timing hypotheses, diarization activity, adjacent context and translation alternatives. A text-only review may identify anomalies and propose alternatives but cannot certify unheard speech. Prefer inexpensive text reasoning for routine readability and context QA; escalate to detailed audio-aware reasoning when a source passage is missing, displaced, semantically contradictory or conflicts with acoustic cues. Request visual observations only when they can materially resolve remaining speaker or scene ambiguity and appropriately discount anime lip synchronization. Preserve source provenance, list counterevidence, and abstain when the available evidence does not justify an acoustic claim. Word timing uncertainty alone need not prohibit event-bound readable subtitles.",
   "model_review": {
     "case_limit": 6,
-    "token_budget": 6912,
+    "token_budget": 9472,
     "light_tokens": 512,
-    "reasoned_tokens": 1280,
-    "light_thinking_budget": 128,
-    "reasoned_thinking_budget": 512,
-    "light_effort": "low",
+    "reasoned_tokens": 1792,
+    "light_thinking_budget": 0,
+    "reasoned_thinking_budget": 1024,
+    "light_effort": "none",
     "reasoned_effort": "xhigh"
   }
 }
