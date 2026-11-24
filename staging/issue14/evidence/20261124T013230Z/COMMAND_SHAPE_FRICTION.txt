@@ -1,0 +1,13 @@
+COMMAND_SHAPE_FRICTION
+campaign: ISSUE14_MEANING_FIRST_QC
+run_id: 20261124T013230Z
+encountered: yes
+omitted_sensitive_values: yes
+1. resource_lifecycle_symbol_lookup:
+   - requested: test command imported load_lifecycle_registry and probe_gpu_usage from nvidia_transcribe.resource_lifecycle
+   - effect: ImportError (exit 1); current branch exposes ModelLifecycle, managed_text_client, and _free_vram_mb instead.
+   - recovery: inspected resource_lifecycle.py directly and used ModelLifecycle + managed_text_client cleanly.
+2. ninfer_serve_reasoning_effort_fallback_and_thinking_starvation:
+   - requested: run_tiered_text_reviews called OpenAIChatTextClient.complete with reasoning_effort='high' (max_tokens=1280) and 'low' (max_tokens=512) against owned nemovox-text-review.service (ninfer-serve qwen3_8_27b with --thinking-budget 16384).
+   - effect: ninfer-serve rejected Call 0 with HTTP 400 ('invalid prompt | messages 2'); OpenAIChatTextClient sticky-latched _reasoning_rejected=True and stripped reasoning_effort for all 6 calls, causing ninfer-serve to allocate 100% of max_tokens (1280/512) to thinking and emit empty message.content='' (finish_reason='length', 6/6 unaccepted_model_response).
+   - recovery: preserved complete telemetry, journal logs, and raw receipts without altering production source/unit config; reported RESULT=PARTIAL per controlling handoff.

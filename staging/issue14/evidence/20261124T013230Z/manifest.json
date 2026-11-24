@@ -1,0 +1,49 @@
+{
+  "schema": "nemovox-evidence-manifest/v1",
+  "run_id": "20261124T013230Z",
+  "admitted_pr_head_sha": "0bf9e7bbe5c7991bb92c9e623d49ea31080f0d69",
+  "validated_central_source_sha": "622715afc00dd6d215fe27c9b5844f615d762971",
+  "file_count": 8,
+  "files": [
+    {
+      "path": "COMMAND_SHAPE_FRICTION.txt",
+      "sha256": "3efbf265cce50a1f4a3bd345e27ec523759ad64be3d1d2424eb78add3693f74e",
+      "bytes": 1377
+    },
+    {
+      "path": "README.md",
+      "sha256": "0f17b45261e5cb5b7b47236d393ef24a9140dda5c3fc4f0e9297c4abee9551cf",
+      "bytes": 2848
+    },
+    {
+      "path": "review/issue14-meaning-first-qc-summary.md",
+      "sha256": "0f17b45261e5cb5b7b47236d393ef24a9140dda5c3fc4f0e9297c4abee9551cf",
+      "bytes": 2848
+    },
+    {
+      "path": "source-identity.json",
+      "sha256": "9ba026f80f64f10227d8a6d971716974d91950f41e7e420ad731240fd5f7f7c6",
+      "bytes": 2685
+    },
+    {
+      "path": "validation/boundary-qc-replay.json",
+      "sha256": "917a5db05a6ac3e629b5d60fad6c2d918382ea5db196a527030bf1aab423a8a5",
+      "bytes": 15515
+    },
+    {
+      "path": "validation/cpu-gates.json",
+      "sha256": "4b4f4b3a4ff18ec9aa231c54941f7ea5a005116b165b23827f3d0f469634d0fc",
+      "bytes": 1406
+    },
+    {
+      "path": "validation/meaning-first-quality-matrix.json",
+      "sha256": "98a95b08a50b86bccd65e9f1aa415fce330e28b1d10e591dcf01612ea2fa7383",
+      "bytes": 2798
+    },
+    {
+      "path": "validation/tiered-model-probe.json",
+      "sha256": "f0915b217ac724ba95d15445fea7902fdbb356c5450485b440db6130d25e8200",
+      "bytes": 8412
+    }
+  ]
+}

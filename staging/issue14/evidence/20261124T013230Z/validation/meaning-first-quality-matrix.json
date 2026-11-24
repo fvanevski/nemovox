@@ -1,0 +1,32 @@
+{
+  "schema": "nemovox-issue14-meaning-first-quality-matrix/v1",
+  "run_id": "20261124T013230Z",
+  "human_wer_cer_der": "UNVERIFIED",
+  "evaluation_dimensions": {
+    "W01c_and_W01a_boundary_90s": {
+      "ordinary_run_b_quality": "Broken continuity and missing meaning: background shout omitted; 82.36s spurious 'God' cue; 77.63-83.25s scene dropped across Chunk 0 premature stop + Chunk 1 left-context orphan.",
+      "run_a_and_7comp_cli_quality": "Restores coherent scene (goats/what's going on/look who's back) at 77.63-83.15s; background distant shout remains partially lost.",
+      "t0_qc_status": "Detects Chunk 1 left-context 80.2-83.254s as reasoned_text (0 auto-promotion); misses 77.63-80.0s (prior to Chunk 1 WAV 80.0s) and misses ~61.2-63.8s background shout."
+    },
+    "S02_boundary_360s": {
+      "ordinary_run_b_quality": "High-severity semantic & polarity dislocation: negation/blame turn displaced -50.5s / -18.7s early into unrelated speaker scenes (304.84s / 337.88s) leaving a 14.44s subtitle void over 350.4-364.9s.",
+      "run_a_and_7comp_cli_quality": "Grammatical, polarity-faithful, properly timed across 351.24-359.85s (Mahjoura oasis / Zia brilliant / Nakall negation).",
+      "t0_qc_status": "Detects both Chunk 4 left-context segments at rank 1 & 2 (355.31-359.812s and 350.0-354.034s) with corroborating Chunk 3 unrepresented activity without modifying canonical output."
+    },
+    "negative_controls": {
+      "C1_clean_dialogue": "Preserved untouched, 0 false QC flags.",
+      "C2_genuine_repetition": "Preserved untouched, 0 false QC flags.",
+      "W04c_music_sfx": "No fabricated music/speech captions, 0 false QC flags.",
+      "W04a_short_exclamations": "Surfaces 1 light_text candidate at boundary 1260s, 0 auto-promotion.",
+      "zh_ep166_mandarin_char": "0 QC candidates across 3269 character units, character grain never auto-promoted."
+    }
+  },
+  "application_boundary": {
+    "advisory_layer": "plan_boundary_semantic_reviews, validate_semantic_review, run_tiered_text_reviews (source_application_authorized=False, quality_review_only=True)",
+    "accepted_revision_gate": "Opt-in 7-component source-revision CLI + reviewed unit amendment remains the sole authorized canonical mutation path.",
+    "generic_missing_connectors_for_central": [
+      "Symmetric Chunk 0->Chunk 1 tail completeness vs left-context coverage gap reporting (including non-overlap pre-80s gaps) and per-local-voice matching in semantic_review.left_lexical_correspondence.",
+      "Server/client reasoning parameter negotiation: OpenAIChatTextClient must support ninfer-serve chat_template/thinking suppression or reserve non-reasoning output headroom when reasoning_effort is rejected so bounded T1/T2 QC budgets (512/1280) do not starve message.content."
+    ]
+  }
+}
