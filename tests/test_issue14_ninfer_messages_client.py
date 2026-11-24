@@ -73,6 +73,8 @@ def test_t2_sends_real_anthropic_thinking_budget_and_normalizes_content(monkeypa
     assert body["thinking"] == {"type": "enabled", "budget_tokens": 1024}
     assert body["output_config"] == {"effort":"xhigh"}
     assert body["max_tokens"] == 1792
+    assert body["system"] == "Be precise"
+    assert body["messages"] == [{"role":"user","content":"Assess source ambiguity"}]
     assert result["choices"][0]["finish_reason"] == "stop"
     assert json.loads(result["choices"][0]["message"]["content"])["decision"] == "unresolved"
     assert "contrary" in result["choices"][0]["message"]["reasoning_content"]
@@ -91,6 +93,8 @@ def test_t1_disables_hidden_thinking_instead_of_inheriting_server_default(monkey
         messages=_messages(), max_tokens=512, thinking_budget=0, reasoning_effort="none",
         response_format={"type":"json_object"}, strict_reasoning_effort=True)
     assert requests[0][1]["thinking"] == {"type": "disabled"}
+    assert requests[0][1]["system"] == "Be precise"
+    assert requests[0][1]["messages"][0]["role"] == "user"
     assert "output_config" not in requests[0][1]
     assert result["_client_request_diagnostics"]["thinking_mode"] == "disabled"
     assert result["usage"]["completion_tokens_details"]["reasoning_tokens"] == 0
@@ -195,3 +199,45 @@ def test_messages_adapter_integrates_with_pinned_semantic_review_contract(monkey
     assert result["model_calls"]==1
     assert result["source_or_subtitles_modified"] is False
     assert requests[0][1]["thinking"]=={"type":"enabled","budget_tokens":1024}
+    assert "system" in requests[0][1]
+    assert requests[0][1]["messages"][0]["role"]=="user"
+
+
+def test_anthropic_system_prefix_is_preserved_in_top_level_without_reordering_history(monkeypatch):
+    requests = _client_transport(monkeypatch, responses=[
+        Reply(body=_finished_response(thinking=False)),
+        Reply(body=_finished_response(thinking=False)),
+    ])
+    client = NInferMessagesTextClient(base_url="http://localhost:8001/v1", model="chat")
+    client.complete(messages=[
+        {"role":"system","content":"Preserve intended meaning."},
+        {"role":"system","content":"Never invent dialogue."},
+        {"role":"user","content":"First turn."},
+        {"role":"assistant","content":"Acknowledged."},
+        {"role":"user","content":"Second turn."},
+    ],max_tokens=512,thinking_budget=0,reasoning_effort="none")
+    body=requests[0][1]
+    assert body["system"]=="Preserve intended meaning.\n\nNever invent dialogue."
+    assert [m["role"] for m in body["messages"]]==["user","assistant","user"]
+    assert [m["content"] for m in body["messages"]]==["First turn.","Acknowledged.","Second turn."]
+    # Only the initial system prefix is hoisted: legitimate later system
+    # turns stay at their original position in the message history.
+    client.complete(messages=[
+        {"role":"system","content":"Top-level instruction."},
+        {"role":"user","content":"A question."},
+        {"role":"system","content":"Scoped context."},
+        {"role":"assistant","content":"A response."},
+    ],max_tokens=512,thinking_budget=0,reasoning_effort="none")
+    second=requests[1][1]
+    assert second["system"]=="Top-level instruction."
+    assert [m["role"] for m in second["messages"]]==["user","system","assistant"]
+
+
+def test_system_only_messages_fail_before_wire_request(monkeypatch):
+    requests=_client_transport(monkeypatch)
+    client=NInferMessagesTextClient(base_url="http://localhost:8001/v1",model="chat")
+    with pytest.raises(ValueError,match="at least one non-system"):
+        client.complete(messages=[
+            {"role":"system","content":"No user turn."}
+        ],max_tokens=512,thinking_budget=0,reasoning_effort="none")
+    assert requests==[]
