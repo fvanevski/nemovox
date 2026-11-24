@@ -46,7 +46,7 @@ def test_cli_distinct_text_resources_and_specialized_adapter_settings(tmp_path, 
 
     monkeypatch.setattr(cli, "generate_subtitles", fake_generate)
     result = cli.main([
-        "generate-subtitles", "--recording-contract", "not-read-by-fake",
+        "generate-subtitles", "--translator", "openai_chat", "--recording-contract", "not-read-by-fake",
         "--output-dir", str(tmp_path / "output"), "--model-resources", str(path),
         "--condense-high-cps",
     ])
@@ -349,7 +349,7 @@ def test_alternative_asr_checkpoint_is_not_fabricated_in_cli_configs(tmp_path, m
     monkeypatch.setattr(cli, "generate_subtitles",
                         lambda *args, **kwargs: captured.setdefault("cfg", kwargs["config"]) and {"ok": True})
     code = cli.main([
-        "generate-subtitles", "--recording-contract", "not-opened-by-fake",
+        "generate-subtitles", "--translator", "openai_chat", "--recording-contract", "not-opened-by-fake",
         "--output-dir", str(tmp_path / "subs"), "--model-resources", str(path),
     ])
     assert code == 0, capsys.readouterr()

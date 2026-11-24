@@ -84,12 +84,12 @@ def build_parser() -> argparse.ArgumentParser:
     gs.add_argument("--refinement", default="off",
                     choices=["off", "conservative", "balanced", "expressive"],
                     help="Source-language text correction is OFF by default. Non-off profiles are explicit legacy opt-ins.")
-    gs.add_argument("--translator", default="openai_chat", choices=["openai_chat", "swiftu", "riva", "none"],
+    gs.add_argument("--translator", default="riva", choices=["openai_chat", "swiftu", "riva", "none"],
                     help="OpenAI chat text model, Riva worker, or none; swiftu is a compatibility alias.")
     gs.add_argument("--style", default="natural", choices=["natural", "literal", "expressive"])
-    gs.add_argument("--translation-review", default="off",
+    gs.add_argument("--translation-review", default=None,
                     choices=["off", "conservative", "balanced", "expressive"],
-                    help="Contextual English post-edit after dedicated translation; off keeps legacy CLI behavior.")
+                    help="Contextual English post-edit; defaults to balanced with Riva, otherwise off.")
     gs.add_argument("--glossary", default=None, help="Path to character/term glossary (.yaml/.json) or comma-separated terms.")
     gs.add_argument("--formats", default="srt,ass", help="Comma-separated subtitle formats (default: srt,ass).")
     gs.add_argument("--episode-stem", default=None, help="Override subtitle output filename stem.")
@@ -154,42 +154,14 @@ def build_parser() -> argparse.ArgumentParser:
     recover.add_argument("--lease-path", required=True)
     recover.add_argument("--journal", required=True)
 
-    review = sub.add_parser(
-        "apply-reviewed-revision",
-        help="Preview or explicitly render a pinned, complete reviewed source revision without model calls.",
-    )
-    review.add_argument("--original-recording", required=True)
-    review.add_argument("--source-evidence", required=True)
-    review.add_argument("--review-dossier", required=True)
-    review.add_argument("--selection", required=True,
-                        help="JSON with reviewed component IDs, plan SHA and source/dossier digests.")
-    review.add_argument("--previous-translated", default=None)
-    review.add_argument("--translation-receipts", default=None)
-    review.add_argument("--local-voice-review", default=None)
-    review.add_argument("--output-dir", default=None,
-                        help="New private directory, must not already exist.")
-    review.add_argument("--episode-stem", default=None)
-    review.add_argument("--formats", default="srt,ass")
-    review.add_argument("--apply", action="store_true",
-                        help="Create the private revised recording, translated contract and SRT/ASS. Default is read-only preview.")
-
-    qc = sub.add_parser(
-        "prepare-semantic-review-queue",
-        help="Bind a validated meaning-first QC batch to original raw audio-review evidence; never apply corrections.",
-    )
-    qc.add_argument("--request", required=True, help="Immutable semantic-review candidate request JSON.")
-    qc.add_argument("--batch", required=True, help="Validated structured LLM review batch JSON.")
-    qc.add_argument("--policy", required=True, help="Exact meaning-first policy used to produce the request.")
-    qc.add_argument("--original-recording", required=True)
-    qc.add_argument("--source-evidence", required=True)
-    qc.add_argument("--output-json", required=True, help="New private file; must not exist.")
-    qc.add_argument("--audio-padding-s", type=float, default=4.0)
     return p
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    if args.command == "generate-subtitles" and args.translation_review is None:
+        args.translation_review = "balanced" if args.translator == "riva" else "off"
 
     if args.command == "recover-qwen-asr":
         try:
@@ -212,48 +184,6 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"status": "FAIL", "error": str(exc)}, indent=2), file=sys.stderr)
             return 2
         print(json.dumps(summary.to_dict(), indent=2))
-        return 0
-
-    if args.command == "prepare-semantic-review-queue":
-        # Explicit offline opt-in. Never start a model, change the active job,
-        # interpret an LLM advisory as audio truth or overwrite prior evidence.
-        from nvidia_transcribe.semantic_review_followups import write_meaning_first_review_queue
-        try:
-            report = write_meaning_first_review_queue(
-                request_path=args.request, batch_path=args.batch,
-                policy_path=args.policy, recording_path=args.original_recording,
-                source_evidence_path=args.source_evidence,
-                output_path=args.output_json, audio_padding_s=args.audio_padding_s,
-            )
-        except (OSError, ValueError, TypeError, KeyError) as exc:
-            print(json.dumps({"status": "ERROR", "error": str(exc)}), file=sys.stderr)
-            return 1
-        print(json.dumps(report, ensure_ascii=False, indent=2))
-        return 0
-
-    if args.command == "apply-reviewed-revision":
-        # Deliberately no resource registry, model lifecycle or translation
-        # worker: all source and English revision evidence already exists.
-        from nvidia_transcribe.reviewed_revision_runner import run_reviewed_revision
-        formats = tuple(v.strip().lower() for v in args.formats.split(",") if v.strip())
-        try:
-            report = run_reviewed_revision(
-                original_recording_path=args.original_recording,
-                source_evidence_path=args.source_evidence,
-                review_dossier_path=args.review_dossier,
-                selection_path=args.selection,
-                previous_translated_path=args.previous_translated,
-                translation_receipts_path=args.translation_receipts,
-                local_voice_review_path=args.local_voice_review,
-                output_dir=args.output_dir,
-                episode_stem=args.episode_stem,
-                formats=formats,
-                apply=args.apply,
-            )
-        except (OSError, ValueError, TypeError, KeyError) as exc:
-            print(json.dumps({"status": "ERROR", "error": str(exc)}), file=sys.stderr)
-            return 1
-        print(json.dumps(report, ensure_ascii=False, indent=2))
         return 0
 
     if args.command in ("transcribe", "process-media", "generate-subtitles"):

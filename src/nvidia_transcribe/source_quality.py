@@ -93,6 +93,7 @@ def load_current_ledger(recording, recording_path):
     observed = {r["chunk_index"]: r["raw_response_sha256"]
                 for r in ledger["asr_observations"]}
     if (not expected or expected != observed
+            or len(expected) != len(recording["processing"]["chunks"])
             or len(observed) != len(ledger["asr_observations"])):
         raise ValueError("Source evidence does not belong to this recording")
     return ledger
@@ -254,6 +255,17 @@ def select_source_events(recording, events, policy):
     rows = [dict(r) for r in recording["utterances"]]
     decisions = []
     media_id = recording["source"]["fingerprint_sha256"]
+    def corroborated_at_own_time(row, event):
+        original = _bounds(row)
+        target = _bounds(event)
+        return bool(original and target and not _overlap(original, target)
+                    and any(_bounds(other)
+                            and _lex(other["source_text"]) == _lex(row["source_text"])
+                            and abs(_bounds(other)[0] - original[0]) <= policy.timing_tolerance_s
+                            and abs(_bounds(other)[1] - original[1]) <= policy.timing_tolerance_s
+                            and _overlap(_bounds(other), original) > 0
+                            for other in events))
+
     for event in sorted(events, key=lambda e: (e["source_start"], e["source_end"])):
         bounds = _bounds(event)
         words = _lex(event["source_text"])
@@ -279,7 +291,7 @@ def select_source_events(recording, events, policy):
             if _lex(nearby_matches[0]["source_text"]) == words:
                 replace = nearby_matches[0]
                 status = "timed_corroborated_turn"
-        elif not overlaps and not nearby_matches:
+        elif not overlaps and all(corroborated_at_own_time(u, event) for u in nearby_matches):
             status = "recovered_corroborated_turn"
         elif not overlaps:
             status = "unresolved_possible_displaced_or_repeated_turn"
@@ -370,10 +382,21 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
                         item["chunks"] = w["chunks"]
                         item["trigger_evidence_ids"] = w["evidence_ids"]
                     events.extend(selected)
-                    if not selected:
-                        unresolved.append({"window": w, "reason": "no_unique_corroborated_event"})
+                    matched = {oid for item in selected for oid in item["supporting_observation_ids"]}
+                    unmatched = [u["observation_id"] for observation in pair
+                                 for u in observation["utterances"]
+                                 if w["window"][0] <= (u["source_start"] + u["source_end"]) / 2 <= w["window"][1]
+                                 and u["observation_id"] not in matched]
+                    if not selected or unmatched:
+                        unresolved.append({"window": w, "reason": "unmatched_acoustic_observations"
+                                           if unmatched else "no_unique_corroborated_event",
+                                           "unmatched_observation_ids": unmatched})
     rows, decisions = select_source_events(recording, events, policy)
-    uncertain = (bool(unresolved or deferred)
+    reviewed_case_ids = {o["case_id"] for o in (advisory or {}).get("outcomes", [])}
+    deferred_case_ids = [c["case_id"] for c in request["cases"]
+                         if c["case_id"] not in reviewed_case_ids]
+    discovery_deferred = request.get("deferred_by_budget", 0)
+    uncertain = (bool(unresolved or deferred or deferred_case_ids or discovery_deferred)
                  or any(d["status"].startswith("unresolved") for d in decisions)
                  or bool(advisory and (advisory.get("systemic_failure")
                           or any(o["status"] != "advisory_only" for o in advisory["outcomes"]))))
@@ -383,7 +406,9 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
         "media_fingerprint_sha256": media.fingerprint_sha256,
         "recording_sha256": _digest(recording),
         "source_language": recording["source_language"],
-        "text_advisory": advisory, "windows": windows, "deferred_windows": deferred,
+        "text_advisory": advisory, "deferred_text_case_ids": deferred_case_ids,
+        "discovery_deferred_by_budget": discovery_deferred,
+        "windows": windows, "deferred_windows": deferred,
         "acoustic_observations": observations, "decisions": decisions,
         "unresolved_windows": unresolved, "audio_requests": len(observations),
         "source_truth_human_verified": False,

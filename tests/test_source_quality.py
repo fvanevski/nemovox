@@ -103,3 +103,11 @@ def test_window_budget_preserves_deferred_work_and_text_only_is_not_authority():
                                      SourceQualityPolicy(max_windows=1))
     assert windows[0]["evidence_ids"] == ["y"]
     assert deferred[0]["evidence_ids"] == ["x"]
+
+
+def test_recovery_of_two_separately_corroborated_repetitions():
+    events = [_event("Allons vite", 4, 5, 1), _event("Allons vite", 7, 8, 2)]
+    rows, decisions = select_source_events(_recording([]), events, SourceQualityPolicy())
+    assert [r["source_start"] for r in rows] == [4, 7]
+    assert len({r["id"] for r in rows}) == 2
+    assert all(d["status"] == "recovered_corroborated_turn" for d in decisions)

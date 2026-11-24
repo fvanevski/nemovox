@@ -156,10 +156,10 @@ def test_plan_fingerprint_changes_on_chunk_policy_and_boundaries():
     adaptive_sig = _config_signature(**kwargs, cfg=adaptive_cfg, chunks=adaptive_plan,
                                      plan_metadata=diag)
     assert fixed_sig != adaptive_sig
-    # Fixed-policy source identity must not depend on new planner diagnostics.
+    # Even fixed-policy checkpoints bind the actual planned chunks and metadata.
     fixed_sig2 = _config_signature(**kwargs, cfg=fixed_cfg, chunks=adaptive_plan,
                                     plan_metadata={"forced_cut_count": 99})
-    assert fixed_sig2 == fixed_sig
+    assert fixed_sig2 != fixed_sig
     altered = _config_signature(**kwargs, cfg=adaptive_cfg, chunks=adaptive_plan,
                                 plan_metadata={**diag, "forced_cut_count": 77})
     assert adaptive_sig != altered

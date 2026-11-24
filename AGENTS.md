@@ -71,8 +71,7 @@ historical evidence documents.
 
 ## Provenance & Evaluation Rules
 - Preserve source-language transcription and original Unicode text verbatim alongside any English translation; never overwrite source transcripts with translations.
-- While the existing reviewed-revision implementation remains in the tree, chronology/untimed-audit passes may change a translated row's display `id` while preserving its source identity in `original_utterance_id`. Join retained translations to their immutable original source identity, validate a one-to-one mapping and unchanged source fields, and explicitly remap grouping/duplicate references. Never assume the translated display `id` is a stable ASR-source owner or silently attach English to the wrong source turn.
-- While the existing offline reviewed-revision implementation remains in the tree, its operations are explicit and isolated: require digest-pinned original recording, raw source ledger, direct-audio review dossier, explicit complete-component selection, and revision-specific translation receipts. Preview is read-only; `--apply` may write ONLY a new private output directory. Never select incomplete connected components, modify originals, invoke models implicitly, claim local acoustic voices as global characters, or export sidecars without a separate operator decision.
+- Bind current-source quality decisions to the exact recording ledger and separate acoustic observations. Canonical source may differ from ASR only with positive observation support; preserve prior hypotheses and expose unresolved ambiguity. Do not equate same-model repeat observations with independent-model or human confirmation.
 - Convert excerpt-relative timestamps to absolute media timestamps using recorded crop offsets (`source_offset_s`).
 - Never fabricate missing timestamps, confidence scores, or speaker mappings.
 - Keep CPU-only unit tests strictly separated from live GPU inference tests (`-m "not gpu"`).

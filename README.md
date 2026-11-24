@@ -12,8 +12,7 @@ Superseded code, fixtures, schemas, configuration and development evidence
 should be removed rather than maintained for backward compatibility. New
 acceptance evidence must be generated with the current code, configuration
 and model resources. The development contract in [AGENTS.md](AGENTS.md)
-governs this transition; existing experimental commands documented below
-describe the current implementation, not permanent compatibility promises.
+governs this transition. Current implementation requires fresh host qualification.
 
 ### Subtitle quality objective
 
@@ -29,32 +28,13 @@ separate evidence for **reasoned** correction of problematic dialogue. Lightweig
 contextual text QC should handle routine wording; richer audio-aware, and only
 selectively audiovisual, reasoning belongs on genuinely ambiguous material.
 Correct English phrasing does not certify unheard words as source-acoustic truth.
-Issue #14's new boundary semantic-review diagnostics are advisory and do not
-automatically rewrite a recording or subtitle output.
-
-For a structured meaning-first QC result, the offline
-`nvidia-transcribe prepare-semantic-review-queue` command accepts a digest-pinned
-candidate request, model-review batch, exact policy, original recording and raw
-source-evidence ledger. It creates one **new private JSON file** listing original
-unit IDs, raw response identities and narrowly scoped audio-listening windows.
-It neither starts a model nor approves any source/English change:
-
-```bash
-nvidia-transcribe prepare-semantic-review-queue \
-  --request /private/qc-request.json \
-  --batch /private/qc-batch.json \
-  --policy configs/meaning-first-review.example.json \
-  --original-recording /private/original.recording.json \
-  --source-evidence /private/source-evidence.json \
-  --output-json /private/new-qc-review-queue.json
-```
-
-Use the review queue to audition and adjudicate consequential ambiguities.
-Only actual independent audio evidence and the existing complete reviewed-unit
-source-revision gate can authorize a source correction. Contextual English
-postediting remains separately source-bound, and fluent nonliteral English is
-permitted when it preserves narrative meaning, polarity and clarity. The queue
-is not an automatically accepted source revision or a Studio-job mutation.
+The normal current-media subtitle workflow performs bounded source quality
+review before translation. Text assessments prioritize candidates; separately
+extracted acoustic contexts can corroborate a missing turn or an extended or
+untimed source event. The same ASR model may be used for both contexts: this
+does not establish independent-model agreement or human-verified speech.
+Competing or unsupported hypotheses and exhausted budgets remain explicit
+in the current job's source-quality report. No historical dossier is needed.
 
 ---
 
@@ -62,7 +42,7 @@ is not an automatically accepted source revision or a Studio-job mutation.
 
 - **Single-Clip & Chunked Recording ASR:** Transcribe short clips (`transcribe`) or full-length audio/video recordings (`process-media`) with chunk-overlap boundary reconciliation, CTC word/character timestamp extraction, optional sub-interval recovery, and resumable manifests.
 - **Speaker Tracking & Contracts:** Reconstruct per-speaker utterances across overlapping streams, reconcile speakers across chunks, and emit structured JSON contracts (`recording.contract.json`) that preserve verbatim source Unicode text and honest timestamp provenance without fabricating missing timings.
-- **Untouched ASR → dedicated translation → selective English review:** Preserve the unmodified source-language ASR transcript. **No source-language text-model correction is part of the normal Studio workflow.** The Studio subtitle path uses a **dedicated Riva-Translate worker** for initial English machine translation, then uses the configured text model (e.g., SwiftU/NInfer) **only to assess and selectively correct original English translations**, using adjacent raw English cues, untouched ASR text, speaker context and an optional glossary. The initial machine translation remains inspectable; stage-specific caching prevents stale cross-model reuse. Source-language refinement remains an explicit legacy CLI opt-in (`--refinement` non-off). For standalone CLI backward compatibility, primary translation still defaults to `openai_chat` unless `--translator riva` is chosen explicitly; **Studio always sends `riva`** and selects the English review independently.
+- **ASR → current-source quality → Riva → English review:** Preserve original ASR observations, then select acoustically corroborated current source events before dedicated translation. Bounded NInfer Messages reasoning prioritizes review; lightweight English postediting is separate and preserves original MT. CLI and Studio share the pipeline. `--source-quality off` explicitly skips acoustic review; a recording contract without original media cannot be acoustically reviewed.
 - **Post-Processing & Export (`generate-subtitles`):** Render `SRT` and multi-lane `ASS` subtitles (`Main`, `Top`, `TopAlt`), optional hardsub-clearing layout (`--ass-layout raised_main`), explicit optional high-CPS condensation (`--condense-high-cps`, disabled by default in Studio to avoid a second English text-model pass), reversible review overlays (`--validation-overlay`), and zero-inference CPU re-rendering (`--re-render`).
 
 ---
@@ -95,7 +75,7 @@ export NEMOVOX_MODEL_RESOURCES="$PWD/configs/model-resources.local.json"
 # Optional: source a locally reviewed .env for per-resource overrides.
 ```
 
-The resource file binds functional roles (ASR, **dedicated Riva translation and English translation review**, optional legacy source refinement/condensation, alignment, embeddings) to installed local resources. The shipped `text_local` binding points to the existing SwiftU/NInfer host endpoint for selective English post-editing. The CLI and Studio use the same resolver, but the Studio uses Riva for primary translation while the legacy CLI text translator remains opt-in. See [model-resource configuration](docs/model-resources/CONFIGURATION.md) and the [Studio subtitle workflow guide](docs/gui/SUBTITLE_WORKFLOW.md). Reading this configuration never starts inference services.
+The resource file binds functional roles (ASR, **dedicated Riva translation and English translation review**, optional legacy source refinement/condensation, alignment, embeddings) to installed local resources. The shipped `text_local` binding points to the existing SwiftU/NInfer host endpoint for selective English post-editing. The CLI and Studio use the same resolver and default to dedicated Riva translation and balanced English review in their normal subtitle workflow. See [model-resource configuration](docs/model-resources/CONFIGURATION.md) and the [Studio subtitle workflow guide](docs/gui/SUBTITLE_WORKFLOW.md). Reading this configuration never starts inference services.
 
 For automatic per-job ASR/reviewer service acquisition, provision the explicitly owned user-systemd units once (not per job) and configure `NEMOVOX_LIFECYCLE_CONFIG` as described in [model lifecycle](docs/model-resources/LIFECYCLE.md). The CLI/Studio then starts and releases required owned resources automatically. The following standalone launcher remains available for explicit diagnostics:
 
@@ -123,10 +103,10 @@ nvidia-transcribe process-media episode.webm \
   --source-language zh \
   --mode speaker
 
-# 4. Dedicated Riva English translation followed by contextual text-model review.
+# 4. Current-source quality, Riva translation, and contextual English review.
 # Requires an installed Riva checkpoint/worker and a compatible text endpoint.
 # Omit --glossary for unrelated media.
-nvidia-transcribe generate-subtitles \
+nvidia-transcribe generate-subtitles episode.webm \
   --recording-contract outputs/episode_run/recording.contract.json \
   --output-dir outputs/episode_subs \
   --source-language zh \
@@ -147,47 +127,6 @@ nvidia-transcribe generate-subtitles \
   --validation-overlay configs/overlays/zh_ep166_validation.json \
   --re-render
 ```
-
-### Reviewed source revision (explicit offline opt-in)
-
-The `apply-reviewed-revision` CLI consumes immutable ASR source evidence,
-independently reviewed audio-event reconciliation, a digest-pinned **explicit**
-selection of complete source-unit components, an original recording, and
-revision-specific English translation receipts. It is a separate, model-free
-path; the default subtitle generator remains unchanged. This feature requires
-host qualification before relying on it for the media library.
-
-```sh
-# Default: no writes and no model calls, validates the selected evidence
-nvidia-transcribe apply-reviewed-revision \
-  --original-recording /private/recording.contract.json \
-  --source-evidence /private/source-evidence.v1.json \
-  --review-dossier /private/candidate_reconciliation_dossier.json \
-  --selection /private/approved-components.json
-
-# Explicitly create one NEW private revised contract and SRT/ASS set
-nvidia-transcribe apply-reviewed-revision \
-  --original-recording /private/recording.contract.json \
-  --source-evidence /private/source-evidence.v1.json \
-  --review-dossier /private/candidate_reconciliation_dossier.json \
-  --selection /private/approved-components.json \
-  --previous-translated /private/translated.contract.json \
-  --translation-receipts /private/revision-translation-receipts.json \
-  --local-voice-review /private/local-acoustic-voice-review.json \
-  --output-dir /private/new-reviewed-output \
-  --episode-stem my_episode --apply
-```
-
-The selection is `nemovox-reviewed-component-selection/v1` JSON containing
-`selected_component_ids`, `expected_plan_sha256`, and
-`recording_content_sha256`, `ledger_content_sha256`,
-`dossier_content_sha256`. These bind the current recomputed reviewed-unit
-partition and three original evidence inputs. Incomplete components are
-rejected, and `--apply` refuses an existing output directory. Riva/ASR/VLM
-inference and live sidecar export are NOT invoked; new reviewed turns require
-pre-existing translation receipts tied to each source revision. Local reviewed
-voice tags remain distinct from global speaker identity. No automatic disposal
-of ambiguous raw ASR overlaps or invention of word-level timing occurs.
 
 ---
 

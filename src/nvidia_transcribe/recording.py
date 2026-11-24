@@ -118,15 +118,13 @@ def _config_signature(
         "context_seconds": cfg.context_seconds,
         "min_tail_seconds": cfg.min_tail_seconds,
     }
-    # Preserve the exact legacy signature for fixed-plan checkpoint resume.
-    # An opt-in pause-aware run binds its *actual* variable boundaries and
-    # detector decisions to a distinct signature; no accidental old-cache reuse.
-    if cfg.chunk_policy != "fixed":
-        payload.update({
-            "chunk_policy": cfg.chunk_policy,
-            "chunk_plan": [s.to_dict() for s in chunks] if chunks is not None else None,
-            "chunk_plan_metadata": plan_metadata,
-        })
+    # Current source contracts bind the actual plan; invalidate pre-consolidation checkpoints.
+    payload.update({
+        "source_pipeline_schema": "current-job-source/v1",
+        "chunk_policy": cfg.chunk_policy,
+        "chunk_plan": [s.to_dict() for s in chunks] if chunks is not None else None,
+        "chunk_plan_metadata": plan_metadata,
+    })
     return _sha256_text(json.dumps(payload, sort_keys=True))
 
 
