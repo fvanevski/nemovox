@@ -15,8 +15,9 @@ def main():
     p.add_argument("--inputs", required=True, type=Path)
     p.add_argument("--output", required=True, type=Path)
     a = p.parse_args()
-    if not a.checkpoint.is_dir() or not (a.checkpoint / "model.bin").is_file():
-        p.error("An existing local CTranslate2 model directory is required")
+    required = ("model.bin", "config.json", "tokenizer.json", "preprocessor_config.json")
+    if not a.checkpoint.is_dir() or not all((a.checkpoint / name).is_file() for name in required):
+        p.error("Complete existing local CTranslate2 model/tokenizer/preprocessor assets required")
     if a.output.exists():
         p.error("Refusing to overwrite diagnostic output")
     from faster_whisper import WhisperModel
@@ -41,11 +42,14 @@ def main():
                            for w in (s.words or [])]} for s in segments]
         results[name] = {"audio_sha256": region["sha256"], "language": info.language,
                          "rows": rows, "elapsed_s": time.perf_counter()-t0}
+    digests = {}
+    for f in a.checkpoint.iterdir():
+        if f.is_file():
+            with f.open("rb") as stream:
+                digests[str(f.relative_to(a.checkpoint))] = hashlib.file_digest(stream, "sha256").hexdigest()
     a.output.write_text(json.dumps({
         "checkpoint": str(a.checkpoint.resolve()),
-        "checkpoint_files": {str(f.relative_to(a.checkpoint)): hashlib.file_digest(
-            f.open("rb"), "sha256").hexdigest()
-            for f in a.checkpoint.iterdir() if f.is_file()},
+        "checkpoint_files": digests,
         "faster_whisper_version": importlib.metadata.version("faster-whisper"),
         "device": "cpu", "compute_type": "int8", "results": results,
     }, ensure_ascii=False, indent=2) + "\n")

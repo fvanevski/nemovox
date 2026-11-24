@@ -55,7 +55,9 @@ def load(path):
 
 
 def verified_prior(root, manifest, relative):
-    path = root / relative
+    path = (root / relative).resolve()
+    if root not in path.parents:
+        raise ValueError("Manifest member escaped prior job root")
     record = manifest["files"].get(relative)
     if not record or not path.is_file() or path.stat().st_size != record["size"]:
         raise ValueError(f"Prior artifact missing or wrong size: {relative}")
@@ -87,6 +89,7 @@ def describe(raw, contract):
         "timestamp_provenance": contract.get("timestamp_provenance"),
         "diarization_intervals": contract.get("diarization_intervals"),
         "rows": rows,
+        "raw_ctc_payload": raw.get("ctc_timestamps"),
         "generated_lexical_units": len(generated),
         "reconstructed_lexical_units": len(reconstructed),
         "sequence_differences": [
@@ -97,13 +100,28 @@ def describe(raw, contract):
     }
 
 
+def job_paths(manifest, job):
+    """Resolve only manifest-bound CLI or Studio job roots, never newest-by-mtime."""
+    files = manifest["files"]
+    direct = f"{job}/asr/recording.contract.json"
+    if direct in files:
+        return f"{job}/asr", job
+    records = [name for name in files if name.startswith(f"{job}/jobs/")
+               and name.endswith("/asr/recording.contract.json")]
+    if len(records) != 1:
+        raise ValueError(f"Expected one manifest-bound Studio recording for {job}")
+    base = records[0].removesuffix("/asr/recording.contract.json")
+    return base + "/asr", base + "/output"
+
+
 def inspect_prior(root, manifest, output):
     for job, language in (("fr-question", "fr"), ("zh-gap", "zh")):
-        recording = verified_prior(root, manifest, f"{job}/asr/recording.contract.json")
-        canonical = verified_prior(root, manifest, f"{job}/canonical-source.contract.json")
-        quality = verified_prior(root, manifest, f"{job}/source-quality.json")
+        asr_dir, result_dir = job_paths(manifest, job)
+        recording = verified_prior(root, manifest, f"{asr_dir}/recording.contract.json")
+        canonical = verified_prior(root, manifest, f"{result_dir}/canonical-source.contract.json")
+        quality = verified_prior(root, manifest, f"{result_dir}/source-quality.json")
         chunks = []
-        prefix = f"{job}/asr/chunks/"
+        prefix = f"{asr_dir}/chunks/"
         for name in sorted(manifest["files"]):
             if name.startswith(prefix) and name.endswith(".raw.json"):
                 raw = extract_raw(verified_prior(root, manifest, name))
@@ -163,7 +181,8 @@ def string_schema(*fields):
 def text_probe(client, root, manifest, output):
     results = []
     for number, (job, language, uid) in enumerate(TEXT_CASES):
-        doc = verified_prior(root, manifest, f"{job}/translated.contract.json")
+        _, result_dir = job_paths(manifest, job)
+        doc = verified_prior(root, manifest, f"{result_dir}/translated.contract.json")
         rows = doc["utterances"]
         indices = [i for i, row in enumerate(rows)
                    if (row.get("utterance_id") or row.get("id")) == uid]
@@ -235,6 +254,8 @@ def main():
     out = args.output_dir.resolve()
     if out == root or root in out.parents:
         raise ValueError("Keep new diagnostics outside the prior job root")
+    if Path(manifest["host_local_root"]).resolve() != root:
+        raise ValueError("Prior root does not match verified manifest")
     out.mkdir(parents=True, exist_ok=False)
     inspect_prior(root, manifest, out)
     if args.inspect_only:
