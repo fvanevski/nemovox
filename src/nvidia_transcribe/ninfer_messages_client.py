@@ -49,12 +49,25 @@ class NInferMessagesTextClient:
                     or message.get("role") not in ("system", "user", "assistant")
                     or not isinstance(message.get("content"), str)):
                 raise ValueError("NInfer Messages QC supports only text role/content pairs")
-        effort = reasoning_effort if reasoning_effort is not None else self.reasoning_effort
+        # Anthropic Messages puts introductory system instructions at the
+        # top level. NInfer rejects a leading role=system inside messages.
+        # Only move the initial contiguous system prefix; any later system
+        # turn retains its original position and provider semantics.
+        prefix_end = 0
+        while prefix_end < len(messages) and messages[prefix_end]["role"] == "system":
+            prefix_end += 1
+        if prefix_end == len(messages):
+            raise ValueError("NInfer Messages requires at least one non-system message")
         body: dict[str, Any] = {
             "model": self.model, "max_tokens": max_tokens,
             "temperature": temperature,
-            "messages": [dict(message) for message in messages],
+            "messages": [dict(message) for message in messages[prefix_end:]],
         }
+        if prefix_end:
+            # The accepted client input is plain text, not Anthropic metadata.
+            # Keep all initial instructions, preserving their text order.
+            body["system"] = "\n\n".join(message["content"] for message in messages[:prefix_end])
+        effort = reasoning_effort if reasoning_effort is not None else self.reasoning_effort
         if thinking_budget == 0:
             if effort not in (None, "none"):
                 raise ValueError("Disabled thinking must not request positive reasoning effort")
