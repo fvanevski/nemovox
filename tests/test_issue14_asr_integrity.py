@@ -180,3 +180,75 @@ def test_failed_generation_preserves_raw_and_does_not_mark_resume_completed(tmp_
     assert accepted["chunks"][0]["status"] == "completed"
     assert accepted["chunks"][0]["generation_integrity"]["status"] == "complete"
     assert json.loads(rejected.read_text()) == bad
+
+
+
+def test_failed_long_core_rechunks_and_preserves_leaf_identity_on_resume(tmp_path, monkeypatch):
+    wav=tmp_path/"source.wav"
+    with wave.open(str(wav),"wb") as f:
+        f.setnchannels(1)
+        f.setsampwidth(2)
+        f.setframerate(16000)
+        f.writeframes(b"\x00\x00"*16000*20)
+    bad=_response("<spk:0> "+"Ah! "*8192,"length")
+    bad["ctc_timestamps"]["words"]=[]
+    calls=[]
+    def fake(self,path,config=None):
+        with wave.open(str(path)) as f:
+            duration=f.getnframes()/f.getframerate()
+        calls.append((str(path),config.source_offset_s,duration))
+        response=bad if duration>15 else _response("<spk:0> Bonjour.")
+        return {"raw_response":response,"contract":{"raw_text":"Bonjour."},"latency_s":.01}
+    monkeypatch.setattr(NemotronVLLMClient,"transcribe",fake)
+    root=tmp_path/"run"
+    cfg=RecordingPipelineConfig(source_language="fr",speaker_embeddings="none",
+                               enable_subinterval_recovery=False)
+    client=NemotronVLLMClient(model="stub")
+    result=process_media(wav,output_dir=root,client=client,config=cfg)
+    manifest=json.loads((root/"manifest.json").read_text())
+    assert len(calls)==4
+    assert manifest["planned_chunks"][0]["status"]=="completed_rechunked"
+    assert [(x["core_start_s"],x["core_end_s"]) for x in manifest["chunks"]]==[(0,10),(10,20)]
+    assert [x["chunk_index"] for x in manifest["chunks"]]==[0,1]
+    assert manifest["chunks"][1]["infer_start_s"]==8
+    assert all(x["generation_integrity"]["status"]=="complete" for x in manifest["chunks"])
+    assert result["contract"]["processing"]["chunks"][1]["raw_response_sha256"]==manifest["chunks"][1]["raw_response_sha256"]
+    assert json.loads((root/"chunks"/"chunk_000.raw.json").read_text())==bad
+    calls.clear()
+    result=process_media(wav,output_dir=root,client=client,config=cfg)
+    assert not calls
+    assert result["contract"]["model_provenance"]["resumed_chunks"]==2
+    assert len(result["contract"]["processing"]["chunks"])==2
+
+
+def test_rechunk_terminal_failure_does_not_publish_and_reuses_verified_leaf(tmp_path, monkeypatch):
+    wav=tmp_path/"source.wav"
+    with wave.open(str(wav),"wb") as f:
+        f.setnchannels(1)
+        f.setsampwidth(2)
+        f.setframerate(16000)
+        f.writeframes(b"\x00\x00"*16000*20)
+    bad=_response("<spk:0> "+"Ah! "*8192,"length")
+    calls=[]
+    fail_right=True
+    def fake(self,path,config=None):
+        with wave.open(str(path)) as f:
+            duration=f.getnframes()/f.getframerate()
+        calls.append(config.source_offset_s)
+        response=bad if duration>15 or (fail_right and config.source_offset_s>0) else _response("<spk:0> Bonjour.")
+        return {"raw_response":response,"contract":{"raw_text":"Bonjour."},"latency_s":.01}
+    monkeypatch.setattr(NemotronVLLMClient,"transcribe",fake)
+    root=tmp_path/"run"
+    cfg=RecordingPipelineConfig(source_language="fr",speaker_embeddings="none",
+                               enable_subinterval_recovery=False)
+    client=NemotronVLLMClient(model="stub")
+    with pytest.raises(IncompleteASRGeneration,match="recovery exhausted"):
+        process_media(wav,output_dir=root,client=client,config=cfg)
+    assert not (root/"recording.contract.json").exists()
+    manifest=json.loads((root/"manifest.json").read_text())
+    assert manifest["asr_run_status"]=="incomplete_generation"
+    fail_right=False
+    calls.clear()
+    result=process_media(wav,output_dir=root,client=client,config=cfg)
+    assert calls==[8]
+    assert result["contract"]["model_provenance"]["resumed_chunks"]==1

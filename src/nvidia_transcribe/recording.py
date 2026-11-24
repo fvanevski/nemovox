@@ -15,6 +15,7 @@ from nvidia_transcribe.alignment import ExternalForcedAligner, recover_chunk_ali
 from nvidia_transcribe.chunking import ChunkConfig, ChunkSpec, plan_chunks, reconcile_chunk_boundaries
 from nvidia_transcribe.client import InferenceRequestConfig, NemotronVLLMClient
 from nvidia_transcribe.asr_integrity import IncompleteASRGeneration, audit_asr_generation
+from nvidia_transcribe.asr_recovery import recover_generation, split_spec
 from nvidia_transcribe.contract import (
     build_recording_contract,
     detect_script_language_hint,
@@ -274,8 +275,10 @@ def process_media(
                 stale.unlink(missing_ok=True)
 
     completed_by_idx: dict[int, dict[str, Any]] = {}
-    for entry in existing_manifest.get("chunks", []):
-        if entry.get("status") == "completed":
+    for entry in existing_manifest.get("planned_chunks", existing_manifest.get("chunks", [])):
+        # A verified failed parent can commission smaller crops immediately
+        # on resume, without another pair of identical doomed requests.
+        if entry.get("status") in ("completed","completed_rechunked","incomplete_generation"):
             raw_p = Path(entry.get("raw_response_path", ""))
             if raw_p.is_file() and _sha256_text(raw_p.read_text(encoding="utf-8")) == entry.get("raw_response_sha256"):
                 completed_by_idx[int(entry["chunk_index"])] = entry
@@ -283,6 +286,8 @@ def process_media(
     chunk_wavs: list[Path] = []
     chunk_raws: list[dict[str, Any]] = []
     chunk_manifest_entries: list[dict[str, Any]] = []
+    planned_entries: list[dict[str, Any]] = []
+    effective_chunks: list[ChunkSpec] = []
     chunk_latencies: list[float] = []
     resumed_count = 0
 
@@ -295,6 +300,9 @@ def process_media(
         cur_ext_sig = _extraction_signature(media=media, spec=spec, audio_stream_index=cfg.audio_stream_index)
 
         prev_entry = completed_by_idx.get(spec.chunk_index)
+        if (prev_entry is not None and prev_entry.get("status")!="completed"
+                and not split_spec(spec)):
+            prev_entry=None
         wav_valid_for_reuse = False
         actual_dur = 0.0
         wav_sha256 = ""
@@ -327,12 +335,11 @@ def process_media(
             )
             wav_sha256 = compute_file_sha256(wav_path)
 
-        chunk_wavs.append(wav_path)
-
+        reused_parent=False
         if wav_valid_for_reuse and prev_entry is not None and raw_path.is_file():
             raw_resp = json.loads(raw_path.read_text(encoding="utf-8"))
             entry = dict(prev_entry)
-            resumed_count += 1
+            reused_parent=True
         else:
             req_cfg = InferenceRequestConfig(
                 mode=cfg.mode,
@@ -415,10 +422,10 @@ def process_media(
                 _atomic_write_text(rejected_path, rejected_dump)
             entry["rejected_raw_response_path"] = str(rejected_path)
             entry["rejected_raw_response_sha256"] = rejected_hash
-        chunk_raws.append(raw_resp)
-        chunk_manifest_entries.append(entry)
+        planned_entries.append(entry)
 
-        # Persist incremental manifest atomically after every chunk so interruption can safely resume.
+        # Persist the original plan identities independently of the effective
+        # sequential chunk indices used by every downstream consumer.
         manifest_state = {
             "config_signature": sig,
             "asr_run_status": (
@@ -430,9 +437,38 @@ def process_media(
             "chunk_config": {**chunk_cfg.to_dict(), "chunk_policy": cfg.chunk_policy},
             "chunk_plan": planner_diag,
             "chunks": chunk_manifest_entries,
+            "planned_chunks": planned_entries,
         }
-        _atomic_write_text(manifest_path, json.dumps(manifest_state, ensure_ascii=False, indent=2))
-        if integrity["status"] == "incomplete":
+        if integrity["status"]=="incomplete":
+            manifest_state["chunks"]=[*chunk_manifest_entries,
+                {**entry,"chunk_index":len(effective_chunks),"planned_chunk_index":spec.chunk_index}]
+            _atomic_write_text(manifest_path,json.dumps(manifest_state,ensure_ascii=False,indent=2))
+
+        # Previously completed but corrupt checkpoints still fail closed.
+        # A positively identified failed generation (fresh or verified
+        # incomplete parent on resume) can be recovered with distinct crops.
+        may_recover=(integrity["status"]=="incomplete" and split_spec(spec)
+                     and not (reused_parent and prev_entry.get("status")=="completed"))
+        if may_recover:
+            def extract_recovery(child,path):
+                extract_wav_segment(media.path,start_s=child.infer_start_s,
+                    duration_s=child.infer_duration_s,out_wav=path,
+                    audio_stream_index=cfg.audio_stream_index)
+            def transcribe_recovery(child,path):
+                result=client.transcribe(path,InferenceRequestConfig(
+                    mode=cfg.mode,source_language=lang_hint_for_prompt,
+                    capture_ctc_timestamps=True,require_ctc_timestamps=False,
+                    source_offset_s=child.infer_start_s))
+                chunk_latencies.append(float(result["latency_s"]))
+                return result
+            leaves=recover_generation(spec,root=chunks_dir/"recovery"/f"chunk_{spec.chunk_index:03d}",
+                signature=sig,resume=cfg.resume,extract=extract_recovery,
+                transcribe=transcribe_recovery,write=_atomic_write_text)
+            entry["status"]="completed_rechunked"
+            entry["recovery_leaf_count"]=len(leaves)
+            entry["recovery_leaf_receipts"]=[leaf[3]["identity"] for leaf in leaves]
+            manifest_state["asr_run_status"]="in_progress"
+        elif integrity["status"] == "incomplete":
             raise IncompleteASRGeneration(
                 f"Chunk {spec.chunk_index} ASR generation incomplete "
                 f"({integrity['reason']}); rejected raw response retained at {rejected_path}. "
@@ -440,7 +476,29 @@ def process_media(
                 "Prior files, if present, are stale and must not be treated as current. "
                 "Use a source-verified bounded retry/rechunk, not the loop-cleaned fragment."
             )
+        else:
+            leaves=[(spec,wav_path,raw_resp,{**entry,"recovery_checkpoint_reused":reused_parent})]
 
+        for leaf,wav,response,record in leaves:
+            effective=ChunkSpec(chunk_index=len(effective_chunks),
+                core_start_s=leaf.core_start_s,core_end_s=leaf.core_end_s,
+                infer_start_s=leaf.infer_start_s,infer_end_s=leaf.infer_end_s)
+            effective_chunks.append(effective)
+            chunk_wavs.append(wav)
+            chunk_raws.append(response)
+            chunk_manifest_entries.append({**record,**effective.to_dict(),
+                "planned_chunk_index":spec.chunk_index})
+            resumed_count+=int(record.get("recovery_checkpoint_reused",False))
+        manifest_state["chunks"]=chunk_manifest_entries
+        _atomic_write_text(manifest_path,json.dumps(manifest_state,ensure_ascii=False,indent=2))
+
+    # Reconciliation, alignment, ledger and recording contract all use the
+    # actual accepted leaf geometry, never the rejected parent's offsets.
+    if (not effective_chunks or effective_chunks[0].core_start_s!=chunks[0].core_start_s
+            or effective_chunks[-1].core_end_s!=chunks[-1].core_end_s
+            or any(a.core_end_s!=b.core_start_s for a,b in zip(effective_chunks,effective_chunks[1:]))):
+        raise RuntimeError("Effective ASR cores do not cover the planned media")
+    chunks=effective_chunks
     raw_texts = [
         cleanup_generation_loops((((r.get("choices") or [{}])[0]).get("message") or {}).get("content") or "")
         for r in chunk_raws

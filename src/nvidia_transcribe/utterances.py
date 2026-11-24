@@ -532,11 +532,23 @@ def audit_and_reconstruct_contract(
     raw_turns_by_chunk: dict[int, list[tuple[int, str]]] = {}
     chunk_finish_reason: dict[int, str] = {}
     chunk_raw_len: dict[int, int] = {}
-    if raw_dir and raw_dir.is_dir():
-        for p in sorted(raw_dir.glob("chunk_*.raw.json")):
+    # Rechunked recordings have effective indices that do not match
+    # original planned filenames. Prefer exact manifest observation paths.
+    manifest_paths=[(int(mc["chunk_index"]),Path(mc["raw_response_path"]),mc.get("raw_response_sha256"))
+                    for mc in (manifest_chunks or []) if mc.get("raw_response_path")]
+    paths=manifest_paths
+    if not paths and raw_dir and raw_dir.is_dir():
+        paths=[(int(p.name.split("_",1)[1].split(".",1)[0]),p,None)
+               for p in sorted(raw_dir.glob("chunk_*.raw.json"))
+               if p.name.split("_",1)[1].split(".",1)[0].isdigit()]
+    if paths:
+        import hashlib
+        for cidx,p,digest in paths:
             try:
-                cidx = int(p.name.split("_", 1)[1].split(".", 1)[0])
-                doc = json.loads(p.read_text(encoding="utf-8"))
+                data=p.read_bytes()
+                if digest and hashlib.sha256(data).hexdigest()!=digest:
+                    continue
+                doc = json.loads(data)
                 ch0 = (doc.get("choices") or [{}])[0]
                 chunk_finish_reason[cidx] = str(ch0.get("finish_reason") or "")
                 content = str((ch0.get("message") or {}).get("content") or "")
