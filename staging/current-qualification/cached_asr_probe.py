@@ -14,6 +14,8 @@ def main():
     p.add_argument("--checkpoint", required=True, type=Path)
     p.add_argument("--inputs", required=True, type=Path)
     p.add_argument("--output", required=True, type=Path)
+    p.add_argument("--region", action="append",
+                   help="Explicit region(s); default is four base regions plus expanded targets.")
     a = p.parse_args()
     required = ("model.bin", "config.json", "tokenizer.json", "preprocessor_config.json")
     if not a.checkpoint.is_dir() or not all((a.checkpoint / name).is_file() for name in required):
@@ -27,7 +29,14 @@ def main():
     model = WhisperModel(str(a.checkpoint.resolve()), device="cpu",
                          compute_type="int8", local_files_only=True)
     results = {}
+    selected = set(a.region or [
+        name for name, region in doc["regions"].items()
+        if region.get("variant", "base") in ("base", "expanded")])
+    if not selected or not selected <= set(doc["regions"]):
+        raise ValueError("Unknown independent diagnostic region")
     for name, region in doc["regions"].items():
+        if name not in selected:
+            continue
         wav = Path(region["wav"])
         if hashlib.sha256(wav.read_bytes()).hexdigest() != region["sha256"]:
             raise ValueError(f"Audio identity mismatch: {name}")
