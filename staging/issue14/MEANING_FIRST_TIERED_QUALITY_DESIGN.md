@@ -23,7 +23,7 @@ Reviewer prompt, thresholds, model effort and budgets are tunable and versioned.
 
 ## Central staged source (host unverified)
 
-Source/test commit c5528df72bed0e8b3091f17338977a6ac9f3e80d, tree 4f350b95f41d1f5d34dd784bbb4f9b20090dfb2d, on existing draft PR #15:
+Source/test commit 622715afc00dd6d215fe27c9b5844f615d762971, tree 1317b67868baec61852e9d84d087b0e0e3994d5d, on existing draft PR #15:
 - New semantic_review.py: configurable plan_boundary_semantic_reviews; identity-pinned validate_semantic_review; injected run_tiered_text_reviews with low/high reasoning effort and bounded token/call budgets. Advisory output only, no implicit model service calls or output changes.
 - chunking.py: pre-filter boundary review discovery, before destructive core ownership decisions. Reports candidates and limitations without promoting source.
 - recording.py: passes existing immutable diarization activity hypotheses from source-evidence ledger into review planning without treating them as acoustic truth.
