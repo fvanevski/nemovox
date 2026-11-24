@@ -1,0 +1,9 @@
+COMMAND_SHAPE_FRICTION
+campaign: ISSUE14_FINAL_SOURCE_QUALIFICATION
+run_id: 20261124T004243Z
+1. process_media_stdout_nemo_prefix_before_json:
+   - requested: run_gpu_and_7comp.py executed python -m nvidia_transcribe.cli process-media ... and called json.loads(p_asr.stdout)
+   - effect: process-media succeeded (exit 0) and generated all ASR outputs cleanly, but NeMo Logger wrote 4 '[NeMo I ...]' lines onto stdout before the final JSON summary block, raising JSONDecodeError at script line 259.
+   - recovery: parsed trailing JSON block via json.JSONDecoder().raw_decode() cleanly in analyze_all_outputs.py without re-running GPU or editing production source.
+2. partial_blocked_vs_untouched_singleton_reporting:
+   - observed: plan_reviewed_source_partitions / reviewed_revision_runner groups 204 unreviewed singletons alongside the partially reviewed blocked components as unselected_blocked_components; documented exact 3 -> 2 partially reviewed blocked vs 204 unreviewed singleton breakdown cleanly.
