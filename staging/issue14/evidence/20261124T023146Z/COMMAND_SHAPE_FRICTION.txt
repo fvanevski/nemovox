@@ -1,0 +1,17 @@
+COMMAND_SHAPE_FRICTION:
+  encountered=yes
+  events=[
+    {
+      "phase": "phase_b_static_wire_script",
+      "requested_shape": "private script called NInferMessagesTextClient(endpoint=...) with patch('nvidia_transcribe.ninfer_messages_client.httpx.Client'), policy['reasoned_tokens'], FakeResponse without type='message', asserted output_config on thinking_budget=0, and omitted max_tokens/thinking_budget on system-only probe",
+      "effect": "scratch probe failed (TypeError/AttributeError/KeyError/ValueError/AssertionError) before reaching static wire capture",
+      "resolution": "updated private scratch script to actual NInferMessagesTextClient contract (base_url=..., patch('httpx.Client'), policy['model_review'], type='message', output_config absent when thinking_budget=0, explicit max_tokens=256 and thinking_budget=0 on system-only check); zero production source files touched; rerun exited 0"
+    },
+    {
+      "phase": "post_phase_c_diagnostic_cli",
+      "requested_shape": "inline python -c double-quoted backslash escapes inside f-string",
+      "effect": "SyntaxError before execution",
+      "resolution": "switched to python - <<'PY' heredoc; exited 0"
+    }
+  ]
+  omitted_sensitive_values=yes

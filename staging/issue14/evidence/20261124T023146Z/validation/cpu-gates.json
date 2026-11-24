@@ -1,0 +1,70 @@
+{
+  "worktree": "/workspace/nemovox-issue14-messages-wire",
+  "pythonpath": "src:.",
+  "prior_archive_auth": {
+    "sha256": "7996f724d5fbf0ab7a3b9a1a988a8288cbad7369c6dac75d579910f968444303",
+    "unique_members": 7,
+    "checksums_verified": "6/6"
+  },
+  "prior_public_packet_auth": {
+    "head": "083e5ba1bb627a20538a502ee8b44799b45b2de5",
+    "blobs_verified": "7/7"
+  },
+  "interpreter_imports_verified": {
+    "venv": [
+      "/workspace/nemovox-issue14-messages-wire/src/nvidia_transcribe/ninfer_messages_client.py",
+      "/workspace/nemovox-issue14-messages-wire/src/nvidia_transcribe/resource_lifecycle.py",
+      "/workspace/nemovox-issue14-messages-wire/src/nvidia_transcribe/refinement.py",
+      "/workspace/nemovox-issue14-messages-wire/src/nvidia_transcribe/semantic_review.py",
+      "/workspace/nemovox-issue14-messages-wire/src/nvidia_transcribe/chunking.py"
+    ],
+    "venv_studio": [
+      "/workspace/nemovox-issue14-messages-wire/src/nvidia_transcribe/ninfer_messages_client.py",
+      "/workspace/nemovox-issue14-messages-wire/src/nvidia_transcribe/resource_lifecycle.py",
+      "/workspace/nemovox-issue14-messages-wire/src/nvidia_transcribe/refinement.py",
+      "/workspace/nemovox-issue14-messages-wire/src/nvidia_transcribe/semantic_review.py",
+      "/workspace/nemovox-issue14-messages-wire/src/nvidia_transcribe/chunking.py"
+    ]
+  },
+  "compileall": {
+    "exit_code": 0,
+    "targets": [
+      "src",
+      "tests"
+    ]
+  },
+  "focused_8_files": {
+    "exit_code": 0,
+    "passed": 101,
+    "warnings": 1,
+    "duration_s": 0.68,
+    "files": [
+      "tests/test_issue14_ninfer_messages_client.py",
+      "tests/test_issue14_ninfer_thinking_budget.py",
+      "tests/test_issue14_semantic_review.py",
+      "tests/test_issue14_timing_boundaries.py",
+      "tests/test_chunking_and_resume.py",
+      "tests/test_resource_lifecycle.py",
+      "tests/test_refinement.py",
+      "tests/test_translation_review.py"
+    ]
+  },
+  "full_core_venv": {
+    "exit_code": 0,
+    "passed": 470,
+    "warnings": 1,
+    "duration_s": 10.61,
+    "marker": "not gpu"
+  },
+  "full_studio_venv_studio": {
+    "exit_code": 0,
+    "passed": 470,
+    "warnings": 0,
+    "duration_s": 9.95,
+    "marker": "not gpu"
+  },
+  "git_diff_check": {
+    "exit_code": 0,
+    "issues": 0
+  }
+}

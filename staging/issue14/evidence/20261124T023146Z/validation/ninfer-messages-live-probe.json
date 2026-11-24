@@ -1,0 +1,374 @@
+{
+  "resource": {
+    "name": "text_local",
+    "adapter": "openai_chat",
+    "model": "chat",
+    "endpoint": "http://127.0.0.1:8001/v1"
+  },
+  "wire_protocol": "ninfer_messages",
+  "ninfer_git_sha": "a3a3dd5be6c2ecec1479017d5eee219d7a7e5784",
+  "policy_sha256": "6c65210ba4dd79591e86d4d8eaabc2a0d2a477758966c44bf5daeda4885df5da",
+  "request_sha256": "2727483cc111dc956e6a9d632236576a9f62933f3585310537178cdec483669e",
+  "lifecycle": {
+    "before": {
+      "state": "startable",
+      "ready": false,
+      "managed": true,
+      "startable": true
+    },
+    "during": {
+      "state": "startable",
+      "ready": false,
+      "managed": true,
+      "startable": true
+    },
+    "after": {
+      "state": "startable",
+      "ready": false,
+      "managed": true,
+      "startable": true
+    },
+    "note": "_DeferredTextClient starts nemovox-text-review.service lazily on first complete(), confirmed active in systemd/ninfer logs during calls 0-5 (qwen3_8_27b_swift15abl_nvfp4full-dflash2, 18.0 GiB weights, 38.255s CPU / 40.515s wall) and cleanly stopped before context exit (after state=startable, GPU memory returned to baseline 3112 MiB / 29015 MiB free)."
+  },
+  "nvidia_smi": {
+    "before": "0, NVIDIA GeForce RTX 5090, 3112 MiB, 29015 MiB, 32607 MiB, 4 %",
+    "during": "0, NVIDIA GeForce RTX 5090, 3112 MiB, 29015 MiB, 32607 MiB, 4 %",
+    "after": "0, NVIDIA GeForce RTX 5090, 3112 MiB, 29015 MiB, 32607 MiB, 4 %"
+  },
+  "batch_summary": {
+    "schema": "nemovox-tiered-semantic-review-batch/v1",
+    "model_calls": 6,
+    "tokens_reserved": 9472,
+    "systemic_failure": null,
+    "source_or_subtitles_modified": false,
+    "model_review_execution_sha256": "3f257ff0cb05f6bfac82a60bb3c2e75de100e13e67b0a1a1903035596f765fee",
+    "advisory_only_count": 0,
+    "unaccepted_model_response_count": 6
+  },
+  "calls": [
+    {
+      "call_index": 0,
+      "case_id": "boundary_ccbf33cf64b16ef94668",
+      "tier": "reasoned_text",
+      "boundary_s": 360.0,
+      "context_window_s": [
+        350.0,
+        354.034
+      ],
+      "http_transport_status": 200,
+      "prompt_sha256": "0f50331b4e6697c5ee4fd4a499cb7db956fcd533242e751b6e5b304a52110b2a",
+      "response_sha256": "bf014d19fb01204a19e41e6c4869714fdda1810547518c7622c2e0b40f02eb0c",
+      "content_sha256": "e7e735bf9053cde50b3ddad42922ec89a7d35295ad822a76c606dda170142f14",
+      "content_len_chars": 2803,
+      "reasoning_len_chars": 3709,
+      "latency_s": 14.403,
+      "finish_reason": "length",
+      "usage": {
+        "completion_tokens": 1792,
+        "completion_tokens_details": {
+          "reasoning_tokens": 1048
+        }
+      },
+      "client_request_diagnostics": {
+        "protocol": "ninfer_anthropic_messages",
+        "reasoning_effort_requested": "xhigh",
+        "reasoning_effort_sent": "xhigh",
+        "reasoning_effort_fallback": false,
+        "thinking_budget_sent": 1024,
+        "thinking_mode": "enabled",
+        "response_format_sent": false,
+        "json_validation_required": true,
+        "strict_reasoning_effort": true
+      },
+      "ninfer_request": {
+        "protocol": "anthropic_messages",
+        "message_count": 2,
+        "enable_thinking": true,
+        "thinking_budget": 1024,
+        "requested_reasoning_effort": "xhigh",
+        "requested_output_tokens": 1792
+      },
+      "ninfer_result": {
+        "finish_reason": "output_limit",
+        "prompt_tokens": 2114,
+        "prefix_cache_hit_tokens": 0,
+        "completion_tokens": 1792,
+        "thinking_control_applied": true,
+        "thinking_control_tokens": 25,
+        "model_thinking_tokens": 1024
+      },
+      "validator_outcome_status": "unaccepted_model_response",
+      "validator_error": "Review response reached output limit; completion not certified"
+    },
+    {
+      "call_index": 1,
+      "case_id": "boundary_567ba692421cf2d5ca68",
+      "tier": "reasoned_text",
+      "boundary_s": 360.0,
+      "context_window_s": [
+        355.31,
+        359.812
+      ],
+      "http_transport_status": 200,
+      "prompt_sha256": "5ad95e881a68a860e19a3fff3a532c4b3ad5e8d3311a08a1a98aacdc05d3527f",
+      "response_sha256": "120b525f5ad83814345d253999d006327ac5681934fd3fca14c684533383218d",
+      "content_sha256": "5b621e0194c2a17e05f4dacf242c257d90bb67446ee17a5192b65034f02a87d0",
+      "content_len_chars": 2315,
+      "reasoning_len_chars": 3865,
+      "latency_s": 6.388,
+      "finish_reason": "stop",
+      "usage": {
+        "completion_tokens": 1699,
+        "completion_tokens_details": {
+          "reasoning_tokens": 1048
+        }
+      },
+      "client_request_diagnostics": {
+        "protocol": "ninfer_anthropic_messages",
+        "reasoning_effort_requested": "xhigh",
+        "reasoning_effort_sent": "xhigh",
+        "reasoning_effort_fallback": false,
+        "thinking_budget_sent": 1024,
+        "thinking_mode": "enabled",
+        "response_format_sent": false,
+        "json_validation_required": true,
+        "strict_reasoning_effort": true
+      },
+      "ninfer_request": {
+        "protocol": "anthropic_messages",
+        "message_count": 2,
+        "enable_thinking": true,
+        "thinking_budget": 1024,
+        "requested_reasoning_effort": "xhigh",
+        "requested_output_tokens": 1792
+      },
+      "ninfer_result": {
+        "finish_reason": "stop_token",
+        "prompt_tokens": 1859,
+        "prefix_cache_hit_tokens": 322,
+        "completion_tokens": 1699,
+        "thinking_control_applied": true,
+        "thinking_control_tokens": 25,
+        "model_thinking_tokens": 1024
+      },
+      "validator_outcome_status": "unaccepted_model_response",
+      "validator_error": "Invalid contrary evidence citations"
+    },
+    {
+      "call_index": 2,
+      "case_id": "boundary_bbaebd4d2a77a9923c74",
+      "tier": "reasoned_text",
+      "boundary_s": 90.0,
+      "context_window_s": [
+        80.2,
+        81.021
+      ],
+      "http_transport_status": 200,
+      "prompt_sha256": "05984d57d41db4e153891515b28d9e6ded6b6b348d600c15688891b99670f730",
+      "response_sha256": "cc796087da0c01d7553c70c5d3f18d3d1720526c5a17efcd7371dc30a23938e2",
+      "content_sha256": "135ce0ad2a678d2b6502a8160ea010154d378c98dcad6a56d90266b2d96e5fff",
+      "content_len_chars": 1842,
+      "reasoning_len_chars": 4566,
+      "latency_s": 6.515,
+      "finish_reason": "stop",
+      "usage": {
+        "completion_tokens": 1541,
+        "completion_tokens_details": {
+          "reasoning_tokens": 1048
+        }
+      },
+      "client_request_diagnostics": {
+        "protocol": "ninfer_anthropic_messages",
+        "reasoning_effort_requested": "xhigh",
+        "reasoning_effort_sent": "xhigh",
+        "reasoning_effort_fallback": false,
+        "thinking_budget_sent": 1024,
+        "thinking_mode": "enabled",
+        "response_format_sent": false,
+        "json_validation_required": true,
+        "strict_reasoning_effort": true
+      },
+      "ninfer_request": {
+        "protocol": "anthropic_messages",
+        "message_count": 2,
+        "enable_thinking": true,
+        "thinking_budget": 1024,
+        "requested_reasoning_effort": "xhigh",
+        "requested_output_tokens": 1792
+      },
+      "ninfer_result": {
+        "finish_reason": "stop_token",
+        "prompt_tokens": 1012,
+        "prefix_cache_hit_tokens": 322,
+        "completion_tokens": 1541,
+        "thinking_control_applied": true,
+        "thinking_control_tokens": 25,
+        "model_thinking_tokens": 1024
+      },
+      "validator_outcome_status": "unaccepted_model_response",
+      "validator_error": "Wrong semantic review schema"
+    },
+    {
+      "call_index": 3,
+      "case_id": "boundary_4a6c595a295df6633d6a",
+      "tier": "reasoned_text",
+      "boundary_s": 990.0,
+      "context_window_s": [
+        980.0,
+        980.455
+      ],
+      "http_transport_status": 200,
+      "prompt_sha256": "3a51c419ea205d2c940832fe7d1536958ed45d7111f1ce9ad1692c148c240b92",
+      "response_sha256": "3fad5fb6731a57e0b8abd99a8a84d504b06f9850396fb408ff208ab86dec2c8b",
+      "content_sha256": "176f9dc9c3447dc08cecc1c9375abcfa7ee026768af6ed1227c48c4b3a1e6b4e",
+      "content_len_chars": 2194,
+      "reasoning_len_chars": 3783,
+      "latency_s": 5.98,
+      "finish_reason": "stop",
+      "usage": {
+        "completion_tokens": 1703,
+        "completion_tokens_details": {
+          "reasoning_tokens": 1048
+        }
+      },
+      "client_request_diagnostics": {
+        "protocol": "ninfer_anthropic_messages",
+        "reasoning_effort_requested": "xhigh",
+        "reasoning_effort_sent": "xhigh",
+        "reasoning_effort_fallback": false,
+        "thinking_budget_sent": 1024,
+        "thinking_mode": "enabled",
+        "response_format_sent": false,
+        "json_validation_required": true,
+        "strict_reasoning_effort": true
+      },
+      "ninfer_request": {
+        "protocol": "anthropic_messages",
+        "message_count": 2,
+        "enable_thinking": true,
+        "thinking_budget": 1024,
+        "requested_reasoning_effort": "xhigh",
+        "requested_output_tokens": 1792
+      },
+      "ninfer_result": {
+        "finish_reason": "stop_token",
+        "prompt_tokens": 1309,
+        "prefix_cache_hit_tokens": 322,
+        "completion_tokens": 1703,
+        "thinking_control_applied": true,
+        "thinking_control_tokens": 25,
+        "model_thinking_tokens": 1024
+      },
+      "validator_outcome_status": "unaccepted_model_response",
+      "validator_error": "Wrong semantic review schema"
+    },
+    {
+      "call_index": 4,
+      "case_id": "boundary_02e99af11eba174c2a23",
+      "tier": "reasoned_text",
+      "boundary_s": 90.0,
+      "context_window_s": [
+        81.72,
+        83.254
+      ],
+      "http_transport_status": 200,
+      "prompt_sha256": "84f61e952b1623a6388d765c58160eeed7c74e403c9c6f24178510d6716dbcd5",
+      "response_sha256": "12b697ebfec65da709a2261f2107d601d83c47db4dbda097b5936225f5776757",
+      "content_sha256": "c17c534e821cd0dc8038efd4001ca23e5405f92430f6c6aa7157af8ea2ba42bf",
+      "content_len_chars": 1928,
+      "reasoning_len_chars": 4212,
+      "latency_s": 5.584,
+      "finish_reason": "stop",
+      "usage": {
+        "completion_tokens": 1571,
+        "completion_tokens_details": {
+          "reasoning_tokens": 1048
+        }
+      },
+      "client_request_diagnostics": {
+        "protocol": "ninfer_anthropic_messages",
+        "reasoning_effort_requested": "xhigh",
+        "reasoning_effort_sent": "xhigh",
+        "reasoning_effort_fallback": false,
+        "thinking_budget_sent": 1024,
+        "thinking_mode": "enabled",
+        "response_format_sent": false,
+        "json_validation_required": true,
+        "strict_reasoning_effort": true
+      },
+      "ninfer_request": {
+        "protocol": "anthropic_messages",
+        "message_count": 2,
+        "enable_thinking": true,
+        "thinking_budget": 1024,
+        "requested_reasoning_effort": "xhigh",
+        "requested_output_tokens": 1792
+      },
+      "ninfer_result": {
+        "finish_reason": "stop_token",
+        "prompt_tokens": 1112,
+        "prefix_cache_hit_tokens": 322,
+        "completion_tokens": 1571,
+        "thinking_control_applied": true,
+        "thinking_control_tokens": 25,
+        "model_thinking_tokens": 1024
+      },
+      "validator_outcome_status": "unaccepted_model_response",
+      "validator_error": "Wrong semantic review schema"
+    },
+    {
+      "call_index": 5,
+      "case_id": "boundary_667041775030e7e00935",
+      "tier": "light_text",
+      "boundary_s": 1260.0,
+      "context_window_s": [
+        1250.0,
+        1251.395
+      ],
+      "http_transport_status": 200,
+      "prompt_sha256": "349d4767b1bb12c7bb9fc04c4915a46609d7ed1588151930a9313092e741ae76",
+      "response_sha256": "b2a25d09d068a8329d324bab21b925ed7cfde555059216ffa062f91bf84b1eb7",
+      "content_sha256": "9959f863f92f3adac3a677aecdcce59898bde6ad17194e27ed8f7c99a2c0c46f",
+      "content_len_chars": 1189,
+      "reasoning_len_chars": 0,
+      "latency_s": 1.333,
+      "finish_reason": "stop",
+      "usage": {
+        "completion_tokens": 371,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      "client_request_diagnostics": {
+        "protocol": "ninfer_anthropic_messages",
+        "reasoning_effort_requested": "none",
+        "reasoning_effort_sent": "none",
+        "reasoning_effort_fallback": false,
+        "thinking_budget_sent": 0,
+        "thinking_mode": "disabled",
+        "response_format_sent": false,
+        "json_validation_required": true,
+        "strict_reasoning_effort": true
+      },
+      "ninfer_request": {
+        "protocol": "anthropic_messages",
+        "message_count": 2,
+        "enable_thinking": false,
+        "thinking_budget": null,
+        "requested_reasoning_effort": null,
+        "requested_output_tokens": 512
+      },
+      "ninfer_result": {
+        "finish_reason": "stop_token",
+        "prompt_tokens": 893,
+        "prefix_cache_hit_tokens": 0,
+        "completion_tokens": 371,
+        "thinking_control_applied": false,
+        "thinking_control_tokens": 0,
+        "model_thinking_tokens": 0
+      },
+      "validator_outcome_status": "unaccepted_model_response",
+      "validator_error": "Expecting value: line 1 column 1 (char 0)"
+    }
+  ]
+}

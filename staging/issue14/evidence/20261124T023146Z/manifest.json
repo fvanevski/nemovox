@@ -1,0 +1,50 @@
+{
+  "schema": "nemovox-issue14-evidence-manifest/v1",
+  "run_id": "20261124T023146Z",
+  "public_root": "staging/issue14/evidence/20261124T023146Z",
+  "admitted_pr_head": "73d5f099805c45fa7061c84d4e16fee83db900b7",
+  "central_source_sha": "9230bde41a418c074140252edb6c46637560adb2",
+  "member_count": 8,
+  "members": [
+    {
+      "path": "COMMAND_SHAPE_FRICTION.txt",
+      "bytes": 1220,
+      "sha256": "fefeea05623d646d090a5df4c83c4cb463b4406d962cb42e588d5046a5cd229b"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1436,
+      "sha256": "c119a589d7f727ab0f6111236056081a35a4f7a9b701ba557620fae83340bb10"
+    },
+    {
+      "path": "review/issue14-ninfer-messages-wire-summary.md",
+      "bytes": 3751,
+      "sha256": "05ed9ecbb5ed2ec62d30d67ce56bb41ebb6ec6633134101ea7a976d1c645d271"
+    },
+    {
+      "path": "source-identity.json",
+      "bytes": 1457,
+      "sha256": "3c18627f18f977b678b87c8d5949ed48f588a85e96378e6439bac0e717a36dad"
+    },
+    {
+      "path": "validation/cpu-gates.json",
+      "bytes": 2297,
+      "sha256": "6174547e4bb16257ee57e2905cc8007afe1cc1d8508528049bb8bb5630b24515"
+    },
+    {
+      "path": "validation/meaning-first-quality.json",
+      "bytes": 9163,
+      "sha256": "ca3071bc6dbb9bf0f0274406b915851e7070dd6a1a2fc7a1caf689162d375a5f"
+    },
+    {
+      "path": "validation/ninfer-messages-live-probe.json",
+      "bytes": 13222,
+      "sha256": "7391175480cc012129e9ce181880056da99228f3bc9c42179daf86374d0daaf2"
+    },
+    {
+      "path": "validation/wire-shape-and-t0-replay.json",
+      "bytes": 11497,
+      "sha256": "b222b1df2de7e36389642923d8863cd97a7df0cfee4a04295a307a3cee3c8605"
+    }
+  ]
+}

@@ -1,0 +1,357 @@
+{
+  "policies": {
+    "default_sha256": "eef51296eac51554a07c78bb593be0291e3d0f352fda2635065c372232507d6f",
+    "example_sha256": "6c65210ba4dd79591e86d4d8eaabc2a0d2a477758966c44bf5daeda4885df5da",
+    "example_file_sha256": "64fd6fc6812ef5bc3de8d87dc0581d9f61454e0ba21e616c281ba5db280e4389"
+  },
+  "static_wire_verification": {
+    "real_t2_s02": {
+      "probe": "real_t2 (boundary_ccbf33cf64b16ef94668)",
+      "url": "http://127.0.0.1:8001/v1/messages",
+      "header_keys": [],
+      "top_level_keys": [
+        "max_tokens",
+        "messages",
+        "model",
+        "output_config",
+        "system",
+        "temperature",
+        "thinking"
+      ],
+      "has_top_level_system": true,
+      "system_sha256": "8130ddb87ff4eea7e594606ca31c3b559cfd7db369ebf44189d08ac0ef9b5601",
+      "system_len_chars": 1621,
+      "wire_message_count": 1,
+      "wire_message_roles": [
+        "user"
+      ],
+      "orig_message_roles": [
+        "system",
+        "user"
+      ],
+      "first_wire_message_role": "user",
+      "max_tokens": 1792,
+      "thinking": {
+        "type": "enabled",
+        "budget_tokens": 1024
+      },
+      "output_config": {
+        "effort": "xhigh"
+      },
+      "response_format_present": false,
+      "stream": null
+    },
+    "real_t1_light": {
+      "probe": "real_t1 (boundary_667041775030e7e00935)",
+      "url": "http://127.0.0.1:8001/v1/messages",
+      "header_keys": [],
+      "top_level_keys": [
+        "max_tokens",
+        "messages",
+        "model",
+        "system",
+        "temperature",
+        "thinking"
+      ],
+      "has_top_level_system": true,
+      "system_sha256": "8130ddb87ff4eea7e594606ca31c3b559cfd7db369ebf44189d08ac0ef9b5601",
+      "system_len_chars": 1621,
+      "wire_message_count": 1,
+      "wire_message_roles": [
+        "user"
+      ],
+      "orig_message_roles": [
+        "system",
+        "user"
+      ],
+      "first_wire_message_role": "user",
+      "max_tokens": 512,
+      "thinking": {
+        "type": "disabled"
+      },
+      "output_config": null,
+      "response_format_present": false,
+      "stream": null
+    },
+    "multi_prefix_system": {
+      "probe": "multi_prefix_system",
+      "url": "http://127.0.0.1:8001/v1/messages",
+      "header_keys": [],
+      "top_level_keys": [
+        "max_tokens",
+        "messages",
+        "model",
+        "system",
+        "temperature",
+        "thinking"
+      ],
+      "has_top_level_system": true,
+      "system_sha256": "4544daa3bea4cd2731a04870e2290d3d85012ea1dc60572263770f6ec1a70f7a",
+      "system_len_chars": 20,
+      "wire_message_count": 1,
+      "wire_message_roles": [
+        "user"
+      ],
+      "orig_message_roles": [
+        "system",
+        "system",
+        "user"
+      ],
+      "first_wire_message_role": "user",
+      "max_tokens": 256,
+      "thinking": {
+        "type": "disabled"
+      },
+      "output_config": null,
+      "response_format_present": false,
+      "stream": null
+    },
+    "later_system_preserved_in_order": {
+      "probe": "later_system_preserved_in_order",
+      "url": "http://127.0.0.1:8001/v1/messages",
+      "header_keys": [],
+      "top_level_keys": [
+        "max_tokens",
+        "messages",
+        "model",
+        "system",
+        "temperature",
+        "thinking"
+      ],
+      "has_top_level_system": true,
+      "system_sha256": "693536359522b00273f2bbc9976aa915031533cee3066fb87cfe1fca3539e483",
+      "system_len_chars": 11,
+      "wire_message_count": 4,
+      "wire_message_roles": [
+        "user",
+        "assistant",
+        "system",
+        "user"
+      ],
+      "orig_message_roles": [
+        "system",
+        "user",
+        "assistant",
+        "system",
+        "user"
+      ],
+      "first_wire_message_role": "user",
+      "max_tokens": 256,
+      "thinking": {
+        "type": "disabled"
+      },
+      "output_config": null,
+      "response_format_present": false,
+      "stream": null
+    },
+    "system_only_rejected_before_wire": {
+      "raised_value_error": "NInfer Messages requires at least one non-system message"
+    }
+  },
+  "t0_replay": {
+    "run_a": {
+      "merged_units_count": 2008,
+      "merged_units_sha256": "92eaa4adcc1b69dc063a76c15c26abf6ea7957f5ed47a0c215252a038d091648",
+      "boundary_diag": {
+        "deduplicated_units": 281,
+        "recovered_boundary_units": 11,
+        "untimed_preserved_units": 26
+      },
+      "candidate_count": 3,
+      "request_sha256": "3780c17123eaf432088959ebf779b8246435c00c0d7b8687835755192a83dac7"
+    },
+    "run_b": {
+      "merged_units_count": 2002,
+      "merged_units_sha256": "6c560b3b35ca19ceb43d49c6823f852324aa7b8cdffd098b84c8201f2ddf1354",
+      "boundary_diag": {
+        "deduplicated_units": 255,
+        "recovered_boundary_units": 4,
+        "untimed_preserved_units": 26
+      },
+      "total_candidates_before_budget": 6,
+      "deferred_by_budget": 0,
+      "budgeted_candidate_count": 6,
+      "request_sha256": "2727483cc111dc956e6a9d632236576a9f62933f3585310537178cdec483669e",
+      "cases": [
+        {
+          "rank": 0,
+          "case_id": "boundary_ccbf33cf64b16ef94668",
+          "boundary_s": 360.0,
+          "context_window_s": [
+            350.0,
+            354.034
+          ],
+          "suggested_review_tier": "reasoned_text",
+          "right_context_word_count": 11,
+          "left_core_overlap_word_count": 1,
+          "left_lexical_matched_words": 9,
+          "left_local_speaker_hypotheses": [],
+          "right_local_speaker_hypotheses": [],
+          "unrepresented_activity_count": 2,
+          "nominal_core_word_coverage_ratio": 0.0909
+        },
+        {
+          "rank": 1,
+          "case_id": "boundary_567ba692421cf2d5ca68",
+          "boundary_s": 360.0,
+          "context_window_s": [
+            355.31,
+            359.812
+          ],
+          "suggested_review_tier": "reasoned_text",
+          "right_context_word_count": 12,
+          "left_core_overlap_word_count": 0,
+          "left_lexical_matched_words": 5,
+          "left_local_speaker_hypotheses": [],
+          "right_local_speaker_hypotheses": [],
+          "unrepresented_activity_count": 2,
+          "nominal_core_word_coverage_ratio": 0.0
+        },
+        {
+          "rank": 2,
+          "case_id": "boundary_bbaebd4d2a77a9923c74",
+          "boundary_s": 90.0,
+          "context_window_s": [
+            80.2,
+            81.021
+          ],
+          "suggested_review_tier": "reasoned_text",
+          "right_context_word_count": 3,
+          "left_core_overlap_word_count": 0,
+          "left_lexical_matched_words": 1,
+          "left_local_speaker_hypotheses": [],
+          "right_local_speaker_hypotheses": [],
+          "unrepresented_activity_count": 5,
+          "nominal_core_word_coverage_ratio": 0.0
+        },
+        {
+          "rank": 3,
+          "case_id": "boundary_4a6c595a295df6633d6a",
+          "boundary_s": 990.0,
+          "context_window_s": [
+            980.0,
+            980.455
+          ],
+          "suggested_review_tier": "reasoned_text",
+          "right_context_word_count": 4,
+          "left_core_overlap_word_count": 1,
+          "left_lexical_matched_words": 4,
+          "left_local_speaker_hypotheses": [],
+          "right_local_speaker_hypotheses": [],
+          "unrepresented_activity_count": 0,
+          "nominal_core_word_coverage_ratio": 0.25
+        },
+        {
+          "rank": 4,
+          "case_id": "boundary_02e99af11eba174c2a23",
+          "boundary_s": 90.0,
+          "context_window_s": [
+            81.72,
+            83.254
+          ],
+          "suggested_review_tier": "reasoned_text",
+          "right_context_word_count": 5,
+          "left_core_overlap_word_count": 1,
+          "left_lexical_matched_words": 1,
+          "left_local_speaker_hypotheses": [],
+          "right_local_speaker_hypotheses": [],
+          "unrepresented_activity_count": 0,
+          "nominal_core_word_coverage_ratio": 0.2
+        },
+        {
+          "rank": 5,
+          "case_id": "boundary_667041775030e7e00935",
+          "boundary_s": 1260.0,
+          "context_window_s": [
+            1250.0,
+            1251.395
+          ],
+          "suggested_review_tier": "light_text",
+          "right_context_word_count": 3,
+          "left_core_overlap_word_count": 0,
+          "left_lexical_matched_words": 1,
+          "left_local_speaker_hypotheses": [],
+          "right_local_speaker_hypotheses": [],
+          "unrepresented_activity_count": 0,
+          "nominal_core_word_coverage_ratio": 0.0
+        }
+      ]
+    },
+    "mandarin_negative_control": {
+      "chunks": 15,
+      "character_unit_count": 3269,
+      "default_candidates": 0,
+      "example_candidates": 0,
+      "default_request_sha256": "ba2b8ff3e7f323378be30a1303c373129b720698b5b444d8df5513cdd8b8eab2",
+      "example_request_sha256": "1b21b363250523a7356cf3f13f622cc2880e1924471641ce28fe0e0b3b274d9d"
+    }
+  },
+  "accepted_cli_revision_hashes_unchanged": {
+    "revision_cli_6comp_dir": {
+      "fr_canonical_applied/fr_canonical.en.ass": {
+        "size": 26824,
+        "sha256": "2ac26cb94315ee33e452971be310056e76b87a8af0f618e5e9d23097d5d3c779"
+      },
+      "fr_canonical_applied/fr_canonical.en.srt": {
+        "size": 20584,
+        "sha256": "b0fb66ed937c1fd0168a8a33cef8432be8e0830972b24752f565d6e767edb007"
+      },
+      "fr_canonical_applied/reviewed.recording.contract.json": {
+        "size": 1673497,
+        "sha256": "61e931708e100abdabe9922161e086da538384f9fe73dd4fc1933e0917560dba"
+      },
+      "fr_canonical_applied/reviewed.revision.report.json": {
+        "size": 30638,
+        "sha256": "03ed358255b70a798cba5f3386a0d9571c56b2d068ef6a1ebe9e5859b9c751b7"
+      },
+      "fr_canonical_applied/reviewed.translated.contract.json": {
+        "size": 1837984,
+        "sha256": "d4e37a4b1425a1165da152bb995bd422961267d223e9d31367df5ffb20a0e643"
+      }
+    },
+    "final_6comp_frozen_dir": {
+      "fr_canonical.en.ass": {
+        "size": 26824,
+        "sha256": "2ac26cb94315ee33e452971be310056e76b87a8af0f618e5e9d23097d5d3c779"
+      },
+      "fr_canonical.en.srt": {
+        "size": 20584,
+        "sha256": "b0fb66ed937c1fd0168a8a33cef8432be8e0830972b24752f565d6e767edb007"
+      },
+      "reviewed.recording.contract.json": {
+        "size": 1673497,
+        "sha256": "61e931708e100abdabe9922161e086da538384f9fe73dd4fc1933e0917560dba"
+      },
+      "reviewed.revision.report.json": {
+        "size": 30638,
+        "sha256": "03ed358255b70a798cba5f3386a0d9571c56b2d068ef6a1ebe9e5859b9c751b7"
+      },
+      "reviewed.translated.contract.json": {
+        "size": 1837984,
+        "sha256": "d4e37a4b1425a1165da152bb995bd422961267d223e9d31367df5ffb20a0e643"
+      }
+    },
+    "final_7comp_amended_dir": {
+      "fr_reviewed_7comp.en.ass": {
+        "size": 26830,
+        "sha256": "27ed0c0ead4a5a2da393a22f7b72974ffda46ae9e9e786ec805efe5df70afdd1"
+      },
+      "fr_reviewed_7comp.en.srt": {
+        "size": 20584,
+        "sha256": "ada5aa0c5b1117a6a5e3422cf59aec00116fb34f7ab314816f057f50cc2db3ac"
+      },
+      "reviewed.recording.contract.json": {
+        "size": 1664313,
+        "sha256": "d43f0796c109880f603ed4f7f005b58853d00777f73f4ccafc9b3d5245031af9"
+      },
+      "reviewed.revision.report.json": {
+        "size": 32392,
+        "sha256": "30457c461117e98eee489be866bf91d09c4e4d6ed00191c4d57859a8136a0a72"
+      },
+      "reviewed.translated.contract.json": {
+        "size": 1827859,
+        "sha256": "880b6de8b46c3d34be268786cc84e469bcc8faba876c9a63b780bfb6734876f1"
+      }
+    }
+  }
+}

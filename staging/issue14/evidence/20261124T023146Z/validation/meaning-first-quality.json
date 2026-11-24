@@ -1,0 +1,168 @@
+{
+  "system_wire_fix_verdict": "VERIFIED_PASS",
+  "meaning_qc_batch_verdict": "PARTIAL_0_OF_6_ACCEPTED_BY_VALIDATOR",
+  "client_prompt_contract_gaps": [
+    {
+      "id": "GAP-1_EVIDENCE_CITATION_ENUM_MISMATCH",
+      "location": "src/nvidia_transcribe/semantic_review.py:233-239 vs 258-266",
+      "detail": "validate_semantic_review() enforces supporting_evidence and contrary_evidence entries strictly against the 6 allowed enum keys (right_context_words, left_core_overlap_words, left_lexical_correspondence, unrepresented_activity_intervals, independent_audio_review, independent_visual_review), whereas build_semantic_review_messages() says 'Describe both supporting and contrary evidence' without listing those allowed tokens. All 6 responses wrote helpful prose descriptions instead of field names."
+    },
+    {
+      "id": "GAP-2_SCHEMA_FIELD_OMITTED_OR_FENCED",
+      "location": "src/nvidia_transcribe/ninfer_messages_client.py:43-44,85-90 and src/nvidia_transcribe/semantic_review.py:216-217,358",
+      "detail": "ninfer_messages_client.complete() accepts response_format={'type':'json_object'} locally without sending output_config.format on NInfer /v1/messages (response_format_sent=False). Calls 2, 3, 4 omitted top-level schema ('Wrong semantic review schema'); Call 5 wrapped valid JSON in markdown ```json fences while run_tiered_text_reviews() calls bare json.loads(raw)."
+    },
+    {
+      "id": "GAP-3_PROSE_ARRAYS_EXCEED_768_ANSWER_HEADROOM_ON_LONG_T2",
+      "location": "configs/meaning-first-review.example.json:13,15 and call 0",
+      "detail": "With 1048 reasoning tokens consumed (1024 thinking budget + 24 control/close tokens), 744 answer tokens remained inside max_tokens=1792; Call 0 truncated while writing verbose prose lists in supporting_evidence/contrary_evidence/unresolved."
+    }
+  ],
+  "meaning_first_dimensions": {
+    "negation_and_polarity_preservation": "Preserved S02 negative construction accurately without hallucinating omitted speech.",
+    "narrative_continuity_and_duplication": "Identified cross-chunk lexical matches, time separations (5.8s, 18s, ~56s), and overlap conflicts across S02 and W03a conservatively without certifying unverified repeats.",
+    "natural_english_readability": "All rationales reflected natural grammatical English comprehension of French turns and interjections.",
+    "speaker_and_timing_uncertainty": "Respected distinct_voice_identity_verified=false across all 6 calls; never promoted unverified local spk_* tags into global speakers.",
+    "source_application_boundary": "source_application_authorized remains False; source_or_subtitles_modified=False; advisory-to-reviewed-correction bridge still requires Central implementation after fixing GAP-1..3 above."
+  },
+  "cases": [
+    {
+      "call_index": 0,
+      "case_id": "boundary_ccbf33cf64b16ef94668",
+      "boundary_s": 360.0,
+      "context_window_s": [
+        350.0,
+        354.034
+      ],
+      "tier": "reasoned_text",
+      "validator_status": "unaccepted_model_response",
+      "primary_rejection_reason": "Review response reached output limit; completion not certified",
+      "wire_and_format_findings": {
+        "complete_json_before_fence_strip": false,
+        "markdown_code_fenced": false,
+        "complete_json_after_fence_strip": false,
+        "has_schema_field": false,
+        "raw_supporting_evidence_count": null,
+        "raw_contrary_evidence_count": null,
+        "evidence_fields_are_prose_instead_of_allowed_enums": true
+      },
+      "raw_advisory_decision_unvalidated": "possible_duplicate",
+      "semantic_behavior_summary": "T2 S02 prefix candidate: recognized multi-word cross-chunk match vs differing overlap word and partial length diff; abstained from certifying duplication or speaker identity before hitting 1792-token limit (744 visible answer tokens exhausted on verbose arrays)."
+    },
+    {
+      "call_index": 1,
+      "case_id": "boundary_567ba692421cf2d5ca68",
+      "boundary_s": 360.0,
+      "context_window_s": [
+        355.31,
+        359.812
+      ],
+      "tier": "reasoned_text",
+      "validator_status": "unaccepted_model_response",
+      "primary_rejection_reason": "Invalid contrary evidence citations",
+      "wire_and_format_findings": {
+        "complete_json_before_fence_strip": true,
+        "markdown_code_fenced": false,
+        "complete_json_after_fence_strip": true,
+        "has_schema_field": true,
+        "raw_supporting_evidence_count": 4,
+        "raw_contrary_evidence_count": 4,
+        "evidence_fields_are_prose_instead_of_allowed_enums": true
+      },
+      "raw_advisory_decision_unvalidated": "possible_duplicate",
+      "semantic_behavior_summary": "T2 S02 tail candidate: preserved negative polarity context accurately, cited ~18s separation and differing chunk_003 vs chunk_004 local voice hypotheses, refused to certify repeat from text alone (possible_duplicate); included schema but rejected on prose contrary_evidence strings."
+    },
+    {
+      "call_index": 2,
+      "case_id": "boundary_bbaebd4d2a77a9923c74",
+      "boundary_s": 90.0,
+      "context_window_s": [
+        80.2,
+        81.021
+      ],
+      "tier": "reasoned_text",
+      "validator_status": "unaccepted_model_response",
+      "primary_rejection_reason": "Wrong semantic review schema",
+      "wire_and_format_findings": {
+        "complete_json_before_fence_strip": true,
+        "markdown_code_fenced": false,
+        "complete_json_after_fence_strip": true,
+        "has_schema_field": false,
+        "raw_supporting_evidence_count": 3,
+        "raw_contrary_evidence_count": 4,
+        "evidence_fields_are_prose_instead_of_allowed_enums": true
+      },
+      "raw_advisory_decision_unvalidated": "unresolved",
+      "semantic_behavior_summary": "T2 W01c earlier window: recognized coherent French question but zero nominal core coverage, unmatched local voice hypotheses, and missing acoustic proof; abstained cleanly (unresolved); rejected for omitting schema key (and prose evidence strings)."
+    },
+    {
+      "call_index": 3,
+      "case_id": "boundary_4a6c595a295df6633d6a",
+      "boundary_s": 990.0,
+      "context_window_s": [
+        980.0,
+        980.455
+      ],
+      "tier": "reasoned_text",
+      "validator_status": "unaccepted_model_response",
+      "primary_rejection_reason": "Wrong semantic review schema",
+      "wire_and_format_findings": {
+        "complete_json_before_fence_strip": true,
+        "markdown_code_fenced": false,
+        "complete_json_after_fence_strip": true,
+        "has_schema_field": false,
+        "raw_supporting_evidence_count": 4,
+        "raw_contrary_evidence_count": 4,
+        "evidence_fields_are_prose_instead_of_allowed_enums": true
+      },
+      "raw_advisory_decision_unvalidated": "possible_duplicate",
+      "semantic_behavior_summary": "T2 W03a control: recognized 4-word cross-chunk lexical match ~5.8s apart across differing local voices plus overlapping core boundary word; flagged possible_duplicate conservatively; rejected for omitting schema key (and prose evidence strings)."
+    },
+    {
+      "call_index": 4,
+      "case_id": "boundary_02e99af11eba174c2a23",
+      "boundary_s": 90.0,
+      "context_window_s": [
+        81.72,
+        83.254
+      ],
+      "tier": "reasoned_text",
+      "validator_status": "unaccepted_model_response",
+      "primary_rejection_reason": "Wrong semantic review schema",
+      "wire_and_format_findings": {
+        "complete_json_before_fence_strip": true,
+        "markdown_code_fenced": false,
+        "complete_json_after_fence_strip": true,
+        "has_schema_field": false,
+        "raw_supporting_evidence_count": 3,
+        "raw_contrary_evidence_count": 4,
+        "evidence_fields_are_prose_instead_of_allowed_enums": true
+      },
+      "raw_advisory_decision_unvalidated": "unresolved",
+      "semantic_behavior_summary": "T2 W01c second window: detected isolated low-coverage overlapping core token versus coherent right-context exclamatory turn and competing local voices; abstained cleanly (unresolved); rejected for omitting schema key (and prose evidence strings)."
+    },
+    {
+      "call_index": 5,
+      "case_id": "boundary_667041775030e7e00935",
+      "boundary_s": 1260.0,
+      "context_window_s": [
+        1250.0,
+        1251.395
+      ],
+      "tier": "light_text",
+      "validator_status": "unaccepted_model_response",
+      "primary_rejection_reason": "Expecting value: line 1 column 1 (char 0)",
+      "wire_and_format_findings": {
+        "complete_json_before_fence_strip": false,
+        "markdown_code_fenced": true,
+        "complete_json_after_fence_strip": true,
+        "has_schema_field": true,
+        "raw_supporting_evidence_count": 4,
+        "raw_contrary_evidence_count": 3,
+        "evidence_fields_are_prose_instead_of_allowed_enums": true
+      },
+      "raw_advisory_decision_unvalidated": "retain_core",
+      "semantic_behavior_summary": "T1 W04b negative control: 1.33s non-thinking pass accurately read single-speaker rapid interjection sequence as retain_core with empty unresolved; wrapped valid schema JSON in markdown ```json fence (and used prose evidence strings)."
+    }
+  ]
+}

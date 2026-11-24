@@ -1,0 +1,35 @@
+{
+  "repo_id": "fvanevski/nemovox",
+  "issue_number": 14,
+  "pr_number": 15,
+  "branch": "issue/14-longform-timing-boundaries",
+  "admitted_pr_head": "73d5f099805c45fa7061c84d4e16fee83db900b7",
+  "central_source_sha": "9230bde41a418c074140252edb6c46637560adb2",
+  "central_source_tree": "5306fce0ad90c271b7bf72a44e178a367ae76fba",
+  "validated_config_sha": "e5c5a8a6c3443f7bfbefc25119fd392694eca1dc",
+  "main_sha": "8f6c03cbc70e84bf1970ba364207a02c9fe22b44",
+  "previous_evidence_head": "083e5ba1bb627a20538a502ee8b44799b45b2de5",
+  "previous_private_archive": {
+    "host_path": "/workspace/nemovox-issue14-messages-qc-private/issue14-ninfer-messages-qc-20261124T021735Z.tar.gz",
+    "sha256": "7996f724d5fbf0ab7a3b9a1a988a8288cbad7369c6dac75d579910f968444303",
+    "members_verified": "6/6",
+    "unique_tar_members": 7
+  },
+  "previous_public_packet": {
+    "path": "staging/issue14/evidence/20261124T021735Z/",
+    "blobs_verified": "7/7"
+  },
+  "installed_ninfer": {
+    "repo_path": "/workspace/ninfer",
+    "head_sha": "a3a3dd5be6c2ecec1479017d5eee219d7a7e5784",
+    "verified_match": true,
+    "anthropic_messages_contract": {
+      "supports_top_level_system": true,
+      "rejects_leading_role_system_in_messages": true,
+      "supports_thinking_disabled_and_enabled_budget_tokens": true,
+      "supports_output_config_effort_and_format": true
+    }
+  },
+  "no_local_production_source_edit": true,
+  "source_test_config_diff_vs_central": "none"
+}
