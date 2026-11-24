@@ -14,7 +14,9 @@ from dataclasses import dataclass
 from difflib import SequenceMatcher
 from pathlib import Path
 
-from nvidia_transcribe.ninfer_messages_client import image_content_block
+from nvidia_transcribe.ninfer_messages_client import (
+    image_content_block, QUALITY_COMPLETION_TOKENS, QUALITY_RETRY_TOKENS,
+)
 from nvidia_transcribe.resource_lifecycle import ResourceLifecycleError
 from nvidia_transcribe.source_quality import _bounds, _lex, _overlap
 
@@ -136,12 +138,15 @@ def _call(client,system,payload,schema,*,parts=None):
         content=[{"type":"text","text":content},*parts]
     reply=client.complete(messages=[{"role":"system","content":system},
                           {"role":"user","content":content}],
-                          max_tokens=4096,thinking_budget=2048,reasoning_effort="xhigh",
+                          max_tokens=QUALITY_COMPLETION_TOKENS,
+                          retry_max_tokens=QUALITY_RETRY_TOKENS,
+                          thinking_budget=2048,reasoning_effort="xhigh",
                           strict_reasoning_effort=True,temperature=0.,
                           response_format={"type":"json_schema","schema":schema})
     choice=reply["choices"][0]
     if choice["finish_reason"]!="stop":
-        raise ValueError("Incomplete scene assessment")
+        raise ValueError("Incomplete scene assessment: "+
+            json.dumps(reply.get("_client_request_diagnostics",{}),ensure_ascii=False))
     return json.loads(choice["message"]["content"]),reply
 
 
@@ -153,7 +158,8 @@ def _decision_schema(candidate_ids,caption_ids,context_ids):
         "meaning":{"type":"string"},
         "reason":{"type":"string"},
         "materially_resolved":{"type":"boolean"},
-        "context_ids":{"type":"array","items":{"type":"string","enum":["",*context_ids]}},
+        "context_ids":{"type":"array","maxItems":min(8,len(context_ids)),
+                       "items":{"type":"string","enum":["",*context_ids]}},
         "next_evidence":{"type":"string","enum":["none","larger_context","visual","acoustic","alignment"]}},
         "required":["action","candidate_id","replace_span","meaning","reason",
                     "materially_resolved","context_ids","next_evidence"],"additionalProperties":False}
@@ -168,7 +174,8 @@ SYSTEM = (
     "source-language dialogue caption, or unresolved. For caption supply the exact unique source span "
     "it replaces, including the entire source turn if the caption represents that whole turn. "
     "Do not replace other clauses, speakers, or different dialogue. Captions can paraphrase or be offset; "
-    "exclude unrelated on-screen text. Cite relevant supplied context IDs. "
+    "exclude unrelated on-screen text. Cite at most eight distinct relevant supplied context IDs, "
+    "once each. Keep explanations concise. Same-model crops are not independent-model confirmation. "
     "Mark materially_resolved only if the meaning is supported; an empty context is not evidence. "
     "Request larger_context if a longer narrative context might discriminate alternatives, visual if "
     "scene/caption evidence may help, acoustic or alignment if wording/timing remains unsupported. "
@@ -194,6 +201,8 @@ def assess(client,recording,row,alternatives,policy,visual=None,radius=None):
             or parsed.get("action") not in ("retain","acoustic","caption","unresolved")
             or parsed.get("next_evidence") not in ("none","larger_context","visual","acoustic","alignment")
             or not isinstance(parsed.get("context_ids"),list)
+            or len(parsed["context_ids"])>min(8,len(context["rows"]))
+            or len(set(parsed["context_ids"]))!=len(parsed["context_ids"])
             or not set(parsed["context_ids"])<={x["id"] for x in context["rows"]}|{""}):
         raise ValueError("Invalid scene decision")
     return {"input":payload,"decision":parsed,"response":reply}

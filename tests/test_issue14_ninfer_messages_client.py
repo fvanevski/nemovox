@@ -358,3 +358,48 @@ def test_messages_image_budget_and_http_failure_have_no_fallback(monkeypatch):
         client.complete(messages=[{"role":"user","content":[block]}], **kw)
     assert len(requests) == 1
     assert requests[0][1]["messages"][0]["content"] == [block]
+
+
+
+def test_explicit_output_exhaustion_retries_once_with_more_completion_headroom(monkeypatch):
+    requests=_client_transport(monkeypatch,responses=[
+        Reply(body=_finished_response(reason="max_tokens")),
+        Reply(body=_finished_response())])
+    client=NInferMessagesTextClient(base_url="http://localhost:8001/v1",model="chat")
+    reply=client.complete(messages=_messages(),max_tokens=8192,retry_max_tokens=16384,
+                          thinking_budget=2048,reasoning_effort="xhigh",
+                          response_format=JSON_OBJECT_SCHEMA,strict_reasoning_effort=True)
+    first,second=[body for _,body in requests]
+    assert first["max_tokens"]==8192 and second["max_tokens"]==16384
+    assert {k:v for k,v in first.items() if k!="max_tokens"}=={
+            k:v for k,v in second.items() if k!="max_tokens"}
+    assert reply["choices"][0]["finish_reason"]=="stop"
+    attempts=reply["_client_request_diagnostics"]["completion_attempts"]
+    assert [a["stop_reason"] for a in attempts]==["max_tokens","end_turn"]
+    assert [a["max_tokens"] for a in attempts]==[8192,16384]
+
+
+def test_retry_exhaustion_and_context_overflow_do_not_claim_completion(monkeypatch):
+    requests=_client_transport(monkeypatch,responses=[
+        Reply(body=_finished_response(reason="max_tokens")),
+        Reply(body=_finished_response(reason="max_tokens")),
+        Reply(body=_finished_response(reason="model_context_window_exceeded"))])
+    client=NInferMessagesTextClient(base_url="http://localhost:8001/v1",model="chat")
+    kw=dict(messages=_messages(),max_tokens=8192,retry_max_tokens=16384,
+            thinking_budget=2048,reasoning_effort="xhigh")
+    out=client.complete(**kw)
+    assert out["choices"][0]["finish_reason"]=="length"
+    assert len(out["_client_request_diagnostics"]["completion_attempts"])==2
+    out=client.complete(**kw)
+    assert out["choices"][0]["finish_reason"]=="length"
+    assert out["_client_request_diagnostics"]["native_stop_reason"]=="model_context_window_exceeded"
+    assert len(requests)==3
+
+
+def test_retry_never_repeats_http_error(monkeypatch):
+    requests=_client_transport(monkeypatch,responses=[Reply(400,{"error":"invalid schema"})])
+    client=NInferMessagesTextClient(base_url="http://localhost:8001/v1",model="chat")
+    with pytest.raises(RuntimeError,match="HTTP 400"):
+        client.complete(messages=_messages(),max_tokens=8192,retry_max_tokens=16384,
+                        thinking_budget=2048,reasoning_effort="xhigh")
+    assert len(requests)==1

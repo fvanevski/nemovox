@@ -14,11 +14,12 @@ from pathlib import Path
 from typing import Any
 
 from nvidia_transcribe.resource_lifecycle import ResourceLifecycleError
+from nvidia_transcribe.ninfer_messages_client import QUALITY_RETRY_TOKENS
 from nvidia_transcribe.refinement import GlossaryConfig, OpenAIChatTextClient
 
 VALID_REVIEW_PROFILES = ("off", "conservative", "balanced", "expressive")
 VALID_REVIEW_STYLES = ("natural", "literal", "expressive")
-_PROMPT_VERSION = "mt_postedit_v5_source_first_discourse"
+_PROMPT_VERSION = "mt_postedit_v6_completion_headroom"
 _SCHEMA = {
     "type": "json_schema",
     "json_schema": {
@@ -193,6 +194,7 @@ def review_translated_utterances(
     blocked_reason: str | None = None
     calls = hits = changed_count = reviewed_count = rejected_polarity = 0
     comparative_calls = comparative_rejections = 0
+    completion_retries = 0
     started = time.perf_counter()
     n = len(out)
     batch = max(1, int(cfg.batch_size))
@@ -300,14 +302,20 @@ def review_translated_utterances(
                             "thinking_budget": cfg.thinking_budget,
                             "reasoning_effort": cfg.reasoning_effort,
                             "strict_reasoning_effort": True}
+                    if cfg.max_tokens<QUALITY_RETRY_TOKENS:
+                        wire["retry_max_tokens"]=QUALITY_RETRY_TOKENS
                 response = client.complete(
                     messages=messages, max_tokens=cfg.max_tokens, temperature=cfg.temperature, **wire,
                 )
+                retries=max(0,len(response.get("_client_request_diagnostics",{}).get("completion_attempts",[]))-1)
+                calls+=retries
+                completion_retries+=retries
                 choice = (response.get("choices") or [{}])[0]
                 raw = str((choice.get("message") or {}).get("content") or "")
                 if cfg.wire_protocol == "ninfer_messages":
                     if choice.get("finish_reason") != "stop":
-                        raise ValueError("Incomplete bounded Messages postedit")
+                        raise ValueError("Incomplete bounded Messages postedit: "+
+                            json.dumps(response.get("_client_request_diagnostics",{}),ensure_ascii=False))
                     parsed = json.loads(raw)
                 else:
                     first = raw.find("{")
@@ -363,8 +371,10 @@ def review_translated_utterances(
                         verdict = client.complete(messages=[
                             {"role": "system", "content":
                              "Adjudicate competing English subtitle translations using the source dialogue "
-                             "and surrounding context. First read the complete source passage and both full English "
-                             "sequences. Check each clause's intended action, participants, idiom, polarity, "
+                             "and surrounding context. First read the complete source passage and both joined English "
+                             "passages as continuous dialogue. An incomplete cue at a real continuation boundary "
+                             "is not a grammatical error when its next cue completes the clause. "
+                             "Check each clause's intended action, participants, idiom, polarity, "
                              "tense and referents. A split sentence must preserve its meaning across adjacent cues; "
                              "evaluate dependent edits together, avoiding orphaned objects, invented pronouns and "
                              "duplicated meaning. Do not mistake restriction for negation. Select the proposal only if it corrects a real "
@@ -377,13 +387,20 @@ def review_translated_utterances(
                                 "source_language": source_language, "context_before": before,
                                 "comparisons": comparisons, "context_after": after,
                                 "complete_target_passage":[{**t,"proposed_translation":entries[t["utterance_id"]]["corrected_text"]}
-                                                           for t in targets]}, ensure_ascii=False)}
+                                                           for t in targets],
+                                "joined_primary_passage":" ".join(t["machine_translation"] for t in targets),
+                                "joined_candidate_passage":" ".join(entries[t["utterance_id"]]["corrected_text"] for t in targets)}, ensure_ascii=False)}
                         ], max_tokens=cfg.max_tokens, temperature=0.0,
                             response_format={"type": "json_schema", "schema": schema},
-                            thinking_budget=1024, reasoning_effort="xhigh", strict_reasoning_effort=True)
+                            thinking_budget=1024, reasoning_effort="xhigh", strict_reasoning_effort=True,
+                            **({"retry_max_tokens":QUALITY_RETRY_TOKENS} if cfg.max_tokens<QUALITY_RETRY_TOKENS else {}))
+                        retries=max(0,len(verdict.get("_client_request_diagnostics",{}).get("completion_attempts",[]))-1)
+                        calls+=retries
+                        completion_retries+=retries
                         result = (verdict.get("choices") or [{}])[0]
                         if result.get("finish_reason") != "stop":
-                            raise ValueError("Incomplete comparative review")
+                            raise ValueError("Incomplete comparative review: "+
+                                json.dumps(verdict.get("_client_request_diagnostics",{}),ensure_ascii=False))
                         decisions = json.loads(result["message"]["content"])["decisions"]
                         by_id = {}
                         for decision in decisions:
@@ -472,6 +489,7 @@ def review_translated_utterances(
         "reviewed": reviewed_count, "changed": changed_count,
         "rejected_polarity": rejected_polarity,
         "comparative_calls": comparative_calls, "comparative_rejections": comparative_rejections,
+        "completion_retries": completion_retries,
         "cache_hits": hits, "api_calls": calls, "errors": errors,
         "resource_blocked_reason": blocked_reason,
         "elapsed_s": round(time.perf_counter() - started, 3),

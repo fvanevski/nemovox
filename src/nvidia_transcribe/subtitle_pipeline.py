@@ -29,6 +29,7 @@ from nvidia_transcribe.translation import (
     translate_utterances,
 )
 from nvidia_transcribe.translation_review import TranslationReviewConfig, review_translated_utterances
+from nvidia_transcribe.ninfer_messages_client import QUALITY_COMPLETION_TOKENS, QUALITY_TIMEOUT_S
 from nvidia_transcribe.utterances import apply_validation_overlay, audit_and_reconstruct_contract
 
 
@@ -149,7 +150,9 @@ def generate_subtitles(
             raise ValueError("Current source quality cannot be combined with text-only source rewriting")
         if cfg.translation_review.profile != "off":
             cfg = replace(cfg, translation_review=replace(cfg.translation_review,
-                wire_protocol="ninfer_messages", thinking_budget=2048, reasoning_effort="xhigh"))
+                wire_protocol="ninfer_messages", thinking_budget=2048, reasoning_effort="xhigh",
+                max_tokens=max(cfg.translation_review.max_tokens,QUALITY_COMPLETION_TOKENS),
+                timeout_s=max(cfg.translation_review.timeout_s,QUALITY_TIMEOUT_S)))
     if cfg.translation_review.profile != "off" and cfg.translation.backend != "riva":
         raise ValueError("Contextual English post-edit requires dedicated Riva primary translation")
     if (cfg.condense_high_cps and cfg.translation.backend == "riva"
@@ -276,7 +279,8 @@ def generate_subtitles(
             contract, quality_report = review_current_source(
                 contract, recording_path=rc_path, media_path=media_path, output_dir=out_dir,
                 text_scope=lambda: managed_text_client(lifecycle,
-                    lifecycle_resources["translation_review"], wire_protocol="ninfer_messages"),
+                    lifecycle_resources["translation_review"], wire_protocol="ninfer_messages",
+                    timeout_s=QUALITY_TIMEOUT_S),
                 asr_scope=lambda: managed_asr_client(lifecycle,
                     lifecycle_resources["asr"], challenge_client),
                 policy=cfg.source_quality_policy,

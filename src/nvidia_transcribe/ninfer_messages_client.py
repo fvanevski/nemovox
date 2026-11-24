@@ -11,6 +11,7 @@ from __future__ import annotations
 import base64
 import binascii
 import hashlib
+import json
 from typing import Any
 
 
@@ -18,6 +19,11 @@ from typing import Any
 # admission remain NInfer's responsibility. Only inline still images are
 # supported: no URLs, remote fetching, implicit file reads or video.
 _MAX_IMAGE_BYTES = 8 * 1024 * 1024
+# Generous but bounded production quality-call completion allowances.
+QUALITY_COMPLETION_TOKENS = 8192
+QUALITY_RETRY_TOKENS = 16384
+QUALITY_TIMEOUT_S = 600.0
+
 _MAX_IMAGES = 12
 _MAX_TOTAL_IMAGE_BYTES = 24 * 1024 * 1024
 _IMAGE_SIGNATURES = {"image/png": b"\x89PNG\r\n\x1a\n", "image/jpeg": b"\xff\xd8\xff"}
@@ -106,12 +112,17 @@ class NInferMessagesTextClient:
         reasoning_effort: str | None = None,
         thinking_budget: int | None = None,
         strict_reasoning_effort: bool = False,
+        retry_max_tokens: int | None = None,
     ) -> dict[str, Any]:
         import httpx
 
         if (not isinstance(max_tokens, int) or isinstance(max_tokens, bool)
                 or max_tokens < 256):
             raise ValueError("Invalid Messages completion token limit")
+        if retry_max_tokens is not None and (
+                not isinstance(retry_max_tokens,int) or isinstance(retry_max_tokens,bool)
+                or retry_max_tokens <= max_tokens or retry_max_tokens > 32768):
+            raise ValueError("Invalid bounded completion retry limit")
         if thinking_budget is None:
             raise ValueError("NInfer Messages requires an explicit thinking budget")
         if not isinstance(thinking_budget, int) or isinstance(thinking_budget, bool):
@@ -164,12 +175,24 @@ class NInferMessagesTextClient:
             }
 
         headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
+        attempts = []
         with httpx.Client(headers=headers, timeout=self.timeout_s) as client:
-            resp = client.post(f"{self.base_url}/messages", json=body)
-            # No fallback: an unsupported field/effort cannot silently
-            # reinstate the server's unbounded thinking default.
-            resp.raise_for_status()
-            answer = resp.json()
+            limits = [max_tokens] if retry_max_tokens is None else [max_tokens,retry_max_tokens]
+            for limit in limits:
+                body["max_tokens"] = limit
+                resp = client.post(f"{self.base_url}/messages", json=body)
+                # No fallback for transport, admission or unsupported
+                # schema/effort. Retry only explicit native output exhaustion.
+                resp.raise_for_status()
+                answer = resp.json()
+                if not isinstance(answer,dict) or answer.get("type")!="message":
+                    raise ValueError("Expected an Anthropic Messages response object")
+                attempts.append({"max_tokens":limit,"stop_reason":answer.get("stop_reason"),
+                    "response_id":answer.get("id"),"usage":answer.get("usage"),
+                    "response_sha256":hashlib.sha256(
+                        json.dumps(answer,ensure_ascii=False,sort_keys=True).encode()).hexdigest()})
+                if answer.get("stop_reason")!="max_tokens":
+                    break
         if not isinstance(answer, dict) or answer.get("type") != "message":
             raise ValueError("Expected an Anthropic Messages response object")
         blocks = answer.get("content")
@@ -216,6 +239,8 @@ class NInferMessagesTextClient:
                       "completion_tokens_details": {"reasoning_tokens": reasoning_tokens}},
             "_client_request_diagnostics": {
                 "protocol": "ninfer_anthropic_messages",
+                "native_stop_reason": stop,
+                "completion_attempts": attempts,
                 "input_image_count": len(input_images),
                 "input_images": input_images,
                 "reasoning_effort_requested": effort,

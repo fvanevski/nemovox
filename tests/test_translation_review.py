@@ -435,7 +435,7 @@ def test_messages_comparative_review_rejects_worse_proposal_and_preserves_origin
             return response
     rows = [{"id": "u1", "source_text": "Tu crois cette histoire ?",
              "translated_text": "Do you believe that story?"}]
-    proposed = {"reviews": [{"utterance_id": "u1", 
+    proposed = {"reviews": [{"utterance_id": "u1",
                              "corrected_text": "Because do you believe that story?",
                              "reason": "Add conversational conjunction."}]}
     decision = {"decisions": [{"utterance_id": "u1", "choice": "original",
@@ -460,7 +460,7 @@ def test_messages_comparative_review_accepts_contextual_repair():
             return response
     rows = [{"id": "u1", "source_text": "Ils se sont fichus de nous !",
              "translated_text": "They don't care about us!"}]
-    proposed = {"reviews": [{"utterance_id": "u1", 
+    proposed = {"reviews": [{"utterance_id": "u1",
                              "corrected_text": "They made fools of us!",
                              "reason": "Contextual idiom."}]}
     decision = {"decisions": [{"utterance_id": "u1", "choice": "proposal",
@@ -481,7 +481,7 @@ def test_messages_incomplete_comparative_review_does_not_accept_candidate():
             response["choices"][0]["finish_reason"] = "stop"
             return response
     rows = [{"id": "u1", "source_text": "Bonjour", "translated_text": "Hello."}]
-    proposed = {"reviews": [{"utterance_id": "u1", 
+    proposed = {"reviews": [{"utterance_id": "u1",
                              "corrected_text": "Good evening.", "reason": "Greeting."}]}
     out, report = review_translated_utterances(
         rows, source_language="fr", config=_cfg(wire_protocol="ninfer_messages",
@@ -517,6 +517,10 @@ def test_messages_source_first_and_comparator_receive_coherent_cross_turn_passag
     assert "changed" not in client.calls[0]["response_format"]["schema"]["properties"]["reviews"]["items"]["required"]
     compare=json.loads(client.calls[1]["messages"][1]["content"])
     assert [x["utterance_id"] for x in compare["complete_target_passage"]]==["u0","u1"]
+    assert compare["joined_primary_passage"]=="He closed it Door before leaving."
+    assert compare["joined_candidate_passage"]=="He closed the door before leaving."
+    assert client.calls[0]["retry_max_tokens"]==16384
+    assert client.calls[1]["retry_max_tokens"]==16384
     assert [x["translated_text"] for x in out]==["He closed the","door before leaving."]
     assert [x["machine_translated_text"] for x in out]==[x["translated_text"] for x in rows]
     assert report["changed"]==2
