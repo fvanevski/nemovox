@@ -110,7 +110,12 @@ def plan_boundary_semantic_reviews(
         for u in right_context:
             by_voice.setdefault(_local_voice(u), []).append(u)
         core = [u for u in tagged_by_chunk[b] if _valid(u) and u.get("_in_core")]
-        left_all = [u for u in tagged_by_chunk[b] if _valid(u)]
+        left_by_voice: dict[str, list[dict[str, Any]]] = {}
+        for unit in tagged_by_chunk[b]:
+            if _valid(unit):
+                left_by_voice.setdefault(_local_voice(unit), []).append(unit)
+        for stream in left_by_voice.values():
+            stream.sort(key=lambda u: (int(u.get("_unit_idx", 0)), float(u["start"])))
         for voice, stream in by_voice.items():
             stream.sort(key=lambda u: (int(u.get("_unit_idx", 0)), float(u["start"])))
             runs: list[list[dict[str, Any]]] = []
@@ -130,11 +135,24 @@ def plan_boundary_semantic_reviews(
                 if ratio > coverage:
                     continue  # already represented or ambiguous; don't duplicate
                 norm_right = [_norm(u["text"]) for u in run]
-                lexical_stream = [_norm(u["text"]) for u in left_all]
-                match = SequenceMatcher(None, lexical_stream, norm_right, autojunk=False).find_longest_match(
-                    0, len(lexical_stream), 0, len(norm_right)
-                )
-                displaced = [u for u in left_all[match.a:match.a + match.size]] if match.size >= 2 else []
+                # Source order must be evaluated per left-local-voice stream.
+                # Interleaved other voices can otherwise fragment a matching
+                # multiword turn into several misleading short correspondences.
+                # Cross-chunk voice labels are NOT assumed to be identical.
+                voice_matches: list[tuple[int, str, list[dict[str, Any]]]] = []
+                for left_voice, left_stream in left_by_voice.items():
+                    match = SequenceMatcher(
+                        None, [_norm(u["text"]) for u in left_stream],
+                        norm_right, autojunk=False,
+                    ).find_longest_match(0, len(left_stream), 0, len(norm_right))
+                    if match.size:
+                        voice_matches.append((
+                            match.size, left_voice,
+                            left_stream[match.a:match.a + match.size],
+                        ))
+                voice_matches.sort(key=lambda x: (-x[0], x[1]))
+                best = voice_matches[0] if voice_matches else (0, None, [])
+                displaced = best[2] if best[0] >= 2 else []
                 offsets = [float(x["start"]) for x in displaced]
                 activity = [a for a in activities.get(int(left.chunk_index), ())
                             if a.get("possible_unrepresented_speech") is True
@@ -150,9 +168,14 @@ def plan_boundary_semantic_reviews(
                     "right_context_words": _words(run),
                     "left_core_overlap_words": _words(same_time),
                     "nominal_core_word_coverage_ratio": round(ratio, 4),
-                    "left_lexical_correspondence": {"matched_words": match.size,
+                    "left_lexical_correspondence": {"matched_words": best[0],
+                        "left_local_voice_hypothesis": best[1],
                         "left_words": _words(displaced),
                         "left_ctc_start_s": min(offsets) if offsets else None,
+                        "competing_left_voice_matches": [
+                            {"left_local_voice_hypothesis": v, "matched_words": n}
+                            for n, v, _ in voice_matches if n == best[0]
+                        ],
                         "alignment_is_acoustic_truth": False},
                     "unrepresented_activity_intervals": [{"start_s": a["start_s"],
                         "end_s": a["end_s"]} for a in activity],
@@ -251,7 +274,8 @@ def run_tiered_text_reviews(
     request: Mapping[str, Any], *, client: Any,
     case_limit: int = 6, token_budget: int = 5000,
     light_tokens: int = 512, reasoned_tokens: int = 1536,
-    light_effort: str = "low", reasoned_effort: str = "high",
+    light_effort: str = "low", reasoned_effort: str = "xhigh",
+    light_thinking_budget: int = 128, reasoned_thinking_budget: int = 512,
 ) -> dict[str, Any]:
     """Explicit injected text-model QC, capped by case and total token budget.
 
@@ -264,13 +288,19 @@ def run_tiered_text_reviews(
             or not isinstance(token_budget, int) or token_budget < 1
             or not all(isinstance(n, int) and 1 <= n <= token_budget
                        for n in (light_tokens, reasoned_tokens))
-            or not all(isinstance(e, str) and e for e in (light_effort, reasoned_effort))):
-        raise ValueError("Invalid model review budgets")
+            or not all(isinstance(e, str) and e for e in (light_effort, reasoned_effort))
+            or any(not isinstance(n, int) or isinstance(n, bool) or n < 1
+                   for n in (light_thinking_budget, reasoned_thinking_budget))
+            or light_thinking_budget > light_tokens - 128
+            or reasoned_thinking_budget > reasoned_tokens - 128):
+        raise ValueError("Invalid model review budgets: reserve at least 128 output tokens")
     outcomes: list[dict[str, Any]] = []
     remaining = token_budget
     for case in request.get("cases", [])[:case_limit]:
         reasoned = case.get("suggested_review_tier") == "reasoned_text"
         per_case = reasoned_tokens if reasoned else light_tokens
+        effort = reasoned_effort if reasoned else light_effort
+        thought_cap = reasoned_thinking_budget if reasoned else light_thinking_budget
         if remaining < per_case:
             outcomes.append({"case_id": case["case_id"], "status": "deferred_token_budget"})
             continue
@@ -279,19 +309,41 @@ def run_tiered_text_reviews(
             messages=build_semantic_review_messages(request, case),
             max_tokens=per_case, temperature=0.0,
             response_format={"type": "json_object"},
-            reasoning_effort=reasoned_effort if reasoned else light_effort,
+            reasoning_effort=effort,
+            thinking_budget=thought_cap,
+            strict_reasoning_effort=True,
         )
-        raw = str(((response.get("choices") or [{}])[0].get("message") or {}).get("content") or "")
+        choice = (response.get("choices") or [{}])[0]
+        raw = str((choice.get("message") or {}).get("content") or "")
+        usage = response.get("usage") or {}
+        details = usage.get("completion_tokens_details") or {}
+        telemetry = {
+            "requested_reasoning_effort": effort,
+            "thinking_budget": thought_cap,
+            "max_completion_tokens": per_case,
+            "reserved_answer_headroom_tokens": per_case - thought_cap,
+            "finish_reason": choice.get("finish_reason"),
+            "completion_tokens": usage.get("completion_tokens"),
+            "reasoning_tokens": details.get("reasoning_tokens"),
+            "request_diagnostics": response.get("_client_request_diagnostics"),
+        }
         try:
+            if not raw.strip():
+                if (choice.get("finish_reason") == "length" and
+                        isinstance(details.get("reasoning_tokens"), int) and
+                        details["reasoning_tokens"] >= int(usage.get("completion_tokens") or 0)):
+                    raise ValueError("Completion budget exhausted by reasoning before final JSON")
+                raise ValueError("Model returned no final JSON content")
+
             decoded = json.loads(raw)
             assessed = validate_semantic_review(request, decoded)
         except (ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
             outcomes.append({"case_id": case["case_id"], "status": "unaccepted_model_response",
-                             "error": str(exc),
+                             "error": str(exc), "telemetry": telemetry,
                              "raw_response_sha256": hashlib.sha256(raw.encode()).hexdigest()})
         else:
             outcomes.append({"case_id": case["case_id"], "status": "advisory_only",
-                             "assessment": assessed,
+                             "assessment": assessed, "telemetry": telemetry,
                              "raw_response_sha256": hashlib.sha256(raw.encode()).hexdigest()})
     return {"schema": "nemovox-tiered-semantic-review-batch/v1",
             "request_sha256": request["request_sha256"], "model_calls": sum(
