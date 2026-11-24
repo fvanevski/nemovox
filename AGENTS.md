@@ -50,6 +50,14 @@ historical evidence documents.
   disposable project-generated development artifacts; never infer permission
   to delete original media, models, user library outputs, user configuration,
   unrelated repositories, active jobs, or unrelated services.
+- Promote broadly applicable mechanisms, not episode-specific patches. A
+  failing example is not dispositive against a useful evidence channel;
+  evaluate cross-scenario benefit, regression risk and cost. Use complete
+  preceding and following dialogue at adaptable scene scale, variable audio
+  crop geometry, independent acoustic hypotheses and visually observed
+  source-language captions where useful. Preserve the distinction between
+  lexical meaning, occurrence, timing and speaker evidence. Configurable
+  bounds are resource controls, not assumed universally optimal chunk sizes.
 - Consolidate substantive work in appropriately sized changes on the existing
   PR. Central owns architectural decisions and implementation; local agents
   perform host integration and bounded mechanical cleanup from an explicit

@@ -1,6 +1,6 @@
 """Synthetic independent-source recovery invariants; no model or media required."""
 from nvidia_transcribe.source_recovery import (
-    apply_independent, plan_recovery, _caption_replacement,
+    apply_independent, plan_recovery,
 )
 
 
@@ -59,16 +59,6 @@ def test_untimed_run_duplicate_fragments_across_chunks_only():
     original[1]["chunk_indices"]=[1]
     rows,decisions=apply_independent(r,plan_recovery(r,[]),[],w)
     assert rows==original and decisions==[]
-
-
-def test_caption_splice_only_unique_anchored_phrase():
-    source="我后来在古城的权利比赛中获取利益最终实现愿望"
-    caption="在古城的权力竞赛中获取利益"
-    assert _caption_replacement(source,caption,"zh")=="我后来在古城的权力竞赛中获取利益最终实现愿望"
-    assert _caption_replacement(source+source,caption,"zh") is None
-    assert _caption_replacement(source,"别处的完全无关文字没有证据","zh") is None
-    assert _caption_replacement(source,caption,"fr") is None
-
 
 
 def test_noisy_interior_segment_does_not_invalidate_enclosing_timed_event():

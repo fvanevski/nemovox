@@ -31,13 +31,23 @@ class SourceQualityPolicy:
     timing_tolerance_s: float = 0.85
     max_text_cases: int = 6
     max_text_tokens: int = 9472
+    # Relative geometry, not fixed episode-specific crop sizes.
+    challenge_scales: tuple[float, ...] = (.65, 1.5, 2.5)
+    challenge_max_seconds: float = 45.
+    challenge_overlap_fraction: float = .35
+    max_extra_per_window: int = 3
 
     def __post_init__(self):
         if (not 1 <= self.max_windows <= 24 or not 0 <= self.max_extra_contexts <= 12
                 or not 1 <= self.max_text_cases <= 24
                 or not 1792 <= self.max_text_tokens <= 49152
                 or not 4 <= self.max_target_seconds <= 14
-                or not 0 < self.timing_tolerance_s <= 2):
+                or not 0 < self.timing_tolerance_s <= 2
+                or not self.challenge_scales
+                or any(not math.isfinite(x) or not .3 <= x <= 5 for x in self.challenge_scales)
+                or not 14 <= self.challenge_max_seconds <= 90
+                or not .1 <= self.challenge_overlap_fraction <= .49
+                or not 1 <= self.max_extra_per_window <= 6):
             raise ValueError("Invalid source quality budget")
 
 
@@ -218,6 +228,35 @@ def _crop_windows(target, duration):
     # Distinct offsets or endings are essential; two replays of identical
     # input are not independently acquired acoustic contexts.
     return crops if crops[0] != crops[1] else []
+
+
+def challenge_geometries(target,duration,policy,*,timing_problem=False,seen=()):
+    """Order alternative geometries using the observed failure mechanism.
+
+    Resize relative to target length, shift nominal boundary into the
+    disputed region with overlap, clip to media, and avoid duplicate crops.
+    Each candidate is an independent observation, not a replacement chunk.
+    """
+    a,b=target
+    length=b-a
+    midpoint=(a+b)/2
+    def window(center,size):
+        size=min(policy.challenge_max_seconds,max(.5,size))
+        return (max(0.,center-size/2),min(duration,center+size/2))
+    compact=[("compact",window(midpoint,length*x)) for x in policy.challenge_scales if x<1]
+    expanded=[("expanded",window(midpoint,length*x)) for x in policy.challenge_scales if x>=1]
+    overlap=length*policy.challenge_overlap_fraction
+    extent=min(policy.challenge_max_seconds/2,max(length*.8,overlap))
+    split=[("shift_left",(max(0.,midpoint-extent),min(duration,midpoint+overlap))),
+           ("shift_right",(max(0.,midpoint-overlap),min(duration,midpoint+extent)))]
+    ordered=(compact+split+expanded if timing_problem else expanded+split+compact)
+    used={tuple(x) for x in seen}
+    result=[]
+    for kind,crop in ordered:
+        if crop[1]-crop[0]>=.5 and crop not in used:
+            used.add(crop)
+            result.append((kind,crop))
+    return result
 
 
 def _observe(client, media, crop, root, index):
@@ -657,37 +696,40 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
                                        and _lex(r["source_text"]) != _lex(e["source_text"])
                                        for r in recording["utterances"])]
                     if extra_contexts < policy.max_extra_contexts and (disputed or not selected):
-                        # One challenge must cover the disputed component,
-                        # not merely the first (possibly tiny) insertion.
                         target = (min(e["source_start"] for e in disputed),
                                   max(e["source_end"] for e in disputed)) if disputed else w["window"]
-                        crop = (max(0., target[0] - 1.), min(media.duration_s, target[1] + 1.))
-                        if crop not in [tuple(x["crop"]) for x in pair]:
-                            third = _observe(asr, observed_media, crop, Path(tmp), len(observations))
-                            third["chunks"] = w["chunks"]
+                        timing_problem=(w["reason"]=="untimed_source_dialogue"
+                                        or not any(o["utterances"] for o in pair))
+                        # Compare variable-length and shifted overlapping
+                        # observations; preserve positive support from all
+                        # distinct contexts, without treating them as votes.
+                        geometries=challenge_geometries(target,media.duration_s,policy,
+                            timing_problem=timing_problem,seen=[x["crop"] for x in pair])
+                        for kind,crop in geometries[:min(policy.max_extra_per_window,
+                                                     policy.max_extra_contexts-extra_contexts)]:
+                            third=_observe(asr,observed_media,crop,Path(tmp),len(observations))
+                            third["chunks"]=w["chunks"]
+                            third["geometry"]=kind
                             observations.append(third)
-                            extra_contexts += 1
+                            extra_contexts+=1
                             for e in selected:
-                                _third_context(e, third, policy.timing_tolerance_s)
-                            if not selected:
-                                # A new pair can support a gap; competing
-                                # wording replacement still needs three contexts.
-                                alternatives = corroborated_events(pair[0], third, w["window"],
-                                                                    policy.timing_tolerance_s)
-                                other_alternatives = corroborated_events(pair[1], third, w["window"],
-                                                                          policy.timing_tolerance_s)
-                                for e in alternatives:
-                                    _third_context(e, pair[1], policy.timing_tolerance_s)
-                                # Retain second/third matches only when they
-                                # do not claim an observation or interval
-                                # already claimed by the first/third result.
-                                for e in other_alternatives:
+                                _third_context(e,third,policy.timing_tolerance_s)
+                            for previous in pair:
+                                for e in corroborated_events(previous,third,w["window"],
+                                                            policy.timing_tolerance_s):
                                     if not any(set(e["supporting_observation_ids"]).intersection(
-                                                   old["supporting_observation_ids"])
-                                               or _overlap(_bounds(e), _bounds(old)) > .08
-                                               for old in alternatives):
-                                        alternatives.append(e)
-                                selected = alternatives
+                                            old["supporting_observation_ids"])
+                                            or _overlap(_bounds(e),_bounds(old))>.08 for old in selected):
+                                        for other in pair:
+                                            _third_context(e,other,policy.timing_tolerance_s)
+                                        selected.append(e)
+                            pair.append(third)
+                            # Exact positive support can stop further
+                            # escalation for this target, but a failed
+                            # geometry never disables that mechanism.
+                            if selected and not disputed and all(
+                                    len(set(e["audio_sha256"]))>=3 for e in selected):
+                                break
                     for item in selected:
                         item["chunks"] = w["chunks"]
                         item["trigger_evidence_ids"] = w["evidence_ids"]
@@ -709,10 +751,13 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
     from nvidia_transcribe.source_recovery import recover_independent_source
     rows, recovery = recover_independent_source(
         {**recording, "utterances": rows}, observations, observed_media,
-        challenger_resource=challenger_resource, text_scope=text_scope,
+        challenger_resource=challenger_resource,
         output_dir=output_dir,
     )
     decisions.extend(recovery["decisions"])
+    from nvidia_transcribe.scene_evidence import adjudicate_scene
+    rows,scene=adjudicate_scene({**recording,"utterances":rows},observations,
+        recovery["observations"],observed_media,text_scope,output_dir)
     reviewed_case_ids = {o["case_id"] for o in (advisory or {}).get("outcomes", [])}
     deferred_case_ids = [c["case_id"] for c in request["cases"]
                          if c["case_id"] not in reviewed_case_ids]
@@ -720,6 +765,8 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
     uncertain = (bool(unresolved or deferred or deferred_case_ids or discovery_deferred)
                  or any(d["status"].startswith("unresolved") for d in decisions)
                  or bool(recovery["decisions"] or recovery["errors"])
+                 or bool(scene["errors"] or scene["deferred_source_ids"])
+                 or any(x.get("outcome") not in ("context_supported","supported") for x in scene["decisions"])
                  or recovery["status"] in ("unresolved","unsupported_language")
                  or bool(advisory and (advisory.get("systemic_failure")
                           or any(o["status"] != "advisory_only" for o in advisory["outcomes"]))))
@@ -739,6 +786,7 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
         "independent_model_agreement": any(
             d["kind"]=="omission" for d in recovery["decisions"]),
         "independent_recovery": recovery,
+        "scene_evidence": scene,
         "source_word_timing_verified": False,
         "original_recording_modified": False,
     }

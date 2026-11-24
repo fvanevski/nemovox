@@ -5,7 +5,6 @@ No raw observations, accepted timed turns or original recording are overwritten.
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import subprocess
@@ -15,8 +14,6 @@ from pathlib import Path
 
 from nvidia_transcribe.media import extract_wav_segment, validate_wav_file
 from nvidia_transcribe.source_quality import _bounds, _digest, _lex, _overlap
-from nvidia_transcribe.ninfer_messages_client import image_content_block
-from nvidia_transcribe.resource_lifecycle import ResourceLifecycleError
 
 
 MAX_TARGETS = 6
@@ -263,122 +260,9 @@ def apply_independent(recording, targets, observations, independent):
     return rows,decisions
 
 
-def _caption_replacement(text,caption,language):
-    """Local caption repair only, with two unique ordered exact anchors.
-
-    Limit automatic splicing to CJK character streams (no whitespace-based
-    token reconstruction). Unmatched text is preserved byte-for-byte.
-    """
-    if not language.startswith(("zh","ja")):
-        return None
-    import re
-    positions=[m.start() for m in re.finditer(r"[\u3400-\u9fff\u3040-\u30ff]",text)]
-    chars=tuple(text[p] for p in positions)
-    words=tuple(c for c in caption if re.fullmatch(r"[\u3400-\u9fff\u3040-\u30ff]",c))
-    if len(words)<10 or not positions or any(c.isalnum() and not re.fullmatch(r"[\u3400-\u9fff\u3040-\u30ff]",c) for c in caption):
-        return None
-    prefix,suffix=words[:4],words[-4:]
-    starts=[i for i in range(len(chars)-3) if chars[i:i+4]==prefix]
-    ends=[i+4 for i in range(len(chars)-3) if chars[i:i+4]==suffix]
-    matches=[(a,b) for a in starts for b in ends if b-a>=8 and .65 <= (b-a)/len(words)<=1.45
-             and SequenceMatcher(None,chars[a:b],words,autojunk=False).ratio()>=.65]
-    if len(matches)!=1:
-        return None
-    a,b=matches[0]
-    old=text[positions[a]:positions[b-1]+1]
-    # Never erase Latin text, numbers or intervening non-CJK lexical material.
-    if any(c.isalnum() and not re.fullmatch(r"[\u3400-\u9fff\u3040-\u30ff]",c) for c in old):
-        return None
-    new=text[:positions[a]]+caption.strip()+text[positions[b-1]+1:]
-    return new if new!=text else None
-
-
-def inspect_captions(rows,decisions,media,text_scope,root):
-    evidence,errors=[],[]
-    if not decisions:
-        return evidence,errors
-    # Only target newly recovered source events; never an episode-wide scan.
-    for d in decisions:
-        affected=[r for r in rows if r["id"] in d["source_ids"]]
-        if not affected:
-            continue
-        frames=[]
-        for row in affected:
-            a,b=_bounds(row)
-            for t in (a+min(1.,(b-a)/3),(a+b)/2):
-                if len(frames)>=6:
-                    break
-                path=root/f"frame-{row['id']}-{len(frames)}.png"
-                proc=subprocess.run(["ffmpeg","-hide_banner","-nostdin","-y","-loglevel","error",
-                      "-ss",f"{t:.3f}","-i",str(media.path),"-map","0:V:0","-frames:v","1",
-                      "-vf","scale='min(960,iw)':-2",str(path)],capture_output=True,timeout=60)
-                if proc.returncode==0 and path.is_file() and path.stat().st_size:
-                    data=path.read_bytes()
-                    frames.append({"id":path.stem,"time":t,"source_id":row["id"],
-                                   "path":str(path),"sha256":hashlib.sha256(data).hexdigest(),"data":data})
-                else:
-                    errors.append({"stage":"caption_extract","source_id":row["id"],
-                                   "seek_s":t,"exit":proc.returncode})
-        if not frames:
-            continue
-        try:
-            parts=[{"type":"text","text":"Read only actual legible source-language dialogue captions in these chronological frames. Return empty caption if absent or uncertain. Exclude watermarks, titles, recaps labels, and unrelated writing. Do not infer speech from scene imagery."}]
-            for f in frames:
-                parts.extend([{"type":"text","text":f"Frame {f['id']}, requested seek {f['time']:.3f}s"},
-                              image_content_block(f["data"])])
-            ids=[f["id"] for f in frames]
-            schema={"type":"object","properties":{"frames":{"type":"array","minItems":len(ids),
-                "maxItems":len(ids),"items":{"type":"object","properties":{
-                    "id":{"type":"string","enum":ids},"caption":{"type":"string"}},
-                    "required":["id","caption"],"additionalProperties":False}}},
-                "required":["frames"],"additionalProperties":False}
-            # Defer scope acquisition to caller; one scope covers all admitted
-            # recovery targets, not one service reload per scene.
-            response=text_scope.complete(messages=[{"role":"system","content":
-                "Inspect actual pixels. Do not infer missing caption text."},{"role":"user","content":parts}],
-                max_tokens=3072,thinking_budget=1024,reasoning_effort="xhigh",
-                strict_reasoning_effort=True,response_format={"type":"json_schema","schema":schema},
-                temperature=0.)
-            choice=response["choices"][0]
-            if choice["finish_reason"]!="stop":
-                raise ValueError("Incomplete caption response")
-            result=json.loads(choice["message"]["content"])["frames"]
-            if len(result)!=len(ids) or {r["id"] for r in result}!=set(ids):
-                raise ValueError("Incomplete caption frame IDs")
-            if [r["sha256"] for r in response["_client_request_diagnostics"]["input_images"]]!=[f["sha256"] for f in frames]:
-                raise ValueError("Caption image digest mismatch")
-            observed={f["id"]:{k:v for k,v in f.items() if k!="data"} for f in frames}
-            for r in result:
-                f=observed[r["id"]]
-                caption=r["caption"]
-                if not isinstance(caption,str) or not caption.strip():
-                    continue
-                row=next(r for r in affected if r["id"]==f["source_id"])
-                replacement=_caption_replacement(row["source_text"],caption,media.source_language)
-                ev={**f,"caption":caption,"applied":bool(replacement)}
-                evidence.append(ev)
-                if replacement:
-                    # Only one nonconflicting replacement per row; retain
-                    # other frame descriptions as evidence, not extra edits.
-                    if row.get("source_caption_evidence"):
-                        ev["applied"]=False
-                        ev["reason"]="already_repaired_from_frame"
-                        continue
-                    row.setdefault("source_caption_evidence",[]).append(ev)
-                    row.setdefault("prior_caption_source_hypothesis",row["source_text"])
-                    row["source_text"]=replacement
-                    row["source_quality_status"]="unresolved_wording_caption_supported"
-            evidence.append({"frames":list(observed.values()),"response":response})
-        except ResourceLifecycleError:
-            raise
-        except Exception as exc:
-            errors.append({"stage":"caption","error":type(exc).__name__,"detail":str(exc)})
-    return evidence,errors
-
-
-def recover_independent_source(recording,observations,media,*,challenger_resource,text_scope,output_dir):
+def recover_independent_source(recording,observations,media,*,challenger_resource,output_dir):
     report={"status":"not_configured","targets":[],"decisions":[],"errors":[],
-            "observations":[],"caption_evidence":[]}
+            "observations":[]}
     rows=recording["utterances"]
     if challenger_resource is None:
         return rows,report
@@ -396,7 +280,10 @@ def recover_independent_source(recording,observations,media,*,challenger_resourc
         crops=[]
         for i,t in enumerate(targets):
             a,b=t["bounds"]
-            for j,pad in enumerate((1.5,5.0)):
+            length=b-a
+            # Different amounts of surrounding context, scaled to the
+            # candidate occurrence/run instead of fixed episode crop sizes.
+            for j,pad in enumerate((max(.5,length*.20),max(1.,length*.60))):
                 lo,hi=max(0.,a-pad),min(media.duration_s,b+pad)
                 path=root/f"challenge-{i}-{j}.wav"
                 extract_wav_segment(media.path,start_s=lo,duration_s=hi-lo,out_wav=path,
@@ -426,15 +313,4 @@ def recover_independent_source(recording,observations,media,*,challenger_resourc
             report["status"]="error"
             report["errors"].append({"stage":"independent_asr","error":type(exc).__name__,"detail":str(exc)})
             return recording["utterances"],report
-        if report["decisions"]:
-            try:
-                # Retain actual submitted frames for later inspection and
-                # rerender provenance. A fresh unique directory avoids stale
-                # frame reuse even when resuming a subtitle job.
-                frame_root=Path(tempfile.mkdtemp(prefix="source-caption-",dir=output_dir))
-                with text_scope() as client:
-                    report["caption_evidence"],errors=inspect_captions(rows,report["decisions"],media,client,frame_root)
-                    report["errors"].extend(errors)
-            except (OSError,ValueError,ResourceLifecycleError,subprocess.TimeoutExpired) as exc:
-                report["errors"].append({"stage":"caption","error":type(exc).__name__,"detail":str(exc)})
     return rows,report
