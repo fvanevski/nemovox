@@ -18,6 +18,25 @@ REVIEW_SCHEMA = "nemovox-semantic-review-decision/v1"
 RESULT_SCHEMA = "nemovox-boundary-semantic-review-candidates/v1"
 _SAFE_DECISIONS = {"adopt_neighbor_context", "retain_core", "possible_duplicate", "unresolved"}
 
+# A conservative, metadata-only default. Users may supply a versioned policy
+# through reconcile_chunk_boundaries(semantic_review_policy=...). The default
+# never loads a reasoning model, vision service or new checkpoint.
+DEFAULT_SEMANTIC_REVIEW_POLICY = {
+    "schema": POLICY_SCHEMA,
+    "policy_id": "meaning-first-boundary-qc-default-v1",
+    "min_phrase_words": 3,
+    "max_interword_gap_s": 1.2,
+    "max_nominal_core_coverage_ratio": 0.45,
+    "max_cases_per_run": 24,
+    "reviewer_guidance": (
+        "Prioritize intended meaning, polarity, readability and narrative continuity. "
+        "Compare competing ASR/CTC/diarization evidence, do not equate spelling or "
+        "word-for-word agreement with acoustic truth, and abstain on uncertain speech. "
+        "Use light text QC first; escalate to audio-based reasoning when material, "
+        "and to vision only when it can resolve relevant remaining ambiguity."
+    ),
+}
+
 
 def _digest(obj: Any) -> str:
     return hashlib.sha256(json.dumps(obj, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")).hexdigest()

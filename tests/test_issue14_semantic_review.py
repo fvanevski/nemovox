@@ -6,6 +6,7 @@ import pytest
 from nvidia_transcribe.semantic_review import (
     plan_boundary_semantic_reviews, validate_semantic_review,
 )
+from nvidia_transcribe.chunking import ChunkSpec, reconcile_chunk_boundaries
 
 @dataclass
 class C:
@@ -78,3 +79,16 @@ def test_bad_policy_or_untrusted_review_evidence_fails():
        "case_id":q['cases'][0]['case_id'],"decision":"retain_core",
        "rationale":"review","supporting_evidence":["fabricated_source"]}
     with pytest.raises(ValueError,match='evidence citations'):validate_semantic_review(q,r)
+
+
+def test_boundary_pipeline_surfaces_review_candidate_without_auto_speech_insertion():
+    specs=[ChunkSpec(0,0,90,0,100),ChunkSpec(1,90,180,80,190)]
+    right=[{"text":x,"start":80+i*.30,"end":80.18+i*.30,
+            "speaker":"SPK_RIGHT","valid_timing":True,
+            "alignment_status":"ctc_aligned","unit_type":"word"} for i,x in
+           enumerate(("there","is","no","known","passage"))]
+    merged, diag = reconcile_chunk_boundaries([[],right],specs)
+    assert merged == []  # No automatic word invention or insertion
+    review=diag["semantic_review_candidates"]
+    assert review["cases"] and review["cases"][0]["status"]=="review_required_not_auto_adopted"
+    assert review["raw_source_modified"] is False

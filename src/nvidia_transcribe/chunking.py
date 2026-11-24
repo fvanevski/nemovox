@@ -11,6 +11,10 @@ from nvidia_transcribe.boundary_evidence import (
     recover_extended_right_context,
     recover_ownerless_straddled_overlap,
 )
+from nvidia_transcribe.semantic_review import (
+    DEFAULT_SEMANTIC_REVIEW_POLICY,
+    plan_boundary_semantic_reviews,
+)
 
 
 @dataclass(frozen=True)
@@ -217,6 +221,7 @@ def reconcile_chunk_boundaries(
     *,
     boundary_window_s: float = 2.5,
     match_time_tolerance_s: float = 0.85,
+    semantic_review_policy: dict[str, Any] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Merge per-chunk timed units across core boundaries without duplicating or losing speech.
 
@@ -253,6 +258,15 @@ def reconcile_chunk_boundaries(
                 }
             )
         tagged_by_chunk.append(tagged)
+
+    # Collect source hypotheses before core/dedup decisions discard neighbor
+    # observations. Review candidates never modify the raw words or select a
+    # replacement. A versioned policy can tune the QC cost/sensitivity.
+    semantic_review = plan_boundary_semantic_reviews(
+        tagged_by_chunk, chunks,
+        policy=(semantic_review_policy if semantic_review_policy is not None
+                else DEFAULT_SEMANTIC_REVIEW_POLICY),
+    )
 
     dedup_count = 0
     recovered_count = 0
@@ -458,4 +472,5 @@ def reconcile_chunk_boundaries(
         "sequence_evidence": sequence_diag,
         "extended_recovery": extended_diag,
         "straddled_overlap_source": straddled_diag,
+        "semantic_review_candidates": semantic_review,
     }
