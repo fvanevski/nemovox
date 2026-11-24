@@ -1,0 +1,502 @@
+{
+  "resource": {
+    "name": "text_local",
+    "adapter": "openai_chat",
+    "model": "chat",
+    "endpoint": "http://127.0.0.1:8001/v1"
+  },
+  "wire_protocol": "ninfer_messages",
+  "ninfer_git_sha": "a3a3dd5be6c2ecec1479017d5eee219d7a7e5784",
+  "policy_sha256": "6c65210ba4dd79591e86d4d8eaabc2a0d2a477758966c44bf5daeda4885df5da",
+  "request_sha256": "2727483cc111dc956e6a9d632236576a9f62933f3585310537178cdec483669e",
+  "lifecycle": {
+    "before": {
+      "state": "startable",
+      "ready": false,
+      "managed": true,
+      "startable": true
+    },
+    "during": {
+      "state": "ready_managed",
+      "ready": true,
+      "managed": true,
+      "startable": true
+    },
+    "after": {
+      "state": "startable",
+      "ready": false,
+      "managed": true,
+      "startable": true
+    }
+  },
+  "nvidia_smi": {
+    "before": "0, NVIDIA GeForce RTX 5090, 3112 MiB, 29015 MiB, 32607 MiB, 4 %",
+    "during": "0, NVIDIA GeForce RTX 5090, 30682 MiB, 1446 MiB, 32607 MiB, 99 %",
+    "after": "0, NVIDIA GeForce RTX 5090, 3112 MiB, 29015 MiB, 32607 MiB, 50 %"
+  },
+  "batch_summary": {
+    "schema": "nemovox-tiered-semantic-review-batch/v1",
+    "model_calls": 6,
+    "tokens_reserved": 9472,
+    "systemic_failure": null,
+    "source_or_subtitles_modified": false,
+    "model_review_execution_sha256": "3f257ff0cb05f6bfac82a60bb3c2e75de100e13e67b0a1a1903035596f765fee",
+    "advisory_only_count": 6,
+    "unaccepted_model_response_count": 0
+  },
+  "calls": [
+    {
+      "call_index": 0,
+      "case_id": "boundary_ccbf33cf64b16ef94668",
+      "tier": "reasoned_text",
+      "boundary_s": 360.0,
+      "context_window_s": [
+        350.0,
+        354.034
+      ],
+      "http_transport_status": 200,
+      "prompt_sha256": "810a296f7b54298a21c3ed143136bda43313014bafef08a9b92c24699558f8f4",
+      "schema_sha256": "d08bd4d8d4bd571d59ba149a5cc049601b2267e630350cc146828f4d3b60b839",
+      "response_sha256": "844b7a9238dd6048610e0829a4698eae58ba8be3bee3697dc1b99d3e3c85bdfe",
+      "content_sha256": "0ef2b06879f534dca6e2247d3a9bd708e53cc9c13be812fd0f80d34d66a4a2f6",
+      "content_len_chars": 676,
+      "reasoning_len_chars": 3639,
+      "latency_s": 12.513,
+      "finish_reason": "stop",
+      "usage": {
+        "completion_tokens": 1292,
+        "completion_tokens_details": {
+          "reasoning_tokens": 1049
+        }
+      },
+      "client_request_diagnostics": {
+        "protocol": "ninfer_anthropic_messages",
+        "reasoning_effort_requested": "xhigh",
+        "reasoning_effort_sent": "xhigh",
+        "reasoning_effort_fallback": false,
+        "thinking_budget_sent": 1024,
+        "thinking_mode": "enabled",
+        "response_format_sent": true,
+        "json_validation_required": true,
+        "strict_reasoning_effort": true
+      },
+      "ninfer_request": {
+        "protocol": "anthropic_messages",
+        "message_count": 2,
+        "enable_thinking": true,
+        "thinking_budget": 1024,
+        "requested_reasoning_effort": "xhigh",
+        "requested_output_tokens": 1792
+      },
+      "ninfer_result": {
+        "finish_reason": "stop_token",
+        "prompt_tokens": 2262,
+        "prefix_cache_hit_tokens": 0,
+        "completion_tokens": 1292,
+        "thinking_control_applied": true,
+        "thinking_control_tokens": 25,
+        "model_thinking_tokens": 1024
+      },
+      "validator_outcome_status": "advisory_only",
+      "validator_error": null,
+      "accepted_advisory": {
+        "schema": "nemovox-semantic-review-advisory/v1",
+        "request_sha256": "2727483cc111dc956e6a9d632236576a9f62933f3585310537178cdec483669e",
+        "case_id": "boundary_ccbf33cf64b16ef94668",
+        "decision": "possible_duplicate",
+        "supporting_evidence": [
+          "right_context_words",
+          "left_lexical_correspondence",
+          "unrepresented_activity_intervals"
+        ],
+        "contrary_evidence": [
+          "left_core_overlap_words"
+        ],
+        "unresolved": [
+          "duplicate_vs_repetition",
+          "activity_gap"
+        ],
+        "source_application_authorized": false,
+        "quality_review_only": true
+      }
+    },
+    {
+      "call_index": 1,
+      "case_id": "boundary_567ba692421cf2d5ca68",
+      "tier": "reasoned_text",
+      "boundary_s": 360.0,
+      "context_window_s": [
+        355.31,
+        359.812
+      ],
+      "http_transport_status": 200,
+      "prompt_sha256": "973739e7de08093f3d94d66e2040adde3b40db0a1cba8e355f022ee98a746459",
+      "schema_sha256": "c3f28913540ab92acead35dcd6218c37171e5b833fb5f7073fdf2f4bfe0e09b6",
+      "response_sha256": "cedbb0a71297c68be41c86db1a00101e8c481e1a651abc48a7479eaccfe5b338",
+      "content_sha256": "dd38152810a3c03339be8b246df9d64351887358c7d4a43e6ea7ed041c9283c8",
+      "content_len_chars": 730,
+      "reasoning_len_chars": 3501,
+      "latency_s": 4.311,
+      "finish_reason": "stop",
+      "usage": {
+        "completion_tokens": 1308,
+        "completion_tokens_details": {
+          "reasoning_tokens": 1049
+        }
+      },
+      "client_request_diagnostics": {
+        "protocol": "ninfer_anthropic_messages",
+        "reasoning_effort_requested": "xhigh",
+        "reasoning_effort_sent": "xhigh",
+        "reasoning_effort_fallback": false,
+        "thinking_budget_sent": 1024,
+        "thinking_mode": "enabled",
+        "response_format_sent": true,
+        "json_validation_required": true,
+        "strict_reasoning_effort": true
+      },
+      "ninfer_request": {
+        "protocol": "anthropic_messages",
+        "message_count": 2,
+        "enable_thinking": true,
+        "thinking_budget": 1024,
+        "requested_reasoning_effort": "xhigh",
+        "requested_output_tokens": 1792
+      },
+      "ninfer_result": {
+        "finish_reason": "stop_token",
+        "prompt_tokens": 2007,
+        "prefix_cache_hit_tokens": 470,
+        "completion_tokens": 1308,
+        "thinking_control_applied": true,
+        "thinking_control_tokens": 25,
+        "model_thinking_tokens": 1024
+      },
+      "validator_outcome_status": "advisory_only",
+      "validator_error": null,
+      "accepted_advisory": {
+        "schema": "nemovox-semantic-review-advisory/v1",
+        "request_sha256": "2727483cc111dc956e6a9d632236576a9f62933f3585310537178cdec483669e",
+        "case_id": "boundary_567ba692421cf2d5ca68",
+        "decision": "unresolved",
+        "supporting_evidence": [
+          "right_context_words",
+          "unrepresented_activity_intervals"
+        ],
+        "contrary_evidence": [
+          "left_core_overlap_words",
+          "left_lexical_correspondence"
+        ],
+        "unresolved": [
+          "unrepresented_activity",
+          "lexical_repeat_ambiguity"
+        ],
+        "source_application_authorized": false,
+        "quality_review_only": true
+      }
+    },
+    {
+      "call_index": 2,
+      "case_id": "boundary_bbaebd4d2a77a9923c74",
+      "tier": "reasoned_text",
+      "boundary_s": 90.0,
+      "context_window_s": [
+        80.2,
+        81.021
+      ],
+      "http_transport_status": 200,
+      "prompt_sha256": "01b16e8dcfc081a1a295de1856588c392d96685b8936afbe07e84e991296b3a1",
+      "schema_sha256": "70a4f7f9def4c64f9a35f851ed6e0d6021c790972574101486f10bb9a2d3430e",
+      "response_sha256": "b4fdad3600609e49339c2d944d267d8405868ec570e96d91c2f2d6516d2c4e70",
+      "content_sha256": "c21310fea725ae4966ca1369f6de4831edcbbf443d14f8e6f17ac5bd7c3f1466",
+      "content_len_chars": 727,
+      "reasoning_len_chars": 4193,
+      "latency_s": 4.584,
+      "finish_reason": "stop",
+      "usage": {
+        "completion_tokens": 1320,
+        "completion_tokens_details": {
+          "reasoning_tokens": 1049
+        }
+      },
+      "client_request_diagnostics": {
+        "protocol": "ninfer_anthropic_messages",
+        "reasoning_effort_requested": "xhigh",
+        "reasoning_effort_sent": "xhigh",
+        "reasoning_effort_fallback": false,
+        "thinking_budget_sent": 1024,
+        "thinking_mode": "enabled",
+        "response_format_sent": true,
+        "json_validation_required": true,
+        "strict_reasoning_effort": true
+      },
+      "ninfer_request": {
+        "protocol": "anthropic_messages",
+        "message_count": 2,
+        "enable_thinking": true,
+        "thinking_budget": 1024,
+        "requested_reasoning_effort": "xhigh",
+        "requested_output_tokens": 1792
+      },
+      "ninfer_result": {
+        "finish_reason": "stop_token",
+        "prompt_tokens": 1160,
+        "prefix_cache_hit_tokens": 470,
+        "completion_tokens": 1320,
+        "thinking_control_applied": true,
+        "thinking_control_tokens": 25,
+        "model_thinking_tokens": 1024
+      },
+      "validator_outcome_status": "advisory_only",
+      "validator_error": null,
+      "accepted_advisory": {
+        "schema": "nemovox-semantic-review-advisory/v1",
+        "request_sha256": "2727483cc111dc956e6a9d632236576a9f62933f3585310537178cdec483669e",
+        "case_id": "boundary_bbaebd4d2a77a9923c74",
+        "decision": "unresolved",
+        "supporting_evidence": [
+          "right_context_words",
+          "left_core_overlap_words",
+          "left_lexical_correspondence"
+        ],
+        "contrary_evidence": [
+          "left_core_overlap_words",
+          "left_lexical_correspondence",
+          "unrepresented_activity_intervals"
+        ],
+        "unresolved": [
+          "missing_left_core",
+          "zero_coverage",
+          "unverified_voice_identity"
+        ],
+        "source_application_authorized": false,
+        "quality_review_only": true
+      }
+    },
+    {
+      "call_index": 3,
+      "case_id": "boundary_4a6c595a295df6633d6a",
+      "tier": "reasoned_text",
+      "boundary_s": 990.0,
+      "context_window_s": [
+        980.0,
+        980.455
+      ],
+      "http_transport_status": 200,
+      "prompt_sha256": "7e11cb6ea541d885ef3f550f42612b1b52b1f4cc2bc1a23cd2c1263c310adaa6",
+      "schema_sha256": "54873026a22ce0649d603fbc958036adf83c951e4a56cd152aafca08960873f0",
+      "response_sha256": "44e1bb200617d7d1ef157cda2f74327024ced7ba14adce7289bedb493a7106fb",
+      "content_sha256": "51a9ba9d16c4d11053afd6de0534d87a400f8a9976044df977a71429c7391b03",
+      "content_len_chars": 729,
+      "reasoning_len_chars": 4085,
+      "latency_s": 4.905,
+      "finish_reason": "stop",
+      "usage": {
+        "completion_tokens": 1313,
+        "completion_tokens_details": {
+          "reasoning_tokens": 1049
+        }
+      },
+      "client_request_diagnostics": {
+        "protocol": "ninfer_anthropic_messages",
+        "reasoning_effort_requested": "xhigh",
+        "reasoning_effort_sent": "xhigh",
+        "reasoning_effort_fallback": false,
+        "thinking_budget_sent": 1024,
+        "thinking_mode": "enabled",
+        "response_format_sent": true,
+        "json_validation_required": true,
+        "strict_reasoning_effort": true
+      },
+      "ninfer_request": {
+        "protocol": "anthropic_messages",
+        "message_count": 2,
+        "enable_thinking": true,
+        "thinking_budget": 1024,
+        "requested_reasoning_effort": "xhigh",
+        "requested_output_tokens": 1792
+      },
+      "ninfer_result": {
+        "finish_reason": "stop_token",
+        "prompt_tokens": 1457,
+        "prefix_cache_hit_tokens": 470,
+        "completion_tokens": 1313,
+        "thinking_control_applied": true,
+        "thinking_control_tokens": 25,
+        "model_thinking_tokens": 1024
+      },
+      "validator_outcome_status": "advisory_only",
+      "validator_error": null,
+      "accepted_advisory": {
+        "schema": "nemovox-semantic-review-advisory/v1",
+        "request_sha256": "2727483cc111dc956e6a9d632236576a9f62933f3585310537178cdec483669e",
+        "case_id": "boundary_4a6c595a295df6633d6a",
+        "decision": "possible_duplicate",
+        "supporting_evidence": [
+          "right_context_words",
+          "left_lexical_correspondence",
+          "left_core_overlap_words"
+        ],
+        "contrary_evidence": [
+          "left_core_overlap_words",
+          "left_lexical_correspondence"
+        ],
+        "unresolved": [
+          "duplicate_occurrence",
+          "voice_identity"
+        ],
+        "source_application_authorized": false,
+        "quality_review_only": true
+      }
+    },
+    {
+      "call_index": 4,
+      "case_id": "boundary_02e99af11eba174c2a23",
+      "tier": "reasoned_text",
+      "boundary_s": 90.0,
+      "context_window_s": [
+        81.72,
+        83.254
+      ],
+      "http_transport_status": 200,
+      "prompt_sha256": "174eefa5abcf8cc88eb13dce7042cb43105e59b8f1b971d2fa1c6b2589541614",
+      "schema_sha256": "e1d2311970aedb3143a32bdb3cdfd4027e680514af8b529f05eea925d2627ae8",
+      "response_sha256": "31b112dccba192e096b63867da174137c51c919152107d55e66a96feeb42ddeb",
+      "content_sha256": "2322e5177607dd0d2f801451633f1dff492358645c599d6648001db297d50f2c",
+      "content_len_chars": 784,
+      "reasoning_len_chars": 3622,
+      "latency_s": 4.773,
+      "finish_reason": "stop",
+      "usage": {
+        "completion_tokens": 1328,
+        "completion_tokens_details": {
+          "reasoning_tokens": 1049
+        }
+      },
+      "client_request_diagnostics": {
+        "protocol": "ninfer_anthropic_messages",
+        "reasoning_effort_requested": "xhigh",
+        "reasoning_effort_sent": "xhigh",
+        "reasoning_effort_fallback": false,
+        "thinking_budget_sent": 1024,
+        "thinking_mode": "enabled",
+        "response_format_sent": true,
+        "json_validation_required": true,
+        "strict_reasoning_effort": true
+      },
+      "ninfer_request": {
+        "protocol": "anthropic_messages",
+        "message_count": 2,
+        "enable_thinking": true,
+        "thinking_budget": 1024,
+        "requested_reasoning_effort": "xhigh",
+        "requested_output_tokens": 1792
+      },
+      "ninfer_result": {
+        "finish_reason": "stop_token",
+        "prompt_tokens": 1260,
+        "prefix_cache_hit_tokens": 470,
+        "completion_tokens": 1328,
+        "thinking_control_applied": true,
+        "thinking_control_tokens": 25,
+        "model_thinking_tokens": 1024
+      },
+      "validator_outcome_status": "advisory_only",
+      "validator_error": null,
+      "accepted_advisory": {
+        "schema": "nemovox-semantic-review-advisory/v1",
+        "request_sha256": "2727483cc111dc956e6a9d632236576a9f62933f3585310537178cdec483669e",
+        "case_id": "boundary_02e99af11eba174c2a23",
+        "decision": "possible_duplicate",
+        "supporting_evidence": [
+          "right_context_words",
+          "left_core_overlap_words",
+          "left_lexical_correspondence"
+        ],
+        "contrary_evidence": [
+          "left_core_overlap_words",
+          "left_lexical_correspondence"
+        ],
+        "unresolved": [
+          "voice_identity_unverified",
+          "left_word_may_be_hallucination"
+        ],
+        "source_application_authorized": false,
+        "quality_review_only": true
+      }
+    },
+    {
+      "call_index": 5,
+      "case_id": "boundary_667041775030e7e00935",
+      "tier": "light_text",
+      "boundary_s": 1260.0,
+      "context_window_s": [
+        1250.0,
+        1251.395
+      ],
+      "http_transport_status": 200,
+      "prompt_sha256": "71870a3a2516b971ec47d7db5b5f9f71fb6acb2edf33d1d0219d66102f39bcdc",
+      "schema_sha256": "aa4286c6df6b4fb38b9bed533114663f57ad8ee6450cacaf4ae454bc5110a07d",
+      "response_sha256": "1f983a079960b0d99041be865314424bed9faceeff1b3c0d97d055772bf62535",
+      "content_sha256": "f65e519dc9524788e5c3a9b04d92b34dce50e8a8f937fae2a699898db29be1b1",
+      "content_len_chars": 636,
+      "reasoning_len_chars": 0,
+      "latency_s": 0.793,
+      "finish_reason": "stop",
+      "usage": {
+        "completion_tokens": 238,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      "client_request_diagnostics": {
+        "protocol": "ninfer_anthropic_messages",
+        "reasoning_effort_requested": "none",
+        "reasoning_effort_sent": "none",
+        "reasoning_effort_fallback": false,
+        "thinking_budget_sent": 0,
+        "thinking_mode": "disabled",
+        "response_format_sent": true,
+        "json_validation_required": true,
+        "strict_reasoning_effort": true
+      },
+      "ninfer_request": {
+        "protocol": "anthropic_messages",
+        "message_count": 2,
+        "enable_thinking": false,
+        "thinking_budget": null,
+        "requested_reasoning_effort": null,
+        "requested_output_tokens": 512
+      },
+      "ninfer_result": {
+        "finish_reason": "stop_token",
+        "prompt_tokens": 1041,
+        "prefix_cache_hit_tokens": 0,
+        "completion_tokens": 238,
+        "thinking_control_applied": false,
+        "thinking_control_tokens": 0,
+        "model_thinking_tokens": 0
+      },
+      "validator_outcome_status": "advisory_only",
+      "validator_error": null,
+      "accepted_advisory": {
+        "schema": "nemovox-semantic-review-advisory/v1",
+        "request_sha256": "2727483cc111dc956e6a9d632236576a9f62933f3585310537178cdec483669e",
+        "case_id": "boundary_667041775030e7e00935",
+        "decision": "unresolved",
+        "supporting_evidence": [
+          "right_context_words"
+        ],
+        "contrary_evidence": [
+          "left_core_overlap_words"
+        ],
+        "unresolved": [
+          "missing_left_core",
+          "acoustic_verification_needed"
+        ],
+        "source_application_authorized": false,
+        "quality_review_only": true
+      }
+    }
+  ]
+}
