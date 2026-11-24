@@ -295,3 +295,69 @@ def test_unresolved_timing_reaches_current_quality_report(tmp_path, monkeypatch)
     assert report["status"] == canonical["source_quality"]["status"] == "partial"
     assert report["decisions"][0]["status"].startswith("unresolved")
     assert canonical["utterances"] == recording["utterances"]
+
+
+def test_split_join_same_voice_correspondence_and_disputed_wording():
+    from nvidia_transcribe.source_quality import _third_context
+    policy = SourceQualityPolicy()
+    first = _probe((0, 14), "A", [
+        {**_row("a", "Hello, Daniel,", 7.8, 8.6), "local_voice": "0"},
+        {**_row("b", "where are you?", 9.6, 10.8), "local_voice": "0"}])
+    second = _probe((2, 15), "B", [
+        {**_row("c", "Hello, Daniel, where are you?", 7.85, 10.83), "local_voice": "2"}])
+    events = corroborated_events(first, second, (7, 11), policy.timing_tolerance_s)
+    assert len(events) == 1
+    event = events[0]
+    assert event["supporting_observation_ids"] == ["A:a", "A:b", "B:c"]
+    event["chunks"] = [1]
+    recording = _recording([_row("old", "Oh! Oh!", 7.85, 10.65)])
+    rows, decisions = select_source_events(recording, events, policy)
+    assert rows == recording["utterances"] and decisions[0]["status"].startswith("unresolved")
+    third = _probe((6, 12), "C", [
+        {**_row("d", "Hello, Daniel, where are you?", 7.9, 10.8), "local_voice": "1"}])
+    assert _third_context(event, third, policy.timing_tolerance_s)
+    rows, decisions = select_source_events(recording, events, policy)
+    assert rows[0]["source_text"] == "Hello, Daniel, where are you?"
+    assert rows[0]["prior_source_hypothesis"] == recording["utterances"][0]
+    assert rows[0]["speaker_id"] == "SPK_UNK"
+    assert decisions[0]["status"] == "replaced_corroborated_source_hypothesis"
+    first["utterances"][1]["local_voice"] = "1"
+    assert not corroborated_events(first, second, (7, 11), policy.timing_tolerance_s)
+
+
+def test_short_gap_insertion_needs_additional_context():
+    row = _event("It rains", 4, 4.4)
+    rows, decisions = select_source_events(_recording([]), [row], SourceQualityPolicy())
+    assert not rows
+    assert decisions[0]["status"] == "unresolved_short_insertion_needs_support"
+    row["audio_sha256"].append("third")
+    rows, decisions = select_source_events(_recording([]), [row], SourceQualityPolicy())
+    assert len(rows) == 1
+
+
+def test_anchored_coarse_timing_preserves_noisy_original_text_and_word_timing():
+    from nvidia_transcribe.source_quality import _recover_untimed, _lex
+    original = "We will return to the ancient city before the gates close tonight"
+    recording = _recording([_row("a", "Wait here", 1, 2),
+                            _row("missing", original, None, None),
+                            _row("b", "Now go", 12, 13)])
+    def obs(name, shift, interior):
+        text = "We will return to the " + interior + " city before the gates close tonight"
+        units = [{"lex": x, "start": 3 + i*.35 + shift, "end": 3 + (i+1)*.35 + shift}
+                 for i, x in enumerate(_lex(text))]
+        o = _probe((2+shift, 11+shift), name, [{
+            **_row("0", text, units[0]["start"], units[-1]["end"]),
+            "local_voice": "0", "timed_lexical_units": units}])
+        o["chunks"] = [1]
+        return o
+    one, two = obs("A", 0, "old"), obs("B", .1, "hidden")
+    result, decisions = _recover_untimed(recording, [one, two], SourceQualityPolicy())
+    assert len(decisions) == 1
+    recovered = result["utterances"][1]
+    assert recovered["source_text"] == original
+    assert recovered["source_start"] == 3
+    assert recovered["speaker_id"] == "SPK_A"
+    assert not recovered["timestamp_provenance"]["word_timing_verified"]
+    assert decisions[0]["status"].startswith("unresolved")
+    result, decisions = _recover_untimed(recording, [one, one], SourceQualityPolicy())
+    assert not decisions and result["utterances"] == recording["utterances"]

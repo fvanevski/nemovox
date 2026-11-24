@@ -90,3 +90,5 @@ media still require Riva readiness for potentially non-English speech.
 
 Glossary discovery skips malformed optional YAML/JSON entries independently,
 so one invalid file does not prevent other glossary examples appearing.
+
+Optional speaker embeddings default to off. TitaNet is an explicit local-resource choice; missing weights are not a reason to download or silently substitute a model. The single-command subtitle CLI supports both `--audio-stream` and `--speaker-embeddings`.

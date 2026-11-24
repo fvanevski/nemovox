@@ -12,6 +12,7 @@ import math
 import tempfile
 import unicodedata
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -24,14 +25,16 @@ from nvidia_transcribe.semantic_review import run_tiered_text_reviews
 
 @dataclass(frozen=True)
 class SourceQualityPolicy:
-    max_windows: int = 6
+    max_windows: int = 18
+    max_extra_contexts: int = 8
     max_target_seconds: float = 14.0
     timing_tolerance_s: float = 0.85
     max_text_cases: int = 6
     max_text_tokens: int = 9472
 
     def __post_init__(self):
-        if (not 1 <= self.max_windows <= 24 or not 1 <= self.max_text_cases <= 24
+        if (not 1 <= self.max_windows <= 24 or not 0 <= self.max_extra_contexts <= 12
+                or not 1 <= self.max_text_cases <= 24
                 or not 1792 <= self.max_text_tokens <= 49152
                 or not 4 <= self.max_target_seconds <= 14
                 or not 0 < self.timing_tolerance_s <= 2):
@@ -152,12 +155,42 @@ def plan_windows(recording, ledger, request, advisory, policy):
             "reason": "activity_without_lexical_timing",
             "advisory": "not_reviewed",
         })
+    # A contiguous untimed run can represent substantial omitted dialogue.
+    # Use adjacent timed turns only to PLAN listening, never to assign timing.
+    rows = recording["utterances"]
+    pos = 0
+    while pos < len(rows):
+        if _bounds(rows[pos]):
+            pos += 1
+            continue
+        end = pos + 1
+        while end < len(rows) and not _bounds(rows[end]):
+            end += 1
+        if pos > 0 and end < len(rows):
+            left, right = _bounds(rows[pos - 1]), _bounds(rows[end])
+            if left and right and 0 <= left[1] < right[0] <= duration:
+                chunks = sorted({c for row in rows[pos:end] for c in row.get("chunk_indices", [])})
+                if chunks:
+                    # Smaller subwindows supply more useful local CTC contexts.
+                    a, b = left[1], right[0]
+                    while a < b:
+                        stop = min(b, a + min(9., policy.max_target_seconds))
+                        proposals.append({
+                            "id": "untimed:" + ":".join(row["id"] for row in rows[pos:end]),
+                            "window": (a, stop), "chunks": chunks,
+                            "reason": "untimed_source_dialogue", "advisory": "not_reviewed",
+                        })
+                        a = stop
+        pos = end
     # A text-only retain decision cannot veto a contradictory acoustic
     # observation. It only affects bounded scheduling priority.
     proposals.sort(key=lambda p: (
         p["reason"] == "activity_without_lexical_timing",
         p["advisory"] == "retain_core",
-        p["reason"] == "competing_timing_hypothesis", p["window"][0],
+        p["reason"] == "competing_timing_hypothesis",
+        -min(14., p["window"][1] - p["window"][0])
+        if p["reason"] == "activity_without_lexical_timing" else 0.,
+        p["window"][0],
     ))
     windows = []
     for p in proposals:
@@ -173,7 +206,9 @@ def plan_windows(recording, ledger, request, advisory, policy):
                 windows.append({"window": part, "evidence_ids": [p["id"]],
                                 "chunks": p["chunks"], "reason": p["reason"]})
             a = part[1]
-    return windows[:policy.max_windows], windows[policy.max_windows:]
+    # A short clip does not need an episode-sized budget. Keep a hard cap.
+    limit = min(policy.max_windows, max(6, math.ceil(duration / 90.)))
+    return windows[:limit], windows[limit:]
 
 
 def _crop_windows(target, duration):
@@ -210,24 +245,52 @@ def _observe(client, media, crop, root, index):
             # CTC-generated text must also occur in actual ASR source text.
             if (bounds and a - .01 <= bounds[0] < bounds[1] <= b + .01
                     and len(lexical) >= 2 and _contains(source_lex, lexical)):
+                timed = []
+                for unit in list(u.get("source_words") or []) + list(u.get("source_characters") or []):
+                    ub = _bounds(unit, "start", "end")
+                    lex = _lex(unit.get("text"))
+                    if (unit.get("valid_timing") and ub and len(lex) == 1
+                            and bounds[0] - .01 <= ub[0] < ub[1] <= bounds[1] + .01):
+                        timed.append({"lex": lex[0], "start": ub[0], "end": ub[1]})
+                timed.sort(key=lambda x: (x["start"], x["end"]))
                 rows.append({"source_text": u["source_text"], "source_start": bounds[0],
                              "source_end": bounds[1], "local_voice": u.get("speaker_id"),
-                             "observation_id": f"probe-{index:03d}:{u['id']}"})
+                             "observation_id": f"probe-{index:03d}:{u['id']}",
+                             "timed_lexical_units": timed})
     return {"crop": crop, "audio_sha256": wav_sha, "raw_response_sha256": _digest(raw),
             "model": result["contract"].get("model_provenance", {}).get("served_model"),
             "integrity": audit, "utterances": rows, "raw_response": raw}
 
 
-def corroborated_events(first, second, target, tolerance):
-    """Select unique same-event observations in two different audio contexts.
+def _observation_groups(observation):
+    """Adjacent same-local-voice segments are alternative segmentations, not new speech."""
+    rows = sorted(observation["utterances"], key=lambda r: (r["source_start"], r["source_end"]))
+    groups = []
+    for i, first in enumerate(rows):
+        group = {**first, "member_ids": [first["observation_id"]]}
+        groups.append(group)
+        for next_row in rows[i + 1:i + 3]:
+            voice = group.get("local_voice")
+            if (voice in (None, "", "unknown", "SPK_UNK")
+                    or voice != next_row.get("local_voice")
+                    or not -.10 <= next_row["source_start"] - group["source_end"] <= 1.5
+                    or next_row["source_end"] <= group["source_end"]):
+                break
+            # No crossing an intervening distinct voice: only consecutive rows.
+            group = {**group, "source_text": group["source_text"] + " " + next_row["source_text"],
+                     "source_end": next_row["source_end"],
+                     "member_ids": group["member_ids"] + [next_row["observation_id"]],
+                     "timed_lexical_units": (group.get("timed_lexical_units", [])
+                                            + next_row.get("timed_lexical_units", []))}
+            groups.append(group)
+    return groups
 
-    Repetition remains distinct when timing separates its occurrences. A
-    disagreement or ambiguous pairing remains unresolved, not a deletion.
-    """
-    if (first["audio_sha256"] == second["audio_sha256"]
-            or first["crop"] == second["crop"]):
+
+def corroborated_events(first, second, target, tolerance):
+    """Compare lexical events independently of ASR segmentation, never merge voices."""
+    if first["audio_sha256"] == second["audio_sha256"] or first["crop"] == second["crop"]:
         return []
-    left, right = first["utterances"], second["utterances"]
+    left, right = _observation_groups(first), _observation_groups(second)
 
     def match(a, b):
         x, y = _bounds(a), _bounds(b)
@@ -236,19 +299,149 @@ def corroborated_events(first, second, target, tolerance):
                 and target[0] <= (x[0] + x[1]) / 2 <= target[1]
                 and target[0] <= (y[0] + y[1]) / 2 <= target[1])
 
-    events = []
-    for a in left:
-        matches = [b for b in right if match(a, b)]
-        if len(matches) != 1:
-            continue
-        b = matches[0]
-        if sum(bool(match(other, b)) for other in left) != 1:
-            continue
-        # Choose an observed interval, never fabricate a midpoint timestamp.
-        events.append({**a, "supporting_observation_ids": [a["observation_id"], b["observation_id"]],
-                       "audio_sha256": [first["audio_sha256"], second["audio_sha256"]],
-                       "raw_response_sha256": [first["raw_response_sha256"], second["raw_response_sha256"]]})
+    # Prefer unambiguous single-row matches, then use remaining observations
+    # for split/join cases. No member can support two different events.
+    events, used = [], set()
+    for compound in (False, True):
+        pairs = [(a, b) for a in left for b in right
+                 if (len(a["member_ids"]) > 1 or len(b["member_ids"]) > 1) == compound
+                 and not used.intersection(a["member_ids"] + b["member_ids"])
+                 and match(a, b)]
+        for a, b in pairs:
+            ids = a["member_ids"] + b["member_ids"]
+            if used.intersection(ids):
+                continue
+            if sum(bool(set(ids).intersection(x["member_ids"] + y["member_ids"]))
+                   for x, y in pairs) != 1:
+                continue
+            # Prefer the actually observed joined text/interval over a
+            # constructed concatenation, especially for CJK punctuation.
+            chosen = a if len(a["member_ids"]) <= len(b["member_ids"]) else b
+            events.append({**chosen, "supporting_observation_ids": ids,
+                           "audio_sha256": [first["audio_sha256"], second["audio_sha256"]],
+                           "raw_response_sha256": [first["raw_response_sha256"], second["raw_response_sha256"]]})
+            used.update(ids)
     return events
+
+
+def _third_context(event, observation, tolerance):
+    """Additional distinct positive support; absence is not a contradiction."""
+    if observation["audio_sha256"] in event["audio_sha256"]:
+        return False
+    matches = [r for r in _observation_groups(observation)
+               if _lex(r["source_text"]) == _lex(event["source_text"])
+               and _same_event_bounds(_bounds(r), _bounds(event), tolerance)]
+    if len(matches) != 1:
+        return False
+    event["supporting_observation_ids"].extend(matches[0]["member_ids"])
+    event["audio_sha256"].append(observation["audio_sha256"])
+    event["raw_response_sha256"].append(observation["raw_response_sha256"])
+    return True
+
+
+def _anchored_intervals(row, observation, bracket):
+    """Locate a noisy untimed source hypothesis using observed lexical-unit edges.
+
+    Approximate interior lexical agreement is ONLY timing association, not
+    permission to replace speech. Require ordered, unique strong edge anchors.
+    """
+    words = _lex(row["source_text"])
+    cjk = (row.get("source_language") or "").startswith(("zh", "ja"))
+    anchor = 4 if cjk else 3
+    slack = 2 if cjk else 1
+    if len(words) < 2 * anchor + 2:
+        return []
+    matches = {}
+    for group in _observation_groups(observation):
+        units = group.get("timed_lexical_units") or []
+        if len(units) < 2 * anchor:
+            continue
+        tokens = tuple(u["lex"] for u in units)
+        for first_offset in range(slack + 1):
+            prefix = words[first_offset:first_offset + anchor]
+            starts = [i for i in range(len(tokens) - anchor + 1)
+                      if tokens[i:i + anchor] == prefix]
+            for last_offset in range(slack + 1):
+                stop = len(words) - last_offset
+                suffix = words[stop-anchor:stop]
+                ends = [i + anchor for i in range(len(tokens) - anchor + 1)
+                        if tokens[i:i + anchor] == suffix]
+                for i in starts:
+                    for j in ends:
+                        if j - i < 2 * anchor:
+                            continue
+                        if not .65 <= (j-i) / (stop-first_offset) <= 1.45:
+                            continue
+                        ratio = SequenceMatcher(None, words[first_offset:stop], tokens[i:j],
+                                                autojunk=False).ratio()
+                        bounds = (units[i]["start"], units[j-1]["end"])
+                        if (ratio < .70 or not bracket[0] <= bounds[0] < bounds[1] <= bracket[1]
+                                or any(x["end"] > y["start"] + .10
+                                       for x, y in zip(units[i:j], units[i+1:j]))):
+                            continue
+                        # Prefer complete edge matches over an inner fragment.
+                        key = (bounds, first_offset, last_offset)
+                        matches[key] = (ratio, group["member_ids"])
+    if not matches:
+        return []
+    best_edges = min(k[1] + k[2] for k in matches)
+    return [(k[0], matches[k][1], matches[k][0]) for k in matches
+            if k[1] + k[2] == best_edges]
+
+
+def _recover_untimed(recording, observations, policy):
+    """Recover only source-event timing, without changing lexical or voice hypotheses."""
+    rows = [dict(r) for r in recording["utterances"]]
+    decisions = []
+    original = list(rows)
+    for i, row in enumerate(original):
+        if _bounds(row):
+            continue
+        left = next((_bounds(r) for r in reversed(original[:i]) if _bounds(r)), None)
+        right = next((_bounds(r) for r in original[i+1:] if _bounds(r)), None)
+        if not left or not right or not left[1] < right[0]:
+            continue
+        bracket = (left[1], right[0])
+        # The row must be attributable to the current challenged chunks.
+        candidates = []
+        for obs in observations:
+            if not set(row.get("chunk_indices") or []).intersection(obs.get("chunks", [])):
+                continue
+            matches = _anchored_intervals({**row, "source_language": recording["source_language"]},
+                                          obs, bracket)
+            if len(matches) == 1:
+                candidates.append((obs, matches[0]))
+        pairs = [(a, b) for k, a in enumerate(candidates) for b in candidates[k+1:]
+                 if a[0]["audio_sha256"] != b[0]["audio_sha256"]
+                 and a[0]["crop"] != b[0]["crop"]
+                 and _same_event_bounds(a[1][0], b[1][0], policy.timing_tolerance_s)]
+        if not pairs:
+            continue
+        a, b = pairs[0]
+        bounds = a[1][0]
+        if any(not _same_event_bounds(x[1][0], bounds, policy.timing_tolerance_s)
+               for x in candidates):
+            continue
+        if any(other is not rows[i] and _bounds(other)
+               and _overlap(_bounds(other), bounds) > .08 for other in rows):
+            continue
+        obs_ids = a[1][1] + b[1][1]
+        rows[i] = {**row, "source_start": bounds[0], "source_end": bounds[1],
+                   "alignment_status": "anchored_event_bounds",
+                   "source_quality_status": "unresolved_wording_anchored_timing",
+                   "timestamp_provenance": {
+                       "backend": "separate_acoustic_contexts",
+                       "timing_status": "approximate",
+                       "human_verified": False, "word_timing_verified": False,
+                       "observation_ids": obs_ids,
+                       "audio_sha256": [a[0]["audio_sha256"], b[0]["audio_sha256"]],
+                       "raw_response_sha256": [a[0]["raw_response_sha256"], b[0]["raw_response_sha256"]],
+                       "lexical_association_ratios": [a[1][2], b[1][2]],
+                   }}
+        decisions.append({"status": "unresolved_wording_anchored_timing",
+                          "source_id": row["id"], "window": bounds,
+                          "observations": obs_ids})
+    return {**recording, "utterances": rows}, decisions
 
 
 def select_source_events(recording, events, policy):
@@ -326,6 +519,18 @@ def select_source_events(recording, events, policy):
                 and not any(u is not overlaps[0] for u in nearby_matches)):
             replace = overlaps[0]
             status = "extended_corroborated_turn"
+        elif (len(overlaps) == 1 and not nearby_matches
+                and len(set(event["audio_sha256"])) >= 3
+                and _same_event_bounds(_bounds(overlaps[0]), bounds, policy.timing_tolerance_s)
+                and not crossed_turn_ids(overlaps[0], bounds)
+                and len(words) >= 3
+                and not any(_bounds(other) and _overlap(_bounds(other), bounds) > 0
+                            for other in rows if other is not overlaps[0])):
+            # Three distinct contexts positively support the same competing
+            # wording at the same occurrence. Keep the prior hypothesis;
+            # this is model adjudication, not independent-model truth.
+            replace = overlaps[0]
+            status = "replaced_corroborated_source_hypothesis"
         elif not overlaps and len(nearby_matches) == 1 and _bounds(nearby_matches[0]) is None:
             if _lex(nearby_matches[0]["source_text"]) == words:
                 replace = nearby_matches[0]
@@ -334,8 +539,12 @@ def select_source_events(recording, events, policy):
             status = "recovered_corroborated_turn"
         elif not overlaps:
             status = "unresolved_possible_displaced_or_repeated_turn"
+        if (status == "recovered_corroborated_turn"
+                and bounds[1] - bounds[0] < .65
+                and len(set(event["audio_sha256"])) < 3):
+            status = "unresolved_short_insertion_needs_support"
         if status in {"extended_corroborated_turn", "timed_corroborated_turn",
-                      "recovered_corroborated_turn"}:
+                      "recovered_corroborated_turn", "replaced_corroborated_source_hypothesis"}:
             uid = replace["id"] if replace else "src-" + _digest(
                 [media_id, event["supporting_observation_ids"], bounds])[:24]
             row = {
@@ -407,6 +616,7 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
             )
     windows, deferred = plan_windows(recording, ledger, request, advisory, policy)
     observations, events, unresolved = [], [], []
+    extra_contexts = 0
     if windows:
         with tempfile.TemporaryDirectory(prefix="source-quality-", dir=output_dir) as tmp:
             with asr_scope() as asr:
@@ -418,9 +628,35 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
                     pair = []
                     for crop in crops:
                         item = _observe(asr, observed_media, crop, Path(tmp), len(observations))
+                        item["chunks"] = w["chunks"]
                         observations.append(item)
                         pair.append(item)
                     selected = corroborated_events(*pair, w["window"], policy.timing_tolerance_s)
+                    # Disputed wording, very short proposed insertions, and
+                    # failed pairing merit a bounded targeted third context.
+                    # Prefer a tight event crop rather than replaying either input.
+                    disputed = [e for e in selected if e["source_end"] - e["source_start"] < .65
+                                or any(_bounds(r) and _overlap(_bounds(r), _bounds(e)) > .08
+                                       and _lex(r["source_text"]) != _lex(e["source_text"])
+                                       for r in recording["utterances"])]
+                    if extra_contexts < policy.max_extra_contexts and (disputed or not selected):
+                        target = _bounds(disputed[0]) if disputed else w["window"]
+                        crop = (max(0., target[0] - 1.), min(media.duration_s, target[1] + 1.))
+                        if crop not in [tuple(x["crop"]) for x in pair]:
+                            third = _observe(asr, observed_media, crop, Path(tmp), len(observations))
+                            third["chunks"] = w["chunks"]
+                            observations.append(third)
+                            extra_contexts += 1
+                            for e in selected:
+                                _third_context(e, third, policy.timing_tolerance_s)
+                            if not selected:
+                                # A new pair can support a gap; competing
+                                # wording replacement still needs three contexts.
+                                alternatives = corroborated_events(pair[0], third, w["window"],
+                                                                    policy.timing_tolerance_s)
+                                for e in alternatives:
+                                    _third_context(e, pair[1], policy.timing_tolerance_s)
+                                selected = alternatives
                     for item in selected:
                         item["chunks"] = w["chunks"]
                         item["trigger_evidence_ids"] = w["evidence_ids"]
@@ -434,7 +670,9 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
                         unresolved.append({"window": w, "reason": "unmatched_acoustic_observations"
                                            if unmatched else "no_unique_corroborated_event",
                                            "unmatched_observation_ids": unmatched})
-    rows, decisions = select_source_events(recording, events, policy)
+    timed_recording, timing_decisions = _recover_untimed(recording, observations, policy)
+    rows, decisions = select_source_events(timed_recording, events, policy)
+    decisions = timing_decisions + decisions
     reviewed_case_ids = {o["case_id"] for o in (advisory or {}).get("outcomes", [])}
     deferred_case_ids = [c["case_id"] for c in request["cases"]
                          if c["case_id"] not in reviewed_case_ids]
@@ -454,6 +692,7 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
         "windows": windows, "deferred_windows": deferred,
         "acoustic_observations": observations, "decisions": decisions,
         "unresolved_windows": unresolved, "audio_requests": len(observations),
+        "extra_acoustic_contexts": extra_contexts,
         "source_truth_human_verified": False,
         "independent_model_agreement": False,
         "source_word_timing_verified": False,

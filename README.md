@@ -166,3 +166,7 @@ Set `NEMOVOX_EXPORT_ROOTS` to explicitly approved writable host directories
 (or use the built-in `outputs/exports` root). Internal job artifacts, logs and
 remote downloads are retained independently of selected exports. See
 [Studio output configuration](docs/gui/STUDIO_OUTPUTS.md).
+
+### Optional speaker embeddings
+
+The normal CLI and Studio path uses existing ASR speaker tags and reconciliation without TitaNet. To use separately provisioned local TitaNet embeddings, explicitly select `--speaker-embeddings titanet` (or the Studio option). `generate-subtitles` also accepts `--audio-stream` and `--speaker-embeddings`, as does `process-media`. No implicit model download is required by the default path.

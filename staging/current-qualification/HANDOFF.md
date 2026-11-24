@@ -36,6 +36,40 @@ From the candidate root, record full commit/tree identity, dirty status, Python 
 - Verify parser defaults Riva and balanced review (explicit alternative primary translator defaults to off); current-media Studio jobs forward original media and existing recording; imported contracts without media skip acoustic review; current-version rerender is inference-free. Verify no stale checkpoint accepted across the source pipeline identity change.
 - Do not enter GPU qualification while a material CPU/consumer failure remains. Narrow mechanical fixes must preserve the functional invariant, be reviewed as a complete diff, and be separately identified. If source changes, final evidence must bind the actual final code head.
 
+## Live-quality remediation qualification
+
+The previous correction campaign passed CPU and live execution/lifecycle but failed quality.
+Source changes now support split/join same-voice correspondence, a bounded third distinct
+context for competing wording and short insertions, and coarse anchored timing of noisy
+untimed source text. They do not certify disputed speech. The English reviewer adds a
+bounded comparative Messages judgment for proposed changes. Short real overlap and
+media-end scheduling are corrected. Optional TitaNet is off by default; explicit selection
+remains available, no download or fallback.
+
+Run the original CPU reproduction and the additional independent renderer reproduction:
+- PYTHONPATH=src:. /workspace/nvidia-transcribe/.venv/bin/python staging/current-qualification/evidence/20261124T045622Z/reproduce_overlap.py
+- PYTHONPATH=src:. /workspace/nvidia-transcribe/.venv/bin/python -m pytest -q tests/test_source_quality.py tests/test_subtitles.py tests/test_translation_review.py tests/test_offline_rerender.py
+
+Check CLI and Studio defaults and explicit speaker embeddings/audio stream forwarding.
+Use the supported single-command CLI, explicit --speaker-embeddings none (or default),
+--audio-stream 0, and --chunk-policy pause_aware for the French episode. No TitaNet
+acquisition necessary. Do not repeat the two-step workaround. Do not rerun the old
+application. New CPU checks must pass before GPU work; if so proceed without handback.
+
+First use bounded fresh source clips covering the previously observed French named-question
+and Mandarin gap, plus a normal control. Examine actual original audio with an admitted
+listening capability or request a brief operator listening judgment if necessary; if
+unavailable, report auditory verification as unverified, not PASS. The previous
+same-model agreement alone is not ground truth. Do not hardcode episode text or accept
+a phrase because it matches the old hypothesis. If the bounded source/translation checks
+still reveal a material product defect, return the decisive evidence instead of consuming
+another full-episode run. If viable, proceed with one fresh French episode and one
+independent Studio control using the current actual head. Measure escalation coverage
+and cost (up to 18 windows, duration-scaled, and 8 extra acoustic contexts). Report
+the effect of comparative review on grammar, idioms, preserved meaning and model calls.
+A residual uncertain word is not itself a failed quality gate if dialogue meaning and
+useful timing are preserved; a material omission or mistranslation remains a blocker.
+
 ## GPU-intensive qualification (only after CPU gates)
 
 One fresh real-media French episode and one small independent different-language control (prefer a Mandarin scene/episode with dialogue, repeated words or overlapping speakers). Use the original local media identified by the operator's existing host context or existing source path metadata; do not import historical outputs, hand-reviewed dossiers, ASR caches, revised contracts, or golden cue hashes. Use fresh collision-free output roots under the project. No output to the library. No model downloads. Do not stop or evict external GPU services. Inspect nvidia-smi and actual model-resource/owned-unit configuration; run only through the existing lease/lifecycle admission and sequential ownership. If the local harness itself blocks required inference, prepare evidence and exit; return one exact operator continuation command using the existing lifecycle, not a bypass.

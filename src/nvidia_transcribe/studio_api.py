@@ -152,7 +152,7 @@ class Options(BaseModel):
     chunk_seconds: int = Field(default=90, ge=30, le=300)
     context_seconds: int = Field(default=10, ge=0, le=30)
     chunk_policy: Literal["fixed", "pause_aware"] = "fixed"
-    speaker_embeddings: Literal["titanet", "none"] = "titanet"
+    speaker_embeddings: Literal["titanet", "none"] = "none"
     alignment_fallback: Literal["off", "qwen"] = "off"
     refinement: Literal["off", "conservative", "balanced", "expressive"] = "off"
     translator: Literal["openai_chat", "swiftu", "riva", "none"] = "openai_chat"

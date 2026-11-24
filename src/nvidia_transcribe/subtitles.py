@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import math
 import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -307,7 +308,7 @@ def build_display_cues(
                     text=ch_text,
                     speaker=spk,
                     raw_start=round(sub_s, 3),
-                    raw_end=round(max(sub_s + 0.1, sub_e), 3),
+                    raw_end=round(sub_e, 3),
                     timing_status=t_status,
                     unrenderable=False,
                     grouped_utterance_ids=grouped,
@@ -339,12 +340,13 @@ def _acoustic_bounds(cue: SubtitleCue) -> tuple[float, float]:
 
 
 def _acoustically_concurrent(a: SubtitleCue, b: SubtitleCue, overlap_threshold_s: float) -> bool:
-    """True iff acoustic intervals overlap >= threshold (display padding never creates overlap)."""
+    """Real overlap of a substantial fraction of a short voice is concurrency."""
     as0, ae0 = _acoustic_bounds(a)
     bs0, be0 = _acoustic_bounds(b)
-    if overlap_threshold_s <= 0:
-        return ae0 > bs0 and be0 > as0
-    return (min(ae0, be0) - max(as0, bs0)) >= overlap_threshold_s
+    overlap = min(ae0, be0) - max(as0, bs0)
+    shorter = min(ae0-as0, be0-bs0)
+    return overlap > 0 and shorter > 0 and overlap >= min(
+        max(0., overlap_threshold_s), .5 * shorter)
 
 
 def _solo_fraction(cue: SubtitleCue, pool: Sequence[SubtitleCue], overlap_threshold_s: float) -> float:
@@ -358,7 +360,7 @@ def _solo_fraction(cue: SubtitleCue, pool: Sequence[SubtitleCue], overlap_thresh
             continue
         os0, oe0 = _acoustic_bounds(other)
         span = min(ce, oe0) - max(cs, os0)
-        if span >= overlap_threshold_s:
+        if _acoustically_concurrent(cue, other, overlap_threshold_s):
             ov += span
     return 1.0 - min(1.0, ov / tot)
 
@@ -513,8 +515,10 @@ def assign_subtitle_lanes(
         )
 
         def _free(lid: int) -> bool:
-            occ = lane_last[lid]
-            return occ is None or occ.speaker == lc.speaker or not _acoustically_concurrent(occ, lc, overlap_threshold_s)
+            # A later short cue on a lane cannot erase an earlier active cue.
+            return not any(occ.lane == lid and occ.speaker != lc.speaker
+                           and _acoustically_concurrent(occ, lc, overlap_threshold_s)
+                           for occ in displayed)
 
         chosen_lane: int | None = None
         for lid in range(num_lanes):
@@ -535,7 +539,14 @@ def assign_subtitle_lanes(
             if occ0 is not None and _acoustically_concurrent(occ0, lc, overlap_threshold_s):
                 lc_solo = _solo_fraction(lc, renderable, overlap_threshold_s)
                 occ0_solo = _solo_fraction(occ0, renderable, overlap_threshold_s)
-                if lc_solo > occ0_solo + 1e-6 or (abs(lc_solo - occ0_solo) <= 1e-6 and _rank(lc) < _rank(occ0)):
+                swap_safe = not any(
+                    (other.lane == 1 and other.speaker != occ0.speaker
+                     and _acoustically_concurrent(other, occ0, overlap_threshold_s))
+                    or (other.lane == 0 and other is not occ0 and other.speaker != lc.speaker
+                        and _acoustically_concurrent(other, lc, overlap_threshold_s))
+                    for other in displayed)
+                if swap_safe and (lc_solo > occ0_solo + 1e-6 or
+                    (abs(lc_solo - occ0_solo) <= 1e-6 and _rank(lc) < _rank(occ0))):
                     occ0.lane = 1
                     lc.lane = 0
                     lane_last[0] = lc
@@ -682,6 +693,30 @@ def render_subtitles(
         max_display_s=cfg.max_display_s,
     )
 
+    # Limit final display times after all extension/scheduling. Floor the
+    # media boundary to the common ASS/SRT time precision so serialization
+    # cannot round a cue past the actual file end. Raw bounds stay unchanged.
+    duration = _finite_nonneg((contract.get("source") or {}).get("duration_s"))
+    if duration is not None:
+        limit = math.floor(duration * 100 + 1e-9) / 100
+        for bucket in (displayed, overflow):
+            kept = []
+            for cue in bucket:
+                if cue.end > limit:
+                    cue.end = limit
+                    cue.conflicts.append("display_clamped_at_media_end")
+                if cue.end <= cue.start or round(cue.end * 100) <= round(cue.start * 100):
+                    cue.unrenderable = True
+                    cue.conflicts.append("unrenderable_outside_media_duration")
+                    unrenderable.append(cue)
+                    continue
+                # A final clamp can create a new reading-speed conflict.
+                cue.conflicts = [c for c in cue.conflicts if not c.startswith("high_reading_speed:")]
+                cps = len(cue.text) / (cue.end - cue.start)
+                if cps > cfg.target_cps + 4:
+                    cue.conflicts.append(f"high_reading_speed:{cps:.1f}cps")
+                kept.append(cue)
+            bucket[:] = kept
     all_renderable = list(displayed) + list(overflow)
     lang_tag = (target_language or "en").strip().lower()
     outputs: dict[str, str] = {}

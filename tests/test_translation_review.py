@@ -425,3 +425,67 @@ def test_blocked_review_resource_preserves_all_mt_and_propagates_typed_failure(t
     assert all(u["machine_translated_text"] == "Hello." for u in saved["utterances"])
     assert all(u["translated_text"] == "Hello." for u in saved["utterances"])
     assert len(blocked.calls) == 1  # no seven-batch startup retry storm
+
+
+def test_messages_comparative_review_rejects_worse_proposal_and_preserves_original():
+    class Client(FakeClient):
+        def complete(self, **kwargs):
+            response = super().complete(**kwargs)
+            response["choices"][0]["finish_reason"] = "stop"
+            return response
+    rows = [{"id": "u1", "source_text": "Tu crois cette histoire ?",
+             "translated_text": "Do you believe that story?"}]
+    proposed = {"reviews": [{"utterance_id": "u1", "changed": True,
+                             "corrected_text": "Because do you believe that story?",
+                             "reason": "Add conversational conjunction."}]}
+    decision = {"decisions": [{"utterance_id": "u1", "choice": "original",
+                               "reason": "The proposal introduces an ungrammatical question."}]}
+    client = Client(proposed, decision)
+    out, report = review_translated_utterances(
+        rows, source_language="fr", config=_cfg(wire_protocol="ninfer_messages",
+                                               thinking_budget=0, reasoning_effort="none"),
+        text_client=client)
+    assert out[0]["translated_text"] == out[0]["machine_translated_text"] == rows[0]["translated_text"]
+    assert out[0]["translation_review_status"] == "review_rejected_comparative_preserved_machine_translation"
+    assert report["comparative_calls"] == report["comparative_rejections"] == 1
+    assert client.calls[1]["thinking_budget"] == 1024
+    assert client.calls[1]["reasoning_effort"] == "xhigh"
+
+
+def test_messages_comparative_review_accepts_contextual_repair():
+    class Client(FakeClient):
+        def complete(self, **kwargs):
+            response = super().complete(**kwargs)
+            response["choices"][0]["finish_reason"] = "stop"
+            return response
+    rows = [{"id": "u1", "source_text": "Ils se sont fichus de nous !",
+             "translated_text": "They don't care about us!"}]
+    proposed = {"reviews": [{"utterance_id": "u1", "changed": True,
+                             "corrected_text": "They made fools of us!",
+                             "reason": "Contextual idiom."}]}
+    decision = {"decisions": [{"utterance_id": "u1", "choice": "proposal",
+                               "reason": "The past reflexive idiom denotes ridicule or deception."}]}
+    out, report = review_translated_utterances(
+        rows, source_language="fr", config=_cfg(wire_protocol="ninfer_messages",
+                                               thinking_budget=0, reasoning_effort="none"),
+        text_client=Client(proposed, decision))
+    assert out[0]["translated_text"] == "They made fools of us!"
+    assert out[0]["machine_translated_text"] == rows[0]["translated_text"]
+    assert report["changed"] == 1
+
+
+def test_messages_incomplete_comparative_review_does_not_accept_candidate():
+    class Client(FakeClient):
+        def complete(self, **kwargs):
+            response = super().complete(**kwargs)
+            response["choices"][0]["finish_reason"] = "stop"
+            return response
+    rows = [{"id": "u1", "source_text": "Bonjour", "translated_text": "Hello."}]
+    proposed = {"reviews": [{"utterance_id": "u1", "changed": True,
+                             "corrected_text": "Good evening.", "reason": "Greeting."}]}
+    out, report = review_translated_utterances(
+        rows, source_language="fr", config=_cfg(wire_protocol="ninfer_messages",
+                                               thinking_budget=0, reasoning_effort="none"),
+        text_client=Client(proposed, {"decisions": []}))
+    assert out[0]["translated_text"] == rows[0]["translated_text"]
+    assert report["status"] == "completed_with_errors"

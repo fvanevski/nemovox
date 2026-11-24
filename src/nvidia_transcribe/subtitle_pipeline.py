@@ -50,7 +50,7 @@ class SubtitlePipelineConfig:
     qwen_gpu_mode: str = "available"
     qwen_owned_asr_unit: str | None = None
     qwen_asr_lease_path: str | None = None
-    speaker_embeddings: str = "titanet"
+    speaker_embeddings: str = "none"
     speaker_embedding_model: str = "titanet_small"
     asr_base_url: str = "http://127.0.0.1:8190/v1"
     asr_model: str = "nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4"

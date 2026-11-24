@@ -119,3 +119,40 @@ def test_render_subtitles_and_safe_sidecar_overwrite(tmp_path: Path) -> None:
     assert (out_dir / "Episode01.en.ass").is_file()
     assert "Let's go, Tao!" in existing_srt.read_text(encoding="utf-8")
     assert res["stats"]["renderable_cues"] == 1
+
+
+def test_short_distinct_voice_overlap_preserves_main_readability(tmp_path):
+    line = "The courier delivered the supplies to the shelter before night."
+    rows = [
+        {"id": "a", "speaker_id": "SPK_A", "source_start": 10.0,
+         "source_end": 12.82, "translated_text": line},
+        {"id": "b", "speaker_id": "SPK_B", "source_start": 10.4,
+         "source_end": 10.615, "translated_text": "Yes."},
+    ]
+    displayed, overflow, _ = assign_subtitle_lanes(build_display_cues(rows), utterances=rows)
+    assert not overflow
+    by_id = {c.utterance_id: c for c in displayed}
+    assert by_id["a"].lane != by_id["b"].lane
+    assert by_id["a"].end - by_id["a"].start >= len(line) / 25
+    result = render_subtitles({"utterances": rows}, output_dir=tmp_path, episode_stem="test")
+    assert result["stats"]["ass_displayed_cues"] == 2
+    assert ",Top," in Path(result["outputs"]["ass"]).read_text()
+    assert not any("display_clamped_before_next_cue" in c["conflicts"]
+                   for c in result["conflicts"] if c["utterance_id"] == "a")
+
+
+@pytest.mark.parametrize("duration", [72.0, 72.004])
+def test_media_end_bounds_both_formats_and_keeps_unrenderable_visible(tmp_path, duration):
+    rows = [
+        {"id": "last", "speaker_id": "SPK_A", "source_start": 71.9,
+         "source_end": 72., "translated_text": "Yes."},
+        {"id": "outside", "speaker_id": "SPK_B", "source_start": 72.1,
+         "source_end": 72.3, "translated_text": "Outside."},
+    ]
+    res = render_subtitles({"source": {"duration_s": duration}, "utterances": rows},
+                           output_dir=tmp_path, episode_stem="end")
+    assert "00:01:11,900 --> 00:01:12,000" in Path(res["outputs"]["srt"]).read_text()
+    assert "0:01:11.90,0:01:12.00" in Path(res["outputs"]["ass"]).read_text()
+    assert res["stats"]["unrenderable_cues"] == 1
+    assert "Outside." not in Path(res["outputs"]["srt"]).read_text()
+    assert any("unrenderable_outside_media_duration" in c["conflicts"] for c in res["conflicts"])

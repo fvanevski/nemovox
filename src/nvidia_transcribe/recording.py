@@ -47,7 +47,7 @@ class RecordingPipelineConfig:
     chunk_policy: str = "fixed"  # "fixed" legacy/resume | opt-in "pause_aware"
     min_tail_seconds: float = 15.0
     audio_stream_index: int = 0
-    speaker_embeddings: str = "titanet"  # "titanet" | "none"
+    speaker_embeddings: str = "none"  # "titanet" | "none"
     embedding_threshold: float = 0.65
     enable_subinterval_recovery: bool = True
     alignment_fallback: str = "off"  # "off" | "qwen"

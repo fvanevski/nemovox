@@ -64,7 +64,7 @@ def build_parser() -> argparse.ArgumentParser:
     pm.add_argument("--context-seconds", type=float, default=10.0)
     pm.add_argument("--min-tail-seconds", type=float, default=15.0)
     pm.add_argument("--audio-stream", type=int, default=0)
-    pm.add_argument("--speaker-embeddings", default="titanet", choices=["titanet", "none"])
+    pm.add_argument("--speaker-embeddings", default="none", choices=["titanet", "none"])
     pm.add_argument("--embedding-threshold", type=float, default=0.65)
     pm.add_argument("--no-subinterval-recovery", action="store_true")
     pm.add_argument("--alignment-fallback", default="off", choices=["off", "qwen"])
@@ -98,6 +98,9 @@ def build_parser() -> argparse.ArgumentParser:
     gs.add_argument("--base-url", default=None, help="Explicit ASR endpoint override.")
     gs.add_argument("--model", default=None, help="Explicit served ASR model override.")
     gs.add_argument("--alignment-fallback", default="off", choices=["off", "qwen"])
+    gs.add_argument("--audio-stream", type=int, default=0)
+    gs.add_argument("--speaker-embeddings", default="none", choices=["titanet", "none"],
+                    help="Optional locally provisioned TitaNet embeddings; default none.")
     gs.add_argument("--chunk-seconds", type=float, default=90.0)
     gs.add_argument("--chunk-policy", choices=["pause_aware", "fixed"], default="fixed",
                     help="Pause-aware ~39–46s inference cores or legacy fixed-size cores.")
@@ -378,6 +381,8 @@ def main(argv: list[str] | None = None) -> int:
         scfg = SubtitlePipelineConfig(
             source_language=args.source_language,
             target_language=args.target_language,
+            audio_stream_index=args.audio_stream,
+            speaker_embeddings=args.speaker_embeddings,
             chunk_seconds=args.chunk_seconds,
             context_seconds=args.context_seconds,
             chunk_policy=args.chunk_policy,
