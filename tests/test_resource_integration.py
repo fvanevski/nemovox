@@ -370,3 +370,18 @@ def test_ctc_without_checkpoint_disables_vocabulary_claims(monkeypatch):
     assert diagnostic["ctc_vocabulary_status"] == "not_configured"
     assert diagnostic["oov_characters"] == []
     assert diagnostic["failure_cause"] != "ctc_vocab_oov"
+
+
+def test_generate_subtitles_exposes_audio_stream_and_embedding_policy(tmp_path, monkeypatch):
+    captured = []
+    monkeypatch.delenv("NEMOVOX_MODEL_RESOURCES", raising=False)
+    monkeypatch.setattr(cli, "generate_subtitles",
+                        lambda *args, **kw: captured.append(kw["config"]) or {"ok": True})
+    args = ["generate-subtitles", "--translator", "openai_chat", "--recording-contract",
+            "not-read-by-fake", "--output-dir", str(tmp_path)]
+    assert cli.main(args) == 0
+    assert captured[-1].speaker_embeddings == "none"
+    assert captured[-1].audio_stream_index == 0
+    assert cli.main(args + ["--audio-stream", "2", "--speaker-embeddings", "titanet"]) == 0
+    assert captured[-1].audio_stream_index == 2
+    assert captured[-1].speaker_embeddings == "titanet"

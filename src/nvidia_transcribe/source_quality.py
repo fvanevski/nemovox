@@ -319,6 +319,7 @@ def corroborated_events(first, second, target, tolerance):
             chosen = a if len(a["member_ids"]) <= len(b["member_ids"]) else b
             events.append({**chosen, "supporting_observation_ids": ids,
                            "audio_sha256": [first["audio_sha256"], second["audio_sha256"]],
+                           "context_crops": [list(first["crop"]), list(second["crop"])],
                            "raw_response_sha256": [first["raw_response_sha256"], second["raw_response_sha256"]]})
             used.update(ids)
     return events
@@ -326,7 +327,8 @@ def corroborated_events(first, second, target, tolerance):
 
 def _third_context(event, observation, tolerance):
     """Additional distinct positive support; absence is not a contradiction."""
-    if observation["audio_sha256"] in event["audio_sha256"]:
+    if (observation["audio_sha256"] in event["audio_sha256"]
+            or list(observation["crop"]) in event.get("context_crops", [])):
         return False
     matches = [r for r in _observation_groups(observation)
                if _lex(r["source_text"]) == _lex(event["source_text"])
@@ -335,6 +337,7 @@ def _third_context(event, observation, tolerance):
         return False
     event["supporting_observation_ids"].extend(matches[0]["member_ids"])
     event["audio_sha256"].append(observation["audio_sha256"])
+    event.setdefault("context_crops", []).append(list(observation["crop"]))
     event["raw_response_sha256"].append(observation["raw_response_sha256"])
     return True
 
@@ -422,8 +425,22 @@ def _recover_untimed(recording, observations, policy):
         if any(not _same_event_bounds(x[1][0], bounds, policy.timing_tolerance_s)
                for x in candidates):
             continue
+        # Never assign one observed occurrence to competing untimed rows,
+        # or reverse an already recovered source order.
+        if any(not _bounds(other) and j != i
+               and any(_same_event_bounds(candidate[0], bounds, policy.timing_tolerance_s)
+                       for candidate in _anchored_intervals(
+                           {**other, "source_language": recording["source_language"]},
+                           a[0], bracket))
+               for j, other in enumerate(original)):
+            continue
         if any(other is not rows[i] and _bounds(other)
                and _overlap(_bounds(other), bounds) > .08 for other in rows):
+            continue
+        if (any(_bounds(r) and not _bounds(original[j]) and _bounds(r)[1] > bounds[0]
+                for j, r in enumerate(rows[:i]))
+                or any(_bounds(r) and not _bounds(original[j]) and _bounds(r)[0] < bounds[1]
+                       for j, r in enumerate(rows[i+1:], i+1))):
             continue
         obs_ids = a[1][1] + b[1][1]
         rows[i] = {**row, "source_start": bounds[0], "source_end": bounds[1],
@@ -640,7 +657,10 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
                                        and _lex(r["source_text"]) != _lex(e["source_text"])
                                        for r in recording["utterances"])]
                     if extra_contexts < policy.max_extra_contexts and (disputed or not selected):
-                        target = _bounds(disputed[0]) if disputed else w["window"]
+                        # One challenge must cover the disputed component,
+                        # not merely the first (possibly tiny) insertion.
+                        target = (min(e["source_start"] for e in disputed),
+                                  max(e["source_end"] for e in disputed)) if disputed else w["window"]
                         crop = (max(0., target[0] - 1.), min(media.duration_s, target[1] + 1.))
                         if crop not in [tuple(x["crop"]) for x in pair]:
                             third = _observe(asr, observed_media, crop, Path(tmp), len(observations))
@@ -654,8 +674,19 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
                                 # wording replacement still needs three contexts.
                                 alternatives = corroborated_events(pair[0], third, w["window"],
                                                                     policy.timing_tolerance_s)
+                                other_alternatives = corroborated_events(pair[1], third, w["window"],
+                                                                          policy.timing_tolerance_s)
                                 for e in alternatives:
                                     _third_context(e, pair[1], policy.timing_tolerance_s)
+                                # Retain second/third matches only when they
+                                # do not claim an observation or interval
+                                # already claimed by the first/third result.
+                                for e in other_alternatives:
+                                    if not any(set(e["supporting_observation_ids"]).intersection(
+                                                   old["supporting_observation_ids"])
+                                               or _overlap(_bounds(e), _bounds(old)) > .08
+                                               for old in alternatives):
+                                        alternatives.append(e)
                                 selected = alternatives
                     for item in selected:
                         item["chunks"] = w["chunks"]

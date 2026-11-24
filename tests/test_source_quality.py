@@ -361,3 +361,13 @@ def test_anchored_coarse_timing_preserves_noisy_original_text_and_word_timing():
     assert decisions[0]["status"].startswith("unresolved")
     result, decisions = _recover_untimed(recording, [one, one], SourceQualityPolicy())
     assert not decisions and result["utterances"] == recording["utterances"]
+
+
+def test_same_crop_cannot_supply_third_context():
+    from nvidia_transcribe.source_quality import _third_context
+    one = _probe((0, 12), "A", [_row("1", "Allons vite", 4, 5)])
+    two = _probe((2, 14), "B", [_row("2", "Allons vite", 4, 5)])
+    event, = corroborated_events(one, two, (3, 6), .85)
+    replay = _probe((0, 12), "C", [_row("3", "Allons vite", 4, 5)])
+    assert not _third_context(event, replay, .85)
+    assert len(event["audio_sha256"]) == 2
