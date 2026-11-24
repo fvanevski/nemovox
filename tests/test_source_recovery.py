@@ -68,3 +68,21 @@ def test_caption_splice_only_unique_anchored_phrase():
     assert _caption_replacement(source+source,caption,"zh") is None
     assert _caption_replacement(source,"别处的完全无关文字没有证据","zh") is None
     assert _caption_replacement(source,caption,"fr") is None
+
+
+
+def test_noisy_interior_segment_does_not_invalidate_enclosing_timed_event():
+    original=[row("left","你好",1,2),
+              row("main","从山城出发穿过古老森林最后回到家乡",None,None,1),
+              row("right","再见",20,21)]
+    r=rec(original,"zh")
+    segments=[row("a","从山城出发",4,6),
+              row("b","穿过顾老深林",6,9),
+              row("c","最后回到家乡",9,12)]
+    # Same source occurrence, different independently extracted crops.
+    w=[obs("challenge-0-0",0,22,segments),
+       obs("challenge-0-1",0,24,[{**x,"observation_id":"other-"+x["id"]} for x in segments])]
+    rows,decisions=apply_independent(r,plan_recovery(r,[]),[],w)
+    assert len(decisions)==1
+    assert rows[1]["source_text"]=="从山城出发穿过顾老深林最后回到家乡"
+    assert rows[1]["source_quality_status"].startswith("unresolved")

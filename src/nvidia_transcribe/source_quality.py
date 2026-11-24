@@ -720,6 +720,7 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
     uncertain = (bool(unresolved or deferred or deferred_case_ids or discovery_deferred)
                  or any(d["status"].startswith("unresolved") for d in decisions)
                  or bool(recovery["decisions"] or recovery["errors"])
+                 or recovery["status"] in ("unresolved","unsupported_language")
                  or bool(advisory and (advisory.get("systemic_failure")
                           or any(o["status"] != "advisory_only" for o in advisory["outcomes"]))))
     report = {
@@ -735,7 +736,8 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
         "unresolved_windows": unresolved, "audio_requests": len(observations),
         "extra_acoustic_contexts": extra_contexts,
         "source_truth_human_verified": False,
-        "independent_model_agreement": bool(recovery["decisions"]),
+        "independent_model_agreement": any(
+            d["kind"]=="omission" for d in recovery["decisions"]),
         "independent_recovery": recovery,
         "source_word_timing_verified": False,
         "original_recording_modified": False,

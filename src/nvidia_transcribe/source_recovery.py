@@ -127,15 +127,6 @@ def _associate_originals(original, candidate, language):
         spans.append((start,end,row))
     if not spans:
         return None
-    # Every new segment must share lexical evidence with the original run.
-    # Segment-level support prevents filling a long gap with unrelated ASR.
-    original_words = _sequence(original)
-    if any(not _anchor(_lex(r["source_text"]),original_words,language)
-           and not (len(_lex(r["source_text"])) < 4 and
-                    any(tuple(original_words[k:k+len(_lex(r["source_text"]))])==_lex(r["source_text"])
-                        for k in range(len(original_words))))
-           for r in candidate):
-        return None
     # Choose maximal association spans, assigning actual Whisper segments
     # to the original coherent source events rather than guessing word times.
     maximal = [s for s in spans if not any(
@@ -153,6 +144,12 @@ def _associate_originals(original, candidate, language):
         if not best or overlaps.count(best)!=1:
             return None
         index = overlaps.index(best)
+        # A noisy interior segment is supported by the enclosing ordered
+        # association. Do not require an exact anchor in every small
+        # Whisper segment. Unmatched outer material is not admitted.
+        lo,hi,_ = unique[index]
+        if offset < lo-2 or end > hi+2:
+            return None
         if grouped and index < grouped[-1][0]:
             return None
         if grouped and grouped[-1][0]==index:
@@ -162,6 +159,13 @@ def _associate_originals(original, candidate, language):
         offset = end
     if len(grouped)!=len(unique):
         return None
+    for index,group in grouped:
+        original_words = _lex(unique[index][2]["source_text"])
+        observed_words = _sequence(group)
+        matches = _matches(original_words,observed_words)
+        if (not matches or sum(m.size for m in matches)/len(observed_words)<.55
+                or not _anchor(original_words,observed_words,language)):
+            return None
     return [g for _,g in grouped]
 
 
@@ -305,13 +309,16 @@ def inspect_captions(rows,decisions,media,text_scope,root):
                 if len(frames)>=6:
                     break
                 path=root/f"frame-{row['id']}-{len(frames)}.png"
-                proc=subprocess.run(["ffmpeg","-hide_banner","-nostdin","-loglevel","error",
+                proc=subprocess.run(["ffmpeg","-hide_banner","-nostdin","-y","-loglevel","error",
                       "-ss",f"{t:.3f}","-i",str(media.path),"-map","0:V:0","-frames:v","1",
                       "-vf","scale='min(960,iw)':-2",str(path)],capture_output=True,timeout=60)
-                if proc.returncode==0 and path.is_file():
+                if proc.returncode==0 and path.is_file() and path.stat().st_size:
                     data=path.read_bytes()
                     frames.append({"id":path.stem,"time":t,"source_id":row["id"],
-                                   "sha256":hashlib.sha256(data).hexdigest(),"data":data})
+                                   "path":str(path),"sha256":hashlib.sha256(data).hexdigest(),"data":data})
+                else:
+                    errors.append({"stage":"caption_extract","source_id":row["id"],
+                                   "seek_s":t,"exit":proc.returncode})
         if not frames:
             continue
         try:
@@ -351,6 +358,12 @@ def inspect_captions(rows,decisions,media,text_scope,root):
                 ev={**f,"caption":caption,"applied":bool(replacement)}
                 evidence.append(ev)
                 if replacement:
+                    # Only one nonconflicting replacement per row; retain
+                    # other frame descriptions as evidence, not extra edits.
+                    if row.get("source_caption_evidence"):
+                        ev["applied"]=False
+                        ev["reason"]="already_repaired_from_frame"
+                        continue
                     row.setdefault("source_caption_evidence",[]).append(ev)
                     row.setdefault("prior_caption_source_hypothesis",row["source_text"])
                     row["source_text"]=replacement
@@ -415,8 +428,12 @@ def recover_independent_source(recording,observations,media,*,challenger_resourc
             return recording["utterances"],report
         if report["decisions"]:
             try:
+                # Retain actual submitted frames for later inspection and
+                # rerender provenance. A fresh unique directory avoids stale
+                # frame reuse even when resuming a subtitle job.
+                frame_root=Path(tempfile.mkdtemp(prefix="source-caption-",dir=output_dir))
                 with text_scope() as client:
-                    report["caption_evidence"],errors=inspect_captions(rows,report["decisions"],media,client,root)
+                    report["caption_evidence"],errors=inspect_captions(rows,report["decisions"],media,client,frame_root)
                     report["errors"].extend(errors)
             except (OSError,ValueError,ResourceLifecycleError,subprocess.TimeoutExpired) as exc:
                 report["errors"].append({"stage":"caption","error":type(exc).__name__,"detail":str(exc)})
