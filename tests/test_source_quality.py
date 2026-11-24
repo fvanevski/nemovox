@@ -111,3 +111,98 @@ def test_recovery_of_two_separately_corroborated_repetitions():
     assert [r["source_start"] for r in rows] == [4, 7]
     assert len({r["id"] for r in rows}) == 2
     assert all(d["status"] == "recovered_corroborated_turn" for d in decisions)
+
+
+def test_current_recording_ledger_rejects_tampered_observation_sidecar(tmp_path):
+    import hashlib
+    import json
+    import pytest
+    from nvidia_transcribe.source_quality import load_current_ledger
+
+    recording = _recording([])
+    recording["processing"] = {"chunks": [{"chunk_index": 0, "raw_response_sha256": "raw"}]}
+    ledger = {"schema_version": "nemovox-source-evidence/v1",
+              "media_fingerprint_sha256": "f", "source_language": "fr",
+              "asr_observations": [{"chunk_index": 0, "raw_response_sha256": "raw"}]}
+    data = json.dumps(ledger).encode()
+    sidecar = tmp_path / "source-evidence.v1.json"
+    sidecar.write_bytes(data)
+    (tmp_path / "manifest.json").write_text(json.dumps({
+        "asr_run_status": "completed",
+        "source_evidence": {"sha256": hashlib.sha256(data).hexdigest()},
+    }))
+    assert load_current_ledger(recording, tmp_path / "recording.contract.json") == ledger
+    sidecar.write_bytes(data + b" ")
+    with pytest.raises(ValueError, match="stale"):
+        load_current_ledger(recording, tmp_path / "recording.contract.json")
+
+
+def test_shared_pipeline_translates_canonical_source_not_prior_asr(tmp_path, monkeypatch):
+    import json
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+    from nvidia_transcribe import subtitle_pipeline as pipeline
+    from nvidia_transcribe.translation import TranslationConfig
+    from nvidia_transcribe.translation_review import TranslationReviewConfig
+
+    original = _recording([_row("a", "ne sais pas", 4.2, 5.8)])
+    recording_path = tmp_path / "recording.contract.json"
+    recording_path.write_text(json.dumps(original))
+    media = tmp_path / "media.wav"
+    media.write_bytes(b"synthetic; inference is mocked")
+    order = []
+    resource = SimpleNamespace(name="test", credential=lambda: None)
+    resources = {name: resource for name in ("asr", "source_refinement", "text_translation",
+                                             "riva_translation", "translation_review")}
+
+    @contextmanager
+    def text_scope(*args, **kwargs):
+        if kwargs.get("wire_protocol") == "ninfer_messages":
+            order.append("messages")
+        yield object()
+
+    @contextmanager
+    def asr_scope(*args, **kwargs):
+        order.append("acoustic")
+        yield object()
+
+    def quality(recording, **kw):
+        assert kw["media_path"] == media
+        with kw["text_scope"]():
+            pass
+        with kw["asr_scope"]():
+            pass
+        rows, _ = select_source_events(recording, [_event("Je ne sais pas", 4, 6)],
+                                       SourceQualityPolicy())
+        return {**recording, "utterances": rows, "source_quality": {"status": "complete"}}, {"status": "complete"}
+
+    def translate(rows, **kw):
+        order.append("translate")
+        assert rows[0]["source_text"] == "Je ne sais pas"
+        return [{**rows[0], "translated_text": "I don't know."}], {"backend": "riva", "status": "complete"}
+
+    def english_review(rows, **kw):
+        order.append("review")
+        assert kw["config"].wire_protocol == "ninfer_messages"
+        assert kw["config"].thinking_budget == 0
+        assert rows[0]["translated_text"] == "I don't know."
+        return [{**rows[0], "machine_translated_text": rows[0]["translated_text"]}], {"status": "complete"}
+
+    monkeypatch.setattr(pipeline, "managed_text_client", text_scope)
+    monkeypatch.setattr(pipeline, "managed_asr_client", asr_scope)
+    monkeypatch.setattr(pipeline, "review_current_source", quality)
+    monkeypatch.setattr(pipeline, "translate_utterances", translate)
+    monkeypatch.setattr(pipeline, "review_translated_utterances", english_review)
+    monkeypatch.setattr(pipeline, "render_subtitles", lambda *a, **k: {
+        "outputs": {}, "stats": {}, "conflicts": [], "sidecars": {}})
+    out = tmp_path / "output"
+    pipeline.generate_subtitles(
+        media, recording_contract_path=recording_path, output_dir=out,
+        config=pipeline.SubtitlePipelineConfig(
+            source_quality="on", translation=TranslationConfig(backend="riva"),
+            translation_review=TranslationReviewConfig(profile="balanced")),
+        lifecycle=object(), lifecycle_resources=resources,
+    )
+    assert order == ["messages", "acoustic", "translate", "messages", "review"]
+    assert json.loads(recording_path.read_text()) == original
+    assert json.loads((out / "canonical-source.contract.json").read_text())["utterances"][0]["source_text"] == "Je ne sais pas"

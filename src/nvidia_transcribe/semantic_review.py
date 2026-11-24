@@ -2,7 +2,7 @@
 
 Produces evidence-only review cases, never rewrites ASR, CTC, speaker labels,
 translations, or source ownership. Text/AV reasoning must return a separately
-validated assessment before any reviewed-revision application is possible.
+validated assessment; current-source selection additionally requires positive acoustic observations.
 """
 from __future__ import annotations
 
@@ -343,7 +343,7 @@ def run_tiered_text_reviews(
     """Explicit injected text-model QC, capped by case and total token budget.
 
     The caller owns service admission and client lifecycle. Results are advisory
-    and MUST pass source-unit revision gates before affecting output.
+    and cannot authorize source changes without current-source acoustic evidence.
     """
     if request.get("schema") != RESULT_SCHEMA:
         raise ValueError("Invalid semantic review request")
