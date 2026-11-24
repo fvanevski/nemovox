@@ -275,7 +275,8 @@ def run_tiered_text_reviews(
     case_limit: int = 6, token_budget: int = 5000,
     light_tokens: int = 512, reasoned_tokens: int = 1536,
     light_effort: str = "low", reasoned_effort: str = "xhigh",
-    light_thinking_budget: int = 128, reasoned_thinking_budget: int = 512,
+    light_thinking_budget: int | None = None,
+    reasoned_thinking_budget: int | None = None,
 ) -> dict[str, Any]:
     """Explicit injected text-model QC, capped by case and total token budget.
 
@@ -284,15 +285,24 @@ def run_tiered_text_reviews(
     """
     if request.get("schema") != RESULT_SCHEMA:
         raise ValueError("Invalid semantic review request")
-    if (not isinstance(case_limit, int) or not 1 <= case_limit <= 50
-            or not isinstance(token_budget, int) or token_budget < 1
-            or not all(isinstance(n, int) and 1 <= n <= token_budget
+    if (not isinstance(case_limit, int) or isinstance(case_limit, bool) or not 1 <= case_limit <= 50
+            or not isinstance(token_budget, int) or isinstance(token_budget, bool) or token_budget < 1
+            or not all(isinstance(n, int) and not isinstance(n, bool) and 256 <= n <= token_budget
                        for n in (light_tokens, reasoned_tokens))
-            or not all(isinstance(e, str) and e for e in (light_effort, reasoned_effort))
-            or any(not isinstance(n, int) or isinstance(n, bool) or n < 1
-                   for n in (light_thinking_budget, reasoned_thinking_budget))
+            or not all(isinstance(e, str) and e for e in (light_effort, reasoned_effort))):
+        raise ValueError("Invalid model review budgets")
+    # Defaults adapt to legacy callers that override just max_tokens. An
+    # explicitly supplied impossible cap NEVER gets silently shrunk.
+    if light_thinking_budget is None:
+        light_thinking_budget = min(128, light_tokens - 128)
+    if reasoned_thinking_budget is None:
+        reasoned_thinking_budget = min(512, reasoned_tokens - 128)
+    if (any(not isinstance(n, int) or isinstance(n, bool) or n < 0
+            for n in (light_thinking_budget, reasoned_thinking_budget))
             or light_thinking_budget > light_tokens - 128
-            or reasoned_thinking_budget > reasoned_tokens - 128):
+            or reasoned_thinking_budget > reasoned_tokens - 128
+            or (light_thinking_budget == 0 and light_effort != "none")
+            or (reasoned_thinking_budget == 0 and reasoned_effort != "none")):
         raise ValueError("Invalid model review budgets: reserve at least 128 output tokens")
     outcomes: list[dict[str, Any]] = []
     remaining = token_budget
@@ -328,6 +338,8 @@ def run_tiered_text_reviews(
             "request_diagnostics": response.get("_client_request_diagnostics"),
         }
         try:
+            if choice.get("finish_reason") == "length" and raw.strip():
+                raise ValueError("Review response reached output limit; completion not certified")
             if not raw.strip():
                 if (choice.get("finish_reason") == "length" and
                         isinstance(details.get("reasoning_tokens"), int) and
