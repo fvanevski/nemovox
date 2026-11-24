@@ -32,12 +32,13 @@ def _mid(unit: dict[str, Any]) -> float:
 
 def _stream_candidates(
     units: list[dict[str, Any]], spec: Any, boundary: float, lookaround_s: float,
+    *, include_dropped: bool = False,
 ) -> dict[str, list[dict[str, Any]]]:
     """Compare each voice in lexical order, not a mixed-speaker timeline."""
     streams: dict[str, list[dict[str, Any]]] = {}
     for unit in units:
         speaker = _speaker(unit)
-        if (unit["_drop"] or speaker is None or unit.get("_mid") is None
+        if ((unit["_drop"] and not include_dropped) or speaker is None or unit.get("_mid") is None
                 or unit.get("unit_type") == "character"
                 or not _norm(unit.get("text", ""))):
             continue
@@ -47,6 +48,39 @@ def _stream_candidates(
             continue
         streams.setdefault(speaker, []).append(unit)
     return streams
+
+
+def _separate_occurrence_support(
+    candidate: Sequence[dict[str, Any]],
+    competing: Sequence[dict[str, Any]],
+    observations: dict[str, list[dict[str, Any]]],
+    shared_start: float,
+    shared_end: float,
+    tolerance_s: float,
+) -> list[int] | None:
+    """Find a complete, distinct, time-consistent counterpart in the other excerpt.
+
+    Include observations discarded by token deduplication. They still carry
+    evidence that the excerpt observed two occurrences. Do not reuse any
+    source index of the competing sequence, or infer an occurrence from a
+    partial lexical match. Speaker labels are hypotheses, not proof of identity.
+    """
+    words = [_norm(u["text"]) for u in candidate]
+    if not all(shared_start <= _mid(u) <= shared_end for u in candidate):
+        return None
+    excluded = {u["_unit_idx"] for u in competing}
+    for _, stream in sorted(observations.items()):
+        for start in range(len(stream) - len(words) + 1):
+            span = stream[start:start + len(words)]
+            if any(u["_unit_idx"] in excluded for u in span):
+                continue
+            if [_norm(u["text"]) for u in span] != words:
+                continue
+            if all(shared_start <= _mid(b) <= shared_end
+                   and abs(_mid(a) - _mid(b)) <= tolerance_s
+                   for a, b in zip(candidate, span)):
+                return [u["_unit_idx"] for u in span]
+    return None
 
 
 def _consistent_runs(
@@ -105,6 +139,7 @@ def reconcile_displaced_sequences(
     chunks: Sequence[Any],
     *,
     lookaround_s: float = 45.0,
+    match_time_tolerance_s: float = 0.85,
 ) -> dict[str, Any]:
     """Conservatively reconcile distinct multiword echoes across shared audio.
 
@@ -148,6 +183,15 @@ def reconcile_displaced_sequences(
                 })
         ls = _stream_candidates(tagged_by_chunk[bi], lspec, boundary, lookaround_s)
         rs = _stream_candidates(tagged_by_chunk[bi + 1], rspec, boundary, lookaround_s)
+        # The earlier token pass marks redundant context copies as dropped.
+        # Those copies remain evidence of separate occurrences, even though
+        # they are no longer eligible as output candidates.
+        left_observations = _stream_candidates(
+            tagged_by_chunk[bi], lspec, boundary, lookaround_s, include_dropped=True)
+        right_observations = _stream_candidates(
+            tagged_by_chunk[bi + 1], rspec, boundary, lookaround_s, include_dropped=True)
+        shared_start = max(lspec.infer_start_s, rspec.infer_start_s)
+        shared_end = min(lspec.infer_end_s, rspec.infer_end_s)
         # The number of local speakers is bounded by the actual ASR response;
         # compare pairwise streams rather than merging interleaved voices.
         for lvoice, left in sorted(ls.items()):
@@ -221,6 +265,29 @@ def reconcile_displaced_sequences(
                                 "right_source_indices": [u["_unit_idx"] for u in ru],
                                 "matched_tokens": n, "relative_ctc_shift_s": shift,
                                 "reason": reason, "resolution": "preserved_both",
+                            })
+                            continue
+                        # Two unique surviving matches do not establish one
+                        # spoken occurrence. Each candidate may have had its
+                        # own context copy removed by the earlier token pass.
+                        # Require disjoint, complete, time-consistent support
+                        # for both before vetoing this sequence deletion.
+                        right_support = _separate_occurrence_support(
+                            lu, ru, right_observations, shared_start, shared_end,
+                            match_time_tolerance_s)
+                        left_support = _separate_occurrence_support(
+                            ru, lu, left_observations, shared_start, shared_end,
+                            match_time_tolerance_s)
+                        if left_support is not None and right_support is not None:
+                            ambiguities.append({
+                                "left_chunk": lspec.chunk_index, "right_chunk": rspec.chunk_index,
+                                "left_source_indices": [u["_unit_idx"] for u in lu],
+                                "right_source_indices": [u["_unit_idx"] for u in ru],
+                                "left_counterpart_indices": left_support,
+                                "right_counterpart_indices": right_support,
+                                "matched_tokens": n, "relative_ctc_shift_s": shift,
+                                "reason": "separately_corroborated_occurrences",
+                                "resolution": "preserved_both",
                             })
                             continue
                         # In a close duplicate, honor core ownership. In a

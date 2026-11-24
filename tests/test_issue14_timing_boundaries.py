@@ -5,6 +5,8 @@ No copyrighted audio, series dialogue or model execution required.
 
 from __future__ import annotations
 
+import pytest
+
 from nvidia_transcribe.chunking import ChunkSpec, reconcile_chunk_boundaries
 from nvidia_transcribe.timing_evidence import audit_ctc_timing_units
 
@@ -338,3 +340,46 @@ def test_clean_mid_core_29_token_control_remains_intact() -> None:
     assert [u["text"] for u in merged[:29]] == tokens
     assert not diag["sequence_evidence"]["matches"]
     assert not diag["extended_recovery"]["extended_recovered_units"]
+
+
+@pytest.mark.parametrize("second_speaker", ["SPK_B", "SPK_A"])
+@pytest.mark.parametrize("context_offset", [0.0, 0.10])
+def test_token_dedup_does_not_erase_separately_observed_boundary_repeats(
+        second_speaker, context_offset):
+    # Codex P1: both excerpts observed both occurrences. Narrow token
+    # dedup removes the context copies, leaving one core turn per chunk.
+    # The sequence pass must not equate these two surviving occurrences.
+    words = ["we", "must", "leave", "this", "place", "now"]
+    chunks = [ChunkSpec(0, 0, 10, 0, 14), ChunkSpec(1, 10, 20, 6, 20)]
+    left = (_phrase(words, 8, "SPK_A", .28)
+            + _phrase(words, 10 + context_offset, second_speaker, .28))
+    right = (_phrase(words, 8 + context_offset, "SPK_A", .28)
+             + _phrase(words, 10, second_speaker, .28))
+    merged, diag = reconcile_chunk_boundaries([left, right], chunks)
+    assert [u["text"] for u in merged] == words + words
+    assert [u["global_speaker_id"] for u in merged] == ["SPK_A"] * 6 + [second_speaker] * 6
+    assert [u["start"] for u in merged] == [u["start"] for u in left[:6] + right[6:]]
+    assert all(u["valid_timing"] for u in merged)
+    assert diag["deduplicated_units"] == 12
+    assert diag["sequence_evidence"]["sequence_deduplicated_units"] == 0
+    assert not diag["sequence_evidence"]["matches"]
+    evidence = [a for a in diag["sequence_evidence"]["ambiguities"]
+                if a["reason"] == "separately_corroborated_occurrences"]
+    assert len(evidence) == 1
+    assert evidence[0]["left_source_indices"] == list(range(6))
+    assert evidence[0]["right_source_indices"] == list(range(6, 12))
+    assert evidence[0]["left_counterpart_indices"] == list(range(6, 12))
+    assert evidence[0]["right_counterpart_indices"] == list(range(6))
+    assert evidence[0]["resolution"] == "preserved_both"
+
+
+def test_single_displaced_six_word_match_without_separate_support_still_deduplicates():
+    words = ["we", "must", "leave", "this", "place", "now"]
+    chunks = [ChunkSpec(0, 0, 10, 0, 14), ChunkSpec(1, 10, 20, 6, 20)]
+    left = _phrase(words, 8, "SPK_A", .28)
+    right = _phrase(words, 10, "SPK_B", .28)
+    merged, diag = reconcile_chunk_boundaries([left, right], chunks)
+    assert [u["text"] for u in merged] == words
+    assert diag["sequence_evidence"]["sequence_deduplicated_units"] == 6
+    assert not any(a["reason"] == "separately_corroborated_occurrences"
+                   for a in diag["sequence_evidence"]["ambiguities"])

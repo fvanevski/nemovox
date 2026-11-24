@@ -424,7 +424,8 @@ def reconcile_chunk_boundaries(
     # and more complete neighboring observations that the narrow token matcher
     # cannot see. Recovery outside the historical 1.5s cap requires an entire
     # coherent missing phrase and a neighboring-coverage check.
-    sequence_diag = reconcile_displaced_sequences(tagged_by_chunk, chunks)
+    sequence_diag = reconcile_displaced_sequences(
+        tagged_by_chunk, chunks, match_time_tolerance_s=match_time_tolerance_s)
     extended_diag = recover_extended_right_context(tagged_by_chunk, chunks)
     # Two ASR contexts can agree on a phrase while each timestamps it
     # outside its own nominal core. Preserve an untimed source hypothesis
