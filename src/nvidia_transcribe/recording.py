@@ -351,8 +351,8 @@ def process_media(
             # One bounded, same-input retry is permitted ONLY for a raw
             # generation-limit stop. The first response is never accepted or
             # loop-cleaned into a transcript; retain its exact bytes and SHA
-            # in rejected/ before making another request. A second failure
-            # still raises IncompleteASRGeneration without a new contract.
+            # in rejected/ before making another request. If it still fails,
+            # use bounded smaller crops or fail closed without a contract.
             generation_attempts: list[dict[str, Any]] = []
             for generation_attempt in range(2):
                 res = client.transcribe(wav_path, req_cfg)
@@ -437,7 +437,10 @@ def process_media(
             "chunk_config": {**chunk_cfg.to_dict(), "chunk_policy": cfg.chunk_policy},
             "chunk_plan": planner_diag,
             "chunks": chunk_manifest_entries,
-            "planned_chunks": planned_entries,
+            "planned_chunks": [*planned_entries, *[
+                completed_by_idx[i] for i in sorted(completed_by_idx)
+                if i > spec.chunk_index
+            ]],
         }
         if integrity["status"]=="incomplete":
             manifest_state["chunks"]=[*chunk_manifest_entries,
@@ -466,7 +469,10 @@ def process_media(
                 transcribe=transcribe_recovery,write=_atomic_write_text)
             entry["status"]="completed_rechunked"
             entry["recovery_leaf_count"]=len(leaves)
-            entry["recovery_leaf_receipts"]=[leaf[3]["identity"] for leaf in leaves]
+            entry["recovery_leaf_receipts"]=[
+                {"identity":leaf[3]["identity"],"raw_response_sha256":leaf[3]["raw_response_sha256"],
+                 "wav_sha256":leaf[3]["wav_sha256"],"raw_response_path":leaf[3]["raw_response_path"]}
+                for leaf in leaves]
             manifest_state["asr_run_status"]="in_progress"
         elif integrity["status"] == "incomplete":
             raise IncompleteASRGeneration(

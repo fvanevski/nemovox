@@ -252,3 +252,39 @@ def test_rechunk_terminal_failure_does_not_publish_and_reuses_verified_leaf(tmp_
     result=process_media(wav,output_dir=root,client=client,config=cfg)
     assert calls==[8]
     assert result["contract"]["model_provenance"]["resumed_chunks"]==1
+
+
+
+def test_rechunk_effective_indices_do_not_change_neighbor_checkpoint_identity(tmp_path, monkeypatch):
+    wav=tmp_path/"source.wav"
+    with wave.open(str(wav),"wb") as f:
+        f.setnchannels(1)
+        f.setsampwidth(2)
+        f.setframerate(16000)
+        f.writeframes(b"\x00\x00"*16000*60)
+    bad=_response("<spk:0> "+"Ah! "*8192,"length")
+    calls=[]
+    def fake(self,path,config=None):
+        with wave.open(str(path)) as f:
+            duration=f.getnframes()/f.getframerate()
+        calls.append((Path(path).name,config.source_offset_s,duration))
+        response=bad if config.source_offset_s==18 and duration>15 else _response("<spk:0> Bonjour.")
+        return {"raw_response":response,"contract":{"raw_text":"Bonjour."},"latency_s":.01}
+    monkeypatch.setattr(NemotronVLLMClient,"transcribe",fake)
+    cfg=RecordingPipelineConfig(source_language="fr",speaker_embeddings="none",
+        chunk_seconds=20,context_seconds=2,min_tail_seconds=0,enable_subinterval_recovery=False)
+    root=tmp_path/"run"
+    client=NemotronVLLMClient(model="stub")
+    result=process_media(wav,output_dir=root,client=client,config=cfg)
+    manifest=json.loads((root/"manifest.json").read_text())
+    assert [x["planned_chunk_index"] for x in manifest["chunks"]]==[0,1,1,2]
+    assert [(x["core_start_s"],x["core_end_s"]) for x in manifest["chunks"]]==[
+        (0,20),(20,30),(30,40),(40,60)]
+    assert [x["chunk_index"] for x in manifest["chunks"]]==[0,1,2,3]
+    assert manifest["chunks"][3]["raw_response_path"].endswith("chunk_002.raw.json")
+    assert manifest["planned_chunks"][2]["chunk_index"]==2
+    assert result["contract"]["processing"]["chunks"][3]["raw_response_sha256"]==manifest["chunks"][3]["raw_response_sha256"]
+    calls.clear()
+    result=process_media(wav,output_dir=root,client=client,config=cfg)
+    assert not calls
+    assert result["contract"]["model_provenance"]["resumed_chunks"]==4

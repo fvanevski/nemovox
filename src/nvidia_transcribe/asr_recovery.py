@@ -12,7 +12,6 @@ from dataclasses import replace
 from pathlib import Path
 
 from nvidia_transcribe.asr_integrity import IncompleteASRGeneration, audit_asr_generation
-from nvidia_transcribe.chunking import ChunkSpec
 from nvidia_transcribe.media import validate_wav_file
 
 
