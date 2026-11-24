@@ -92,3 +92,27 @@ def test_boundary_pipeline_surfaces_review_candidate_without_auto_speech_inserti
     review=diag["semantic_review_candidates"]
     assert review["cases"] and review["cases"][0]["status"]=="review_required_not_auto_adopted"
     assert review["raw_source_modified"] is False
+
+
+def test_injected_tiered_text_client_is_advisory_and_bounded():
+    from nvidia_transcribe.semantic_review import run_tiered_text_reviews
+    import json
+    right=[w(x,80+i*.25,i,1) for i,x in enumerate(['you','should','not','go'])]
+    q=plan_boundary_semantic_reviews([[],right],chunks(90),policy=P)
+    class Stub:
+        def __init__(self):self.calls=[]
+        def complete(self,**kwargs):
+            self.calls.append(kwargs)
+            return {'choices':[{'message':{'content':json.dumps({
+                'schema':'nemovox-semantic-review-decision/v1',
+                'request_sha256':q['request_sha256'],'case_id':q['cases'][0]['case_id'],
+                'decision':'unresolved','rationale':'No verified audio, cannot infer source',
+                'supporting_evidence':[],'unresolved':['acoustics']})}}]}
+    client=Stub()
+    out=run_tiered_text_reviews(q,client=client,light_tokens=256,reasoned_tokens=512,token_budget=800)
+    assert out['model_calls']==1
+    assert out['outcomes'][0]['assessment']['source_application_authorized'] is False
+    assert client.calls[0]['reasoning_effort']=='low'
+    assert out['source_or_subtitles_modified'] is False
+    with pytest.raises(ValueError,match='budgets'):
+        run_tiered_text_reviews(q,client=client,token_budget=100,light_tokens=512)

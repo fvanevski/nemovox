@@ -221,3 +221,75 @@ def validate_semantic_review(request: Mapping[str, Any], response: Mapping[str, 
             "rationale": response["rationale"], "supporting_evidence": cited,
             "unresolved": response.get("unresolved", []),
             "source_application_authorized": False, "quality_review_only": True}
+
+
+def build_semantic_review_messages(request: Mapping[str, Any], case: Mapping[str, Any]) -> list[dict[str, str]]:
+    """Bounded source/meaning review prompt; no image or acoustic truth fabricated."""
+    if case.get("case_id") not in {x["case_id"] for x in request.get("cases", [])}:
+        raise ValueError("Unknown semantic review candidate")
+    system = (request["reviewer_guidance"] + "\n" +
+              "Return a single JSON object with schema nemovox-semantic-review-decision/v1, "
+              "request_sha256, case_id, decision, rationale, supporting_evidence "
+              "and unresolved. Decision must be one of: adopt_neighbor_context, "
+              "retain_core, possible_duplicate, unresolved. Describe both supporting "
+              "and contrary evidence. Do not claim independent audio/video review "
+              "unless actual authenticated observations were supplied. A plausible "
+              "nonliteral English paraphrase is acceptable but never acoustic proof. "
+              "Never invent dialogue, speaker names, timing or verified identities.")
+    return [{"role": "system", "content": system},
+            {"role": "user", "content": json.dumps({
+                "request_sha256": request["request_sha256"], "case": case,
+            }, ensure_ascii=False, sort_keys=True)}]
+
+
+def run_tiered_text_reviews(
+    request: Mapping[str, Any], *, client: Any,
+    case_limit: int = 6, token_budget: int = 5000,
+    light_tokens: int = 512, reasoned_tokens: int = 1536,
+    light_effort: str = "low", reasoned_effort: str = "high",
+) -> dict[str, Any]:
+    """Explicit injected text-model QC, capped by case and total token budget.
+
+    The caller owns service admission and client lifecycle. Results are advisory
+    and MUST pass source-unit revision gates before affecting output.
+    """
+    if request.get("schema") != RESULT_SCHEMA:
+        raise ValueError("Invalid semantic review request")
+    if (not isinstance(case_limit, int) or not 1 <= case_limit <= 50
+            or not isinstance(token_budget, int) or token_budget < 1
+            or not all(isinstance(n, int) and 1 <= n <= token_budget
+                       for n in (light_tokens, reasoned_tokens))
+            or not all(isinstance(e, str) and e for e in (light_effort, reasoned_effort))):
+        raise ValueError("Invalid model review budgets")
+    outcomes: list[dict[str, Any]] = []
+    remaining = token_budget
+    for case in request.get("cases", [])[:case_limit]:
+        reasoned = case.get("suggested_review_tier") == "reasoned_text"
+        per_case = reasoned_tokens if reasoned else light_tokens
+        if remaining < per_case:
+            outcomes.append({"case_id": case["case_id"], "status": "deferred_token_budget"})
+            continue
+        remaining -= per_case
+        response = client.complete(
+            messages=build_semantic_review_messages(request, case),
+            max_tokens=per_case, temperature=0.0,
+            response_format={"type": "json_object"},
+            reasoning_effort=reasoned_effort if reasoned else light_effort,
+        )
+        raw = str(((response.get("choices") or [{}])[0].get("message") or {}).get("content") or "")
+        try:
+            decoded = json.loads(raw)
+            assessed = validate_semantic_review(request, decoded)
+        except (ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
+            outcomes.append({"case_id": case["case_id"], "status": "unaccepted_model_response",
+                             "error": str(exc),
+                             "raw_response_sha256": hashlib.sha256(raw.encode()).hexdigest()})
+        else:
+            outcomes.append({"case_id": case["case_id"], "status": "advisory_only",
+                             "assessment": assessed,
+                             "raw_response_sha256": hashlib.sha256(raw.encode()).hexdigest()})
+    return {"schema": "nemovox-tiered-semantic-review-batch/v1",
+            "request_sha256": request["request_sha256"], "model_calls": sum(
+                o["status"] != "deferred_token_budget" for o in outcomes),
+            "tokens_reserved": token_budget - remaining,
+            "outcomes": outcomes, "source_or_subtitles_modified": False}
