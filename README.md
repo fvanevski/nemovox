@@ -21,6 +21,30 @@ Correct English phrasing does not certify unheard words as source-acoustic truth
 Issue #14's new boundary semantic-review diagnostics are advisory and do not
 automatically rewrite a recording or subtitle output.
 
+For a structured meaning-first QC result, the offline
+`nvidia-transcribe prepare-semantic-review-queue` command accepts a digest-pinned
+candidate request, model-review batch, exact policy, original recording and raw
+source-evidence ledger. It creates one **new private JSON file** listing original
+unit IDs, raw response identities and narrowly scoped audio-listening windows.
+It neither starts a model nor approves any source/English change:
+
+```bash
+nvidia-transcribe prepare-semantic-review-queue \
+  --request /private/qc-request.json \
+  --batch /private/qc-batch.json \
+  --policy configs/meaning-first-review.example.json \
+  --original-recording /private/original.recording.json \
+  --source-evidence /private/source-evidence.json \
+  --output-json /private/new-qc-review-queue.json
+```
+
+Use the review queue to audition and adjudicate consequential ambiguities.
+Only actual independent audio evidence and the existing complete reviewed-unit
+source-revision gate can authorize a source correction. Contextual English
+postediting remains separately source-bound, and fluent nonliteral English is
+permitted when it preserves narrative meaning, polarity and clarity. The queue
+is not an automatically accepted source revision or a Studio-job mutation.
+
 ---
 
 ## Key Capabilities
