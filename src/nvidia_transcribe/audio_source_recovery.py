@@ -117,15 +117,31 @@ def apply_audio_source_recovery(
     events = []
     rejected = []
     seen_events = set()
+    event_cases = {}
     seen_crops = set()
     superseded = _ids(review.get("superseded_legacy_ids"), "superseded legacy IDs")
     if not superseded <= originals.keys() or any(not ownership[u] for u in superseded):
         raise ValueError("Cannot supersede unknown or unbound legacy source")
+    def touches_case(crop, case):
+        if _overlaps(crop, case["candidate_source_window_s"]):
+            return True
+        # Displaced CTC hypotheses may be many seconds from the actual
+        # dialogue. A separately reviewed competing interval is legitimate,
+        # but only if it touches an original source-linked candidate unit.
+        for uid in case["source_unit_ids"]:
+            unit = raw[uid]
+            a, b = unit.get("ctc_start_s"), unit.get("ctc_end_s")
+            if (isinstance(a, (int, float)) and isinstance(b, (int, float))
+                    and math.isfinite(a) and math.isfinite(b) and a < b
+                    and _overlaps(crop, (a, b))):
+                return True
+        return False
+
     for window in windows:
         crop = _bounds(window.get("window_s"), duration)
         cases = _ids(window.get("case_ids"), "review case IDs", nonempty=True)
         if (not cases <= items.keys() or crop[1] - crop[0] > 60
-                or any(not _overlaps(crop, items[c]["candidate_source_window_s"]) for c in cases)):
+                or any(not touches_case(crop, items[c]) for c in cases)):
             raise ValueError("Audio review must be bounded and linked to QC cases")
         chunks = {idx for c in cases for idx in items[c]["source_chunks"]}
         crop_sha = window.get("crop_sha256")
@@ -138,6 +154,9 @@ def apply_audio_source_recovery(
         try:
             with wave.open(io.BytesIO(data), "rb") as wav:
                 seconds = wav.getnframes() / wav.getframerate()
+                if len(wav.readframes(wav.getnframes())) != (
+                        wav.getnframes() * wav.getnchannels() * wav.getsampwidth()):
+                    raise ValueError("Truncated reviewed PCM crop")
         except (wave.Error, EOFError, ZeroDivisionError) as exc:
             raise ValueError("Review crop must be PCM WAV") from exc
         if abs(seconds - (crop[1] - crop[0])) > .05:
@@ -159,6 +178,7 @@ def apply_audio_source_recovery(
             if not isinstance(eid, str) or not eid or eid in seen_events:
                 raise ValueError("Duplicate or invalid reviewed event ID")
             seen_events.add(eid)
+            event_cases[eid] = set(cases)
             bounds = _bounds(event.get("event_s"), duration)
             text = event.get("source_text")
             if (not _contains(crop, bounds) or not isinstance(text, str) or not text.strip()
@@ -229,7 +249,10 @@ def apply_audio_source_recovery(
                 raise ValueError("Rejected raw unit lacks direct review of reported occurrence")
             rejected.append({"source_unit_id": uid, "reason": kind,
                              "review_audio_sha256": crop_sha,
-                             "replacement_audio_event_id": row.get("replacement_audio_event_id")})
+                             "replacement_audio_event_id": row.get("replacement_audio_event_id"),
+                             "case_ids": sorted(cases),
+                             "separate_occurrence_excluded_by_listening":
+                                 row.get("separate_occurrence_excluded_by_listening") is True})
     if not events or len({e["id"] for e in events}) != len(events):
         raise ValueError("Recovery requires distinct positive reviewed events")
     if set(e["id"] for e in events) & originals.keys():
@@ -237,10 +260,9 @@ def apply_audio_source_recovery(
     for row in rejected:
         eid = row["replacement_audio_event_id"]
         if row["reason"] == "same_occurrence_alternate":
-            if eid not in seen_events or not any(
-                    e["audio_event_id"] == eid and e["timestamp_provenance"]["review_audio_sha256"]
-                    == row["review_audio_sha256"] for e in events):
-                raise ValueError("Alternate needs a positively reviewed same-crop replacement event")
+            if (eid not in seen_events or not event_cases[eid].intersection(row["case_ids"])
+                    or not row["separate_occurrence_excluded_by_listening"]):
+                raise ValueError("Alternate requires independent exclusion of distinct speech and a linked event")
         elif eid is not None:
             raise ValueError("ASR artifact cannot claim a replacement event")
     accounted = set(used_units)

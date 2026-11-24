@@ -67,6 +67,8 @@ class TranslationReviewConfig:
     use_json_schema: bool = True
     temperature: float = 0.0
     reasoning_effort: str | None = "low"
+    wire_protocol: str = "openai_chat"
+    thinking_budget: int | None = None
 
 
 def _uid(u: dict[str, Any], i: int) -> str:
@@ -127,6 +129,16 @@ def review_translated_utterances(
         raise ValueError(f"Unsupported translation-review profile {cfg.profile!r}")
     if cfg.style not in VALID_REVIEW_STYLES:
         raise ValueError(f"Unsupported translation-review style {cfg.style!r}")
+    if cfg.wire_protocol not in ("openai_chat", "ninfer_messages"):
+        raise ValueError("Unsupported translation review wire protocol")
+    if cfg.wire_protocol == "ninfer_messages":
+        budget = cfg.thinking_budget
+        if (text_client is None or not cfg.use_json_schema
+                or not isinstance(budget, int) or isinstance(budget, bool)
+                or not ((budget == 0 and cfg.reasoning_effort in (None, "none"))
+                        or (1024 <= budget <= cfg.max_tokens - 256
+                            and cfg.reasoning_effort not in (None, "none")))):
+            raise ValueError("NInfer postedit requires managed client, schema and explicit thinking budget")
     out = [{**u} for u in utterances]
     all_ids = [_uid(u, i) for i, u in enumerate(out)]
     if target_utterance_ids is not None and (
@@ -153,6 +165,8 @@ def review_translated_utterances(
         "temperature": cfg.temperature, "schema": cfg.use_json_schema,
         "reasoning": cfg.reasoning_effort,
     }
+    if cfg.wire_protocol != "openai_chat":
+        signature.update(wire_protocol=cfg.wire_protocol, thinking_budget=cfg.thinking_budget)
     ckpt = Path(checkpoint_path) if checkpoint_path else None
     cached: dict[str, dict[str, Any]] = {}
     if resume and ckpt and ckpt.is_file():
@@ -232,15 +246,31 @@ def review_translated_utterances(
             ]
             try:
                 calls += 1
+                wire = {"response_format": _SCHEMA if cfg.use_json_schema else None}
+                if cfg.wire_protocol == "ninfer_messages":
+                    from copy import deepcopy
+                    direct_schema = deepcopy(_SCHEMA["json_schema"]["schema"])
+                    direct_schema["properties"]["reviews"]["items"]["properties"]["utterance_id"]["enum"] = ids
+                    direct_schema["properties"]["reviews"]["minItems"] = len(ids)
+                    direct_schema["properties"]["reviews"]["maxItems"] = len(ids)
+                    wire = {"response_format": {"type": "json_schema", "schema": direct_schema},
+                            "thinking_budget": cfg.thinking_budget,
+                            "reasoning_effort": cfg.reasoning_effort,
+                            "strict_reasoning_effort": True}
                 response = client.complete(
-                    messages=messages, max_tokens=cfg.max_tokens, temperature=cfg.temperature,
-                    response_format=_SCHEMA if cfg.use_json_schema else None,
+                    messages=messages, max_tokens=cfg.max_tokens, temperature=cfg.temperature, **wire,
                 )
-                raw = str(((response.get("choices") or [{}])[0].get("message") or {}).get("content") or "")
-                first = raw.find("{")
-                if first < 0:
-                    raise ValueError("Missing JSON response")
-                parsed, _ = json.JSONDecoder().raw_decode(raw[first:])
+                choice = (response.get("choices") or [{}])[0]
+                raw = str((choice.get("message") or {}).get("content") or "")
+                if cfg.wire_protocol == "ninfer_messages":
+                    if choice.get("finish_reason") != "stop":
+                        raise ValueError("Incomplete bounded Messages postedit")
+                    parsed = json.loads(raw)
+                else:
+                    first = raw.find("{")
+                    if first < 0:
+                        raise ValueError("Missing JSON response")
+                    parsed, _ = json.JSONDecoder().raw_decode(raw[first:])
                 reviews = parsed.get("reviews") if isinstance(parsed, dict) else None
                 if not isinstance(reviews, list):
                     raise ValueError("Missing reviews array")

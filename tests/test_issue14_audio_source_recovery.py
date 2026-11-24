@@ -130,3 +130,58 @@ def test_translation_bridge_and_selective_polarity_guard():
     assert rows[1]["translated_text"]=="The door is not open."
     assert output["report"]["rejected_polarity"]==1
     assert assembled==pristine
+
+
+def test_insertion_only_keeps_historical_translation_and_context():
+    inputs=setup()
+    review=inputs[6]
+    review["superseded_legacy_ids"]=[]
+    review["windows"][0]["rejected_observations"]=[]
+    review["windows"][0]["events"]=review["windows"][0]["events"][:1]
+    record=inputs[0]
+    revised=apply(inputs)["new_recording"]
+    prior=deepcopy(record)
+    prior["target_language"]="en"
+    prior["utterances"][0]["translated_text"]="The"
+    prior["utterances"][0]["translation_review_status"]="unchanged"
+    target=revised["utterances"][0]
+    receipt={"utterance_id":target["id"],"source_revision_id":target["source_revision_id"],
+             "source_text_sha256":hashlib.sha256(target["source_text"].encode()).hexdigest(),
+             "source_language":"fr","target_language":"en","status":"translated",
+             "translated_text":"Watch out!","translation_evidence_sha256":"e"*64}
+    assembled=assemble_revised_translation(record,prior,revised,[receipt],enable=True)["translated_contract"]
+    import json
+    class Client:
+        def complete(self,**kwargs):
+            assert kwargs["thinking_budget"]==0
+            assert kwargs["reasoning_effort"]=="none"
+            assert kwargs["response_format"]["type"]=="json_schema"
+            schema=kwargs["response_format"]["schema"]
+            assert schema["properties"]["reviews"]["items"]["properties"]["utterance_id"]["enum"]==[target["id"]]
+            payload=json.loads(kwargs["messages"][1]["content"])
+            assert [u["utterance_id"] for u in payload["target_utterances"]]==[target["id"]]
+            assert [u["utterance_id"] for u in payload["context_after"]]==["old"]
+            return {"choices":[{"finish_reason":"stop","message":{"content":json.dumps(
+                {"reviews":[{"utterance_id":target["id"],"changed":True,
+                             "corrected_text":"Look out!","reason":"test"}]})}}]}
+    cfg=TranslationReviewConfig(profile="balanced",wire_protocol="ninfer_messages",
+                                reasoning_effort="none",thinking_budget=0)
+    result=postedited_audio_recovery_translation(assembled,config=cfg,text_client=Client(),enable=True)
+    assert result["report"]["reviewed"]==1
+    assert result["translated_contract"]["utterances"][1]==assembled["utterances"][1]
+    assert result["translated_contract"]["utterances"][0]["translated_text"]=="Look out!"
+
+
+def test_messages_postedit_length_preserves_primary_mt():
+    from nvidia_transcribe.translation_review import review_translated_utterances
+    class Truncated:
+        def complete(self,**kwargs):
+            return {"choices":[{"finish_reason":"length","message":{"content":
+                     '{"reviews":[{"utterance_id":"new","changed":true,"corrected_text":"Wrong","reason":"x"}]}'}}]}
+    rows=[{"id":"new","translated_text":"Original","source_text":"Original"}]
+    cfg=TranslationReviewConfig(profile="balanced",wire_protocol="ninfer_messages",
+                                reasoning_effort="none",thinking_budget=0)
+    result, report=review_translated_utterances(rows,source_language="fr",
+                    config=cfg,text_client=Truncated(),target_utterance_ids={"new"})
+    assert result[0]["translated_text"]=="Original"
+    assert report["status"]=="completed_with_errors"
