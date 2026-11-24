@@ -608,9 +608,10 @@ class OpenAIChatTextClient:
                     self._rejected_reasoning_efforts.add(str(effort))
                     payload.pop("reasoning_effort", None)
                     resp = client.post(f"{self.base_url}/chat/completions", json=payload)
-            if resp.status_code in (400, 422) and "response_format" in payload:
-                # Legacy relaxed schema fallback; never relax the explicit
-                # thinking cap or strict reasoning effort on this path.
+            if (resp.status_code in (400, 422) and "response_format" in payload
+                    and not strict_reasoning_effort):
+                # Legacy relaxed schema fallback; strict tiered QC never
+                # retries with a relaxed schema after a rejected effort.
                 self._schema_rejected = True
                 payload.pop("response_format", None)
                 resp = client.post(f"{self.base_url}/chat/completions", json=payload)
