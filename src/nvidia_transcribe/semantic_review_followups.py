@@ -90,12 +90,21 @@ def build_meaning_first_review_queue(
     cases = request.get("cases")
     outcomes = batch.get("outcomes")
     if (not isinstance(cases, list) or not isinstance(outcomes, list)
-            or len({c.get("case_id") for c in cases}) != len(cases)):
+            or any(not isinstance(c, dict) or not isinstance(c.get("case_id"), str)
+                   or not c["case_id"] for c in cases)
+            or any(not isinstance(x, dict) for x in outcomes)
+            or len({c["case_id"] for c in cases}) != len(cases)):
         raise ValueError("Review candidates or outcomes malformed")
     by_case = {c["case_id"]: c for c in cases}
     seen = set()
     asr_by_chunk: dict[int, dict[str, Any]] = {}
-    for row in raw_ledger.get("asr_observations") or []:
+    asr_rows = raw_ledger.get("asr_observations")
+    lexical_rows = raw_ledger.get("lexical_observations")
+    if (not isinstance(asr_rows, list) or not isinstance(lexical_rows, list)
+            or not asr_rows or not lexical_rows
+            or any(not isinstance(row, dict) for row in asr_rows + lexical_rows)):
+        raise ValueError("Missing or malformed immutable source ledger")
+    for row in asr_rows:
         idx = row.get("chunk_index")
         if not isinstance(idx, int) or isinstance(idx, bool) or idx in asr_by_chunk:
             raise ValueError("Nonunique ASR observation/chunk identity")
@@ -104,7 +113,7 @@ def build_meaning_first_review_queue(
         asr_by_chunk[idx] = row
     coordinates: dict[tuple[int, int], dict[str, Any]] = {}
     raw_ids: set[str] = set()
-    for row in raw_ledger.get("lexical_observations") or []:
+    for row in lexical_rows:
         coordinate = (row.get("chunk_index"), row.get("source_ordinal"))
         if (not all(isinstance(x, int) and not isinstance(x, bool) for x in coordinate)
                 or coordinate in coordinates or not isinstance(row.get("id"), str)

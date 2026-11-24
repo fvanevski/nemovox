@@ -105,6 +105,7 @@ def test_review_queue_binds_original_source_units_and_audio_crops_without_promot
     ("tamper_advisory","not a source-bound"),
     ("duplicate_outcome","Duplicate or unknown QC outcome"),
     ("fake_audio","Unbacked audio/visual citation"),
+    ("bad_ledger","Missing or malformed immutable source ledger"),
 ])
 def test_untrusted_tampering_cannot_become_actionable_evidence(mutation,match):
     items=list(deepcopy(fixture()))
@@ -129,6 +130,8 @@ def test_untrusted_tampering_cannot_become_actionable_evidence(mutation,match):
         batch["outcomes"].append(deepcopy(batch["outcomes"][0]))
     elif mutation=="fake_audio":
         batch["outcomes"][0]["assessment"]["supporting_evidence"]=["independent_audio_review"]
+    elif mutation=="bad_ledger":
+        ledger["lexical_observations"]={"not":"a lexical array"}
     with pytest.raises(ValueError,match=match):
         build_meaning_first_review_queue(request,batch,policy,record,ledger)
 
