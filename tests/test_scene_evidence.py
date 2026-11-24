@@ -79,3 +79,17 @@ def test_no_candidate_crosses_another_accepted_turn():
     other=row("o","Wait!",103.9,105)
     alt={**row("p","Please close the door.",100.1,104.1),"observation_id":"p"}
     assert audio_candidates(base,[base,other],[{"audio_sha256":"a","utterances":[alt]}],[])==[]
+
+
+
+def test_current_hypothesis_corroboration_is_visible_without_counting_votes():
+    base=row("t","I told you not to breathe.",100,104)
+    a={**base,"observation_id":"p"}
+    b={**base,"observation_id":"q"}
+    c={**row("alt","I told you not to speak.",100.1,103.9),"observation_id":"r"}
+    candidates=audio_candidates(base,[base],
+        [{"audio_sha256":"one","utterances":[a,c]}],
+        [{"audio_sha256":"two","rows":[b]}],include_current=True)
+    current=next(x for x in candidates if x["id"]=="current")
+    assert {x["backend"] for x in current["support"]}=={"nemotron","independent_asr"}
+    assert len(candidates)==2

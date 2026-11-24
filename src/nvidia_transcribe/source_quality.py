@@ -36,6 +36,11 @@ class SourceQualityPolicy:
     challenge_max_seconds: float = 45.
     challenge_overlap_fraction: float = .35
     max_extra_per_window: int = 3
+    scene_context_s: float = 60.
+    scene_max_context_s: float = 180.
+    scene_context_char_budget: int = 24000
+    scene_max_cases: int = 6
+    scene_max_frames: int = 6
 
     def __post_init__(self):
         if (not 1 <= self.max_windows <= 24 or not 0 <= self.max_extra_contexts <= 12
@@ -47,7 +52,11 @@ class SourceQualityPolicy:
                 or any(not math.isfinite(x) or not .3 <= x <= 5 for x in self.challenge_scales)
                 or not 14 <= self.challenge_max_seconds <= 90
                 or not .1 <= self.challenge_overlap_fraction <= .49
-                or not 1 <= self.max_extra_per_window <= 6):
+                or not 1 <= self.max_extra_per_window <= 6
+                or not 0 < self.scene_context_s <= self.scene_max_context_s <= 600
+                or not 1000 <= self.scene_context_char_budget <= 64000
+                or not 1 <= self.scene_max_cases <= 24
+                or not 3 <= self.scene_max_frames <= 10):
             raise ValueError("Invalid source quality budget")
 
 
@@ -249,7 +258,11 @@ def challenge_geometries(target,duration,policy,*,timing_problem=False,seen=()):
     extent=min(policy.challenge_max_seconds/2,max(length*.8,overlap))
     split=[("shift_left",(max(0.,midpoint-extent),min(duration,midpoint+overlap))),
            ("shift_right",(max(0.,midpoint-overlap),min(duration,midpoint+extent)))]
-    ordered=(compact+split+expanded if timing_problem else expanded+split+compact)
+    # Reserve adjacency of the shifted pair before further scales.
+    # Prioritize compact audio for alignment failure; expanded audio for
+    # lexical ambiguity. Remaining scales stay available within the budget.
+    ordered=(compact[:1]+split+compact[1:]+expanded if timing_problem
+             else expanded[:1]+split+expanded[1:]+compact)
     used={tuple(x) for x in seen}
     result=[]
     for kind,crop in ordered:
@@ -755,9 +768,13 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
         output_dir=output_dir,
     )
     decisions.extend(recovery["decisions"])
-    from nvidia_transcribe.scene_evidence import adjudicate_scene
+    from nvidia_transcribe.scene_evidence import SceneEvidencePolicy, adjudicate_scene
     rows,scene=adjudicate_scene({**recording,"utterances":rows},observations,
-        recovery["observations"],observed_media,text_scope,output_dir)
+        recovery["observations"],observed_media,text_scope,output_dir,
+        SceneEvidencePolicy(initial_context_s=policy.scene_context_s,
+            maximum_context_s=policy.scene_max_context_s,
+            context_char_budget=policy.scene_context_char_budget,
+            max_cases=policy.scene_max_cases,max_frames=policy.scene_max_frames))
     reviewed_case_ids = {o["case_id"] for o in (advisory or {}).get("outcomes", [])}
     deferred_case_ids = [c["case_id"] for c in request["cases"]
                          if c["case_id"] not in reviewed_case_ids]

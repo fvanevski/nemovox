@@ -85,21 +85,21 @@ def scene_context(recording, target, radius, char_budget):
             "limitations":"Current ASR hypotheses, not a complete or verified scene transcript."}
 
 
-def audio_candidates(row, rows, observations, independent, tolerance=1.25):
+def audio_candidates(row, rows, observations, independent, tolerance=1.25, *, include_current=False):
     """Only alternatives corresponding to this already timed occurrence."""
     target=_bounds(row)
     base=_lex(row["source_text"])
     if not target or not base:
         return []
     result=[]
-    seen={base}
+    grouped={}
     for backend, collection, key in (("nemotron",observations,"utterances"),
                                      ("independent_asr",independent,"rows")):
         for obs in collection:
             for alt in obs.get(key,[]):
                 bounds=_bounds(alt)
                 words=_lex(alt.get("source_text"))
-                if (not bounds or not words or words in seen
+                if (not bounds or not words or (words==base and not include_current)
                         or abs(bounds[0]-target[0])>tolerance
                         or abs(bounds[1]-target[1])>tolerance
                         or _overlap(bounds,target)<=0):
@@ -113,10 +113,20 @@ def audio_candidates(row, rows, observations, independent, tolerance=1.25):
                 match=SequenceMatcher(None,base,words,autojunk=False)
                 if match.ratio()<.50 or match.find_longest_match().size<min(2,len(base),len(words)):
                     continue
-                result.append({"id":f"{backend}:{alt['observation_id']}",
-                               "text":alt["source_text"],"bounds":bounds,
-                               "backend":backend,"audio_sha256":obs["audio_sha256"]})
-                seen.add(words)
+                support={"id":f"{backend}:{alt['observation_id']}",
+                         "bounds":bounds,"backend":backend,
+                         "audio_sha256":obs["audio_sha256"],
+                         "crop":obs.get("crop"),"model":obs.get("model")}
+                if words in grouped:
+                    grouped[words]["support"].append(support)
+                    continue
+                item={"id":"current" if words==base else support["id"],
+                      "text":row["source_text"] if words==base else alt["source_text"],
+                      "bounds":target if words==base else bounds,
+                      "backend":backend,"audio_sha256":obs["audio_sha256"],
+                      "support":[support]}
+                grouped[words]=item
+                result.append(item)
     return result
 
 
@@ -172,7 +182,9 @@ def assess(client,recording,row,alternatives,policy,visual=None,radius=None):
     captions=[f for f in (visual or []) if f.get("caption")]
     payload={"source_language":recording["source_language"],
              "target":{"id":row["id"],"source_text":row["source_text"],
-                       "bounds":_bounds(row),"speaker_hypothesis":row.get("speaker_id")},
+                       "bounds":_bounds(row),"speaker_hypothesis":row.get("speaker_id"),
+                       "source_quality_status":row.get("source_quality_status"),
+                       "timing_provenance":row.get("timestamp_provenance")},
              "scene":context,"acoustic_alternatives":alternatives,
              "visual_observations":visual or []}
     parsed,reply=_call(client,SYSTEM,payload,_decision_schema(
@@ -316,15 +328,16 @@ def adjudicate_scene(recording,observations,independent,media,text_scope,output_
     for row in rows:
         if not _bounds(row):
             continue
-        alternatives=audio_candidates(row,rows,observations,independent)
+        alternatives=audio_candidates(row,rows,observations,independent,include_current=True)
         uncertain=str(row.get("source_quality_status","")).startswith("unresolved_wording")
-        if alternatives or uncertain:
+        if any(a["id"]!="current" for a in alternatives) or uncertain:
             cases.append((row,alternatives,uncertain))
     cases.sort(key=lambda item:(not item[2],_bounds(item[0])[0]))
     report={"decisions":[],"errors":[],"deferred_source_ids":[r["id"] for r,_,_ in cases[policy.max_cases:]]}
     if not cases:
         return rows,report
     import tempfile
+    import httpx
     root=Path(tempfile.mkdtemp(prefix="source-scene-",dir=output_dir))
     # One managed text/vision scope for the admitted cases. Context-only
     # assessment precedes visual collection. If enough evidence is already
@@ -345,9 +358,11 @@ def adjudicate_scene(recording,observations,independent,media,text_scope,output_
                     case["assessments"].append(expanded)
                     current=expanded
                     d=current["decision"]
-                if d["materially_resolved"] and (d["action"]=="retain" or
+                retain=d["action"]=="retain" or (d["action"]=="acoustic" and d["candidate_id"]=="current"
+                        and any(a["id"]=="current" for a in alternatives))
+                if d["materially_resolved"] and (retain or
                         apply_decision(row,current,alternatives,[])):
-                    case["applied"]=d["action"]!="retain"
+                    case["applied"]=not retain
                     case["outcome"]="context_supported"
                     continue
                 # Vision can provide useful new evidence even when the
@@ -367,7 +382,7 @@ def adjudicate_scene(recording,observations,independent,media,text_scope,output_
                     case["outcome"]="unresolved"
             except ResourceLifecycleError:
                 raise
-            except (OSError,ValueError,KeyError,TypeError,RuntimeError,subprocess.TimeoutExpired) as exc:
+            except (OSError,ValueError,KeyError,TypeError,RuntimeError,httpx.HTTPError,subprocess.TimeoutExpired) as exc:
                 case["outcome"]="error"
                 report["errors"].append({"source_id":row["id"],"error":type(exc).__name__,"detail":str(exc)})
     return rows,report
