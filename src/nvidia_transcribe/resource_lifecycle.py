@@ -490,11 +490,15 @@ class _DeferredTextClient:
     """Acquire a text service at the first uncached inference request."""
 
     def __init__(self, manager: ModelLifecycle, resource: ModelResource, *,
-                 timeout_s: float = 180.0, reasoning_effort: str | None = None) -> None:
+                 timeout_s: float = 180.0, reasoning_effort: str | None = None,
+                 wire_protocol: str = "openai_chat") -> None:
+        if wire_protocol not in ("openai_chat", "ninfer_messages"):
+            raise ValueError("Unsupported managed text-review wire protocol")
         self.manager = manager
         self.resource = resource
         self.timeout_s = timeout_s
         self.reasoning_effort = reasoning_effort
+        self.wire_protocol = wire_protocol
         self._scope = None
         self._client = None
 
@@ -503,8 +507,13 @@ class _DeferredTextClient:
             scope = self.manager.endpoint(self.resource)
             scope.__enter__()
             self._scope = scope
-            from nvidia_transcribe.refinement import OpenAIChatTextClient
-            self._client = OpenAIChatTextClient(
+            if self.wire_protocol == "ninfer_messages":
+                from nvidia_transcribe.ninfer_messages_client import NInferMessagesTextClient
+                client_type = NInferMessagesTextClient
+            else:
+                from nvidia_transcribe.refinement import OpenAIChatTextClient
+                client_type = OpenAIChatTextClient
+            self._client = client_type(
                 base_url=self.resource.endpoint or "",
                 model=self.resource.model or "",
                 api_key=self.resource.credential(),
@@ -521,9 +530,12 @@ class _DeferredTextClient:
 @contextmanager
 def managed_text_client(manager: ModelLifecycle, resource: ModelResource, *,
                         timeout_s: float = 180.0,
-                        reasoning_effort: str | None = None) -> Iterator[_DeferredTextClient]:
+                        reasoning_effort: str | None = None,
+                        wire_protocol: str = "openai_chat") -> Iterator[_DeferredTextClient]:
+    """Use owned service lifecycle; opt in to NInfer Messages for bounded QC."""
     client = _DeferredTextClient(manager, resource, timeout_s=timeout_s,
-                                 reasoning_effort=reasoning_effort)
+                                 reasoning_effort=reasoning_effort,
+                                 wire_protocol=wire_protocol)
     try:
         yield client
     finally:
