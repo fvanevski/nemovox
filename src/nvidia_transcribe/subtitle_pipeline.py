@@ -227,6 +227,10 @@ def generate_subtitles(
         trans_summary: dict[str, Any] = {"status": "reused_translated_contract"}
         condense_summary: dict[str, Any] = {"status": "reused_translated_contract"}
         review_summary: dict[str, Any] = {"status": "reused_translated_contract"}
+        retained_review = translated_contract.get("translation_review") or {}
+        if retained_review.get("status") == "completed_with_deferred_comparisons":
+            review_summary["retained_review_status"] = retained_review["status"]
+            review_summary["deferred_comparison_ids"] = retained_review["deferred_comparison_ids"]
     else:
         # Stage 1: Load existing recording contract or run chunked ASR.
         if recording_contract_path is not None:

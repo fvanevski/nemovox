@@ -616,3 +616,52 @@ def test_compact_invalid_ids_and_transport_failure_remain_errors():
         assert report["status"] == "completed_with_errors"
         assert report["errors"] and not report["deferred_comparison_ids"]
         assert out[0]["translated_text"] == "Hello, Estban."
+
+
+
+def test_deferred_comparator_renders_without_claiming_complete_review(tmp_path, monkeypatch):
+    from pathlib import Path
+    from types import SimpleNamespace
+    from nvidia_transcribe import translation
+    from nvidia_transcribe.translation import TranslationConfig
+    from nvidia_transcribe.subtitle_pipeline import SubtitlePipelineConfig, generate_subtitles
+
+    record = tmp_path / "recording.contract.json"
+    record.write_text(json.dumps({
+        "source_language": "fr", "source": {"path": "/sample/french.mkv", "duration_s": 5.0},
+        "utterances": _utts(),
+    }), encoding="utf-8")
+    def fake_riva(_command, **kwargs):
+        original = {u["id"]: u["translated_text"] for u in _utts()}
+        items = json.loads(kwargs["input"])["items"]
+        return SimpleNamespace(returncode=0, stderr="", stdout=json.dumps({
+            "status": "ok", "device_used": "cuda:0",
+            "results": [{"utterance_id": item["utterance_id"],
+                         "translated_text": original[item["utterance_id"]]} for item in items],
+        }))
+    monkeypatch.setattr(translation.subprocess, "run", fake_riva)
+    client = _LoopReviewClient(_loop_proposals(), "loop", "loop")
+    root = tmp_path / "rendered"
+    cfg = SubtitlePipelineConfig(
+        source_language="fr", translation=TranslationConfig(backend="riva", riva_device="cuda:0"),
+        translation_review=_loop_cfg(), formats=("srt", "ass"))
+    metadata = generate_subtitles(recording_contract_path=record, output_dir=root,
+                                  config=cfg, text_client=client)
+    assert metadata["translation_review"]["status"] == "completed_with_deferred_comparisons"
+    assert metadata["translation_review"]["deferred_comparison_ids"] == ["u0"]
+    contract_path = root / "translated.contract.json"
+    contract_bytes = contract_path.read_bytes()
+    saved = json.loads(contract_bytes)
+    assert saved["utterances"][0]["translated_text"] == "Hello, Estban."
+    assert saved["utterances"][0]["translation_review_status"] == "review_deferred_comparative_preserved_machine_translation"
+    files = {name: Path(metadata["files"][name]) for name in ("srt", "ass")}
+    before = {name: path.read_bytes() for name, path in files.items()}
+    assert all(before.values())
+    assert b"Hello, Estban." in before["srt"]
+    assert len(client.calls) == 3
+    replay = generate_subtitles(output_dir=root, config=SubtitlePipelineConfig(
+        re_render_only=True, formats=("srt", "ass")), text_client=_LoopReviewClient())
+    assert replay["translation_review"]["retained_review_status"] == "completed_with_deferred_comparisons"
+    assert replay["translation_review"]["deferred_comparison_ids"] == ["u0"]
+    assert contract_path.read_bytes() == contract_bytes
+    assert {name: path.read_bytes() for name, path in files.items()} == before
