@@ -75,7 +75,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run or resume ASR -> dedicated translation -> optional English review -> SRT/ASS rendering.",
     )
     gs.add_argument("media", nargs="?", default=None, help="Path to local media file (omit when using --recording-contract).")
-    gs.add_argument("--recording-contract", default=None, help="Existing recording.contract.json to start from (skips ASR).")
+    gs.add_argument("--recording-contract", default=None, help="Existing recording.contract.json (skips initial ASR); supply original media as well for current-source review.")
+    gs.add_argument("--source-quality", choices=["auto", "on", "off"], default="auto",
+                    help="Bounded current-media source review (auto for Riva jobs, off for fast output or other text providers).")
     gs.add_argument("--output-dir", required=True, help="Directory for refined/translated contracts and SRT/ASS outputs.")
     gs.add_argument("--source-language", default=None, help="Source language code (e.g. 'fr', 'zh').")
     gs.add_argument("--target-language", default="en", help="Target subtitle language (default: en).")
@@ -482,6 +484,7 @@ def main(argv: list[str] | None = None) -> int:
             condense_high_cps=args.condense_high_cps,
             condense_cps_threshold=args.condense_threshold,
             validation_overlay_path=args.validation_overlay,
+            source_quality=args.source_quality,
         )
         try:
             res = generate_subtitles(

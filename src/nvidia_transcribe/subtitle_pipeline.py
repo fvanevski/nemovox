@@ -6,7 +6,7 @@ import json
 import os
 import time
 from contextlib import nullcontext
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
@@ -14,6 +14,7 @@ from nvidia_transcribe.client import NemotronVLLMClient
 from nvidia_transcribe.model_resources import ModelResource
 from nvidia_transcribe.resource_lifecycle import ModelLifecycle, ResourceLifecycleError, managed_asr_client, managed_text_client
 from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
+from nvidia_transcribe.source_quality import SourceQualityPolicy, review_current_source
 from nvidia_transcribe.refinement import (
     GlossaryConfig,
     RefinementConfig,
@@ -74,6 +75,8 @@ class SubtitlePipelineConfig:
     condense_high_cps: bool = False
     condense_cps_threshold: float = 25.0
     reconstruct_untimed_order: bool = True
+    source_quality: str = "auto"  # auto: Riva subtitle jobs with original media and managed resources
+    source_quality_policy: SourceQualityPolicy = SourceQualityPolicy()
     validation_overlay_path: str | Path | None = None
 
 
@@ -127,6 +130,22 @@ def generate_subtitles(
     """
     t0 = time.perf_counter()
     cfg = config or SubtitlePipelineConfig()
+    if cfg.source_quality not in ("auto", "on", "off"):
+        raise ValueError("Unsupported source quality mode")
+    quality_enabled = (not cfg.re_render_only and media_path is not None and (
+        cfg.source_quality == "on" or (cfg.source_quality == "auto"
+        and cfg.translation.backend == "riva" and lifecycle is not None
+        and lifecycle_resources is not None)))
+    if cfg.source_quality == "on" and not cfg.re_render_only and not media_path:
+        raise ValueError("Source quality requires the original media")
+    if quality_enabled:
+        if lifecycle is None or not lifecycle_resources or not {"asr", "translation_review"} <= lifecycle_resources.keys():
+            raise ValueError("Source quality requires managed ASR and NInfer review resources")
+        if cfg.refinement.profile != "off":
+            raise ValueError("Current source quality cannot be combined with text-only source rewriting")
+        if cfg.translation_review.profile != "off":
+            cfg = replace(cfg, translation_review=replace(cfg.translation_review,
+                wire_protocol="ninfer_messages", thinking_budget=0, reasoning_effort="none"))
     if cfg.translation_review.profile != "off" and cfg.translation.backend != "riva":
         raise ValueError("Contextual English post-edit requires dedicated Riva primary translation")
     if (cfg.condense_high_cps and cfg.translation.backend == "riva"
@@ -166,6 +185,8 @@ def generate_subtitles(
             lifecycle, resource,
             timeout_s=stage_config.timeout_s,
             reasoning_effort=stage_config.reasoning_effort,
+            **({"wire_protocol": stage_config.wire_protocol}
+               if role == "translation_review" and stage_config.wire_protocol != "openai_chat" else {}),
         )
 
     translated_path = out_dir / "translated.contract.json"
@@ -173,7 +194,7 @@ def generate_subtitles(
 
     if cfg.re_render_only and translated_path.is_file():
         _log("Stage 1-3: Reusing existing translated.contract.json (--re-render)")
-        for skipped in ("translation", "review", "condensation"):
+        for skipped in ("source_quality", "translation", "review", "condensation"):
             _event(skipped, "skipped", "Offline re-render uses retained contract")
         translated_contract = json.loads(translated_path.read_text(encoding="utf-8"))
         ref_summary: dict[str, Any] = {"status": "reused_translated_contract"}
@@ -242,8 +263,26 @@ def generate_subtitles(
                     ),
                 )
             contract = asr_res["contract"]
+            rc_path = Path(asr_res["contract_path"]) if quality_enabled else None
             default_stem = m_path.stem
 
+        if quality_enabled:
+            _event("source_quality", "running", "Reviewing consequential source ambiguity")
+            challenge_client = asr_client or NemotronVLLMClient(
+                base_url=cfg.asr_base_url, model=cfg.asr_model,
+                api_key=lifecycle_resources["asr"].credential(), timeout_s=900.0)
+            contract, quality_report = review_current_source(
+                contract, recording_path=rc_path, media_path=media_path, output_dir=out_dir,
+                text_scope=lambda: managed_text_client(lifecycle,
+                    lifecycle_resources["translation_review"], wire_protocol="ninfer_messages"),
+                asr_scope=lambda: managed_asr_client(lifecycle,
+                    lifecycle_resources["asr"], challenge_client),
+                policy=cfg.source_quality_policy)
+            _atomic_write(out_dir / "source-quality.json", json.dumps(quality_report, ensure_ascii=False, indent=2))
+            _atomic_write(out_dir / "canonical-source.contract.json", json.dumps(contract, ensure_ascii=False, indent=2))
+            _event("source_quality", "complete", quality_report["status"])
+        else:
+            _event("source_quality", "skipped", "No current-media quality review requested")
         src_lang = cfg.source_language or contract.get("source_language")
         raw_utterances = list(contract.get("utterances") or [])
 
@@ -413,6 +452,7 @@ def generate_subtitles(
             **render_res["outputs"],
         },
         "sidecars": render_res["sidecars"],
+        "source_quality": translated_contract.get("source_quality", {"status": "not_run"}),
         "refinement": ref_summary,
         "translation": trans_summary,
         "translation_review": review_summary,
