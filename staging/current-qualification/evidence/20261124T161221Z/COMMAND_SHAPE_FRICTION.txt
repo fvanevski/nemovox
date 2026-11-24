@@ -1,0 +1,30 @@
+COMMAND_SHAPE_FRICTION
+encountered=yes
+
+- requested_shape=discover qualified cached Whisper with the project CLI and Studio Python
+  effective_shape=unchanged via rtk proxy
+  provenance=host dependency layout
+  execution_effect=both imports exited 1 with ModuleNotFoundError; no installs attempted
+  correction=verified the previously qualified read-only worker Python (faster-whisper 1.2.1), symlink targets and CPU-only private role
+  durable_gap=the two application interpreters do not host the independent worker; the explicit worker_python setting is required
+
+- requested_shape=use existing private model-resource JSON and inspect the lock with a positional lslocks path
+  effective_shape=unchanged via rtk proxy
+  provenance=host config absence and util-linux argument handling
+  execution_effect=no host JSON override was present; positional lslocks returned unrelated locks
+  correction=used built-in resource bindings plus a private challenger override; tested nonblocking exclusive acquisition and inode on the known configured lock
+  durable_gap=none
+
+- requested_shape=audit local Studio artifacts at the job root and expect a generic subtitle filename
+  effective_shape=unchanged via rtk proxy
+  provenance=qualification audit assumption
+  execution_effect=first draft audit skipped Studio output discovery and returned empty export counts
+  correction=use the Studio job output directory and discover actual .srt/.ass names
+  durable_gap=none
+
+- requested_shape=GitHub CLI JSON PR view
+  effective_shape=gh CLI returned a preview-event hint and result together in the shell capture
+  provenance=gh stderr and the combined tool output stream
+  execution_effect=native command exit 0; extra text precedes the JSON record
+  correction=retain native capture and parse only the JSON line
+  durable_gap=none
