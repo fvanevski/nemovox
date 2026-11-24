@@ -4,6 +4,23 @@ Multilingual speech transcription, speaker diarization, contextual transcript re
 
 *(Python package and CLI entrypoint remain `nvidia_transcribe` / `nvidia-transcribe`.)*
 
+### Subtitle quality objective
+
+Nemovox aims to generate fluent, grammatical, readable subtitles that convey
+the original dialogue's intended meaning and make sense in context, not to
+maximize verbatim word-for-word correspondence. Idiomatic translation,
+condensation, and flexible phrasing are welcome when important meaning,
+negation, narrative sequence, and relevant speaker turns survive. Utterance-level
+timing can be useful even when individual word timing is uncertain.
+
+Source audio, ASR, CTC, diarization and optional visual observations serve as
+separate evidence for **reasoned** correction of problematic dialogue. Lightweight
+contextual text QC should handle routine wording; richer audio-aware, and only
+selectively audiovisual, reasoning belongs on genuinely ambiguous material.
+Correct English phrasing does not certify unheard words as source-acoustic truth.
+Issue #14's new boundary semantic-review diagnostics are advisory and do not
+automatically rewrite a recording or subtitle output.
+
 ---
 
 ## Key Capabilities
