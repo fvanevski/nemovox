@@ -575,12 +575,11 @@ class OpenAIChatTextClient:
     ) -> dict[str, Any]:
         import httpx
 
-        # NInfer and compatible services count internal reasoning against
-        # max_tokens. An explicit per-request cap must leave answer capacity.
-        if (thinking_budget is not None and (
-                not isinstance(thinking_budget, int) or isinstance(thinking_budget, bool)
-                or not 1 <= thinking_budget <= max_tokens - 128)):
-            raise ValueError("Thinking budget must leave at least 128 final-answer tokens")
+        # Standard Chat Completions does NOT define thinking_budget, and the
+        # installed NInfer parser silently ignored it. Never claim a bounded
+        # reasoning request using this route; use the Messages adapter.
+        if thinking_budget is not None:
+            raise ValueError("Chat Completions cannot enforce thinking_budget; use NInferMessagesTextClient")
         headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
         payload: dict[str, Any] = {
             "model": self.model,
@@ -592,10 +591,6 @@ class OpenAIChatTextClient:
         self._reasoning_rejected = False
         if effort is not None and (strict_reasoning_effort or effort not in self._rejected_reasoning_efforts):
             payload["reasoning_effort"] = effort
-        if thinking_budget is not None:
-            # NInfer Chat Completions request extension. Never strip this
-            # silently: doing so restores the large server thinking default.
-            payload["thinking_budget"] = thinking_budget
         if response_format is not None and not self._schema_rejected:
             payload["response_format"] = response_format
 

@@ -20,7 +20,7 @@ class Reply:
             raise RuntimeError(self.text)
 
 
-def test_thinking_cap_and_explicit_tier_survive_host_default(monkeypatch):
+def test_chat_completions_refuses_unenforceable_thinking_budget(monkeypatch):
     import httpx
     requests=[]
     class Transport:
@@ -35,17 +35,18 @@ def test_thinking_cap_and_explicit_tier_survive_host_default(monkeypatch):
     monkeypatch.setattr(httpx,"Client",Transport)
     client=OpenAIChatTextClient(base_url="http://localhost:8001/v1",model="chat")
     for effort,budget in [("low",128),("xhigh",512)]:
-        out=client.complete(messages=[{"role":"user","content":"review"}],
-                max_tokens=1280,response_format={"type":"json_object"},
-                reasoning_effort=effort,thinking_budget=budget,
-                strict_reasoning_effort=True)
-        assert out["_client_request_diagnostics"]["thinking_budget_sent"]==budget
-        assert out["_client_request_diagnostics"]["reasoning_effort_sent"]==effort
-    assert len(requests)==2
-    assert [r["reasoning_effort"] for r in requests]==["low","xhigh"]
-    assert [r["thinking_budget"] for r in requests]==[128,512]
-    with pytest.raises(ValueError,match="final-answer"):
-        client.complete(messages=[],max_tokens=512,thinking_budget=500)
+        with pytest.raises(ValueError,match="cannot enforce thinking_budget"):
+            client.complete(messages=[{"role":"user","content":"review"}],
+                    max_tokens=1280,response_format={"type":"json_object"},
+                    reasoning_effort=effort,thinking_budget=budget,
+                    strict_reasoning_effort=True)
+    assert requests==[]
+    # The earlier unbounded field is no longer advertised as a real cap.
+    out=client.complete(messages=[{"role":"user","content":"review"}],
+            max_tokens=1280,response_format={"type":"json_object"},
+            reasoning_effort="low",strict_reasoning_effort=True)
+    assert out["_client_request_diagnostics"]["thinking_budget_sent"] is None
+    assert requests[0]["reasoning_effort"]=="low"
 
 
 def test_rejected_effort_does_not_latch_all_efforts_or_strip_strict_profile(monkeypatch):
@@ -65,10 +66,10 @@ def test_rejected_effort_does_not_latch_all_efforts_or_strip_strict_profile(monk
     with pytest.raises(RuntimeError,match="invalid prompt"):
         client.complete(messages=[{"role":"user","content":"hi"}],
           reasoning_effort="high",response_format={"type":"json_object"},
-          thinking_budget=128,max_tokens=512,strict_reasoning_effort=True)
+          max_tokens=512,strict_reasoning_effort=True)
     assert len(requests)==1
     client.complete(messages=[{"role":"user","content":"hi"}],reasoning_effort="low",
-         thinking_budget=128,max_tokens=512,strict_reasoning_effort=True)
+         max_tokens=512,strict_reasoning_effort=True)
     assert requests[-1]["reasoning_effort"]=="low"
     # Legacy tolerant clients retry only the rejected effort, not all future tiers.
     out=client.complete(messages=[],reasoning_effort="high",max_tokens=512)
