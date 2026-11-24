@@ -207,3 +207,50 @@ def test_execution_config_is_bound_to_candidate_policy_hash():
     with pytest.raises(ValueError,match="pinned candidate plan"):
         run_configured_tiered_text_reviews(req,client=Fake(),
             policy={**cfg,"policy_id":"another-version"})
+
+
+def test_narrow_legacy_reasoned_completion_uses_safe_default_thinking_cap():
+    from nvidia_transcribe.semantic_review import run_tiered_text_reviews
+    import json
+    right=[w(txt,355+i*.25,i,1) for i,txt in enumerate(["Meaning","must","remain","clear"])]
+    request=plan_boundary_semantic_reviews([[],right],chunks(),policy=P,
+        activity_by_chunk={0:[{"start_s":355,"end_s":356,
+                               "possible_unrepresented_speech":True}]})
+    class Probe:
+        def __init__(self): self.kwargs=None
+        def complete(self,**kwargs):
+            self.kwargs=kwargs
+            return {"choices":[{"finish_reason":"stop","message":{"content":json.dumps({
+                "schema":"nemovox-semantic-review-decision/v1",
+                "request_sha256":request["request_sha256"],
+                "case_id":request["cases"][0]["case_id"],
+                "decision":"unresolved","rationale":"Need the real audio",
+                "supporting_evidence":[],"contrary_evidence":[],
+                "unresolved":["original_audio"]})}}]}
+    stub=Probe()
+    batch=run_tiered_text_reviews(request,client=stub,token_budget=512,
+            light_tokens=512,reasoned_tokens=512)
+    assert batch["outcomes"][0]["status"]=="advisory_only"
+    assert stub.kwargs["thinking_budget"]==384
+    assert stub.kwargs["max_tokens"]==512
+    with pytest.raises(ValueError,match="reserve at least"):
+        run_tiered_text_reviews(request,client=stub,token_budget=512,
+            light_tokens=512,reasoned_tokens=512,reasoned_thinking_budget=512)
+
+
+def test_completion_limit_blocks_even_valid_structured_but_unfinished_review():
+    from nvidia_transcribe.semantic_review import run_tiered_text_reviews
+    import json
+    right=[w(txt,80+i*.20,i,1) for i,txt in enumerate(["This","may","be","incomplete"])]
+    q=plan_boundary_semantic_reviews([[],right],chunks(90),policy=P)
+    class Truncated:
+        def complete(self,**kwargs):
+            return {"choices":[{"finish_reason":"length","message":{"content":json.dumps({
+                "schema":"nemovox-semantic-review-decision/v1",
+                "request_sha256":q["request_sha256"],"case_id":q["cases"][0]["case_id"],
+                "decision":"unresolved","rationale":"Need audio","supporting_evidence":[],
+                "contrary_evidence":[],"unresolved":["audio"]})}}]}
+    outcome=run_tiered_text_reviews(q,client=Truncated(),token_budget=512,
+        light_tokens=512,reasoned_tokens=512)["outcomes"][0]
+    assert outcome["status"]=="unaccepted_model_response"
+    assert "output limit" in outcome["error"]
