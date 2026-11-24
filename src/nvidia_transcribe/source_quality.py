@@ -605,7 +605,7 @@ def select_source_events(recording, events, policy):
 
 
 def review_current_source(recording, *, recording_path, media_path, output_dir,
-                          text_scope, asr_scope, policy=None):
+                          text_scope, asr_scope, policy=None, challenger_resource=None):
     """Review one current job, with explicitly sequential managed model scopes."""
     policy = policy or SourceQualityPolicy()
     ledger = load_current_ledger(recording, recording_path)
@@ -704,12 +704,22 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
     timed_recording, timing_decisions = _recover_untimed(recording, observations, policy)
     rows, decisions = select_source_events(timed_recording, events, policy)
     decisions = timing_decisions + decisions
+    # Independent source recovery runs only after the strict selector, with
+    # Nemotron released. A missing resource is explicit, never a download.
+    from nvidia_transcribe.source_recovery import recover_independent_source
+    rows, recovery = recover_independent_source(
+        {**recording, "utterances": rows}, observations, observed_media,
+        challenger_resource=challenger_resource, text_scope=text_scope,
+        output_dir=output_dir,
+    )
+    decisions.extend(recovery["decisions"])
     reviewed_case_ids = {o["case_id"] for o in (advisory or {}).get("outcomes", [])}
     deferred_case_ids = [c["case_id"] for c in request["cases"]
                          if c["case_id"] not in reviewed_case_ids]
     discovery_deferred = request.get("deferred_by_budget", 0)
     uncertain = (bool(unresolved or deferred or deferred_case_ids or discovery_deferred)
                  or any(d["status"].startswith("unresolved") for d in decisions)
+                 or bool(recovery["decisions"] or recovery["errors"])
                  or bool(advisory and (advisory.get("systemic_failure")
                           or any(o["status"] != "advisory_only" for o in advisory["outcomes"]))))
     report = {
@@ -725,7 +735,8 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
         "unresolved_windows": unresolved, "audio_requests": len(observations),
         "extra_acoustic_contexts": extra_contexts,
         "source_truth_human_verified": False,
-        "independent_model_agreement": False,
+        "independent_model_agreement": bool(recovery["decisions"]),
+        "independent_recovery": recovery,
         "source_word_timing_verified": False,
         "original_recording_modified": False,
     }

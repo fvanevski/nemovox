@@ -18,7 +18,7 @@ from nvidia_transcribe.refinement import GlossaryConfig, OpenAIChatTextClient
 
 VALID_REVIEW_PROFILES = ("off", "conservative", "balanced", "expressive")
 VALID_REVIEW_STYLES = ("natural", "literal", "expressive")
-_PROMPT_VERSION = "mt_postedit_v3_comparative_review"
+_PROMPT_VERSION = "mt_postedit_v4_source_evidence"
 _SCHEMA = {
     "type": "json_schema",
     "json_schema": {
@@ -85,6 +85,8 @@ def _entry(u: dict[str, Any], i: int) -> dict[str, Any]:
         # text that this stage is permitted to change.
         "source_text": str(u.get("source_text") or ""),
         "machine_translation": str(u.get("machine_translated_text") or ""),
+        "source_quality_status": u.get("source_quality_status"),
+        "source_caption_evidence": u.get("source_caption_evidence"),
     }
 
 
@@ -240,6 +242,9 @@ def review_translated_utterances(
                     + "misresolved references and context-dependent idioms. Preserve original meaning, names, "
                     + "numbers, speaker intent and narrative facts. Stylistic preferences alone do not justify edits. "
                     + "Interpret idioms using the SOURCE language and scene context, not just the literal English. "
+                    + "If a source-caption observation is supplied, respect its actual text; it corroborates "
+                    + "a source phrase, not speaker identity or precise speech timing. Preserve uncertain names "
+                    + "and do not expand noisy source wording into unsupported narrative details. "
                     + "Read the complete proposed cue aloud mentally: repair awkward grammar, broken question syntax "
                     + "and dangling clauses, but respect a real continuation across adjacent cues. "
                     + "Check that any rewrite is genuinely more faithful and at least as fluent as the primary MT. "

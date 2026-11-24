@@ -223,6 +223,8 @@ def main(argv: list[str] | None = None) -> int:
                     "subtitle_condensation", resource_name=args.condensation_resource, **text_overrides)
                 review_resource = registry.resolve(
                     "translation_review", resource_name=args.translation_review_resource, **text_overrides)
+                challenger_resource = (registry.resolve("source_challenger")
+                                       if "source_challenger" in registry.roles else None)
                 riva_resource = registry.resolve(
                     "riva_translation", require_local_paths=(
                         args.translator == "riva" and not args.re_render and not same_language))
@@ -436,6 +438,7 @@ def main(argv: list[str] | None = None) -> int:
                     "asr": asr_resource, "source_refinement": refinement_resource,
                     "text_translation": translation_resource, "riva_translation": riva_resource,
                     "translation_review": review_resource, "subtitle_condensation": condensation_resource,
+                    **({"source_challenger": challenger_resource} if challenger_resource else {}),
                 },
             )
         except (FileExistsError, FileNotFoundError, MediaInspectionError, ValueError, RuntimeError) as exc:

@@ -279,7 +279,8 @@ def generate_subtitles(
                     lifecycle_resources["translation_review"], wire_protocol="ninfer_messages"),
                 asr_scope=lambda: managed_asr_client(lifecycle,
                     lifecycle_resources["asr"], challenge_client),
-                policy=cfg.source_quality_policy)
+                policy=cfg.source_quality_policy,
+                challenger_resource=lifecycle_resources.get("source_challenger"))
             _atomic_write(out_dir / "source-quality.json", json.dumps(quality_report, ensure_ascii=False, indent=2))
             _atomic_write(out_dir / "canonical-source.contract.json", json.dumps(contract, ensure_ascii=False, indent=2))
             _event("source_quality", "complete", quality_report["status"])
