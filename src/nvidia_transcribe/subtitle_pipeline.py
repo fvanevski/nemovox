@@ -149,7 +149,7 @@ def generate_subtitles(
             raise ValueError("Current source quality cannot be combined with text-only source rewriting")
         if cfg.translation_review.profile != "off":
             cfg = replace(cfg, translation_review=replace(cfg.translation_review,
-                wire_protocol="ninfer_messages", thinking_budget=0, reasoning_effort="none"))
+                wire_protocol="ninfer_messages", thinking_budget=2048, reasoning_effort="xhigh"))
     if cfg.translation_review.profile != "off" and cfg.translation.backend != "riva":
         raise ValueError("Contextual English post-edit requires dedicated Riva primary translation")
     if (cfg.condense_high_cps and cfg.translation.backend == "riva"

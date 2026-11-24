@@ -489,3 +489,45 @@ def test_messages_incomplete_comparative_review_does_not_accept_candidate():
         text_client=Client(proposed, {"decisions": []}))
     assert out[0]["translated_text"] == rows[0]["translated_text"]
     assert report["status"] == "completed_with_errors"
+
+
+
+def test_messages_source_first_and_comparator_receive_coherent_cross_turn_passage():
+    class Client(FakeClient):
+        def complete(self, **kwargs):
+            response=super().complete(**kwargs)
+            response["choices"][0]["finish_reason"]="stop"
+            return response
+    rows=[{"id":"u0","source_text":"Il a fermé la","translated_text":"He closed it",
+           "source_start":1,"source_end":3,"speaker_id":"A"},
+          {"id":"u1","source_text":"porte avant de partir.","translated_text":"Door before leaving.",
+           "source_start":3,"source_end":5,"speaker_id":"A"}]
+    proposed={"reviews":[{"utterance_id":"u0","corrected_text":"He closed the","reason":"Object follows"},
+                         {"utterance_id":"u1","corrected_text":"door before leaving.","reason":"Continuation"}]}
+    decision={"decisions":[{"utterance_id":uid,"choice":"proposal","reason":"Coherent complete passage"}
+                            for uid in ("u0","u1")]}
+    client=Client(proposed,decision)
+    out,report=review_translated_utterances(rows,source_language="fr",
+        config=_cfg(wire_protocol="ninfer_messages",thinking_budget=2048,reasoning_effort="xhigh"),
+        text_client=client)
+    first=json.loads(client.calls[0]["messages"][1]["content"])
+    assert all("machine_translation" not in x for x in first["target_utterances"])
+    assert "He closed it" not in client.calls[0]["messages"][1]["content"]
+    assert client.calls[0]["thinking_budget"]==2048
+    assert "changed" not in client.calls[0]["response_format"]["schema"]["properties"]["reviews"]["items"]["required"]
+    compare=json.loads(client.calls[1]["messages"][1]["content"])
+    assert [x["utterance_id"] for x in compare["complete_target_passage"]]==["u0","u1"]
+    assert [x["translated_text"] for x in out]==["He closed the","door before leaving."]
+    assert [x["machine_translated_text"] for x in out]==[x["translated_text"] for x in rows]
+    assert report["changed"]==2
+
+
+def test_restrictive_construction_is_not_negative_action():
+    from nvidia_transcribe.translation_review import _unsupported_polarity_inversion
+    assert not _unsupported_polarity_inversion("Ils ont menti. Il n'a que deux amis.",
+                                               "They don't care. He has only two friends.",
+                                               "They lied. He has only two friends.","fr")
+    assert _unsupported_polarity_inversion("Il n'a pas de bateau.","He has no boat.","He has a boat.","fr")
+    assert _unsupported_polarity_inversion("Il n'a que deux amis. Il ne vient jamais.",
+                                           "He has two friends. He never comes.",
+                                           "He has two friends. He comes.","fr")

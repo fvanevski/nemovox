@@ -76,3 +76,47 @@ def test_noisy_interior_segment_does_not_invalidate_enclosing_timed_event():
     assert len(decisions)==1
     assert rows[1]["source_text"]=="从山城出发穿过顾老深林最后回到家乡"
     assert rows[1]["source_quality_status"].startswith("unresolved")
+
+
+
+def test_crop_edge_is_only_corroboration_when_interior_sequence_agrees():
+    r=rec([row("before","Hello",1,2),row("after","Goodbye",15,16)],"en")
+    text="I told you not to speak"
+    nem=[{"audio_sha256":str(i),"chunks":[0],
+          "utterances":[row("n"+str(i),text,5,9)]} for i in range(2)]
+    targets=plan_recovery(r,nem)
+    pair=[obs("challenge-0-0",5,11,[row("a",text,5,8.9)]),
+          obs("challenge-0-1",0,14,[row("b",text,5.1,8.8)])]
+    rows,decisions=apply_independent(r,targets,nem,pair)
+    assert len(decisions)==1 and rows[1]["source_start"]==5.1
+    assert decisions[0]["edge_observation_used_as_corroboration"]
+    assert rows[1]["timestamp_provenance"]["timing_source_audio_sha256"]=="challenge-0-1"
+    # Reversing edge/interior positions still selects the interior timing.
+    swapped=[{**pair[1],"id":"challenge-0-0"},{**pair[0],"id":"challenge-0-1"}]
+    rows,decisions=apply_independent(r,targets,nem,swapped)
+    assert len(decisions)==1 and rows[1]["source_start"]==5.1
+    both_edge=[pair[0],{**pair[1],"crop":[5.1,14]}]
+    assert apply_independent(r,targets,nem,both_edge)==(r["utterances"],[])
+    conflict=[pair[0],{**pair[1],"rows":[row("b","I told you not to leave",5.1,8.8)]}]
+    assert apply_independent(r,targets,nem,conflict)==(r["utterances"],[])
+
+
+def test_low_information_residual_does_not_block_supported_run():
+    original=[row("left","你好",1,2),
+              row("a","从古城出发然后回到家乡",None,None,1),
+              row("b","最后成功完成任务",None,None,1),
+              row("fragment","最",None,None,1),
+              row("right","再见",20,21)]
+    r=rec(original,"zh")
+    segs=[row("p","从古城出发然后回到家乡",4,9),
+          row("q","最后成功完成任务",10,15)]
+    pair=[obs("challenge-0-0",0,22,segs),
+          obs("challenge-0-1",0,24,[{**x,"observation_id":"other-"+x["id"]} for x in segs])]
+    rows,decisions=apply_independent(r,plan_recovery(r,[]),[],pair)
+    assert len(decisions)==1
+    assert decisions[0]["residual_untimed_source_ids"]==["fragment"]
+    assert [x["source_start"] for x in rows]==[1,4,10,None,20]
+    assert rows[3]=={**original[3],"source_quality_status":"unresolved_fragment_timing"}
+    assert original[1]["source_start"] is None
+    original[3]["source_text"]="一段完全不同的实质话语"
+    assert apply_independent(r,plan_recovery(r,[]),[],pair)==(original,[])

@@ -93,3 +93,20 @@ def test_current_hypothesis_corroboration_is_visible_without_counting_votes():
     current=next(x for x in candidates if x["id"]=="current")
     assert {x["backend"] for x in current["support"]}=={"nemotron","independent_asr"}
     assert len(candidates)==2
+
+
+
+def test_partial_caption_edit_preserves_uncertain_remainder_and_prior():
+    original=row("t","I will find the old gate. Unknown tail.",100,104)
+    item=dict(original)
+    visual=[{"id":"frame","caption":"I will find the hidden gate."}]
+    assessment={"decision":{"action":"caption","candidate_id":"frame",
+                             "replace_span":"I will find the old gate.",
+                             "materially_resolved":True}}
+    assert apply_decision(item,assessment,[],visual)
+    assert item["source_text"]=="I will find the hidden gate. Unknown tail."
+    assert item["source_semantic_resolution"]=="partial"
+    assert item["source_quality_status"]=="partially_supported_caption_hypothesis"
+    assert item["prior_scene_source_hypothesis"]==original
+    assert item["source_caption_evidence"][0]["replaced_span"]=="I will find the old gate."
+    assert (item["source_start"],item["source_end"])==(100,104)

@@ -186,7 +186,7 @@ def test_shared_pipeline_translates_canonical_source_not_prior_asr(tmp_path, mon
     def english_review(rows, **kw):
         order.append("review")
         assert kw["config"].wire_protocol == "ninfer_messages"
-        assert kw["config"].thinking_budget == 0
+        assert kw["config"].thinking_budget == 2048
         assert rows[0]["translated_text"] == "I don't know."
         return [{**rows[0], "machine_translated_text": rows[0]["translated_text"]}], {"status": "complete"}
 

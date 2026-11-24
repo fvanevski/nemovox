@@ -72,14 +72,20 @@ def plan_recovery(recording, observations):
     return (targets+candidates)[:MAX_TARGETS]
 
 
-def _observed_rows(observation, bounds):
+def _interior(row, observation):
+    lo,hi=observation["crop"]
+    a,b=_bounds(row)
+    return a>lo+.10 and b<hi-.10
+
+
+def _observed_rows(observation, bounds, *, allow_edge=False):
     a,b = bounds
     lo,hi = observation["crop"]
     rows = []
     for row in observation["rows"]:
         r = _bounds(row)
-        if (r and a <= r[0] < r[1] <= b and r[0] > lo+.10
-                and r[1] < hi-.10 and _lex(row["source_text"])):
+        if (r and a <= r[0] < r[1] <= b and lo <= r[0] < r[1] <= hi
+                and (allow_edge or _interior(row,observation)) and _lex(row["source_text"])):
             rows.append(row)
     if any(x["source_end"] > y["source_start"]+.05 for x,y in zip(rows,rows[1:])):
         return []
@@ -166,6 +172,27 @@ def _associate_originals(original, candidate, language):
     return [g for _,g in grouped]
 
 
+def _associate_recoverable_run(original,candidate,language):
+    """Recover a supported contiguous run while retaining low-information edges.
+
+    Never drop weak rows, guess their times, or peel substantive conflicting
+    rows to force a match. Interior ambiguous rows still need adjudication.
+    """
+    groups=_associate_originals(original,candidate,language)
+    if groups:
+        return groups,0,len(original)
+    minimum=4 if language.startswith(("zh","ja")) else 3
+    lo,hi=0,len(original)
+    while lo<hi and len(_lex(original[lo]["source_text"]))<minimum:
+        lo+=1
+    while hi>lo and len(_lex(original[hi-1]["source_text"]))<minimum:
+        hi-=1
+    if lo==hi or (lo==0 and hi==len(original)):
+        return None
+    groups=_associate_originals(original[lo:hi],candidate,language)
+    return (groups,lo,hi) if groups else None
+
+
 def _make_row(recording, group, origins, pair, evidence, chunks):
     a,b = group[0]["source_start"],group[-1]["source_end"]
     uid = "src-"+_digest([recording["source"]["fingerprint_sha256"],
@@ -185,6 +212,7 @@ def _make_row(recording, group, origins, pair, evidence, chunks):
                "timing_status":"approximate","human_verified":False,"word_timing_verified":False,
                "audio_sha256":[p["audio_sha256"] for p in pair],
                "observation_ids":[r["observation_id"] for r in group],
+               "timing_source_audio_sha256":pair[-1]["audio_sha256"],
                "nemotron_support":evidence}}
 
 
@@ -205,9 +233,24 @@ def apply_independent(recording, targets, observations, independent):
             right = min([r["source_start"] for r in rows if _bounds(r) and r["source_start"]>=b]
                         +[recording["source"]["duration_s"]])
             bracket = (max(left,a-1.),min(right,b+1.))
-        first,second = [_observed_rows(o,bracket) for o in pair]
+        # A boundary segment is a possibly truncated observation, not a
+        # reliable timing authority. Retain its corroborative value only
+        # when the complete lexical sequence agrees with an interior
+        # observation from a separately extracted crop. Never use two
+        # edge-only observations to supply event timing.
+        first,second = [_observed_rows(o,bracket,allow_edge=True) for o in pair]
         if not first or not second:
             continue
+        interior=[all(_interior(r,o) for r in seq)
+                  for o,seq in zip(pair,(first,second))]
+        edge_support=not all(interior)
+        if not any(interior):
+            continue
+        if edge_support and _sequence(first)!=_sequence(second):
+            continue
+        if not interior[1]:
+            pair.reverse()
+            first,second=second,first
         x,y = _sequence(first),_sequence(second)
         if (not x or not y or SequenceMatcher(None,x,y,autojunk=False).ratio()<.78
                 or abs(first[0]["source_start"]-second[0]["source_start"])>1.25
@@ -224,6 +267,7 @@ def apply_independent(recording, targets, observations, independent):
                 if rb and _overlap(rb,span)>.50*min(rb[1]-rb[0],span[1]-span[0]) and _anchor(y,_lex(r["source_text"]),lang):
                     support.append({"observation_id":r["observation_id"],"audio_sha256":obs["audio_sha256"]})
                     chunks.update(obs.get("chunks",[]))
+        residual_ids=[]
         if t["kind"]=="untimed":
             ids=t["ids"]
             positions=[i for i,r in enumerate(rows) if r["id"] in ids]
@@ -235,12 +279,21 @@ def apply_independent(recording, targets, observations, independent):
             voices={r.get("speaker_id") for r in originals}
             if len(voices)>1:
                 continue
-            groups=_associate_originals(originals,second,lang)
-            if not groups:
+            association=_associate_recoverable_run(originals,second,lang)
+            if not association:
                 continue
-            chunks.update(c for r in originals for c in r.get("chunk_indices",[]))
-            replacement=[_make_row(recording,g,originals,pair,support,chunks) for g in groups]
-            rows[positions[0]:positions[-1]+1]=replacement
+            groups,lo,hi=association
+            resolved=originals[lo:hi]
+            residual=[*originals[:lo],*originals[hi:]]
+            chunks.update(c for r in resolved for c in r.get("chunk_indices",[]))
+            replacement=[_make_row(recording,g,resolved,pair,support,chunks) for g in groups]
+            # Preserve unresolved original fragments in their original
+            # relative order, with no fabricated duration or deletion.
+            rows[positions[0]:positions[-1]+1]=[
+                *[{**r,"source_quality_status":"unresolved_fragment_timing"} for r in originals[:lo]],
+                *replacement,
+                *[{**r,"source_quality_status":"unresolved_fragment_timing"} for r in originals[hi:]]]
+            residual_ids=[r["id"] for r in residual]
         else:
             # A competing timed or untimed lexical occurrence can be a
             # displaced duplicate. Do not insert in that situation.
@@ -256,7 +309,10 @@ def apply_independent(recording, targets, observations, independent):
             rows[pos:pos]=replacement
         decisions.append({"status":"unresolved_wording_independent_recovery","kind":t["kind"],
                           "target":t,"window":span,"source_ids":[r["id"] for r in replacement],
-                          "observation_ids":[r["observation_id"] for r in second]})
+                          "observation_ids":[r["observation_id"] for r in second],
+                          "edge_observation_used_as_corroboration":edge_support,
+                          "timing_source_audio_sha256":pair[-1]["audio_sha256"],
+                          "residual_untimed_source_ids":residual_ids})
     return rows,decisions
 
 

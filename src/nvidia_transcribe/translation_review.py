@@ -18,7 +18,7 @@ from nvidia_transcribe.refinement import GlossaryConfig, OpenAIChatTextClient
 
 VALID_REVIEW_PROFILES = ("off", "conservative", "balanced", "expressive")
 VALID_REVIEW_STYLES = ("natural", "literal", "expressive")
-_PROMPT_VERSION = "mt_postedit_v4_source_evidence"
+_PROMPT_VERSION = "mt_postedit_v5_source_first_discourse"
 _SCHEMA = {
     "type": "json_schema",
     "json_schema": {
@@ -87,6 +87,7 @@ def _entry(u: dict[str, Any], i: int) -> dict[str, Any]:
         "machine_translation": str(u.get("machine_translated_text") or ""),
         "source_quality_status": u.get("source_quality_status"),
         "source_caption_evidence": u.get("source_caption_evidence"),
+        "source_semantic_resolution": u.get("source_semantic_resolution"),
     }
 
 
@@ -107,6 +108,11 @@ def _unsupported_polarity_inversion(
     (e.g. 'not ... or' -> 'neither ... nor') remain allowed, as do
     corrections with no jointly corroborated negative evidence.
     """
+    # Restrictive ne ... que expresses "only", not semantic negation.
+    # Remove only the restrictive marker, leaving explicit negative words
+    # (including in the same clause) available to the existing guard.
+    source = re.sub(r"(?i)(?:\bne\s+|(?<!\w)n['’])(?=(?:\w+\s+){1,5}que\b)",
+                    "",source)
     return bool(
         language and language.lower().startswith("fr")
         and _FRENCH_NEGATIVE.search(source)
@@ -262,6 +268,31 @@ def review_translated_utterances(
                     from copy import deepcopy
                     direct_schema = deepcopy(_SCHEMA["json_schema"]["schema"])
                     direct_schema["properties"]["reviews"]["items"]["properties"]["utterance_id"]["enum"] = ids
+                    # Obtain a source-first candidate without showing the
+                    # primary English. Changed status is computed locally.
+                    item_schema=direct_schema["properties"]["reviews"]["items"]
+                    del item_schema["properties"]["changed"]
+                    item_schema["required"].remove("changed")
+                    def source_only(seq):
+                        return [{k:v for k,v in row.items() if k!="machine_translation"} for row in seq]
+                    source_payload={**payload,"context_before":source_only(before),
+                                    "target_utterances":source_only(targets),
+                                    "context_after":source_only(after)}
+                    messages=[
+                        {"role":"system","content":(
+                            f"Interpret and translate {source_language or 'source'} dialogue into {cfg.target_language}. "
+                            + _PROFILE[cfg.profile] + " " + _STYLE[cfg.style]
+                            + " First establish the intended meaning of each complete clause and adjacent exchange. "
+                            "Resolve idioms by their construction and discourse, not surface word substitution. "
+                            "Track who did what to whom, negation versus restriction, tense, modality and referents. "
+                            "Read adjacent source rows as a continuous passage: a sentence or object can span rows. "
+                            "Translate the complete passage coherently, then allocate English to the corresponding "
+                            "target IDs in chronological order. Do not move dialogue between distinct speakers, "
+                            "duplicate continuations, invent missing objects, or treat uncertain source as established. "
+                            "Source-caption evidence may support a span but not an uncertain remainder. "
+                            "Return one nonempty candidate and a concise source-grounded meaning explanation per target ID. "
+                            "Neighboring rows are read-only context. Return corrected_text and reason, not a changed flag.")},
+                        {"role":"user","content":json.dumps(source_payload,ensure_ascii=False)}]
                     direct_schema["properties"]["reviews"]["minItems"] = len(ids)
                     direct_schema["properties"]["reviews"]["maxItems"] = len(ids)
                     wire = {"response_format": {"type": "json_schema", "schema": direct_schema},
@@ -292,6 +323,12 @@ def review_translated_utterances(
                     uid = item["utterance_id"]
                     if uid not in ids or uid in entries:
                         raise ValueError("Unexpected or duplicate utterance ID")
+                    if cfg.wire_protocol=="ninfer_messages":
+                        candidate=item.get("corrected_text")
+                        if not isinstance(candidate,str) or not candidate.strip() or not isinstance(item.get("reason"),str):
+                            raise ValueError("Invalid source-first translation candidate")
+                        original=next(t["machine_translation"] for t in targets if t["utterance_id"]==uid)
+                        item={**item,"changed":candidate.strip()!=original.strip()}
                     entries[uid] = item
                 if set(entries) != set(ids):
                     raise ValueError("Incomplete review IDs")
@@ -306,8 +343,7 @@ def review_translated_utterances(
                         comparisons = [{"utterance_id": uid,
                                         "source_and_original": next(t for t in targets
                                                                     if t["utterance_id"] == uid),
-                                        "proposed_translation": entries[uid].get("corrected_text"),
-                                        "proposal_reason": entries[uid].get("reason")}
+                                        "proposed_translation": entries[uid].get("corrected_text")}
                                        for uid in changed_ids]
                         schema = {"type": "object", "properties": {
                             "decisions": {"type": "array", "minItems": len(changed_ids),
@@ -324,7 +360,11 @@ def review_translated_utterances(
                         verdict = client.complete(messages=[
                             {"role": "system", "content":
                              "Adjudicate competing English subtitle translations using the source dialogue "
-                             "and surrounding context. Select the proposal only if it corrects a real "
+                             "and surrounding context. First read the complete source passage and both full English "
+                             "sequences. Check each clause's intended action, participants, idiom, polarity, "
+                             "tense and referents. A split sentence must preserve its meaning across adjacent cues; "
+                             "evaluate dependent edits together, avoiding orphaned objects, invented pronouns and "
+                             "duplicated meaning. Do not mistake restriction for negation. Select the proposal only if it corrects a real "
                              "meaning or fluency problem without introducing any new mistranslation, "
                              "ungrammatical question, changed polarity, unsupported detail or worse "
                              "readability anywhere in the cue. Check idioms against the source context. "
@@ -332,7 +372,9 @@ def review_translated_utterances(
                              "Do not invent a third translation. Return one decision per supplied ID."},
                             {"role": "user", "content": json.dumps({
                                 "source_language": source_language, "context_before": before,
-                                "comparisons": comparisons, "context_after": after}, ensure_ascii=False)}
+                                "comparisons": comparisons, "context_after": after,
+                                "complete_target_passage":[{**t,"proposed_translation":entries[t["utterance_id"]]["corrected_text"]}
+                                                           for t in targets]}, ensure_ascii=False)}
                         ], max_tokens=cfg.max_tokens, temperature=0.0,
                             response_format={"type": "json_schema", "schema": schema},
                             thinking_budget=1024, reasoning_effort="xhigh", strict_reasoning_effort=True)

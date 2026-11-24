@@ -233,6 +233,8 @@ def apply_decision(row,assessment,alternatives,visual):
         return False
     new=None
     status=None
+    caption_evidence=None
+    partial=False
     if d["action"]=="acoustic":
         candidate=next((a for a in alternatives if a["id"]==d["candidate_id"]),None)
         if candidate:
@@ -243,13 +245,21 @@ def apply_decision(row,assessment,alternatives,visual):
         if f:
             new=caption_patch(row["source_text"],d["replace_span"],f["caption"],alternatives)
             if new:
-                row.setdefault("source_caption_evidence",[]).append(f)
-                status="context_supported_caption_hypothesis"
+                caption_evidence=f
+                # A local patch establishes only that span's wording.
+                # A model's "resolved" flag cannot certify the remainder.
+                partial=d["replace_span"]!=row["source_text"]
+                status=("partially_supported_caption_hypothesis" if partial
+                        else "context_supported_caption_hypothesis")
     if not new or new==row["source_text"]:
         return False
     # Preserve the exact previous row and timing lineage. New wording has
     # no verified per-word timing, but the supported event interval survives.
     row.setdefault("prior_scene_source_hypothesis",dict(row))
+    if caption_evidence is not None:
+        row["source_caption_evidence"]=[*(row.get("source_caption_evidence") or []),
+                                         {**caption_evidence,"replaced_span":d["replace_span"]}]
+    row["source_semantic_resolution"]="partial" if partial else "model_supported_hypothesis"
     row["source_text"]=new
     row["source_quality_status"]=status
     row["source_words"]=[]
@@ -376,8 +386,10 @@ def adjudicate_scene(recording,observations,independent,media,text_scope,output_
                                  radius=policy.maximum_context_s)
                     case["assessments"].append(fused)
                     case["applied"]=apply_decision(row,fused,alternatives,visual)
-                    case["outcome"]="supported" if (case["applied"] or
-                        (fused["decision"]["action"]=="retain" and fused["decision"]["materially_resolved"])) else "unresolved"
+                    case["outcome"]=("partial" if case["applied"] and
+                        row.get("source_semantic_resolution")=="partial" else
+                        "supported" if (case["applied"] or
+                        (fused["decision"]["action"]=="retain" and fused["decision"]["materially_resolved"])) else "unresolved")
                 else:
                     case["outcome"]="unresolved"
             except ResourceLifecycleError:
