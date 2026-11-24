@@ -170,6 +170,18 @@ def build_parser() -> argparse.ArgumentParser:
     review.add_argument("--formats", default="srt,ass")
     review.add_argument("--apply", action="store_true",
                         help="Create the private revised recording, translated contract and SRT/ASS. Default is read-only preview.")
+
+    qc = sub.add_parser(
+        "prepare-semantic-review-queue",
+        help="Bind a validated meaning-first QC batch to original raw audio-review evidence; never apply corrections.",
+    )
+    qc.add_argument("--request", required=True, help="Immutable semantic-review candidate request JSON.")
+    qc.add_argument("--batch", required=True, help="Validated structured LLM review batch JSON.")
+    qc.add_argument("--policy", required=True, help="Exact meaning-first policy used to produce the request.")
+    qc.add_argument("--original-recording", required=True)
+    qc.add_argument("--source-evidence", required=True)
+    qc.add_argument("--output-json", required=True, help="New private file; must not exist.")
+    qc.add_argument("--audio-padding-s", type=float, default=4.0)
     return p
 
 
@@ -198,6 +210,23 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"status": "FAIL", "error": str(exc)}, indent=2), file=sys.stderr)
             return 2
         print(json.dumps(summary.to_dict(), indent=2))
+        return 0
+
+    if args.command == "prepare-semantic-review-queue":
+        # Explicit offline opt-in. Never start a model, change the active job,
+        # interpret an LLM advisory as audio truth or overwrite prior evidence.
+        from nvidia_transcribe.semantic_review_followups import write_meaning_first_review_queue
+        try:
+            report = write_meaning_first_review_queue(
+                request_path=args.request, batch_path=args.batch,
+                policy_path=args.policy, recording_path=args.original_recording,
+                source_evidence_path=args.source_evidence,
+                output_path=args.output_json, audio_padding_s=args.audio_padding_s,
+            )
+        except (OSError, ValueError, TypeError, KeyError) as exc:
+            print(json.dumps({"status": "ERROR", "error": str(exc)}), file=sys.stderr)
+            return 1
+        print(json.dumps(report, ensure_ascii=False, indent=2))
         return 0
 
     if args.command == "apply-reviewed-revision":

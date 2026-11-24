@@ -231,3 +231,46 @@ def build_meaning_first_review_queue(
     }
     output["queue_sha256"] = _digest(output)
     return output
+
+
+
+def write_meaning_first_review_queue(
+    *, request_path: str, batch_path: str, policy_path: str,
+    recording_path: str, source_evidence_path: str, output_path: str,
+    audio_padding_s: float = 4.0,
+) -> dict[str, Any]:
+    """Materialize one NEW private review file, without models or source edits."""
+    import os
+    from pathlib import Path
+
+    def read(path: str) -> Any:
+        with Path(path).open("r", encoding="utf-8") as stream:
+            return json.load(stream)
+
+    result = build_meaning_first_review_queue(
+        read(request_path), read(batch_path), read(policy_path),
+        read(recording_path), read(source_evidence_path),
+        audio_padding_s=audio_padding_s,
+    )
+    dest = Path(output_path)
+    if not dest.parent.is_dir():
+        raise FileNotFoundError("Existing private output parent directory required")
+    encoded = (json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False) + "\n").encode("utf-8")
+    # O_EXCL prevents overwriting old evidence; restrictive permissions avoid
+    # exposing bounded copyrighted source words on shared development hosts.
+    fd = os.open(dest, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(encoded)
+    except BaseException:
+        dest.unlink(missing_ok=True)
+        raise
+    return {
+        "status": "private_review_queue_created",
+        "path": str(dest),
+        "file_sha256": hashlib.sha256(encoded).hexdigest(),
+        "queue_sha256": result["queue_sha256"],
+        "items": len(result["items"]),
+        "advisories": result["advisories"],
+        "source_or_subtitles_modified": False,
+    }
