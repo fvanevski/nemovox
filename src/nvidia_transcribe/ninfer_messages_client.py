@@ -40,8 +40,12 @@ class NInferMessagesTextClient:
             raise ValueError("NInfer Messages requires an explicit thinking budget")
         if not isinstance(thinking_budget, int) or isinstance(thinking_budget, bool):
             raise ValueError("Thinking budget must be an integer")
-        if response_format is not None and response_format != {"type": "json_object"}:
-            raise ValueError("Only prompt-validated JSON-object responses are supported")
+        if response_format is not None:
+            if (not isinstance(response_format, dict)
+                    or response_format.get("type") != "json_schema"
+                    or not isinstance(response_format.get("schema"), dict)
+                    or set(response_format) != {"type", "schema"}):
+                raise ValueError("NInfer Messages requires an explicit JSON Schema for constrained output")
         if not isinstance(messages, list) or not messages:
             raise ValueError("Messages must be a nonempty list")
         for message in messages:
@@ -81,6 +85,13 @@ class NInferMessagesTextClient:
             sent_effort = effort
         else:
             raise ValueError("NInfer Messages enabled thinking needs >=1024 tokens and >=256 answer tokens")
+        if response_format is not None:
+            # Pinned NInfer /v1/messages parses Anthropic output_config.format
+            # as type=json_schema with a direct schema object. Never silently
+            # downgrade this to unconstrained JSON or prose.
+            body.setdefault("output_config", {})["format"] = {
+                "type": "json_schema", "schema": response_format["schema"],
+            }
 
         headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
         with httpx.Client(headers=headers, timeout=self.timeout_s) as client:
@@ -140,7 +151,7 @@ class NInferMessagesTextClient:
                 "reasoning_effort_fallback": False,
                 "thinking_budget_sent": thinking_budget,
                 "thinking_mode": body["thinking"]["type"],
-                "response_format_sent": False,
+                "response_format_sent": response_format is not None,
                 "json_validation_required": response_format is not None,
                 "strict_reasoning_effort": strict_reasoning_effort,
             },

@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 import unicodedata
 from typing import Any, Mapping, Sequence
 from difflib import SequenceMatcher
@@ -17,6 +18,53 @@ POLICY_SCHEMA = "nemovox-semantic-review-policy/v1"
 REVIEW_SCHEMA = "nemovox-semantic-review-decision/v1"
 RESULT_SCHEMA = "nemovox-boundary-semantic-review-candidates/v1"
 _SAFE_DECISIONS = {"adopt_neighbor_context", "retain_core", "possible_duplicate", "unresolved"}
+# Citation arrays are machine-readable field references, NEVER free-form quotes.
+# The explanatory prose belongs exclusively in rationale.
+_EVIDENCE_FIELDS = (
+    "right_context_words",
+    "left_core_overlap_words",
+    "left_lexical_correspondence",
+    "unrepresented_activity_intervals",
+    "independent_audio_review",
+    "independent_visual_review",
+)
+
+
+def semantic_review_json_schema(request: Mapping[str, Any], case: Mapping[str, Any]) -> dict[str, Any]:
+    """JSON Schema pinned to the exact review case and request identity."""
+    if case.get("case_id") not in {c["case_id"] for c in request.get("cases", [])}:
+        raise ValueError("Unknown semantic review candidate")
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "schema": {"type": "string", "enum": [REVIEW_SCHEMA]},
+            "request_sha256": {"type": "string", "enum": [request["request_sha256"]]},
+            "case_id": {"type": "string", "enum": [case["case_id"]]},
+            "decision": {"type": "string", "enum": sorted(_SAFE_DECISIONS)},
+            "rationale": {"type": "string"},
+            "supporting_evidence": {"type": "array", "items": {
+                "type": "string", "enum": list(_EVIDENCE_FIELDS)}},
+            "contrary_evidence": {"type": "array", "items": {
+                "type": "string", "enum": list(_EVIDENCE_FIELDS)}},
+            "unresolved": {"type": "array", "items": {"type": "string"}},
+            "independent_acoustic_support": {"type": "boolean"},
+            "independent_audio_review_sha256": {"type": "string"},
+        },
+        "required": [
+            "schema", "request_sha256", "case_id", "decision", "rationale",
+            "supporting_evidence", "contrary_evidence", "unresolved",
+        ],
+    }
+
+
+def _decode_semantic_review_json(raw: str) -> Any:
+    """Accept plain JSON or ONE exact enclosing markdown JSON fence, no prose."""
+    candidate = raw.strip()
+    fence = re.fullmatch(r"```(?:json)?[ \t]*\n(.*?)\n```", candidate, re.DOTALL | re.IGNORECASE)
+    if fence:
+        candidate = fence.group(1)
+    return json.loads(candidate)
 
 # A conservative, metadata-only default. Users may supply a versioned policy
 # through reconcile_chunk_boundaries(semantic_review_policy=...). The default
@@ -230,8 +278,7 @@ def validate_semantic_review(request: Mapping[str, Any], response: Mapping[str, 
     contrary = response.get("contrary_evidence")
     if not isinstance(contrary, list):
         raise ValueError("Contrary evidence list required, even if empty")
-    allowed = {"right_context_words", "left_core_overlap_words", "left_lexical_correspondence",
-               "unrepresented_activity_intervals", "independent_audio_review", "independent_visual_review"}
+    allowed = set(_EVIDENCE_FIELDS)
     if (len(contrary) != len(set(contrary)) or any(x not in allowed for x in contrary)):
         raise ValueError("Invalid contrary evidence citations")
     if (not isinstance(cited, list) or len(cited) != len(set(cited))
@@ -255,15 +302,29 @@ def build_semantic_review_messages(request: Mapping[str, Any], case: Mapping[str
     """Bounded source/meaning review prompt; no image or acoustic truth fabricated."""
     if case.get("case_id") not in {x["case_id"] for x in request.get("cases", [])}:
         raise ValueError("Unknown semantic review candidate")
-    system = (request["reviewer_guidance"] + "\n" +
-              "Return a single JSON object with schema nemovox-semantic-review-decision/v1, "
-              "request_sha256, case_id, decision, rationale, supporting_evidence, "
-              "contrary_evidence and unresolved. Decision must be one of: adopt_neighbor_context, "
-              "retain_core, possible_duplicate, unresolved. Describe both supporting "
-              "and contrary evidence. Do not claim independent audio/video review "
-              "unless actual authenticated observations were supplied. A plausible "
-              "nonliteral English paraphrase is acceptable but never acoustic proof. "
-              "Never invent dialogue, speaker names, timing or verified identities.")
+    system = (
+        request["reviewer_guidance"] + "\n"
+        "Return ONLY a compact JSON object, NO markdown fences or surrounding prose. "
+        "Required keys: schema, request_sha256, case_id, decision, rationale, "
+        "supporting_evidence, contrary_evidence, unresolved. "
+        "Set schema exactly to nemovox-semantic-review-decision/v1, and copy "
+        "request_sha256 and case_id EXACTLY from the user JSON. "
+        "decision MUST be one of: adopt_neighbor_context, retain_core, "
+        "possible_duplicate, unresolved. "
+        "IMPORTANT: supporting_evidence and contrary_evidence are short arrays "
+        "of FIELD NAME KEYS, NOT explanatory sentences or quotes. "
+        "Only these exact citation keys are allowed: "
+        + ", ".join(_EVIDENCE_FIELDS) + ". "
+        "Put your evidence interpretation and counterevidence in rationale, "
+        "1-2 short sentences (aim under 240 characters). "
+        "Keep evidence arrays <= 3 unique keys each. "
+        "unresolved is an array of short issue labels; use [] if none. "
+        "Do not cite independent_audio_review or independent_visual_review "
+        "when no separately authenticated observation is supplied. "
+        "Avoid adopting unheard source speech. Prefer unresolved if needed. "
+        "Natural nonliteral English is valid but never acoustic proof; "
+        "do not invent words, speaker identity or timing."
+    )
     return [{"role": "system", "content": system},
             {"role": "user", "content": json.dumps({
                 "request_sha256": request["request_sha256"], "case": case,
@@ -326,7 +387,8 @@ def run_tiered_text_reviews(
         response = client.complete(
             messages=build_semantic_review_messages(request, case),
             max_tokens=per_case, temperature=0.0,
-            response_format={"type": "json_object"},
+            response_format={"type": "json_schema",
+                             "schema": semantic_review_json_schema(request, case)},
             reasoning_effort=effort,
             thinking_budget=thought_cap,
             strict_reasoning_effort=True,
@@ -355,7 +417,7 @@ def run_tiered_text_reviews(
                     raise ValueError("Completion budget exhausted by reasoning before final JSON")
                 raise ValueError("Model returned no final JSON content")
 
-            decoded = json.loads(raw)
+            decoded = _decode_semantic_review_json(raw)
             assessed = validate_semantic_review(request, decoded)
         except (ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
             outcomes.append({"case_id": case["case_id"], "status": "unaccepted_model_response",
