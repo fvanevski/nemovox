@@ -1,0 +1,16 @@
+{
+  "application_head": "db8faeaa7432e1f53fbbc254b145453b191551dc",
+  "application_tree": "06cc432bd15fe7a5086a1dd7bab4d412de81960d",
+  "result": "BLOCKING_CPU_REGRESSION_FAILURE",
+  "carrier_binding": "Evidence commit on issue/14-longform-timing-boundaries",
+  "private_archive_sha256": "c41c622cb562bd27439d837d2f60ecd593fa5f3f6bc1c0b114b19f0d47acfb5b",
+  "private_archive_bytes": 36024,
+  "checksummed_members": 26,
+  "packet_members_sha256": {
+    "COMMAND_SHAPE_FRICTION.txt": "595c1551fee8ce8415b47e354fc45ec13d650225da1b46eb849e75ba65178fca",
+    "README.md": "5c9b2c7ad9101f2f3991046da628e03826538b56a1e2ae3d75e0d438f61bfdab",
+    "commands.md": "8732514831a562b590e2a67d50d48e61890ddf8bb67eafeef79c6b045a484367",
+    "gate-matrix.md": "a241d33b2b8b7266ea6fa12a0bc1cc0d2d6ed4ce5eb6d78c3f7f60e8dea57258",
+    "metrics.json": "175fc7c574dd8f4615785644a1510f253f4cc454dc7c3391fe454cb926ba73df"
+  }
+}
