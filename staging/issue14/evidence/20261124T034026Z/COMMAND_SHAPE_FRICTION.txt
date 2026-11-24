@@ -1,0 +1,23 @@
+COMMAND_SHAPE_FRICTION:
+  encountered=yes
+  events=[
+    {
+      "phase": "phase_a_github_readback",
+      "requested_shape": "gh pr view 15 --comments --json body,comments",
+      "effect": "CLI rejected conflicting flags: specify only one of --comments or --json",
+      "resolution": "dropped --comments and read body,comments cleanly via --json; exited 0"
+    },
+    {
+      "phase": "phase_a_handoff_discovery",
+      "requested_shape": "read staging/issue14/HANDOFF_MEANING_FIRST_REVIEW_QUEUE.md at 6d00b9b8d4f89d3125d834731653e1e9d3936ccf",
+      "effect": "file does not exist in committed tree (git ls-tree confirmed absent)",
+      "resolution": "reported exact absence explicitly and executed all steps from LOCAL_AGENT_CONTRACT + committed README.md + semantic_review_followups.py"
+    },
+    {
+      "phase": "phase_b_c_private_scripts",
+      "requested_shape": "initial private script checked whole-file sha256 of .webm instead of media._bounded_file_fingerprint(), and gate probe omitted start_s/end_s/reviewed_source_turn_id on synthetic audited_audio_regions",
+      "effect": "private verification scripts failed locally before emitting outputs; zero production code edited",
+      "resolution": "aligned private scripts to repo contracts (media._bounded_file_fingerprint and source_unit_lineage required fields); both exited 0"
+    }
+  ]
+  omitted_sensitive_values=yes

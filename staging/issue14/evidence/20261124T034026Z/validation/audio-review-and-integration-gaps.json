@@ -1,0 +1,139 @@
+{
+  "bounded_audio_listening_findings": {
+    "s02_window_346_364s": {
+      "crop_sha256": "02dd57edb906d48e209b5d58e768a05c4fc7bff0587a7887e19b7186cad38371",
+      "audible_speech_confirmed": true,
+      "acoustic_findings": [
+        "Following the overlapping chunk-3 tail at ~350.4s, three consecutive genuine French spoken turns occur cleanly inside [350.5, 359.8]s: (1) an exclamation recalling the oasis discovery [350.5, 354.0]s, (2) a short praise turn to Zia [355.3, 356.7]s, and (3) a negative-polarity contrast turn [357.3, 359.8]s. Non-speech bird/monkey vocalizations occur around [354.1, 355.2]s.",
+        "LLM text-only advisory Hypothesis Call 0 ('possible_duplicate') is FALSIFIED by direct listening for the [350.5, 359.8]s turns: these three utterances are genuinely spoken in this region, whereas c4:0 at [350.0, 350.4]s was a mis-segmented boundary duplicate over the chunk-3 final word.",
+        "In Run B (full_regression), chunk boundary reconciliation misplaced part of these words into chunk_003 (288-340s) and dropped c4:1..22 from recording.contract.json. By contrast, accepted 7-comp outputs (orig16-derived fr_7comp_amended) already retain all three S02 turns including negative polarity."
+      ],
+      "meaning_first_english_assessment": "Conserving negative polarity on the ~357.3-359.8s turn and allowing concise, natural English sentence structure (rather than literal word-by-word rendering of proper nouns or discourse markers) matches the 7-component accepted subtitle standard."
+    },
+    "w01c_window_76_88s": {
+      "crop_sha256": "a3a60c1bd6bce0f0978cbbf4e12f58f7c3384337bc43283e79f5c03414b64ddb",
+      "audible_speech_confirmed": true,
+      "acoustic_findings": [
+        "After non-speech animal bleats (~76.0-77.4s), direct audio positively confirms three consecutive French speech segments: (1) an adult male alert+action turn (~77.4-79.9s) completely ABSENT from Run B raw ASR lexical_observations in both chunk_000 and chunk_001; (2) a youth question (~80.1-81.1s, matching raw c1:0..2); and (3) an adult exclamation (~81.6-83.3s, matching raw c1:3..7).",
+        "Isolated Run B legacy utt-0006 at [82.360, 82.575]s (c0:87 single word) is an uncorroborated ASR artifact overlapping the opening of segment (3) and is NOT spoken.",
+        "In Run B (full_regression), both the ASR-absent [77.4, 79.9]s turn AND boundary-pruned [80.2, 83.254]s turns (c1:0..7) were missing from recording.contract.json; accepted 7-comp outputs already retain a consolidated event-timed turn covering [77.630, 82.877]s."
+      ],
+      "meaning_first_english_assessment": "Coherent event-level grouping into fluent, idiomatic English sentences accurately conveys scene progression without requiring literal word-by-word ASR correspondence."
+    }
+  },
+  "existing_gate_integration_probes_on_run_b": {
+    "gap_a_apply_reviewed_unit_amendments_unowned": "Only previously unassigned owned source units may be linked",
+    "gap_a_s02_unowned_events_dropped_from_partition_components": [],
+    "gap_a_w01c_mixed_component_status": "blocked_incomplete_reviewed_component",
+    "gap_a_w01c_mixed_unowned_ids": [
+      "unit_0834ec6ecffc12793962b525",
+      "unit_70da6785a459ad91aeb279b7",
+      "unit_907dce6a9a3a55616d4206e0"
+    ],
+    "gap_a_build_reviewed_source_revision_error": "Cannot apply an incomplete/partially reviewed component",
+    "gap_b_asr_absent_event_in_components": false
+  },
+  "exact_generic_integration_gaps_for_central": [
+    {
+      "id": "GAP-A_PRUNED_UNOWNED_BOUNDARY_UNITS",
+      "modules": [
+        "src/nvidia_transcribe/reviewed_unit_amendment.py:145-166",
+        "src/nvidia_transcribe/evidence_fusion.py:335-351",
+        "src/nvidia_transcribe/source_fusion_application.py:78-80"
+      ],
+      "observed_error": "Only previously unassigned owned source units may be linked / Cannot apply an incomplete/partially reviewed component (status=blocked_incomplete_reviewed_component)",
+      "detail": "When reconcile_chunk_boundaries prunes genuine overlapping chunk words before recording.contract.json (e.g., Run B S02 c4:1..22 and W01c c1:0..7), those lexical_observations lack any owner in original_recording. Neither apply_reviewed_unit_amendments (assign_owned_unit requires uid in owners) nor build_reviewed_source_revision (requires all component positive_audio_event_unit_ids to map to legacy recording utterances) can promote audited unowned boundary units into reviewed source turns."
+    },
+    {
+      "id": "GAP-B_ASR_ABSENT_AUDIO_SPEECH_EVENTS",
+      "modules": [
+        "src/nvidia_transcribe/evidence_fusion.py:294-351",
+        "src/nvidia_transcribe/source_fusion_application.py:129-145"
+      ],
+      "observed_error": "ASR-absent event omitted from partition connected_components (gap_b_asr_absent_event_in_components=false); build_reviewed_source_revision requires non-empty group_units",
+      "detail": "Direct audio in W01c [77.4, 79.9]s proves a spoken French turn that yielded zero lexical observations in raw_ledger. Existing fusion/application gates require every reviewed event to own >=1 existing raw lexical unit ID and legacy owner utterance, blocking pure omission recovery anchored solely to an audited parent asr_observation window + crop SHA256."
+    },
+    {
+      "id": "GAP-C_QUEUE_TO_DOSSIER_AND_POSTEDIT_BRIDGE",
+      "modules": [
+        "src/nvidia_transcribe/semantic_review_followups.py:238-240",
+        "src/nvidia_transcribe/source_reconciliation.py:62-64",
+        "src/nvidia_transcribe/source_fusion_downstream.py:212-280"
+      ],
+      "detail": "No converter yet bridges audited nemovox-meaning-first-review-queue/v1 listening outcomes (without a separate Qwen challenger plan/response pair) into a source-reconciliation dossier, and assemble_revised_translation requires external MT receipts and emits status='new_revisions_not_postedited' without invoking contextual English translation_review on revised rows."
+    }
+  ],
+  "immutable_preserved_outputs": {
+    "revision_cli_6comp": {
+      "fr_canonical_applied/fr_canonical.en.ass": {
+        "size": 26824,
+        "sha256": "2ac26cb94315ee33e452971be310056e76b87a8af0f618e5e9d23097d5d3c779"
+      },
+      "fr_canonical_applied/fr_canonical.en.srt": {
+        "size": 20584,
+        "sha256": "b0fb66ed937c1fd0168a8a33cef8432be8e0830972b24752f565d6e767edb007"
+      },
+      "fr_canonical_applied/reviewed.recording.contract.json": {
+        "size": 1673497,
+        "sha256": "61e931708e100abdabe9922161e086da538384f9fe73dd4fc1933e0917560dba"
+      },
+      "fr_canonical_applied/reviewed.revision.report.json": {
+        "size": 30638,
+        "sha256": "03ed358255b70a798cba5f3386a0d9571c56b2d068ef6a1ebe9e5859b9c751b7"
+      },
+      "fr_canonical_applied/reviewed.translated.contract.json": {
+        "size": 1837984,
+        "sha256": "d4e37a4b1425a1165da152bb995bd422961267d223e9d31367df5ffb20a0e643"
+      }
+    },
+    "final_6comp_frozen": {
+      "fr_canonical.en.ass": {
+        "size": 26824,
+        "sha256": "2ac26cb94315ee33e452971be310056e76b87a8af0f618e5e9d23097d5d3c779"
+      },
+      "fr_canonical.en.srt": {
+        "size": 20584,
+        "sha256": "b0fb66ed937c1fd0168a8a33cef8432be8e0830972b24752f565d6e767edb007"
+      },
+      "reviewed.recording.contract.json": {
+        "size": 1673497,
+        "sha256": "61e931708e100abdabe9922161e086da538384f9fe73dd4fc1933e0917560dba"
+      },
+      "reviewed.revision.report.json": {
+        "size": 30638,
+        "sha256": "03ed358255b70a798cba5f3386a0d9571c56b2d068ef6a1ebe9e5859b9c751b7"
+      },
+      "reviewed.translated.contract.json": {
+        "size": 1837984,
+        "sha256": "d4e37a4b1425a1165da152bb995bd422961267d223e9d31367df5ffb20a0e643"
+      }
+    },
+    "final_7comp_amended": {
+      "fr_reviewed_7comp.en.ass": {
+        "size": 26830,
+        "sha256": "27ed0c0ead4a5a2da393a22f7b72974ffda46ae9e9e786ec805efe5df70afdd1"
+      },
+      "fr_reviewed_7comp.en.srt": {
+        "size": 20584,
+        "sha256": "ada5aa0c5b1117a6a5e3422cf59aec00116fb34f7ab314816f057f50cc2db3ac"
+      },
+      "reviewed.recording.contract.json": {
+        "size": 1664313,
+        "sha256": "d43f0796c109880f603ed4f7f005b58853d00777f73f4ccafc9b3d5245031af9"
+      },
+      "reviewed.revision.report.json": {
+        "size": 32392,
+        "sha256": "30457c461117e98eee489be866bf91d09c4e4d6ed00191c4d57859a8136a0a72"
+      },
+      "reviewed.translated.contract.json": {
+        "size": 1827859,
+        "sha256": "880b6de8b46c3d34be268786cc84e469bcc8faba876c9a63b780bfb6734876f1"
+      }
+    }
+  },
+  "accepted_7comp_subtitle_checks": {
+    "srt_has_goats_w01c": true,
+    "srt_has_zia_s02": true,
+    "ass_lines": 305
+  }
+}

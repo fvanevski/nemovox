@@ -1,0 +1,45 @@
+{
+  "schema": "nemovox-issue14-evidence-manifest/v1",
+  "run_id": "20261124T034026Z",
+  "public_root": "staging/issue14/evidence/20261124T034026Z",
+  "admitted_pr_head": "6d00b9b8d4f89d3125d834731653e1e9d3936ccf",
+  "central_source_sha": "6d00b9b8d4f89d3125d834731653e1e9d3936ccf",
+  "member_count": 7,
+  "members": [
+    {
+      "path": "COMMAND_SHAPE_FRICTION.txt",
+      "bytes": 1389,
+      "sha256": "b004fb54d50ffa25f223644adb622c50eb51c2db9f0ab1d2d87edeac07379e43"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1466,
+      "sha256": "08f0ceec42be8c39608ec41a01f307352c489eef2fe3b4ce88d37ab7defc61ae"
+    },
+    {
+      "path": "review/issue14-meaning-first-review-queue-summary.md",
+      "bytes": 3167,
+      "sha256": "85b0eec92a201946818aafebda7a046bde4fb4abc55219293a849a13285d9dd2"
+    },
+    {
+      "path": "source-identity.json",
+      "bytes": 1895,
+      "sha256": "9bfb2f046ba1f0e4d3dd7ffea982da499e755741b3fc39857737b98c0de9cd22"
+    },
+    {
+      "path": "validation/audio-review-and-integration-gaps.json",
+      "bytes": 8678,
+      "sha256": "69e249e2468913a7df5eac736371f9dceb6ed8fbdf457caf4d4fb95290738f54"
+    },
+    {
+      "path": "validation/cpu-gates.json",
+      "bytes": 2163,
+      "sha256": "8f820bc5391d97759bcbfacd8d2ca795f10156b5868b655e83a195cf11ba548e"
+    },
+    {
+      "path": "validation/review-queue-cli-and-rejections.json",
+      "bytes": 8391,
+      "sha256": "420d6da40ca84950968c32b26c7da0a8c9ab87913ecae75d7283b0bc4ccd013f"
+    }
+  ]
+}

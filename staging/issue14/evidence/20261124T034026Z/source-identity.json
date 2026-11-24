@@ -1,0 +1,40 @@
+{
+  "repo_id": "fvanevski/nemovox",
+  "issue_number": 14,
+  "pr_number": 15,
+  "branch": "issue/14-longform-timing-boundaries",
+  "admitted_pr_head": "6d00b9b8d4f89d3125d834731653e1e9d3936ccf",
+  "central_source_sha": "6d00b9b8d4f89d3125d834731653e1e9d3936ccf",
+  "central_source_tree": "1b9968a96da9facabe6a1262523e7ae555f9481b",
+  "validated_config_sha": "e5c5a8a6c3443f7bfbefc25119fd392694eca1dc",
+  "main_sha": "8f6c03cbc70e84bf1970ba364207a02c9fe22b44",
+  "controlling_handoff_status": "ABSENT_IN_COMMITTED_TREE (staging/issue14/HANDOFF_MEANING_FIRST_REVIEW_QUEUE.md not present at 6d00b9b8d4f89d3125d834731653e1e9d3936ccf; executed from LOCAL_AGENT_CONTRACT + README.md + semantic_review_followups.py)",
+  "prior_host_evidence_head": "81891331eb88ef37714efd48428520961d7cd724",
+  "prior_private_archive": {
+    "host_path": "/workspace/nemovox-issue14-structured-qc-private/issue14-meaning-qc-structured-20261124T025004Z.tar.gz",
+    "sha256": "88f497d272d52c157ac9c161751d5961be1da2b3c8ba180c01f3ecb392d8aa09",
+    "members_verified": "6/6",
+    "unique_tar_members": 7
+  },
+  "prior_public_packet": {
+    "path": "staging/issue14/evidence/20261124T025004Z/",
+    "members_and_manifest_verified": "8/8+manifest"
+  },
+  "media_provenance": {
+    "media_fingerprint_sha256": "8d6e97fa0c3b0c674baa4e1864e72ada463dd4f448c7f9e3e6aacfb8249548e9",
+    "media_full_file_sha256": "0e77ce3c809e498b97ffe48b53575c29e10d8b08a039b78e2150cd0c845c81b0",
+    "source_language": "fr",
+    "bounded_audio_crops": {
+      "s02_346_364.wav": {
+        "size": 576078,
+        "sha256": "02dd57edb906d48e209b5d58e768a05c4fc7bff0587a7887e19b7186cad38371"
+      },
+      "w01c_76_88.wav": {
+        "size": 384078,
+        "sha256": "a3a60c1bd6bce0f0978cbbf4e12f58f7c3384337bc43283e79f5c03414b64ddb"
+      }
+    }
+  },
+  "no_local_production_source_edit": true,
+  "source_test_config_diff_vs_central": "none"
+}
