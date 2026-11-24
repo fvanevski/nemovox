@@ -1,0 +1,66 @@
+{
+  "schema": "nemovox-issue14-ninfer-messages-probe/v1",
+  "run_id": "20261124T021735Z",
+  "installed_ninfer": {
+    "git_sha": "a3a3dd5be6c2ecec1479017d5eee219d7a7e5784",
+    "messages_endpoint": "POST /v1/messages",
+    "thinking_support": "enabled(budget_tokens >= 1024 and < max_tokens), disabled, adaptive",
+    "system_parameter_rule": "parse_system() reads top-level body['system'] (anthropic_messages_request.cpp:387-402); leading messages[] element with role=='system' is rejected with HTTP 400 invalid_request_error"
+  },
+  "resource": {
+    "name": "text_local",
+    "adapter": "openai_chat",
+    "model": "chat",
+    "endpoint": "http://127.0.0.1:8001/v1"
+  },
+  "wire_protocol": "ninfer_messages",
+  "lifecycle": {
+    "before": {
+      "state": "startable",
+      "ready": false,
+      "managed": true,
+      "startable": true
+    },
+    "during": {
+      "state": "ready_managed",
+      "ready": true,
+      "managed": true,
+      "startable": true
+    },
+    "after": {
+      "state": "startable",
+      "ready": false,
+      "managed": true,
+      "startable": true
+    }
+  },
+  "policy_sha256": "6c65210ba4dd79591e86d4d8eaabc2a0d2a477758966c44bf5daeda4885df5da",
+  "request_sha256": "2727483cc111dc956e6a9d632236576a9f62933f3585310537178cdec483669e",
+  "preflight_stop_error": {
+    "type": "HTTPStatusError",
+    "message": "Client error '400 Bad Request' for url 'http://127.0.0.1:8001/v1/messages'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400"
+  },
+  "audited_calls": [
+    {
+      "call_index": 0,
+      "prompt_sha256": "0f50331b4e6697c5ee4fd4a499cb7db956fcd533242e751b6e5b304a52110b2a",
+      "requested_kwargs": {
+        "max_tokens": 1792,
+        "temperature": 0.0,
+        "response_format": {
+          "type": "json_object"
+        },
+        "reasoning_effort": "xhigh",
+        "thinking_budget": 1024,
+        "strict_reasoning_effort": true
+      },
+      "status": "http_or_runtime_error",
+      "error_type": "HTTPStatusError",
+      "error": "Client error '400 Bad Request' for url 'http://127.0.0.1:8001/v1/messages'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400",
+      "http_status": 400,
+      "http_body": "{\"error\":{\"message\":\"messages: system messages must follow a user message and be final or precede an assistant message\",\"type\":\"invalid_request_error\"},\"request_id\":\"req_282af44b6b8f79ba\",\"type\":\"error\"}",
+      "latency_s": 7.365
+    }
+  ],
+  "client_defect_root_cause": "NInferMessagesTextClient.complete (src/nvidia_transcribe/ninfer_messages_client.py:56) forwards build_semantic_review_messages()'s [{'role':'system',...}, {'role':'user',...}] verbatim inside body['messages'] rather than hoisting role=='system' into top-level body['system']."
+}

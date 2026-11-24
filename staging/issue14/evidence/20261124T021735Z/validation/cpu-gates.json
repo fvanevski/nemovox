@@ -1,0 +1,50 @@
+{
+  "schema": "nemovox-issue14-cpu-gates/v1",
+  "run_id": "20261124T021735Z",
+  "pythonpath": "src:.",
+  "venv_imports": {
+    "ninfer_messages_client": "/workspace/nemovox-issue14-messages-qc/src/nvidia_transcribe/ninfer_messages_client.py",
+    "resource_lifecycle": "/workspace/nemovox-issue14-messages-qc/src/nvidia_transcribe/resource_lifecycle.py",
+    "refinement": "/workspace/nemovox-issue14-messages-qc/src/nvidia_transcribe/refinement.py",
+    "semantic_review": "/workspace/nemovox-issue14-messages-qc/src/nvidia_transcribe/semantic_review.py",
+    "chunking": "/workspace/nemovox-issue14-messages-qc/src/nvidia_transcribe/chunking.py"
+  },
+  "venv_studio_imports": {
+    "ninfer_messages_client": "/workspace/nemovox-issue14-messages-qc/src/nvidia_transcribe/ninfer_messages_client.py",
+    "resource_lifecycle": "/workspace/nemovox-issue14-messages-qc/src/nvidia_transcribe/resource_lifecycle.py",
+    "refinement": "/workspace/nemovox-issue14-messages-qc/src/nvidia_transcribe/refinement.py",
+    "semantic_review": "/workspace/nemovox-issue14-messages-qc/src/nvidia_transcribe/semantic_review.py",
+    "chunking": "/workspace/nemovox-issue14-messages-qc/src/nvidia_transcribe/chunking.py"
+  },
+  "compileall_src_tests_exit": 0,
+  "focused_pytest_8_files": {
+    "files": [
+      "tests/test_issue14_ninfer_messages_client.py",
+      "tests/test_issue14_ninfer_thinking_budget.py",
+      "tests/test_issue14_semantic_review.py",
+      "tests/test_issue14_timing_boundaries.py",
+      "tests/test_chunking_and_resume.py",
+      "tests/test_resource_lifecycle.py",
+      "tests/test_refinement.py",
+      "tests/test_translation_review.py"
+    ],
+    "passed": 99,
+    "failed": 0,
+    "skipped": 0
+  },
+  "full_cpu_venv": {
+    "marker": "not gpu",
+    "passed": 468,
+    "failed": 0,
+    "skipped": 0,
+    "exit_code": 0
+  },
+  "full_cpu_venv_studio": {
+    "marker": "not gpu",
+    "passed": 468,
+    "failed": 0,
+    "skipped": 0,
+    "exit_code": 0
+  },
+  "git_diff_check_exit": 0
+}

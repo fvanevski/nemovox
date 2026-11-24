@@ -1,0 +1,44 @@
+{
+  "schema": "nemovox-evidence-manifest/v1",
+  "run_id": "20261124T021735Z",
+  "admitted_pr_head_sha": "9faf8145cb9d368195df1d1e81081c89ddf85c11",
+  "validated_central_source_sha": "94d96d1bfb84cb0c6c8163511963302b499aeb0c",
+  "file_count": 7,
+  "files": [
+    {
+      "path": "COMMAND_SHAPE_FRICTION.txt",
+      "sha256": "30aaca3dc414f7b47e902fd7c5506b066ceb57f7aa70762468ac71382c2caebe",
+      "bytes": 979
+    },
+    {
+      "path": "README.md",
+      "sha256": "e380b3087dad92202801aae5cf08c5a12d81465f273bf9008c18ac16e1059158",
+      "bytes": 2448
+    },
+    {
+      "path": "review/issue14-ninfer-messages-qc-summary.md",
+      "sha256": "e380b3087dad92202801aae5cf08c5a12d81465f273bf9008c18ac16e1059158",
+      "bytes": 2448
+    },
+    {
+      "path": "source-identity.json",
+      "sha256": "fd0e768e5121cb626e24753c2990b79786500024c9f908289b1c23dd219bfcd6",
+      "bytes": 2698
+    },
+    {
+      "path": "validation/boundary-qc-replay.json",
+      "sha256": "21a0a7f1b6a5275ab585a5baf08cd10681b3dcda295a500db42e51cb6524da73",
+      "bytes": 16385
+    },
+    {
+      "path": "validation/cpu-gates.json",
+      "sha256": "443ae2de88156be56bcc3bf45f8220d7ec8627a39aa78282de92f51d8a58333b",
+      "bytes": 2001
+    },
+    {
+      "path": "validation/ninfer-messages-probe.json",
+      "sha256": "06910892dc0cabd4c91724e8b9f6d29abf5aa9229baf90ecd7073586c45362a1",
+      "bytes": 2811
+    }
+  ]
+}
