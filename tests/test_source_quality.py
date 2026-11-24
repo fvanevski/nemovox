@@ -1,6 +1,8 @@
 """Current source quality: functional invariants, not historical episode fixtures."""
 from copy import deepcopy
 
+import pytest
+
 from nvidia_transcribe.source_quality import (
     SourceQualityPolicy, corroborated_events, plan_windows, select_source_events,
 )
@@ -206,3 +208,90 @@ def test_shared_pipeline_translates_canonical_source_not_prior_asr(tmp_path, mon
     assert order == ["messages", "acoustic", "translate", "messages", "review"]
     assert json.loads(recording_path.read_text()) == original
     assert json.loads((out / "canonical-source.contract.json").read_text())["utterances"][0]["source_text"] == "Je ne sais pas"
+
+
+@pytest.mark.parametrize("challenge_bounds", [(11.8, 13.8), (9.8, 13.1), (9.0, 12.1)])
+def test_equal_text_with_materially_different_timing_remains_unresolved(challenge_bounds):
+    """Even a candidate which covers the old turn cannot masquerade as an extension."""
+    earlier = _row("original", "On y va !", 10.0, 12.0)
+    between = {**_row("between", "Attends !", 11.3, 11.6), "speaker_id": "SPK_B"}
+    recording = _recording([earlier, between])
+    before = deepcopy(recording)
+    a, b = challenge_bounds
+    first = _probe((7, 18), "A", [_row("0", "On y va !", a, b)])
+    second = _probe((5, 16), "B", [_row("0", "On y va !", a + .1, b + .1)])
+    policy = SourceQualityPolicy()
+    events = corroborated_events(first, second, (8, 15), policy.timing_tolerance_s)
+    assert len(events) == 1
+    events[0]["chunks"] = [1]
+    rows, decisions = select_source_events(recording, events, policy)
+    assert rows == before["utterances"] and recording == before
+    decision, = decisions
+    assert decision["status"] == "unresolved_possible_displaced_or_repeated_turn"
+    assert decision["observations"] == ["A:0", "B:0"]
+    assert decision["window"] == challenge_bounds
+    assert decision["competing_source_hypotheses"] == [
+        {"source_id": "original", "window": (10.0, 12.0)}]
+    assert decision["superseded_source_id"] is None
+    if a == 11.8:
+        assert decision["crossed_source_ids"] == ["between"]
+
+
+def test_small_timing_jitter_with_no_competing_occurrence_is_already_represented():
+    recording = _recording([_row("a", "On y va !", 10, 12),
+                            _row("b", "Attends !", 13, 14)])
+    rows, decisions = select_source_events(
+        recording, [_event("On y va !", 10.2, 12.1)], SourceQualityPolicy())
+    assert rows == recording["utterances"]
+    assert decisions[0]["status"] == "already_represented"
+
+
+def test_tolerance_does_not_hide_crossing_an_entire_intervening_turn():
+    recording = _recording([_row("a", "On y va !", 10, 12),
+                            {**_row("b", "Attends !", 10.3, 10.5), "speaker_id": "SPK_B"}])
+    rows, decisions = select_source_events(
+        recording, [_event("On y va !", 10.7, 12.7)], SourceQualityPolicy())
+    assert rows == recording["utterances"]
+    assert decisions[0]["status"].startswith("unresolved")
+    assert decisions[0]["crossed_source_ids"] == ["b"]
+
+
+def test_two_overlapping_equal_text_source_candidates_do_not_establish_identity():
+    recording = _recording([_row("a", "On y va !", 10, 12),
+                            {**_row("b", "On y va !", 10.1, 12.1), "speaker_id": "SPK_B"}])
+    rows, decisions = select_source_events(
+        recording, [_event("On y va !", 10.2, 12.2)], SourceQualityPolicy())
+    assert rows == recording["utterances"]
+    assert decisions[0]["status"].startswith("unresolved")
+    assert {h["source_id"] for h in decisions[0]["competing_source_hypotheses"]} == {"a", "b"}
+
+
+def test_unresolved_timing_reaches_current_quality_report(tmp_path, monkeypatch):
+    from contextlib import nullcontext
+    from types import SimpleNamespace
+    from nvidia_transcribe import source_quality as quality
+
+    recording = _recording([_row("a", "On y va !", 10, 12),
+                            {**_row("b", "Attends !", 11.3, 11.6), "speaker_id": "SPK_B"}])
+    recording["source"]["selected_audio_stream"] = 0
+    recording["processing"] = {
+        "boundary_reconciliation": {"semantic_review_candidates": {"cases": []}}}
+    monkeypatch.setattr(quality, "load_current_ledger", lambda *args: {})
+    monkeypatch.setattr(quality, "probe_media", lambda *args, **kwargs: SimpleNamespace(
+        path=tmp_path / "media.wav", fingerprint_sha256="f",
+        duration_s=100., selected_audio_stream=0))
+    monkeypatch.setattr(quality, "plan_windows", lambda *args: (
+        [{"window": (10, 15), "chunks": [1], "evidence_ids": ["test"]}], []))
+    monkeypatch.setattr(quality, "_observe", lambda client, media, crop, root, i:
+                        _probe(crop, str(i), [_row("0", "On y va !",
+                                                 11.8 + i * .1, 13.8 + i * .1)]))
+    canonical, report = quality.review_current_source(
+        recording, recording_path=tmp_path / "recording.contract.json",
+        media_path=tmp_path / "media.wav", output_dir=tmp_path,
+        text_scope=lambda: pytest.fail("No text candidates"),
+        asr_scope=lambda: nullcontext(object()))
+    assert report["audio_requests"] == 2
+    assert not report["unresolved_windows"]  # Acoustic pairing itself succeeded.
+    assert report["status"] == canonical["source_quality"]["status"] == "partial"
+    assert report["decisions"][0]["status"].startswith("unresolved")
+    assert canonical["utterances"] == recording["utterances"]

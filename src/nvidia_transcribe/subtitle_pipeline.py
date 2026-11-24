@@ -125,11 +125,15 @@ def generate_subtitles(
     """Run staged ASR -> primary translation -> optional English review -> subtitle rendering.
 
     Can start from raw ``media_path`` OR resume directly from ``recording_contract_path``
-    without loading the 30B ASR model. Supports fast CPU-only re-rendering when
-    ``re_render_only=True`` or cached ``translated.contract.json`` exists.
+    without loading the 30B ASR model. Explicit CPU-only re-rendering requires
+    an existing ``translated.contract.json``; missing input never starts inference.
     """
     t0 = time.perf_counter()
     cfg = config or SubtitlePipelineConfig()
+    out_dir = Path(output_dir)
+    translated_path = out_dir / "translated.contract.json"
+    if cfg.re_render_only and not translated_path.is_file():
+        raise FileNotFoundError(f"Offline re-render requires an existing translated contract: {translated_path}")
     if cfg.source_quality not in ("auto", "on", "off"):
         raise ValueError("Unsupported source quality mode")
     quality_enabled = (not cfg.re_render_only and media_path is not None and (
@@ -154,7 +158,6 @@ def generate_subtitles(
             "Riva translation with subtitle condensation requires an explicit "
             "OpenAI-compatible condensation resource config."
         )
-    out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     gl = glossary if isinstance(glossary, GlossaryConfig) else load_glossary(glossary)
 
@@ -189,10 +192,9 @@ def generate_subtitles(
                if role == "translation_review" and stage_config.wire_protocol != "openai_chat" else {}),
         )
 
-    translated_path = out_dir / "translated.contract.json"
     refined_path = out_dir / "refined.contract.json"
 
-    if cfg.re_render_only and translated_path.is_file():
+    if cfg.re_render_only:
         _log("Stage 1-3: Reusing existing translated.contract.json (--re-render)")
         for skipped in ("source_quality", "translation", "review", "condensation"):
             _event(skipped, "skipped", "Offline re-render uses retained contract")

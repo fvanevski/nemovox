@@ -58,6 +58,13 @@ def _overlap(a, b):
     return max(0.0, min(a[1], b[1]) - max(a[0], b[0]))
 
 
+def _same_event_bounds(a, b, tolerance):
+    """Temporal correspondence requires agreement at both event boundaries."""
+    return bool(a and b and _overlap(a, b) > 0
+                and abs(a[0] - b[0]) <= tolerance
+                and abs(a[1] - b[1]) <= tolerance)
+
+
 def _lex(text):
     # Lexical matching establishes corroboration, not a release WER target.
     result = []
@@ -224,9 +231,8 @@ def corroborated_events(first, second, target, tolerance):
 
     def match(a, b):
         x, y = _bounds(a), _bounds(b)
-        return (x and y and _lex(a["source_text"]) == _lex(b["source_text"])
-                and abs(x[0] - y[0]) <= tolerance and abs(x[1] - y[1]) <= tolerance
-                and _overlap(x, y) > 0
+        return (_same_event_bounds(x, y, tolerance)
+                and _lex(a["source_text"]) == _lex(b["source_text"])
                 and target[0] <= (x[0] + x[1]) / 2 <= target[1]
                 and target[0] <= (y[0] + y[1]) / 2 <= target[1])
 
@@ -255,15 +261,30 @@ def select_source_events(recording, events, policy):
     rows = [dict(r) for r in recording["utterances"]]
     decisions = []
     media_id = recording["source"]["fingerprint_sha256"]
+    def crossed_turn_ids(row, target):
+        """Do not hide a change in order across an entire other source turn."""
+        original = _bounds(row)
+        if not original or not target:
+            return []
+        crossed = []
+        for other in rows:
+            if other is row:
+                continue
+            interval = _bounds(other)
+            if interval and any(min(old, new) <= interval[0]
+                                and interval[1] <= max(old, new)
+                                for old, new in zip(original, target)):
+                crossed.append(other["id"])
+        return crossed
+
     def corroborated_at_own_time(row, event):
         original = _bounds(row)
         target = _bounds(event)
         return bool(original and target and not _overlap(original, target)
-                    and any(_bounds(other)
-                            and _lex(other["source_text"]) == _lex(row["source_text"])
-                            and abs(_bounds(other)[0] - original[0]) <= policy.timing_tolerance_s
-                            and abs(_bounds(other)[1] - original[1]) <= policy.timing_tolerance_s
-                            and _overlap(_bounds(other), original) > 0
+                    and any(_lex(other["source_text"]) == _lex(row["source_text"])
+                            and _same_event_bounds(_bounds(other), original,
+                                                   policy.timing_tolerance_s)
+                            and not crossed_turn_ids(row, _bounds(other))
                             for other in events))
 
     for event in sorted(events, key=lambda e: (e["source_start"], e["source_end"])):
@@ -279,8 +300,26 @@ def select_source_events(recording, events, policy):
                                or (_bounds(u) and abs(_bounds(u)[0] - bounds[0]) <= 60))]
         status = "unresolved_competing_source"
         replace = None
-        if any(_lex(u["source_text"]) == words for u in overlaps):
-            status = "already_represented"
+        competing_hypotheses = []
+        crossed_ids = []
+        exact_overlaps = [u for u in overlaps if _lex(u["source_text"]) == words]
+        if exact_overlaps:
+            # Lexical agreement and minimal overlap do not identify an
+            # occurrence. This branch is exclusive: an equal-text timing
+            # conflict must not fall through to source-turn extension.
+            if len(exact_overlaps) == 1:
+                crossed_ids = crossed_turn_ids(exact_overlaps[0], bounds)
+            if (len(exact_overlaps) == 1
+                    and _same_event_bounds(_bounds(exact_overlaps[0]), bounds,
+                                           policy.timing_tolerance_s)
+                    and not crossed_ids):
+                status = "already_represented"
+            else:
+                status = "unresolved_possible_displaced_or_repeated_turn"
+                competing_hypotheses = [
+                    {"source_id": u["id"], "window": _bounds(u)}
+                    for u in exact_overlaps
+                ]
         elif (len(overlaps) == 1 and _contains(words, _lex(overlaps[0]["source_text"]))
                 and bounds[0] <= _bounds(overlaps[0])[0] + policy.timing_tolerance_s
                 and bounds[1] >= _bounds(overlaps[0])[1] - policy.timing_tolerance_s
@@ -329,9 +368,13 @@ def select_source_events(recording, events, policy):
             pos = next((i for i, u in enumerate(rows) if _bounds(u)
                         and _bounds(u)[0] > bounds[0]), len(rows))
             rows.insert(pos, row)
-        decisions.append({"status": status, "observations": event["supporting_observation_ids"],
-                          "window": bounds,
-                          "superseded_source_id": replace["id"] if replace else None})
+        decision = {"status": status, "observations": event["supporting_observation_ids"],
+                    "window": bounds,
+                    "superseded_source_id": replace["id"] if replace else None}
+        if competing_hypotheses:
+            decision["competing_source_hypotheses"] = competing_hypotheses
+            decision["crossed_source_ids"] = crossed_ids
+        decisions.append(decision)
     return rows, decisions
 
 

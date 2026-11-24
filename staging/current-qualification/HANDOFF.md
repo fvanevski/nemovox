@@ -8,6 +8,24 @@ Use the exact branch and full head supplied by Central in the kickoff; authentic
 
 ## CPU-only verification (first)
 
+Continuation after the first CPU handback: Central corrected the source-event
+timing correspondence and missing-contract rerender defects on the same branch.
+The previous evidence remains a failed qualification at its original source SHA.
+Use `rtk proxy` where the local harness requires it; preserve native exit status
+and unfiltered failure evidence. Before other suites, run:
+
+- PYTHONPATH=src:. /workspace/nvidia-transcribe/.venv/bin/python -m pytest -q tests/test_source_quality.py tests/test_offline_rerender.py
+- PYTHONPATH=src:. /workspace/nvidia-transcribe/.venv/bin/python staging/current-qualification/evidence/20261124T043313Z/reproduce.py
+
+The published reproduction must exit 0 with zero managed ASR acquisitions for
+the missing-contract CLI probe and an explicit unresolved decision for the
+displaced dialogue. The new tests additionally require ordinary timing jitter
+to remain accepted, ambiguity to reach the quality report, distinct repeated
+turns to survive, and valid SRT/ASS rerender to remain inference-free.
+If these and the remaining CPU checks pass, proceed directly to the existing
+GPU phase in this handoff; no separate intermediate handback or approval.
+Do not rerun or reuse the failed application's historical source qualification.
+
 From the candidate root, record full commit/tree identity, dirty status, Python import location, installed runtime identity and effective nonsecret config fingerprints. Use existing host environments, not a replacement dependency stack:
 - PYTHONPATH=src:. /workspace/nvidia-transcribe/.venv/bin/python -m compileall -q src tests
 - PYTHONPATH=src:. /workspace/nvidia-transcribe/.venv/bin/python -m pytest -q -m 'not gpu' tests/test_source_quality.py tests/test_issue14_semantic_review.py tests/test_translation_review.py tests/test_chunking_and_resume.py tests/test_resource_integration.py
