@@ -432,7 +432,7 @@ def collect_assessment_inputs(collected, inputs, target, independent, visual):
     }
 
 
-def run_assessments(client, root, manifest, collected, output, independent, visual):
+def verified_collection(collected, manifest):
     inputs = load(collected / "inputs.json")
     if inputs["prior_manifest_sha256"] != sha256(manifest["_path"]):
         raise ValueError("Collected evidence belongs to another prior manifest")
@@ -445,6 +445,11 @@ def run_assessments(client, root, manifest, collected, output, independent, visu
             or any(not (collected / f"{region}-{mode}.json").is_file()
                    for region, mode in expected)):
         raise ValueError("Incomplete collected ASR comparison")
+    return inputs
+
+
+def run_assessments(client, root, manifest, collected, output, independent, visual):
+    inputs = verified_collection(collected, manifest)
     for target in TARGETS:
         name = target[0]
         prior = prior_context(root, manifest, target)
@@ -488,13 +493,13 @@ def visual_request(client, parts, schema, *, system, budget=2048, max_tokens=409
             "elapsed_s":round(time.perf_counter()-started,3)}
 
 
-def inspect_visual(client, collected, output, reviewer):
+def inspect_visual(client, collected, output, reviewer, manifest):
     """Qualify real image processing, then inspect frames without acoustic priming.
 
     Runs inside the very same managed Messages scope as contextual reasoning.
     Preserve raw response and image digests, not duplicate base64 media.
     """
-    inputs = load(collected / "inputs.json")
+    inputs = verified_collection(collected, manifest)
     colors = {"red":(255,0,0), "blue":(0,0,255), "green":(0,200,0),
               "yellow":(255,255,0)}
     ordered = secrets.SystemRandom().sample(list(colors), 2)
@@ -613,7 +618,7 @@ def main():
         with managed_text_client(ModelLifecycle(), reviewer, wire_protocol="ninfer_messages") as text:
             vision_calls = 0
             if visual is None:
-                visual, vision_calls = inspect_visual(text, collected, out, reviewer)
+                visual, vision_calls = inspect_visual(text, collected, out, reviewer, manifest)
             run_assessments(text, root, manifest, collected, out, independent, visual)
             decisions = text_probe(text, root, manifest, out)
         save(out / "completed.json", {"text_requests": 12, "vision_requests": vision_calls,
@@ -687,7 +692,7 @@ def main():
         return
     # Default combined mode remains useful when no external observations are available.
     with managed_text_client(lifecycle, reviewer, wire_protocol="ninfer_messages") as text:
-        visual, vision_calls = inspect_visual(text, out, out, reviewer)
+        visual, vision_calls = inspect_visual(text, out, out, reviewer, manifest)
         run_assessments(text, root, manifest, out, out, None, visual)
         decisions = text_probe(text, root, manifest, out)
     save(out / "completed.json", {"asr_requests": 20, "text_requests": 12,
