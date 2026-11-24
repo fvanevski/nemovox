@@ -1,0 +1,204 @@
+"""Conservative, tunable triage for missing/displaced overlapping ASR speech.
+
+Produces evidence-only review cases, never rewrites ASR, CTC, speaker labels,
+translations, or source ownership. Text/AV reasoning must return a separately
+validated assessment before any reviewed-revision application is possible.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import math
+import unicodedata
+from typing import Any, Mapping, Sequence
+from difflib import SequenceMatcher
+
+POLICY_SCHEMA = "nemovox-semantic-review-policy/v1"
+REVIEW_SCHEMA = "nemovox-semantic-review-decision/v1"
+RESULT_SCHEMA = "nemovox-boundary-semantic-review-candidates/v1"
+_SAFE_DECISIONS = {"adopt_neighbor_context", "retain_core", "possible_duplicate", "unresolved"}
+
+
+def _digest(obj: Any) -> str:
+    return hashlib.sha256(json.dumps(obj, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")).hexdigest()
+
+
+def _norm(s: Any) -> str:
+    return "".join(c for c in unicodedata.normalize("NFKD", str(s or "").casefold()) if c.isalnum() and not unicodedata.combining(c))
+
+
+def _finite(v: Any) -> bool:
+    return isinstance(v, (float, int)) and not isinstance(v, bool) and math.isfinite(v)
+
+
+def _valid(u: Mapping[str, Any]) -> bool:
+    return (not u.get("_drop") and u.get("valid_timing") is True and u.get("unit_type") != "character"
+            and _finite(u.get("start")) and _finite(u.get("end"))
+            and 0 <= u["start"] < u["end"] and _norm(u.get("text")))
+
+
+def _local_voice(u: Mapping[str, Any]) -> str:
+    return str(u.get("local_speaker_id") or u.get("speaker") or "unknown")
+
+
+def _words(units: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    return [{"text": str(u.get("text", "")), "start_s": float(u["start"]),
+             "end_s": float(u["end"]), "source_unit_index": u.get("_unit_idx"),
+             "chunk_index": u.get("_chunk_idx"), "local_voice": _local_voice(u)} for u in units]
+
+
+def plan_boundary_semantic_reviews(
+    tagged_by_chunk: Sequence[Sequence[dict[str, Any]]], chunks: Sequence[Any],
+    *, policy: Mapping[str, Any], activity_by_chunk: Mapping[int, Sequence[dict[str, Any]]] | None = None,
+) -> dict[str, Any]:
+    """Find unowned *candidate* left-context speech, including displaced core echoes.
+
+    Case text comes from actual returned source observations, not synthesized
+    audio. Cases are review requests, NEVER automatically accepted corrections.
+    """
+    if policy.get("schema") != POLICY_SCHEMA:
+        raise ValueError("Invalid semantic review policy schema")
+    if len(chunks) != len(tagged_by_chunk):
+        raise ValueError("Chunk plans and lexical observations disagree")
+    min_words = policy.get("min_phrase_words", 3)
+    max_gap = policy.get("max_interword_gap_s", 1.2)
+    coverage = policy.get("max_nominal_core_coverage_ratio", .45)
+    if (not isinstance(min_words, int) or isinstance(min_words, bool) or min_words < 2
+            or not _finite(max_gap) or not 0 < max_gap <= 5
+            or not _finite(coverage) or not 0 <= coverage <= 1):
+        raise ValueError("Invalid semantic triage thresholds")
+    if not isinstance(policy.get("policy_id"), str) or not policy["policy_id"].strip():
+        raise ValueError("Policy ID is required")
+    if not isinstance(policy.get("reviewer_guidance"), str) or not policy["reviewer_guidance"].strip():
+        raise ValueError("Reviewer guidance is required")
+    max_cases = policy.get("max_cases_per_run", 24)
+    if not isinstance(max_cases, int) or isinstance(max_cases, bool) or max_cases < 1:
+        raise ValueError("Invalid review case budget")
+    activities = activity_by_chunk or {}
+    cases: list[dict[str, Any]] = []
+    for b in range(len(chunks) - 1):
+        left, right = chunks[b:b + 2]
+        overlap_start = max(float(left.infer_start_s), float(right.infer_start_s))
+        overlap_end = min(float(left.core_end_s), float(right.core_start_s))
+        if overlap_end <= overlap_start:
+            continue
+        right_context = [u for u in tagged_by_chunk[b + 1] if _valid(u)
+                         and overlap_start - .001 <= float(u["start"])
+                         and float(u["end"]) <= overlap_end + .001]
+        # Consecutive within voice and lexical order; never aggregate
+        # another speaker's overlapping interjection as the same phrase.
+        by_voice: dict[str, list[dict[str, Any]]] = {}
+        for u in right_context:
+            by_voice.setdefault(_local_voice(u), []).append(u)
+        core = [u for u in tagged_by_chunk[b] if _valid(u) and u.get("_in_core")]
+        left_all = [u for u in tagged_by_chunk[b] if _valid(u)]
+        for voice, stream in by_voice.items():
+            stream.sort(key=lambda u: (int(u.get("_unit_idx", 0)), float(u["start"])))
+            runs: list[list[dict[str, Any]]] = []
+            for u in stream:
+                if (runs and int(u.get("_unit_idx", 0)) <= int(runs[-1][-1].get("_unit_idx", 0)) + 2
+                        and float(u["start"]) >= float(runs[-1][-1]["start"]) - .15
+                        and float(u["start"]) - float(runs[-1][-1]["end"]) <= max_gap):
+                    runs[-1].append(u)
+                else:
+                    runs.append([u])
+            for run in runs:
+                if len(run) < min_words:
+                    continue
+                start, end = min(float(x["start"]) for x in run), max(float(x["end"]) for x in run)
+                same_time = [u for u in core if float(u["start"]) < end and float(u["end"]) > start]
+                ratio = min(1.0, len(same_time) / len(run))
+                if ratio > coverage:
+                    continue  # already represented or ambiguous; don't duplicate
+                norm_right = [_norm(u["text"]) for u in run]
+                lexical_stream = [_norm(u["text"]) for u in left_all]
+                match = SequenceMatcher(None, lexical_stream, norm_right, autojunk=False).find_longest_match(
+                    0, len(lexical_stream), 0, len(norm_right)
+                )
+                displaced = [u for u in left_all[match.a:match.a + match.size]] if match.size >= 2 else []
+                offsets = [float(x["start"]) for x in displaced]
+                activity = [a for a in activities.get(int(left.chunk_index), ())
+                            if a.get("possible_unrepresented_speech") is True
+                            and _finite(a.get("start_s")) and _finite(a.get("end_s"))
+                            and a["start_s"] < end and a["end_s"] > start]
+                case_id = "boundary_" + _digest([left.chunk_index, right.chunk_index, voice,
+                                                   [(x.get("_unit_idx"), x.get("text")) for x in run]])[:20]
+                cases.append({
+                    "case_id": case_id, "status": "review_required_not_auto_adopted",
+                    "boundary_s": float(left.core_end_s),
+                    "source_chunks": [int(left.chunk_index), int(right.chunk_index)],
+                    "context_window_s": [round(start, 4), round(end, 4)],
+                    "right_context_words": _words(run),
+                    "left_core_overlap_words": _words(same_time),
+                    "nominal_core_word_coverage_ratio": round(ratio, 4),
+                    "left_lexical_correspondence": {"matched_words": match.size,
+                        "left_words": _words(displaced),
+                        "left_ctc_start_s": min(offsets) if offsets else None,
+                        "alignment_is_acoustic_truth": False},
+                    "unrepresented_activity_intervals": [{"start_s": a["start_s"],
+                        "end_s": a["end_s"]} for a in activity],
+                    "distinct_voice_identity_verified": False,
+                    "evidence_limitations": [
+                        "Model ASR words and CTC timestamps are hypotheses",
+                        "Same words in two chunks may be different spoken occurrences",
+                        "The candidate may be a hallucination over non-speech audio",
+                        "No acoustic truth or character identity is certified",
+                    ],
+                    "suggested_review_tier": (
+                        "reasoned_text" if activity or displaced or same_time else "light_text"
+                    ),
+                    "optional_multimodal_escalation": "only_if_visual_evidence_can_resolve_remaining_speaker_or_scene_ambiguity",
+                    "proposed_source_action": "none_requires_evidence_bound_adjudication",
+                })
+    # Bounded priority order: strong independent activity/lexical disagreement
+    # first; do not silently pretend other candidates were fully evaluated.
+    total_candidates = len(cases)
+    cases.sort(key=lambda c: (
+        -int(bool(c["unrepresented_activity_intervals"])),
+        -c["left_lexical_correspondence"]["matched_words"],
+        c["boundary_s"], c["case_id"],
+    ))
+    cases = cases[:max_cases]
+    request = {"schema": RESULT_SCHEMA, "policy_id": policy.get("policy_id"),
+               "total_candidates_before_budget": total_candidates,
+               "deferred_by_budget": max(0, total_candidates - len(cases)),
+               "policy_sha256": _digest(policy), "reviewer_guidance": policy["reviewer_guidance"],
+               "cases": cases, "raw_source_modified": False,
+               "note": "Light text review first; audiovisual reasoning only for residual relevant ambiguity"}
+    request["request_sha256"] = _digest(request)
+    return request
+
+
+def validate_semantic_review(request: Mapping[str, Any], response: Mapping[str, Any]) -> dict[str, Any]:
+    """Validate LLM/reviewer citations; return an advisory, non-applying decision."""
+    if request.get("schema") != RESULT_SCHEMA or response.get("schema") != REVIEW_SCHEMA:
+        raise ValueError("Wrong semantic review schema")
+    bound = dict(request)
+    digest = bound.pop("request_sha256", None)
+    if digest != _digest(bound) or response.get("request_sha256") != digest:
+        raise ValueError("Stale quality-review request")
+    ids = {c["case_id"] for c in request["cases"]}
+    if response.get("case_id") not in ids or response.get("decision") not in _SAFE_DECISIONS:
+        raise ValueError("Unknown candidate or decision")
+    if not isinstance(response.get("rationale"), str) or not response["rationale"].strip():
+        raise ValueError("Evidence-weighting rationale missing")
+    if response["decision"] != "unresolved" and not response.get("supporting_evidence"):
+        raise ValueError("Non-abstaining review must cite source observations")
+    cited = response.get("supporting_evidence", [])
+    if (not isinstance(cited, list) or len(cited) != len(set(cited))
+            or any(s not in {"right_context_words", "left_core_overlap_words", "left_lexical_correspondence",
+                                 "unrepresented_activity_intervals", "independent_audio_review",
+                                 "independent_visual_review"} for s in cited)):
+        raise ValueError("Invalid reviewed evidence citations")
+    if response["decision"] == "adopt_neighbor_context":
+        audio_sha = response.get("independent_audio_review_sha256")
+        if (not response.get("independent_acoustic_support")
+                or "independent_audio_review" not in cited
+                or not isinstance(audio_sha, str) or len(audio_sha) != 64
+                or any(c not in "0123456789abcdef" for c in audio_sha)):
+            raise ValueError("Cannot certify neighbor speech from source-text agreement alone")
+    return {"schema": "nemovox-semantic-review-advisory/v1", "request_sha256": request["request_sha256"],
+            "case_id": response["case_id"], "decision": response["decision"],
+            "rationale": response["rationale"], "supporting_evidence": cited,
+            "unresolved": response.get("unresolved", []),
+            "source_application_authorized": False, "quality_review_only": True}
