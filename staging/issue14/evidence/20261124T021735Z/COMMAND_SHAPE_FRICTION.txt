@@ -1,9 +1,0 @@
-COMMAND_SHAPE_FRICTION
-campaign: ISSUE14_NINFER_MESSAGES_QC
-run_id: 20261124T021735Z
-encountered: yes
-omitted_sensitive_values: yes
-1. ninfer_messages_system_role_placement_http400:
-   - requested: managed_text_client(..., wire_protocol='ninfer_messages') executed run_configured_tiered_text_reviews() sending Call 0 (T2 xhigh, thinking_budget=1024, max_tokens=1792) to POST http://127.0.0.1:8001/v1/messages.
-   - effect: NInfer returned HTTP 400 invalid_request_error ('messages: system messages must follow a user message and be final or precede an assistant message') because NInferMessagesTextClient placed role='system' inside body['messages'][0] instead of Anthropic top-level body['system'] (anthropic_messages_request.cpp:387-402).
-   - recovery: stopped model phase cleanly at Call 0 without fallback to /v1/chat/completions or production source edits, verified ModelLifecycle returned service to startable/inactive, and preserved exact HTTP error + repro for Central.

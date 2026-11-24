@@ -1,9 +1,0 @@
-# Final Technical Findings (`81704133`)
-
-1. **Adaptive `pause_aware` + `64.241s` Cut Delivered Step-Change Episode Quality:** Utterance fragmentation dropped **55.6%** (`90 -> 40`), single-token `0.19-0.24s` CTC shards dropped **75.5%** (`49 -> 12`), ASS dialogue cues dropped **20.5%** (`308 -> 245`), simultaneous lanes dropped **67.7%** (`31 -> 10`), review large-gap alerts dropped **49.2%** (`63 -> 32`), and `W01a`/`W02a`/`W02c` (`10` residual dupes gone)/`W03a` (`7` residual dupes gone)/`W03b`/`W03c`/`W04c`/`S03`/`S05` tail all improved dramatically.
-2. **New Single-Candidate Speaker Guard & Polarity Guard Work Safely:** `6` borderline single-candidate pairs (`0.6571–0.6727`) were blocked while keeping confident merges (`0.8757`, `0.7819`), `0` unknown speakers. Polarity veto passed all CPU controls and caused `0` false vetoes across `169` real utterances.
-3. **Three Specific Regressions / Gaps Found in Full `pause_aware` Run (Actionable for Next Fix or Merge Triage):**
-   - **`c28` Forced-Cut Generation Loop (`1104..1150s` -> `utt-0138` Untimed):** `finish=length` (`16384` tokens, `75.25s`) collapsed to `1` untimed `"Ah"` (`unrenderable_no_usable_timing` in ASS metadata vs `0` untimed in baseline).
-   - **`W04b` (`c31` near `core_end=1263.70s`):** `c31` interleaved `1253s` and `1264.5s` timestamps past `1263.70s`, clipping `"Tao! On est sauvés!"` and leaving `"On a réussi,"` displaced `+11.3s` at `1264.47s`.
-   - **`W05a` (`c34` `1352.0–1354.0s`):** Raw ASR in `c34` omitted the `6`-word child line (`extended_recovered_units=0`), whereas `90s` `c14` right context had captured it.
-4. **Remaining Inherent Limits:** Intra-chunk `<spk:0>` turn collapse (`W02b`, `S05`), SFX-masked shout (`W01c`), glossary-free proper names (`W02a`, `S02`), and short `4–7`-token cross-speaker carryovers (`u007`, `u145`) below the `>=8` cross-speaker sequence dedup guard; renderer CPS (`max=160.0`, `51 > 18 cps`) belongs to Issue `#9`.

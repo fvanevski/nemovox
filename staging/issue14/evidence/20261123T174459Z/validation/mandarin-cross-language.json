@@ -1,9 +1,0 @@
-{
-  "media_fingerprint_sha256": "ef9cb723d6b2e8663fc62ac617ecb949608a45dce9633f88043a0c3fb541f13d",
-  "existing_contract_utterances": 285,
-  "existing_contract_untimed_utterances": 41,
-  "existing_c14_unmatched_incomplete_units": 69,
-  "new_ctc_timing_audit_quarantined_on_existing_contract": 0,
-  "replay_without_subinterval_runner_raw_lexical_observations": 3269,
-  "status": "UNCHANGED_CROSS_LANGUAGE_CONTROL"
-}
