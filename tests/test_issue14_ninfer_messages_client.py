@@ -11,6 +11,11 @@ import pytest
 from nvidia_transcribe.ninfer_messages_client import NInferMessagesTextClient
 from nvidia_transcribe.resource_lifecycle import managed_text_client
 
+JSON_OBJECT_SCHEMA = {"type": "json_schema", "schema": {
+    "type": "object", "properties": {"decision": {"type": "string"}},
+    "required": ["decision"], "additionalProperties": False,
+}}
+
 
 class Reply:
     def __init__(self, status=200, body=None):
@@ -67,11 +72,14 @@ def test_t2_sends_real_anthropic_thinking_budget_and_normalizes_content(monkeypa
     client = NInferMessagesTextClient(base_url="http://127.0.0.1:8001/v1", model="chat")
     result = client.complete(messages=_messages(), max_tokens=1792,
         thinking_budget=1024, reasoning_effort="xhigh",
-        response_format={"type":"json_object"}, strict_reasoning_effort=True)
+        response_format=JSON_OBJECT_SCHEMA, strict_reasoning_effort=True)
     url, body = requests[0]
     assert url == "http://127.0.0.1:8001/v1/messages"
     assert body["thinking"] == {"type": "enabled", "budget_tokens": 1024}
-    assert body["output_config"] == {"effort":"xhigh"}
+    assert body["output_config"] == {
+        "effort":"xhigh",
+        "format":{"type":"json_schema", "schema":JSON_OBJECT_SCHEMA["schema"]},
+    }
     assert body["max_tokens"] == 1792
     assert body["system"] == "Be precise"
     assert body["messages"] == [{"role":"user","content":"Assess source ambiguity"}]
@@ -91,11 +99,13 @@ def test_t1_disables_hidden_thinking_instead_of_inheriting_server_default(monkey
     requests = _client_transport(monkeypatch, responses=[Reply(body=_finished_response(thinking=False))])
     result = NInferMessagesTextClient(base_url="http://localhost:8001/v1", model="chat").complete(
         messages=_messages(), max_tokens=512, thinking_budget=0, reasoning_effort="none",
-        response_format={"type":"json_object"}, strict_reasoning_effort=True)
+        response_format=JSON_OBJECT_SCHEMA, strict_reasoning_effort=True)
     assert requests[0][1]["thinking"] == {"type": "disabled"}
     assert requests[0][1]["system"] == "Be precise"
     assert requests[0][1]["messages"][0]["role"] == "user"
-    assert "output_config" not in requests[0][1]
+    assert requests[0][1]["output_config"] == {
+        "format":{"type":"json_schema", "schema":JSON_OBJECT_SCHEMA["schema"]},
+    }
     assert result["_client_request_diagnostics"]["thinking_mode"] == "disabled"
     assert result["usage"]["completion_tokens_details"]["reasoning_tokens"] == 0
 
@@ -199,6 +209,14 @@ def test_messages_adapter_integrates_with_pinned_semantic_review_contract(monkey
     assert result["model_calls"]==1
     assert result["source_or_subtitles_modified"] is False
     assert requests[0][1]["thinking"]=={"type":"enabled","budget_tokens":1024}
+    fmt = requests[0][1]["output_config"]["format"]
+    assert fmt["type"] == "json_schema"
+    assert fmt["schema"]["properties"]["request_sha256"]["enum"] == [request["request_sha256"]]
+    assert fmt["schema"]["properties"]["case_id"]["enum"] == [request["cases"][0]["case_id"]]
+    assert set(fmt["schema"]["properties"]["supporting_evidence"]["items"]["enum"]) == {
+        "right_context_words", "left_core_overlap_words", "left_lexical_correspondence",
+        "unrepresented_activity_intervals", "independent_audio_review", "independent_visual_review",
+    }
     assert "system" in requests[0][1]
     assert requests[0][1]["messages"][0]["role"]=="user"
 
@@ -241,3 +259,21 @@ def test_system_only_messages_fail_before_wire_request(monkeypatch):
             {"role":"system","content":"No user turn."}
         ],max_tokens=512,thinking_budget=0,reasoning_effort="none")
     assert requests==[]
+
+
+def test_messages_json_schema_is_required_and_never_downgraded(monkeypatch):
+    requests = _client_transport(monkeypatch)
+    client = NInferMessagesTextClient(base_url="http://localhost:8001/v1",model="chat")
+    bad = [{"type":"json_object"}, {"type":"json_schema","schema":"not a schema"},
+           {"type":"json_schema","schema":{"type":"object"},"unexpected":True}]
+    for fmt in bad:
+        with pytest.raises(ValueError,match="explicit JSON Schema"):
+            client.complete(messages=_messages(),max_tokens=512,thinking_budget=0,
+                            reasoning_effort="none",response_format=fmt)
+    assert requests==[]
+    # With no response format explicitly requested, prior relaxed transport
+    # retains its behavior; it must not CLAIM to have constrained the output.
+    out=client.complete(messages=_messages(),max_tokens=512,thinking_budget=0,
+                        reasoning_effort="none")
+    assert "output_config" not in requests[-1][1]
+    assert out["_client_request_diagnostics"]["response_format_sent"] is False
