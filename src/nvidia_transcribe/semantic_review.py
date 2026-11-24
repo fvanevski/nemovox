@@ -350,3 +350,23 @@ def run_tiered_text_reviews(
                 o["status"] != "deferred_token_budget" for o in outcomes),
             "tokens_reserved": token_budget - remaining,
             "outcomes": outcomes, "source_or_subtitles_modified": False}
+
+
+
+def run_configured_tiered_text_reviews(
+    request: Mapping[str, Any], *, client: Any, policy: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Apply only the exact versioned review profile that produced the cases."""
+    if request.get("policy_sha256") != _digest(policy):
+        raise ValueError("Tiered review policy differs from the pinned candidate plan")
+    config = policy.get("model_review") or {}
+    allowed = {
+        "case_limit", "token_budget", "light_tokens", "reasoned_tokens",
+        "light_effort", "reasoned_effort", "light_thinking_budget",
+        "reasoned_thinking_budget",
+    }
+    if not isinstance(config, dict) or set(config) - allowed:
+        raise ValueError("Invalid model_review execution configuration")
+    batch = run_tiered_text_reviews(request, client=client, **config)
+    batch["model_review_execution_sha256"] = _digest(config)
+    return batch

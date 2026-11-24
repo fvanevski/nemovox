@@ -183,3 +183,27 @@ def test_thinking_starvation_cannot_be_reported_as_accepted_review():
     assert outcome["status"]=="unaccepted_model_response"
     assert "exhausted by reasoning" in outcome["error"]
     assert outcome["telemetry"]["reasoning_tokens"]==512
+
+
+def test_execution_config_is_bound_to_candidate_policy_hash():
+    from nvidia_transcribe.semantic_review import run_configured_tiered_text_reviews
+    import json
+    cfg={**P,"model_review":{"case_limit":1,"token_budget":512,
+            "light_tokens":512,"reasoned_tokens":512,
+            "light_thinking_budget":128,"reasoned_thinking_budget":128,
+            "light_effort":"low","reasoned_effort":"xhigh"}}
+    right=[w(x,80+i*.20,i,1) for i,x in enumerate(["Speech","may","be","missing"])]
+    req=plan_boundary_semantic_reviews([[],right],chunks(90),policy=cfg)
+    class Fake:
+        def complete(self,**kw):
+            return {"choices":[{"message":{"content":json.dumps({
+                "schema":"nemovox-semantic-review-decision/v1",
+                "case_id":req["cases"][0]["case_id"],
+                "request_sha256":req["request_sha256"],"decision":"unresolved",
+                "rationale":"Need original audio","supporting_evidence":[],
+                "contrary_evidence":[],"unresolved":["audio"]})}}]}
+    batch=run_configured_tiered_text_reviews(req,client=Fake(),policy=cfg)
+    assert batch["outcomes"][0]["status"]=="advisory_only"
+    with pytest.raises(ValueError,match="pinned candidate plan"):
+        run_configured_tiered_text_reviews(req,client=Fake(),
+            policy={**cfg,"policy_id":"another-version"})
