@@ -1,0 +1,45 @@
+{
+  "schema": "nemovox-issue14-evidence-manifest/v1",
+  "run_id": "20261124T035505Z",
+  "public_root": "staging/issue14/evidence/20261124T035505Z",
+  "admitted_pr_head": "604e8dc9c68c13029d3d883a9c2e1a1322b552de",
+  "central_source_sha": "604e8dc9c68c13029d3d883a9c2e1a1322b552de",
+  "member_count": 7,
+  "members": [
+    {
+      "path": "COMMAND_SHAPE_FRICTION.txt",
+      "bytes": 1228,
+      "sha256": "c9669c14968a18630ab6b72a8ff341fdea0ed94607a853b4a465d95d4f1b63ff"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1438,
+      "sha256": "f1221f2ccc8942553fbd1be4a81a3bed1bb9e2501665577b6411cb5d1bf09a60"
+    },
+    {
+      "path": "review/issue14-audio-source-recovery-summary.md",
+      "bytes": 2713,
+      "sha256": "89a84d121b5d74d04b096e8f6428a6692c7269567ee5c1aadc64c9dde3686a56"
+    },
+    {
+      "path": "source-identity.json",
+      "bytes": 1884,
+      "sha256": "dec272d8f48393269dc3a96adc4a388a5aa41b33c99e9757b16be6dfcdacb3b6"
+    },
+    {
+      "path": "validation/audio-recovery-and-unit-accounting.json",
+      "bytes": 4712,
+      "sha256": "9fcfa718dd886f796a3b07711f56b79679061b4a5daf73d41e812c5db349daad"
+    },
+    {
+      "path": "validation/cpu-gates.json",
+      "bytes": 2255,
+      "sha256": "4e33589f67519e32f58ab6117878f377adaff0840232843cae61abdedfd5b1fc"
+    },
+    {
+      "path": "validation/translation-postedit-and-render.json",
+      "bytes": 14642,
+      "sha256": "210e45dd93478056fefc2c466d2ecbbb0dd9736caefff7d4ce648bf4c9533a8a"
+    }
+  ]
+}

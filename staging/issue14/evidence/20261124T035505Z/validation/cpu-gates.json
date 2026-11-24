@@ -1,0 +1,68 @@
+{
+  "worktree": "/workspace/nemovox-issue14-audio-recovery",
+  "pythonpath": "src:.",
+  "prior_archive_auth": {
+    "sha256": "f509daebfc22866edbe9832f5216570dd7bd969681424e4186819cf7cadd2fcd",
+    "unique_members": 12,
+    "checksums_verified": "11/11"
+  },
+  "prior_public_packet_auth": {
+    "head": "ffe0d5adc3e7e6127f4b3ed1054f900c0f30519a",
+    "members_verified": "7/7+manifest"
+  },
+  "config_unchanged_since_sha": "e5c5a8a6c3443f7bfbefc25119fd392694eca1dc",
+  "interpreter_imports_verified": {
+    "venv": [
+      "/workspace/nemovox-issue14-audio-recovery/src/nvidia_transcribe/audio_source_recovery.py",
+      "/workspace/nemovox-issue14-audio-recovery/src/nvidia_transcribe/translation_review.py",
+      "/workspace/nemovox-issue14-audio-recovery/src/nvidia_transcribe/source_fusion_downstream.py",
+      "/workspace/nemovox-issue14-audio-recovery/src/nvidia_transcribe/ninfer_messages_client.py"
+    ],
+    "venv_studio": [
+      "/workspace/nemovox-issue14-audio-recovery/src/nvidia_transcribe/audio_source_recovery.py",
+      "/workspace/nemovox-issue14-audio-recovery/src/nvidia_transcribe/translation_review.py",
+      "/workspace/nemovox-issue14-audio-recovery/src/nvidia_transcribe/source_fusion_downstream.py",
+      "/workspace/nemovox-issue14-audio-recovery/src/nvidia_transcribe/ninfer_messages_client.py"
+    ]
+  },
+  "compileall": {
+    "exit_code": 0,
+    "targets": [
+      "src",
+      "tests"
+    ]
+  },
+  "focused_7_files": {
+    "exit_code": 0,
+    "passed": 85,
+    "warnings": 1,
+    "duration_s": 0.26,
+    "files": [
+      "tests/test_issue14_audio_source_recovery.py",
+      "tests/test_issue14_semantic_review_followups.py",
+      "tests/test_issue14_semantic_review_output_contract.py",
+      "tests/test_issue14_ninfer_messages_client.py",
+      "tests/test_issue14_timing_boundaries.py",
+      "tests/test_translation_review.py",
+      "tests/test_refinement.py"
+    ]
+  },
+  "full_core_venv": {
+    "exit_code": 0,
+    "passed": 508,
+    "warnings": 1,
+    "duration_s": 10.59,
+    "marker": "not gpu"
+  },
+  "full_studio_venv_studio": {
+    "exit_code": 0,
+    "passed": 508,
+    "warnings": 0,
+    "duration_s": 10.11,
+    "marker": "not gpu"
+  },
+  "git_diff_check": {
+    "exit_code": 0,
+    "issues": 0
+  }
+}

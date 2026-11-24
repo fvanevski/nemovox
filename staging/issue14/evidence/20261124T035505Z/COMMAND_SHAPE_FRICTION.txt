@@ -1,0 +1,17 @@
+COMMAND_SHAPE_FRICTION:
+  encountered=yes
+  events=[
+    {
+      "phase": "phase_b_recovery_dossier",
+      "requested_shape": "window [279.0,310.0] listed both S02 case IDs (including boundary_567ba692421cf2d5ca68 whose CTC units are at [337.88,340.825]) and summary read historical_unmodified_rows from tr_preview['report']",
+      "effect": "apply_audio_source_recovery rejected unlinked case on [279,310] ('Audio review must be bounded and linked to QC cases'); private script KeyError reading preview report",
+      "resolution": "scoped [279.0,310.0] case_ids to boundary_ccbf33cf64b16ef94668 (sharing s02_ev_zia via Window 2) and inspected tr_preview['report'] directly; zero production code edited; exited 0"
+    },
+    {
+      "phase": "phase_c_script",
+      "requested_shape": "initial script asserted assembled_res['report']['historical_unmodified_rows']",
+      "effect": "KeyError after Riva 8-turn translation already succeeded cleanly and saved contracts/riva_8turn_receipts.json",
+      "resolution": "updated private script to read assembled['translation']['historical_unmodified_rows'] and reuse exact-source riva_8turn_receipts.json without rerunning Riva; exited 0"
+    }
+  ]
+  omitted_sensitive_values=yes
