@@ -1,0 +1,24 @@
+# Issue #14 native multimodal diagnostic
+
+**Native vision and bounded investigation completed. Subtitle quality remains unresolved.** Tested application `9858da306a79aab77348b0b5c8a0ea71b1551a3c`, tree `0e3d6aa036859fb29b00b9becd816579fb070104`. The candidate leaves production selection, translation policy and rendering unchanged.
+
+| Gate | Observed result |
+| --- | --- |
+| CPU adapter and consumers | PASS. Both interpreters imported candidate source. Changed scripts compiled. Focused suite 92 passed, full CLI and Studio suites 397 each. |
+| Prior source trace | PASS. Prior archive and archived members verified. French speech was absent from the original raw generation in the chunk that covered it. French CTC retained the generated units. Both Mandarin raw generations contained dialogue but returned CTC alignment_failed and zero words. The untimed rows survived into canonical source. |
+| Bounded Nemotron collection | PASS. 20 successful POSTs using the single owned ASR scope. All ten screenshots captured. ModelOpt mixed precision and CTC verified in native logs. |
+| Independent acoustic comparison | PASS. Cached multilingual Whisper large-v3, faster-whisper 1.2.1, CPU int8, six identical hashed waveform inputs. |
+| Native Messages images | PASS. Randomized two-image calibration and two five-frame requests returned HTTP 200 and complete results. Native media counts were 2/5/5 and vision tokens 128/2550/2550. Wire image hashes and content order matched every input. |
+| Context and English assessment | EXECUTED. Four isolated context/fusion and eight source-first/blind requests all returned HTTP 200. Both gap cases retained material uncertainty. The English assessment still endorsed wrong idiom or cognate reasoning in two decisive cases. |
+| Lifecycle | PASS. One ASR and one owned NInfer invocation. Observed peak 30,681 MiB. Both units later inactive, ports closed, lease clear. The production Studio invocation and observed external GPU processes persisted. |
+
+## Acoustic and visual findings
+
+- For the French omission, short speaker and SOT crops recover a timed negative admonition. Verbatim starts later. The expanded crop loses the sentence again. Left and right crops around the 793.500 s nominal boundary recover similar event bounds with different wording and modeled turns. Whisper base and expanded both favor a breathing-related reading. Earlier operator audition confirms speech, with exact words unverified. The French sequence shows characters reacting in a village and an airborne shape, with a watermark and no legible dialogue caption. It does not resolve the disputed verb or speaker identity.
+- For Mandarin, early, expanded and left crops still lose CTC alignment. All three short late presets and the right crop yield useful late timing. The right crop also locates a truncated tail of the preceding phrase. Timing around the shared internal profit-taking and advancement sequence agrees across several crops. Whisper estimates early and late bounds across the gap. The 249.0 s burned-in Mandarin caption corroborates the meaning of exploiting opportunities for gain within power struggles. It provides a textual discriminator rather than word-level speech timing.
+- Context-only reasoning recovered broad meaning but left both cases materially ambiguous. Fused reasoning favored breathing in French and clarified the power-game/profit action in Mandarin. Both remained materially ambiguous. A safe early exit for the unresolved wording was not demonstrated. The fused Mandarin single-speaker hypothesis remains a model inference.
+- The French source-first/blind idiom case still misread being fooled as indifference or abandonment. The Mandarin profit-taking case generated an economic cognate in source-first, yet the blind assessment still accepted the dispute-resolution verb as close and endorsed source wording that conflicts with visual context. The French pronoun control switched to a neutral referent without accounting for the preceding named female referent. The Mandarin polarity/chronology control preserved prior ability and rhetorical impossibility. Blind winner labels alone do not establish semantic fidelity.
+
+The 15 Messages calls took 127.451 s total at the wire. Calibration used 1,024 thinking tokens of budget with 1,792 output capacity. The remaining fourteen used 2,048 with 4,096 capacity. The executing server responded as `chat`, with vision enabled and exact binary fingerprint retained. The installed source resolves to NInfer revision `a3a3dd5be6c2ecec1479017d5eee219d7a7e5784`. A release-version string was unavailable. The private archive holds exact bounded hypotheses, frames, direct and model visual observations, raw responses, receipts, and native telemetry.
+
+[Commands and exits](commands.md) · [Metrics](metrics.json) · [Command friction](COMMAND_SHAPE_FRICTION.txt) · [Checksums](SHA256SUMS)
