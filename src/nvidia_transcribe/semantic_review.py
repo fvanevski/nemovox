@@ -204,10 +204,15 @@ def validate_semantic_review(request: Mapping[str, Any], response: Mapping[str, 
     if response["decision"] != "unresolved" and not response.get("supporting_evidence"):
         raise ValueError("Non-abstaining review must cite source observations")
     cited = response.get("supporting_evidence", [])
+    contrary = response.get("contrary_evidence")
+    if not isinstance(contrary, list):
+        raise ValueError("Contrary evidence list required, even if empty")
+    allowed = {"right_context_words", "left_core_overlap_words", "left_lexical_correspondence",
+               "unrepresented_activity_intervals", "independent_audio_review", "independent_visual_review"}
+    if (len(contrary) != len(set(contrary)) or any(x not in allowed for x in contrary)):
+        raise ValueError("Invalid contrary evidence citations")
     if (not isinstance(cited, list) or len(cited) != len(set(cited))
-            or any(s not in {"right_context_words", "left_core_overlap_words", "left_lexical_correspondence",
-                                 "unrepresented_activity_intervals", "independent_audio_review",
-                                 "independent_visual_review"} for s in cited)):
+            or any(s not in allowed for s in cited)):
         raise ValueError("Invalid reviewed evidence citations")
     if response["decision"] == "adopt_neighbor_context":
         audio_sha = response.get("independent_audio_review_sha256")
@@ -219,7 +224,7 @@ def validate_semantic_review(request: Mapping[str, Any], response: Mapping[str, 
     return {"schema": "nemovox-semantic-review-advisory/v1", "request_sha256": request["request_sha256"],
             "case_id": response["case_id"], "decision": response["decision"],
             "rationale": response["rationale"], "supporting_evidence": cited,
-            "unresolved": response.get("unresolved", []),
+            "contrary_evidence": contrary, "unresolved": response.get("unresolved", []),
             "source_application_authorized": False, "quality_review_only": True}
 
 
@@ -229,8 +234,8 @@ def build_semantic_review_messages(request: Mapping[str, Any], case: Mapping[str
         raise ValueError("Unknown semantic review candidate")
     system = (request["reviewer_guidance"] + "\n" +
               "Return a single JSON object with schema nemovox-semantic-review-decision/v1, "
-              "request_sha256, case_id, decision, rationale, supporting_evidence "
-              "and unresolved. Decision must be one of: adopt_neighbor_context, "
+              "request_sha256, case_id, decision, rationale, supporting_evidence, "
+              "contrary_evidence and unresolved. Decision must be one of: adopt_neighbor_context, "
               "retain_core, possible_duplicate, unresolved. Describe both supporting "
               "and contrary evidence. Do not claim independent audio/video review "
               "unless actual authenticated observations were supplied. A plausible "

@@ -61,7 +61,8 @@ def test_reasoner_cannot_automatically_promote_or_claim_audio_from_text_only():
     q=plan_boundary_semantic_reviews([[],right],chunks(90),policy=P)
     r={"schema":"nemovox-semantic-review-decision/v1","request_sha256":q['request_sha256'],
        "case_id":q['cases'][0]['case_id'],"decision":"adopt_neighbor_context",
-       "rationale":"Looks plausible, needs audio.","supporting_evidence":["right_context_words"]}
+       "rationale":"Looks plausible, needs audio.","supporting_evidence":["right_context_words"],
+       "contrary_evidence":[]}
     with pytest.raises(ValueError,match='Cannot certify neighbor speech'):
         validate_semantic_review(q,r)
     r['independent_acoustic_support']=True
@@ -77,7 +78,7 @@ def test_bad_policy_or_untrusted_review_evidence_fails():
     q=plan_boundary_semantic_reviews([[],[w(x,80+i*.25,i,1) for i,x in enumerate(['do','not','go'])]],chunks(90),policy=P)
     r={"schema":"nemovox-semantic-review-decision/v1","request_sha256":q['request_sha256'],
        "case_id":q['cases'][0]['case_id'],"decision":"retain_core",
-       "rationale":"review","supporting_evidence":["fabricated_source"]}
+       "rationale":"review","supporting_evidence":["fabricated_source"],"contrary_evidence":[]}
     with pytest.raises(ValueError,match='evidence citations'):validate_semantic_review(q,r)
 
 
@@ -107,7 +108,7 @@ def test_injected_tiered_text_client_is_advisory_and_bounded():
                 'schema':'nemovox-semantic-review-decision/v1',
                 'request_sha256':q['request_sha256'],'case_id':q['cases'][0]['case_id'],
                 'decision':'unresolved','rationale':'No verified audio, cannot infer source',
-                'supporting_evidence':[],'unresolved':['acoustics']})}}]}
+                'supporting_evidence':[],'contrary_evidence':[], 'unresolved':['acoustics']})}}]}
     client=Stub()
     out=run_tiered_text_reviews(q,client=client,light_tokens=256,reasoned_tokens=512,token_budget=800)
     assert out['model_calls']==1
