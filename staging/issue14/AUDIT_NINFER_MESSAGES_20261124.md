@@ -1,0 +1,36 @@
+# Issue #14: NInfer Messages budget repair and meaning-first QC disposition
+
+**Issue:** fvanevski/nemovox#14; **PR:** #15 (same DRAFT PR). **Central latest source/test:** 94d96d1bfb84cb0c6c8163511963302b499aeb0c; tree 5dd95055ccb57114e579ec3db8e74ea45157ec42. **Central config:** e5c5a8a6c3443f7bfbefc25119fd392694eca1dc. This new source has NOT been host-qualified. Keep issue OPEN and PR DRAFT until genuine evidence supports acceptance.
+
+## Product objective
+
+Produce grammatical, readable, intelligible natural English subtitles faithful to intended meaning, narrative continuity, consequential polarity, and relevant speaker distinctions. Literal French/English per-word identity and perfect timing of every token are NOT release goals. Word-level alignment uncertainty does not preclude using authenticated utterance/event timing. However, grammar/postediting latitude does not authorize invented acoustic events, dropping distinct meaningful turns, converting ASR guesses into verified audio facts, or accepting materially incorrect polarity.
+
+## Authenticated handback and root cause
+
+The uploaded issue14-ninfer-tiered-qc-20261124T020042Z.tar.gz was directly inspected: 35004 bytes, SHA256 cbbf57d0196e376a504aed905fe121a2579a0d25c7d85f8c2069991bfcd330c9, seven regular members, six verified CHECKSUMS.sha256 entries, zero duplicates/nonfiles. Host evidence prior source 4c27c5b8d13a173aa8ce2f3c1f9699a37d8a14c0, tree 7fb880ff1614f4ce21ab28a87fda5de3e62c62c0, config a31a7d7d25b083671126f9f63b56151a7526a0d2: focused 55 passed + 1 failed, core and Studio each 458 passed + 1 failed. The single failed test supplied reasoned_tokens=512 with previous *fixed default* reasoned_thinking_budget=512 and required 128-token headroom, a genuine caller-default incompatibility rather than a reason to remove the assertion.
+
+The host independently proved that installed NInfer a3a3dd5be6c2ecec1479017d5eee219d7a7e5784 ignores the nonstandard top-level "thinking_budget" parameter on POST /v1/chat/completions. The client sent budget 512/128, but NInfer used its server --thinking-budget 16384. All six requests (5 xhigh at 1280 output; 1 low at 512) ended with completion_tokens == reasoning_tokens and content="", finish_reason="length". The text-model judgments were never completed. The managed text service returned cleanly to its prior startable/inactive state. This is a demonstrable backend protocol mismatch, not a failure of semantic reasoning or evidence assessment.
+
+The same pinned NInfer source confirms:
+- src/serve/anthropic_messages_request.cpp parse_thinking around lines 853-876 explicitly parses /v1/messages "thinking": {"type":"enabled","budget_tokens":N}, requires N >= 1024 and N < max_tokens, and supports "disabled". These are authoritative parser semantics at the tested NInfer SHA.
+- src/serve/anthropic_messages_response.cpp reports usage.output_tokens and usage.output_tokens_details.thinking_tokens, as well as structured content and stop_reason.
+- docs/serving.md for that SHA documents per-request override of --thinking-budget for /v1/messages, not OpenAI Chat Completions.
+- The handback's T0 per-local-voice correspondence fix already improved S02 displaced evidence from 2->9 and 4->5 matched words without source mutation; W01c context and negative controls remained stable. No new alignment threshold or episode-specific source manipulation is warranted.
+
+## Central production correction on same PR
+
+1. NEW src/nvidia_transcribe/ninfer_messages_client.py: opt-in NInfer Messages text-QC transport. It sends exact thinking={"type":"disabled"} for T1 (light, no hidden reasoning), or thinking={"type":"enabled","budget_tokens":1024} and output_config.effort=xhigh for T2 under a 1792-token output cap. Refuses malformed cap, incompatible effort, unsupported content/response, backend HTTP errors, and silent fallbacks. Converts actual Anthropic typed text, thinking, stop reason and token usage back to the existing validated OpenAI-compatible .complete(...) result shape; source advisory acceptance remains entirely in semantic_review.py, including contrary evidence and abstention.
+2. src/nvidia_transcribe/resource_lifecycle.py: explicit managed_text_client(..., wire_protocol="ninfer_messages") uses the *same* verified Nemovox-owned resource/lifecycle. The default remains "openai_chat", preserving ordinary translation and refinement behavior.
+3. src/nvidia_transcribe/refinement.py: generic OpenAIChatTextClient now FAILS CLOSED when passed a purported thinking_budget. The previous behavior claimed an unenforceable cap on installed NInfer; this is an invariant defect, not a case-specific work-around. Its unrelated ordinary Chat Completions path remains otherwise unchanged.
+4. src/nvidia_transcribe/semantic_review.py: safely derives default caps for legacy callers with smaller per-case max_tokens; explicitly oversubscribed cap remains invalid. A response reaching output limit cannot be accepted as complete just because JSON parses. Repeated systemic reasoning-only starvation stops subsequent calls and reports deferred_systemic_model_failure rather than repeating six wasted calls. The existing source evidence/LLM advisory split remains unchanged.
+5. configs/meaning-first-review.example.json: versioned policy config now T1 512 output, thinking disabled and effort=none; T2 1792 output, 1024 thinking and effort=xhigh; max six calls, total reserved completion tokens 9472, abort_on_reasoning_starvation=true. This is an opt-in QC profile, NOT a modification to the NInfer host service.
+6. tests/test_issue14_ninfer_messages_client.py, tests/test_issue14_ninfer_thinking_budget.py and tests/test_issue14_semantic_review.py cover real Messages wire payload, typed response normalization, thinking-off T1, strict no-fallback, owned lazy lifecycle, version-bound valid advisory, legacy 512-token caller, overbudget refusal, truncated JSON and first-starvation batch abort. AGENTS.md documents the transport distinction.
+
+## Scope boundary and exact acceptance
+
+Run one focused plus complete core and Studio CPU campaign, then at most ONE owned-model session using /v1/messages, no more than SIX calls total (the first call is the compatibility check, not an extra seventh). If the installed server rejects xhigh/1024 thinking or the adapter/normalization fails, stop the model phase with the actual HTTP payload/status and evidence, without changing host NInfer or weakening strict reasoning. Require actual nonempty JSON model responses that pass semantic_review.validate_semantic_review, including contrary evidence or appropriate abstention, while source_application_authorized=False. Compare S02 negation continuity, W01c missing context, low-cost QC and negative controls for intended meaning and readable output.
+
+Do not run a whole episode, alter model services or weights, auto-promote new source words, apply translations, or merge the PR as part of this qualification. The end-to-end evidence-based correction integration remains a subsequent exact-head decision, not a reason to weaken current source-ownership guards.
+
+This packet is Central design and code authority, NOT proof of a successful host runtime. The new source is UNVERIFIED on the user's Garuda host until the next handback.
