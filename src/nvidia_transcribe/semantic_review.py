@@ -347,6 +347,10 @@ def run_tiered_text_reviews(
     """
     if request.get("schema") != RESULT_SCHEMA:
         raise ValueError("Invalid semantic review request")
+    bound = dict(request)
+    digest = bound.pop("request_sha256", None)
+    if digest != _digest(bound):
+        raise ValueError("Stale quality-review request: candidate identity changed")
     if (not isinstance(case_limit, int) or isinstance(case_limit, bool) or not 1 <= case_limit <= 50
             or not isinstance(token_budget, int) or isinstance(token_budget, bool) or token_budget < 1
             or not all(isinstance(n, int) and not isinstance(n, bool) and 256 <= n <= token_budget
@@ -418,6 +422,8 @@ def run_tiered_text_reviews(
                 raise ValueError("Model returned no final JSON content")
 
             decoded = _decode_semantic_review_json(raw)
+            if not isinstance(decoded, dict):
+                raise ValueError("Review response must be a JSON object")
             assessed = validate_semantic_review(request, decoded)
         except (ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
             outcomes.append({"case_id": case["case_id"], "status": "unaccepted_model_response",

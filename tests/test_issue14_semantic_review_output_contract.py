@@ -113,6 +113,23 @@ def test_observed_output_failures_still_fail_closed(mutation,reason):
     assert out["outcomes"][0]["status"]=="unaccepted_model_response"
     assert reason in out["outcomes"][0]["error"]
 
+def test_changed_review_case_is_rejected_before_spending_model_tokens():
+    req=case_request()
+    req["cases"][0]["context_window_s"]=[10.0,20.0]
+    model=Client(json.dumps(decision(req)))
+    with pytest.raises(ValueError,match="Stale quality-review request"):
+        run_configured_tiered_text_reviews(req,client=model,policy=POLICY)
+    assert model.calls==[]
+
+
+def test_json_array_response_fails_as_unaccepted_not_exception_abort():
+    req=case_request()
+    out=run_configured_tiered_text_reviews(
+        req,client=Client(json.dumps([decision(req)])),policy=POLICY)
+    assert out["outcomes"][0]["status"]=="unaccepted_model_response"
+    assert "JSON object" in out["outcomes"][0]["error"]
+
+
 def test_truncated_completed_json_is_not_accepted():
     req=case_request()
     class Truncated(Client):
