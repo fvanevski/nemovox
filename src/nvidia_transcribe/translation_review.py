@@ -7,17 +7,19 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from nvidia_transcribe.resource_lifecycle import ResourceLifecycleError
+from nvidia_transcribe.ninfer_messages_client import QUALITY_RETRY_TOKENS, runaway_whitespace
 from nvidia_transcribe.refinement import GlossaryConfig, OpenAIChatTextClient
 
 VALID_REVIEW_PROFILES = ("off", "conservative", "balanced", "expressive")
 VALID_REVIEW_STYLES = ("natural", "literal", "expressive")
-_PROMPT_VERSION = "mt_postedit_v1"
+_PROMPT_VERSION = "mt_postedit_v6_completion_headroom"
 _SCHEMA = {
     "type": "json_schema",
     "json_schema": {
@@ -66,6 +68,8 @@ class TranslationReviewConfig:
     use_json_schema: bool = True
     temperature: float = 0.0
     reasoning_effort: str | None = "low"
+    wire_protocol: str = "openai_chat"
+    thinking_budget: int | None = None
 
 
 def _uid(u: dict[str, Any], i: int) -> str:
@@ -82,7 +86,95 @@ def _entry(u: dict[str, Any], i: int) -> dict[str, Any]:
         # text that this stage is permitted to change.
         "source_text": str(u.get("source_text") or ""),
         "machine_translation": str(u.get("machine_translated_text") or ""),
+        "source_quality_status": u.get("source_quality_status"),
+        "source_caption_evidence": u.get("source_caption_evidence"),
+        "source_semantic_resolution": u.get("source_semantic_resolution"),
     }
+
+
+_FRENCH_NEGATIVE = re.compile(
+    r"(?i)(?:\b(?:pas|jamais|rien|personne|aucun|aucune|sans)\b|(?:^|\W)n['’]|\bne\b(?:\W+\w+){0,5}\W+plus\b)"
+)
+_ENGLISH_NEGATIVE = re.compile(
+    r"(?i)(?:\b(?:not|never|no|none|nobody|nothing|neither|nor|without|cannot)\b|n['’]t\b)"
+)
+
+
+def _unsupported_polarity_inversion(
+    source: str, original: str, candidate: str, language: str | None,
+) -> bool:
+    """Only veto loss of lexical negation corroborated by BOTH French and Riva.
+
+    This is deliberately conservative: changes retaining lexical negatives
+    (e.g. 'not ... or' -> 'neither ... nor') remain allowed, as do
+    corrections with no jointly corroborated negative evidence.
+    """
+    # Restrictive ne ... que expresses "only", not semantic negation.
+    # Remove only the restrictive marker, leaving explicit negative words
+    # (including in the same clause) available to the existing guard.
+    source = re.sub(r"(?i)(?:\bne\s+|(?<!\w)n['’])(?=\w+\s+que\b)",
+                    "",source)
+    return bool(
+        language and language.lower().startswith("fr")
+        and _FRENCH_NEGATIVE.search(source)
+        and _ENGLISH_NEGATIVE.search(original)
+        and not _ENGLISH_NEGATIVE.search(candidate)
+    )
+
+
+def _native_output_exhausted(reply: dict[str, Any]) -> bool:
+    choice = (reply.get("choices") or [{}])[0]
+    return (choice.get("finish_reason") == "length"
+            and reply.get("_client_request_diagnostics", {}).get("native_stop_reason") == "max_tokens")
+
+
+def _compact_comparison(client, messages, ids, max_tokens):
+    """Change response geometry, not the evidence or the semantic judgment."""
+    tokens = {f"{uid}={choice}": (uid, choice)
+              for uid in ids for choice in ("original", "proposal")}
+    schema = {"type": "object", "properties": {
+        "reason": {"type": "string"},
+        "verdicts": {"type": "array", "minItems": len(ids), "maxItems": len(ids),
+                     "items": {"type": "string", "enum": list(tokens)}}},
+        "required": ["reason", "verdicts"], "additionalProperties": False}
+    # Keep the complete passage and neighboring evidence identical. Use
+    # a single passage rationale and compact ID-bound decision tokens.
+    alternate = [dict(m) for m in messages]
+    alternate[0]["content"] += (
+        " Use the compact response format: give one concise passage-level rationale "
+        "covering your decisions, then one exact ID=choice token for each requested "
+        "utterance. Do not emit the earlier nested decisions format. Avoid repeated whitespace.")
+    reply = client.complete(messages=alternate, max_tokens=max_tokens, temperature=0.0,
+                            response_format={"type": "json_schema", "schema": schema},
+                            thinking_budget=1024, reasoning_effort="xhigh",
+                            strict_reasoning_effort=True, stop_on_whitespace_loop=True)
+    return reply, tokens
+
+
+def _parse_compact_comparison(reply, tokens, ids):
+    result = (reply.get("choices") or [{}])[0]
+    if result.get("finish_reason") != "stop":
+        raise ValueError("Incomplete compact comparative review: "+
+                         json.dumps(reply.get("_client_request_diagnostics", {}), ensure_ascii=False))
+    parsed = json.loads(result["message"]["content"])
+    if (not isinstance(parsed, dict) or set(parsed) != {"reason", "verdicts"}
+            or not isinstance(parsed["reason"], str) or not parsed["reason"].strip()
+            or not isinstance(parsed["verdicts"], list) or len(parsed["verdicts"]) != len(ids)):
+        raise ValueError("Invalid compact comparative review")
+    decisions = []
+    seen = set()
+    for token in parsed["verdicts"]:
+        if not isinstance(token, str) or token not in tokens:
+            raise ValueError("Invalid compact comparative decision token")
+        uid, choice = tokens[token]
+        if uid in seen:
+            raise ValueError("Duplicate compact comparative decision")
+        seen.add(uid)
+        decisions.append({"utterance_id": uid, "choice": choice, "reason": parsed["reason"],
+                          "response_format": "compact_passage"})
+    if seen != set(ids):
+        raise ValueError("Missing compact comparative decision")
+    return decisions
 
 
 def review_translated_utterances(
@@ -93,6 +185,7 @@ def review_translated_utterances(
     text_client: Any = None,
     checkpoint_path: str | Path | None = None,
     resume: bool = True,
+    target_utterance_ids: set[str] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Review primary translations with contextual evidence, never retranslate source."""
     cfg = config or TranslationReviewConfig()
@@ -100,13 +193,32 @@ def review_translated_utterances(
         raise ValueError(f"Unsupported translation-review profile {cfg.profile!r}")
     if cfg.style not in VALID_REVIEW_STYLES:
         raise ValueError(f"Unsupported translation-review style {cfg.style!r}")
+    if cfg.wire_protocol not in ("openai_chat", "ninfer_messages"):
+        raise ValueError("Unsupported translation review wire protocol")
+    if cfg.wire_protocol == "ninfer_messages":
+        budget = cfg.thinking_budget
+        if (text_client is None or not cfg.use_json_schema
+                or not isinstance(budget, int) or isinstance(budget, bool)
+                or not ((budget == 0 and cfg.reasoning_effort in (None, "none"))
+                        or (1024 <= budget <= cfg.max_tokens - 256
+                            and cfg.reasoning_effort not in (None, "none")))):
+            raise ValueError("NInfer postedit requires managed client, schema and explicit thinking budget")
     out = [{**u} for u in utterances]
-    for u in out:
-        u["machine_translated_text"] = str(u.get("translated_text") or "")
+    all_ids = [_uid(u, i) for i, u in enumerate(out)]
+    if target_utterance_ids is not None and (
+            not isinstance(target_utterance_ids, set) or not target_utterance_ids
+            or len(set(all_ids)) != len(all_ids) or not target_utterance_ids <= set(all_ids)):
+        raise ValueError("Selective translation review requires unique existing target IDs")
+    selected = set(all_ids) if target_utterance_ids is None else target_utterance_ids
+    for i, u in enumerate(out):
+        if all_ids[i] in selected or "machine_translated_text" not in u:
+            u["machine_translated_text"] = str(u.get("translated_text") or "")
     if cfg.profile == "off":
-        for u in out:
-            u["translation_review_status"] = "off"
-        return out, {"status": "disabled", "profile": "off", "reviewed": 0, "changed": 0}
+        for i, u in enumerate(out):
+            if all_ids[i] in selected:
+                u["translation_review_status"] = "off"
+        return [u if all_ids[i] in selected else {**utterances[i]} for i, u in enumerate(out)], {
+            "status": "disabled", "profile": "off", "reviewed": 0, "changed": 0}
     gl = glossary or GlossaryConfig()
     signature = {
         "version": _PROMPT_VERSION, "profile": cfg.profile, "style": cfg.style,
@@ -115,8 +227,11 @@ def review_translated_utterances(
         "glossary": gl.digest(), "before": cfg.context_utterances_before,
         "after": cfg.context_utterances_after, "batch": cfg.batch_size,
         "temperature": cfg.temperature, "schema": cfg.use_json_schema,
+        "max_tokens": cfg.max_tokens,
         "reasoning": cfg.reasoning_effort,
     }
+    if cfg.wire_protocol != "openai_chat":
+        signature.update(wire_protocol=cfg.wire_protocol, thinking_budget=cfg.thinking_budget)
     ckpt = Path(checkpoint_path) if checkpoint_path else None
     cached: dict[str, dict[str, Any]] = {}
     if resume and ckpt and ckpt.is_file():
@@ -132,12 +247,28 @@ def review_translated_utterances(
     )
     errors: list[str] = []
     blocked_reason: str | None = None
-    calls = hits = changed_count = reviewed_count = 0
+    calls = hits = changed_count = reviewed_count = rejected_polarity = 0
+    comparative_calls = comparative_rejections = 0
+    completion_retries = 0
+    comparison_recoveries = []
+    deferred_comparison_ids: list[str] = []
     started = time.perf_counter()
     n = len(out)
     batch = max(1, int(cfg.batch_size))
-    for start in range(0, n, batch):
-        end = min(n, start + batch)
+    # Only consecutive selected rows become targets. Other rows remain
+    # read-only context and are restored exactly in the returned result.
+    ranges = []
+    pos = 0
+    while pos < n:
+        if all_ids[pos] not in selected:
+            pos += 1
+            continue
+        end = pos + 1
+        while end < n and end - pos < batch and all_ids[end] in selected:
+            end += 1
+        ranges.append((pos, end))
+        pos = end
+    for start, end in ranges:
         if blocked_reason is not None:
             for i in range(start, end):
                 out[i]["translation_review_status"] = "review_error_preserved_machine_translation"
@@ -175,6 +306,13 @@ def review_translated_utterances(
                     + "localization rewrite. Look for concrete mistranslations, missing meaning, incorrect names, "
                     + "misresolved references and context-dependent idioms. Preserve original meaning, names, "
                     + "numbers, speaker intent and narrative facts. Stylistic preferences alone do not justify edits. "
+                    + "Interpret idioms using the SOURCE language and scene context, not just the literal English. "
+                    + "If a source-caption observation is supplied, respect its actual text; it corroborates "
+                    + "a source phrase, not speaker identity or precise speech timing. Preserve uncertain names "
+                    + "and do not expand noisy source wording into unsupported narrative details. "
+                    + "Read the complete proposed cue aloud mentally: repair awkward grammar, broken question syntax "
+                    + "and dangling clauses, but respect a real continuation across adjacent cues. "
+                    + "Check that any rewrite is genuinely more faithful and at least as fluent as the primary MT. "
                     + "Return exactly one review for every target utterance_id. "
                     + "When the existing translation is adequate or evidence is insufficient, set changed=false "
                     + "and return the machine_translation exactly. For a change, give a short reason tied to "
@@ -184,15 +322,63 @@ def review_translated_utterances(
             ]
             try:
                 calls += 1
+                wire = {"response_format": _SCHEMA if cfg.use_json_schema else None}
+                if cfg.wire_protocol == "ninfer_messages":
+                    from copy import deepcopy
+                    direct_schema = deepcopy(_SCHEMA["json_schema"]["schema"])
+                    direct_schema["properties"]["reviews"]["items"]["properties"]["utterance_id"]["enum"] = ids
+                    # Obtain a source-first candidate without showing the
+                    # primary English. Changed status is computed locally.
+                    item_schema=direct_schema["properties"]["reviews"]["items"]
+                    del item_schema["properties"]["changed"]
+                    item_schema["required"].remove("changed")
+                    def source_only(seq):
+                        return [{k:v for k,v in row.items() if k!="machine_translation"} for row in seq]
+                    source_payload={**payload,"context_before":source_only(before),
+                                    "target_utterances":source_only(targets),
+                                    "context_after":source_only(after)}
+                    messages=[
+                        {"role":"system","content":(
+                            f"Interpret and translate {source_language or 'source'} dialogue into {cfg.target_language}. "
+                            + _STYLE[cfg.style]
+                            + " Prefer a conservative rendering of uncertain source; do not invent meaning. "
+                            + " First establish the intended meaning of each complete clause and adjacent exchange. "
+                            "Resolve idioms by their construction and discourse, not surface word substitution. "
+                            "Track who did what to whom, negation versus restriction, tense, modality and referents. "
+                            "Read adjacent source rows as a continuous passage: a sentence or object can span rows. "
+                            "Translate the complete passage coherently, then allocate English to the corresponding "
+                            "target IDs in chronological order. Do not move dialogue between distinct speakers, "
+                            "duplicate continuations, invent missing objects, or treat uncertain source as established. "
+                            "Source-caption evidence may support a span but not an uncertain remainder. "
+                            "Return one nonempty candidate and a concise source-grounded meaning explanation per target ID. "
+                            "Neighboring rows are read-only context. Return corrected_text and reason, not a changed flag.")},
+                        {"role":"user","content":json.dumps(source_payload,ensure_ascii=False)}]
+                    direct_schema["properties"]["reviews"]["minItems"] = len(ids)
+                    direct_schema["properties"]["reviews"]["maxItems"] = len(ids)
+                    wire = {"response_format": {"type": "json_schema", "schema": direct_schema},
+                            "thinking_budget": cfg.thinking_budget,
+                            "reasoning_effort": cfg.reasoning_effort,
+                            "strict_reasoning_effort": True}
+                    if cfg.max_tokens<QUALITY_RETRY_TOKENS:
+                        wire["retry_max_tokens"]=QUALITY_RETRY_TOKENS
                 response = client.complete(
-                    messages=messages, max_tokens=cfg.max_tokens, temperature=cfg.temperature,
-                    response_format=_SCHEMA if cfg.use_json_schema else None,
+                    messages=messages, max_tokens=cfg.max_tokens, temperature=cfg.temperature, **wire,
                 )
-                raw = str(((response.get("choices") or [{}])[0].get("message") or {}).get("content") or "")
-                first = raw.find("{")
-                if first < 0:
-                    raise ValueError("Missing JSON response")
-                parsed, _ = json.JSONDecoder().raw_decode(raw[first:])
+                retries=max(0,len(response.get("_client_request_diagnostics",{}).get("completion_attempts",[]))-1)
+                calls+=retries
+                completion_retries+=retries
+                choice = (response.get("choices") or [{}])[0]
+                raw = str((choice.get("message") or {}).get("content") or "")
+                if cfg.wire_protocol == "ninfer_messages":
+                    if choice.get("finish_reason") != "stop":
+                        raise ValueError("Incomplete bounded Messages postedit: "+
+                            json.dumps(response.get("_client_request_diagnostics",{}),ensure_ascii=False))
+                    parsed = json.loads(raw)
+                else:
+                    first = raw.find("{")
+                    if first < 0:
+                        raise ValueError("Missing JSON response")
+                    parsed, _ = json.JSONDecoder().raw_decode(raw[first:])
                 reviews = parsed.get("reviews") if isinstance(parsed, dict) else None
                 if not isinstance(reviews, list):
                     raise ValueError("Missing reviews array")
@@ -203,9 +389,121 @@ def review_translated_utterances(
                     uid = item["utterance_id"]
                     if uid not in ids or uid in entries:
                         raise ValueError("Unexpected or duplicate utterance ID")
+                    if cfg.wire_protocol=="ninfer_messages":
+                        candidate=item.get("corrected_text")
+                        if (set(item)!={"utterance_id","corrected_text","reason"}
+                                or not isinstance(candidate,str) or not candidate.strip()
+                                or not isinstance(item.get("reason"),str)):
+                            raise ValueError("Invalid source-first translation candidate")
+                        original=next(t["machine_translation"] for t in targets if t["utterance_id"]==uid)
+                        item={**item,"changed":candidate.strip()!=original.strip()}
                     entries[uid] = item
                 if set(entries) != set(ids):
                     raise ValueError("Incomplete review IDs")
+                if cfg.wire_protocol == "ninfer_messages":
+                    # Only changed proposals need a second, comparative
+                    # judgment. Same-model reasoning is a quality check,
+                    # not independent proof of source meaning.
+                    changed_ids = [uid for uid in ids if entries[uid].get("changed") is True]
+                    if changed_ids:
+                        if cfg.max_tokens < 1280:
+                            raise ValueError("Comparative review requires 1024 thinking tokens and final-answer headroom")
+                        comparisons = [{"utterance_id": uid,
+                                        "source_and_original": next(t for t in targets
+                                                                    if t["utterance_id"] == uid),
+                                        "proposed_translation": entries[uid].get("corrected_text")}
+                                       for uid in changed_ids]
+                        schema = {"type": "object", "properties": {
+                            "decisions": {"type": "array", "minItems": len(changed_ids),
+                                          "maxItems": len(changed_ids), "items": {
+                                              "type": "object", "properties": {
+                                                  "utterance_id": {"type": "string", "enum": changed_ids},
+                                                  "choice": {"type": "string", "enum": ["original", "proposal"]},
+                                                  "reason": {"type": "string"}},
+                                              "required": ["utterance_id", "choice", "reason"],
+                                              "additionalProperties": False}}},
+                            "required": ["decisions"], "additionalProperties": False}
+                        calls += 1
+                        comparative_calls += 1
+                        comparison_messages = [
+                            {"role": "system", "content":
+                             "Adjudicate competing English subtitle translations using the source dialogue "
+                             "and surrounding context. First read the complete source passage and both joined English "
+                             "passages as continuous dialogue. An incomplete cue at a real continuation boundary "
+                             "is not a grammatical error when its next cue completes the clause. "
+                             "Check each clause's intended action, participants, idiom, polarity, "
+                             "tense and referents. A split sentence must preserve its meaning across adjacent cues; "
+                             "evaluate dependent edits together, avoiding orphaned objects, invented pronouns and "
+                             "duplicated meaning. Do not mistake restriction for negation. Select the proposal only if it corrects a real "
+                             "meaning or fluency problem without introducing any new mistranslation, "
+                             "ungrammatical question, changed polarity, unsupported detail or worse "
+                             "readability anywhere in the cue. Check idioms against the source context. "
+                             "If both are deficient or evidence is inconclusive, choose original. "
+                             "Do not invent a third translation. Return one decision per supplied ID."},
+                            {"role": "user", "content": json.dumps({
+                                "source_language": source_language, "context_before": before,
+                                "comparisons": comparisons, "context_after": after,
+                                "complete_target_passage":[{**t,"proposed_translation":entries[t["utterance_id"]]["corrected_text"]}
+                                                           for t in targets],
+                                "joined_primary_passage":" ".join(t["machine_translation"] for t in targets),
+                                "joined_candidate_passage":" ".join(entries[t["utterance_id"]]["corrected_text"] for t in targets)}, ensure_ascii=False)}
+                        ]
+                        verdict = client.complete(messages=comparison_messages,
+                            max_tokens=cfg.max_tokens, temperature=0.0,
+                            response_format={"type": "json_schema", "schema": schema},
+                            thinking_budget=1024, reasoning_effort="xhigh", strict_reasoning_effort=True,
+                            stop_on_whitespace_loop=True,
+                            **({"retry_max_tokens":QUALITY_RETRY_TOKENS} if cfg.max_tokens<QUALITY_RETRY_TOKENS else {}))
+                        retries=max(0,len(verdict.get("_client_request_diagnostics",{}).get("completion_attempts",[]))-1)
+                        calls+=retries
+                        completion_retries+=retries
+                        result = (verdict.get("choices") or [{}])[0]
+                        if (_native_output_exhausted(verdict)
+                                and runaway_whitespace(str((result.get("message") or {}).get("content") or ""))):
+                            calls += 1
+                            comparative_calls += 1
+                            compact, tokens = _compact_comparison(client, comparison_messages,
+                                                                  changed_ids, cfg.max_tokens)
+                            receipt = {"target_ids": list(changed_ids),
+                                       "reason": "runaway_output_whitespace",
+                                       "initial": verdict.get("_client_request_diagnostics", {}),
+                                       "compact": compact.get("_client_request_diagnostics", {})}
+                            comparison_recoveries.append(receipt)
+                            if (_native_output_exhausted(compact)
+                                    and all(t["machine_translation"].strip() for t in targets)):
+                                # A complete source-first candidate is NOT
+                                # an approved correction. Preserve original
+                                # MT when the secondary adjudicator cannot
+                                # finish either bounded response format.
+                                # Do not cache this as a successful review.
+                                receipt["outcome"] = "deferred_preserved_primary"
+                                for uid in changed_ids:
+                                    entries[uid]["deferred_comparison"] = receipt
+                                decisions = []
+                            else:
+                                decisions = _parse_compact_comparison(compact, tokens, changed_ids)
+                                receipt["outcome"] = "complete"
+                                for uid in changed_ids:
+                                    entries[uid]["comparison_recovery"] = receipt
+                        else:
+                            if result.get("finish_reason") != "stop":
+                                raise ValueError("Incomplete comparative review: "+
+                                    json.dumps(verdict.get("_client_request_diagnostics",{}),ensure_ascii=False))
+                            decisions = json.loads(result["message"]["content"])["decisions"]
+                        by_id = {}
+                        for decision in decisions:
+                            uid = decision["utterance_id"]
+                            if (uid not in changed_ids or uid in by_id
+                                    or decision["choice"] not in ("original", "proposal")
+                                    or not isinstance(decision["reason"], str)
+                                    or not decision["reason"].strip()):
+                                raise ValueError("Invalid comparative review decision")
+                            by_id[uid] = decision
+                        if not all("deferred_comparison" in entries[uid] for uid in changed_ids):
+                            if set(by_id) != set(changed_ids):
+                                raise ValueError("Missing comparative review decisions")
+                            for uid in changed_ids:
+                                entries[uid]["comparative_review"] = by_id[uid]
             except Exception as exc:
                 if isinstance(exc, ResourceLifecycleError):
                     # Do not repeatedly attempt a blocked model acquisition on
@@ -232,6 +530,39 @@ def review_translated_utterances(
                 continue
             out[i]["translation_review_reason"] = item["reason"]
             out[i]["translation_reviewed_text"] = candidate.strip()
+            if changed and item.get("deferred_comparison"):
+                out[i]["translation_review_status"] = "review_deferred_comparative_preserved_machine_translation"
+                out[i]["translation_comparison_recovery"] = item["deferred_comparison"]
+                deferred_comparison_ids.append(uid)
+                valid_for_cache = False
+                continue
+            if item.get("comparison_recovery"):
+                out[i]["translation_comparison_recovery"] = item["comparison_recovery"]
+            if changed and _unsupported_polarity_inversion(
+                str(out[i].get("source_text") or ""),
+                original, candidate, source_language,
+            ):
+                out[i]["translation_review_status"] = "review_rejected_polarity_preserved_machine_translation"
+                out[i]["translation_review_rejection_reason"] = "source_and_primary_mt_negative_but_review_affirmative"
+                rejected_polarity += 1
+                reviewed_count += 1
+                continue
+            if changed and cfg.wire_protocol == "ninfer_messages":
+                comparison = item.get("comparative_review")
+                if (not isinstance(comparison, dict) or comparison.get("utterance_id") != uid
+                        or comparison.get("choice") not in ("original", "proposal")
+                        or not isinstance(comparison.get("reason"), str)
+                        or not comparison["reason"].strip()):
+                    errors.append(f"invalid_comparative_review:{uid}")
+                    valid_for_cache = False
+                    out[i]["translation_review_status"] = "review_invalid_preserved_machine_translation"
+                    continue
+                out[i]["translation_comparative_review"] = comparison
+                if comparison["choice"] == "original":
+                    out[i]["translation_review_status"] = "review_rejected_comparative_preserved_machine_translation"
+                    comparative_rejections += 1
+                    reviewed_count += 1
+                    continue
             out[i]["translation_review_status"] = "corrected" if changed else "unchanged"
             if changed:
                 out[i]["translated_text"] = candidate.strip()
@@ -246,11 +577,19 @@ def review_translated_utterances(
                 ensure_ascii=False, indent=2,
             ), encoding="utf-8")
             tmp.replace(ckpt)
+    if target_utterance_ids is not None:
+        out = [u if all_ids[i] in selected else {**utterances[i]} for i, u in enumerate(out)]
     return out, {
-        "status": "completed_with_errors" if errors else "completed",
+        "status": ("completed_with_errors" if errors else
+                   "completed_with_deferred_comparisons" if deferred_comparison_ids else "completed"),
         "profile": cfg.profile, "style": cfg.style,
         "resource_fingerprint": cfg.resource_fingerprint,
         "reviewed": reviewed_count, "changed": changed_count,
+        "rejected_polarity": rejected_polarity,
+        "comparative_calls": comparative_calls, "comparative_rejections": comparative_rejections,
+        "completion_retries": completion_retries,
+        "comparison_recoveries": comparison_recoveries,
+        "deferred_comparison_ids": deferred_comparison_ids,
         "cache_hits": hits, "api_calls": calls, "errors": errors,
         "resource_blocked_reason": blocked_reason,
         "elapsed_s": round(time.perf_counter() - started, 3),

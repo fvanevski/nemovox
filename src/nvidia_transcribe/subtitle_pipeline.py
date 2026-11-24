@@ -6,7 +6,7 @@ import json
 import os
 import time
 from contextlib import nullcontext
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
@@ -14,6 +14,7 @@ from nvidia_transcribe.client import NemotronVLLMClient
 from nvidia_transcribe.model_resources import ModelResource
 from nvidia_transcribe.resource_lifecycle import ModelLifecycle, ResourceLifecycleError, managed_asr_client, managed_text_client
 from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
+from nvidia_transcribe.source_quality import SourceQualityPolicy, review_current_source
 from nvidia_transcribe.refinement import (
     GlossaryConfig,
     RefinementConfig,
@@ -28,6 +29,7 @@ from nvidia_transcribe.translation import (
     translate_utterances,
 )
 from nvidia_transcribe.translation_review import TranslationReviewConfig, review_translated_utterances
+from nvidia_transcribe.ninfer_messages_client import QUALITY_COMPLETION_TOKENS, QUALITY_TIMEOUT_S
 from nvidia_transcribe.utterances import apply_validation_overlay, audit_and_reconstruct_contract
 
 
@@ -38,6 +40,7 @@ class SubtitlePipelineConfig:
     asr_mode: str = "speaker"
     chunk_seconds: float = 90.0
     context_seconds: float = 10.0
+    chunk_policy: str = "fixed"  # opt in to pause_aware after qualification
     min_tail_seconds: float = 15.0
     audio_stream_index: int = 0
     alignment_fallback: str = "off"
@@ -48,7 +51,7 @@ class SubtitlePipelineConfig:
     qwen_gpu_mode: str = "available"
     qwen_owned_asr_unit: str | None = None
     qwen_asr_lease_path: str | None = None
-    speaker_embeddings: str = "titanet"
+    speaker_embeddings: str = "none"
     speaker_embedding_model: str = "titanet_small"
     asr_base_url: str = "http://127.0.0.1:8190/v1"
     asr_model: str = "nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4"
@@ -73,6 +76,8 @@ class SubtitlePipelineConfig:
     condense_high_cps: bool = False
     condense_cps_threshold: float = 25.0
     reconstruct_untimed_order: bool = True
+    source_quality: str = "auto"  # auto: Riva subtitle jobs with original media and managed resources
+    source_quality_policy: SourceQualityPolicy = SourceQualityPolicy()
     validation_overlay_path: str | Path | None = None
 
 
@@ -121,11 +126,28 @@ def generate_subtitles(
     """Run staged ASR -> primary translation -> optional English review -> subtitle rendering.
 
     Can start from raw ``media_path`` OR resume directly from ``recording_contract_path``
-    without loading the 30B ASR model. Supports fast CPU-only re-rendering when
-    ``re_render_only=True`` or cached ``translated.contract.json`` exists.
+    without loading the 30B ASR model. Explicit CPU-only re-rendering requires
+    an existing ``translated.contract.json``; missing input never starts inference.
     """
     t0 = time.perf_counter()
     cfg = config or SubtitlePipelineConfig()
+    out_dir = Path(output_dir)
+    translated_path = out_dir / "translated.contract.json"
+    if cfg.re_render_only and not translated_path.is_file():
+        raise FileNotFoundError(f"Offline re-render requires an existing translated contract: {translated_path}")
+    if cfg.source_quality not in ("auto", "on", "off"):
+        raise ValueError("Unsupported source quality mode")
+    quality_enabled = (not cfg.re_render_only and media_path is not None and (
+        cfg.source_quality == "on" or (cfg.source_quality == "auto"
+        and cfg.translation.backend == "riva" and lifecycle is not None
+        and lifecycle_resources is not None)))
+    if cfg.source_quality == "on" and not cfg.re_render_only and not media_path:
+        raise ValueError("Source quality requires the original media")
+    if quality_enabled:
+        if lifecycle is None or not lifecycle_resources or not {"asr", "translation_review"} <= lifecycle_resources.keys():
+            raise ValueError("Source quality requires managed ASR and NInfer review resources")
+        if cfg.refinement.profile != "off":
+            raise ValueError("Current source quality cannot be combined with text-only source rewriting")
     if cfg.translation_review.profile != "off" and cfg.translation.backend != "riva":
         raise ValueError("Contextual English post-edit requires dedicated Riva primary translation")
     if (cfg.condense_high_cps and cfg.translation.backend == "riva"
@@ -134,7 +156,32 @@ def generate_subtitles(
             "Riva translation with subtitle condensation requires an explicit "
             "OpenAI-compatible condensation resource config."
         )
-    out_dir = Path(output_dir)
+    # An explicitly supplied canonical contract is a supported downstream
+    # entry point, not an implicit cache hit. Keep its accepted source rows
+    # and quality evidence instead of re-auditing their order or re-running ASR.
+    retained_contract = None
+    retained_canonical = False
+    if recording_contract_path is not None and not cfg.re_render_only:
+        rc_input = Path(recording_contract_path)
+        if not rc_input.is_file():
+            raise FileNotFoundError(f"Recording contract not found: {rc_input}")
+        retained_contract = json.loads(rc_input.read_text(encoding="utf-8"))
+        if not quality_enabled:
+            quality = retained_contract.get("source_quality") or {}
+            if quality.get("schema") == "nemovox-current-source-quality/v1":
+                if (quality.get("status") not in ("complete", "partial")
+                        or not quality.get("media_fingerprint_sha256")
+                        or quality["media_fingerprint_sha256"] != retained_contract["source"].get("fingerprint_sha256")
+                        or quality.get("source_language") != retained_contract.get("source_language")):
+                    raise ValueError("Retained canonical source quality identity mismatch")
+                retained_canonical = True
+    if (cfg.translation_review.profile != "off"
+            and (quality_enabled or (retained_canonical and lifecycle is not None
+                 and lifecycle_resources and "translation_review" in lifecycle_resources))):
+        cfg = replace(cfg, translation_review=replace(cfg.translation_review,
+            wire_protocol="ninfer_messages", thinking_budget=2048, reasoning_effort="xhigh",
+            max_tokens=max(cfg.translation_review.max_tokens,QUALITY_COMPLETION_TOKENS),
+            timeout_s=max(cfg.translation_review.timeout_s,QUALITY_TIMEOUT_S)))
     out_dir.mkdir(parents=True, exist_ok=True)
     gl = glossary if isinstance(glossary, GlossaryConfig) else load_glossary(glossary)
 
@@ -165,20 +212,25 @@ def generate_subtitles(
             lifecycle, resource,
             timeout_s=stage_config.timeout_s,
             reasoning_effort=stage_config.reasoning_effort,
+            **({"wire_protocol": stage_config.wire_protocol}
+               if role == "translation_review" and stage_config.wire_protocol != "openai_chat" else {}),
         )
 
-    translated_path = out_dir / "translated.contract.json"
     refined_path = out_dir / "refined.contract.json"
 
-    if cfg.re_render_only and translated_path.is_file():
+    if cfg.re_render_only:
         _log("Stage 1-3: Reusing existing translated.contract.json (--re-render)")
-        for skipped in ("translation", "review", "condensation"):
+        for skipped in ("source_quality", "translation", "review", "condensation"):
             _event(skipped, "skipped", "Offline re-render uses retained contract")
         translated_contract = json.loads(translated_path.read_text(encoding="utf-8"))
         ref_summary: dict[str, Any] = {"status": "reused_translated_contract"}
         trans_summary: dict[str, Any] = {"status": "reused_translated_contract"}
         condense_summary: dict[str, Any] = {"status": "reused_translated_contract"}
         review_summary: dict[str, Any] = {"status": "reused_translated_contract"}
+        retained_review = translated_contract.get("translation_review") or {}
+        if retained_review.get("status") == "completed_with_deferred_comparisons":
+            review_summary["retained_review_status"] = retained_review["status"]
+            review_summary["deferred_comparison_ids"] = retained_review["deferred_comparison_ids"]
     else:
         # Stage 1: Load existing recording contract or run chunked ASR.
         if recording_contract_path is not None:
@@ -186,8 +238,9 @@ def generate_subtitles(
             if not rc_path.is_file():
                 raise FileNotFoundError(f"Recording contract not found: {rc_path}")
             _log(f"Stage 1/4: Loading existing recording contract {rc_path}")
-            contract = json.loads(rc_path.read_text(encoding="utf-8"))
-            if cfg.reconstruct_untimed_order and any(u.get("source_start") is None for u in (contract.get("utterances") or [])):
+            contract = retained_contract
+            if (not retained_canonical and cfg.reconstruct_untimed_order
+                    and any(u.get("source_start") is None for u in (contract.get("utterances") or []))):
                 m_path = rc_path.parent / "manifest.json"
                 manifest_chunks = None
                 if m_path.is_file():
@@ -222,6 +275,7 @@ def generate_subtitles(
                         mode=cfg.asr_mode,
                         chunk_seconds=cfg.chunk_seconds,
                         context_seconds=cfg.context_seconds,
+                        chunk_policy=cfg.chunk_policy,
                         min_tail_seconds=cfg.min_tail_seconds,
                         audio_stream_index=cfg.audio_stream_index,
                         alignment_fallback=cfg.alignment_fallback,
@@ -240,8 +294,30 @@ def generate_subtitles(
                     ),
                 )
             contract = asr_res["contract"]
+            rc_path = Path(asr_res["contract_path"]) if quality_enabled else None
             default_stem = m_path.stem
 
+        if quality_enabled:
+            _event("source_quality", "running", "Reviewing consequential source ambiguity")
+            challenge_client = asr_client or NemotronVLLMClient(
+                base_url=cfg.asr_base_url, model=cfg.asr_model,
+                api_key=lifecycle_resources["asr"].credential(), timeout_s=900.0)
+            contract, quality_report = review_current_source(
+                contract, recording_path=rc_path, media_path=media_path, output_dir=out_dir,
+                text_scope=lambda: managed_text_client(lifecycle,
+                    lifecycle_resources["translation_review"], wire_protocol="ninfer_messages",
+                    timeout_s=QUALITY_TIMEOUT_S),
+                asr_scope=lambda: managed_asr_client(lifecycle,
+                    lifecycle_resources["asr"], challenge_client),
+                policy=cfg.source_quality_policy,
+                challenger_resource=lifecycle_resources.get("source_challenger"))
+            _atomic_write(out_dir / "source-quality.json", json.dumps(quality_report, ensure_ascii=False, indent=2))
+            _atomic_write(out_dir / "canonical-source.contract.json", json.dumps(contract, ensure_ascii=False, indent=2))
+            _event("source_quality", "complete", quality_report["status"])
+        else:
+            _event("source_quality", "skipped",
+                   "Using explicitly supplied canonical source: " + contract["source_quality"]["status"]
+                   if retained_canonical else "No current-media quality review requested")
         src_lang = cfg.source_language or contract.get("source_language")
         raw_utterances = list(contract.get("utterances") or [])
 
@@ -322,6 +398,18 @@ def generate_subtitles(
                     checkpoint_path=out_dir / "translation-review.checkpoint.json",
                     resume=cfg.resume_translation_review,
                 )
+            if review_summary.get("status") == "completed_with_deferred_comparisons":
+                deferred = set(review_summary.get("deferred_comparison_ids") or [])
+                observed = {str(u.get("utterance_id") or u.get("id")) for u in translated_utts
+                            if u.get("translation_review_status") ==
+                            "review_deferred_comparative_preserved_machine_translation"}
+                if (not deferred or deferred != observed or trans_summary.get("errors")
+                        or review_summary.get("reviewed", 0) + len(deferred) != len(translated_utts)
+                        or any(not str(u.get("machine_translated_text") or "").strip()
+                               or (str(u.get("utterance_id") or u.get("id")) in deferred
+                                   and u.get("translated_text") != u.get("machine_translated_text"))
+                               for u in translated_utts)):
+                    raise RuntimeError("Deferred comparative review lacks complete preserved primary MT")
             _event("review",
                    "skipped" if review_summary.get("status") == "disabled" else
                    "failed" if review_summary.get("status") == "completed_with_errors" else "complete",
@@ -411,6 +499,7 @@ def generate_subtitles(
             **render_res["outputs"],
         },
         "sidecars": render_res["sidecars"],
+        "source_quality": translated_contract.get("source_quality", {"status": "not_run"}),
         "refinement": ref_summary,
         "translation": trans_summary,
         "translation_review": review_summary,

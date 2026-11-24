@@ -1,0 +1,58 @@
+{
+  "application_commit": "df82b900ce1ec859530d1e9858ab7a5f4ee74213",
+  "application_tree": "a75fb56c483a1bea0431f472d182698d3449b826",
+  "run_disposition": "BLOCKING_CPU_REGRESSION_FAILURE",
+  "cpu": {
+    "compile": "pass",
+    "imports_cli": "pass",
+    "imports_studio": "pass",
+    "origin_main_git_diff_check_exit": 0,
+    "incremental_git_diff_check_exit": 0,
+    "affected_4_files": {
+      "passed": 76,
+      "failed": 1,
+      "exit_code": 1,
+      "failing_test": "tests/test_translation_review.py::test_programmatic_postedit_rejects_legacy_primary_translator"
+    },
+    "other_7_affected_files": {
+      "passed": 93,
+      "failed": 0,
+      "exit_code": 0
+    },
+    "full_cli": {
+      "passed": 427,
+      "failed": 2,
+      "exit_code": 1,
+      "failing_tests": [
+        "tests/test_resource_integration.py::test_programmatic_riva_condensation_requires_explicit_text_resource",
+        "tests/test_translation_review.py::test_programmatic_postedit_rejects_legacy_primary_translator"
+      ]
+    },
+    "full_studio": {
+      "passed": 427,
+      "failed": 2,
+      "exit_code": 1,
+      "failing_tests": [
+        "tests/test_resource_integration.py::test_programmatic_riva_condensation_requires_explicit_text_resource",
+        "tests/test_translation_review.py::test_programmatic_postedit_rejects_legacy_primary_translator"
+      ]
+    }
+  },
+  "french_continuation": {
+    "status": "NOT_RUN_CPU_STOP_CONDITION",
+    "preserved_files": 9
+  },
+  "mandarin_studio": {
+    "status": "RETAINED_PRIOR_PASS_AT_EB5BC52",
+    "prior_evidence_commit": "ece833d875b00f754cf2d429fad004c5e70eb14e"
+  },
+  "runtime": {
+    "asr_unit_active": false,
+    "text_review_unit_active": false,
+    "studio_unit_active": true,
+    "studio_health_status": "ok",
+    "ports_8190_8001_listeners": 0,
+    "lifecycle_lock_acquirable": true,
+    "gpu_runs_executed": 0
+  }
+}

@@ -1,0 +1,335 @@
+"""Issue 14: ASR exhaustion cannot silently become a completed subtitle source."""
+
+from __future__ import annotations
+
+import json
+import wave
+from pathlib import Path
+
+import pytest
+
+from nvidia_transcribe.asr_integrity import IncompleteASRGeneration, audit_asr_generation
+from nvidia_transcribe.client import NemotronVLLMClient
+from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
+
+
+def _response(text: str, finish: str = "stop") -> dict:
+    return {
+        "choices": [{"message": {"content": text}, "finish_reason": finish}],
+        "usage": {"completion_tokens": 16384 if finish == "length" else 20},
+        "ctc_timestamps": {
+            "words": [{"word": "Bonjour", "speaker": "0", "start": 0.5, "end": 0.9}],
+            "diarization": [{"speaker": 0, "start": 0.3, "end": 1.0}],
+            "speaker_tag_to_diarization_speaker": {"0": 0},
+            "error": None,
+        },
+    }
+
+
+def test_length_finish_is_incomplete_even_with_valid_ctc_and_short_cleaned_fragment():
+    original = _response("<spk:0> Ah" + ("!" * 21000), "length")
+    exact = json.dumps(original)
+    audit = audit_asr_generation(original)
+    assert audit["status"] == "incomplete"
+    assert audit["reason"] == "generation_limit_exhausted"
+    assert audit["finish_reason"] == "length"
+    assert audit["ctc_metadata_present"] is True
+    assert json.dumps(original) == exact
+
+
+def test_stop_with_true_repeated_interjections_is_not_loop_blocked():
+    audit = audit_asr_generation(_response("<spk:0> Non! Non! Non!", "stop"))
+    assert audit["status"] == "complete"
+    assert audit["loop_guard_removed_chars"] == 0
+
+
+def test_long_pathological_loop_is_incomplete_even_if_server_says_stop():
+    audit = audit_asr_generation(_response("<spk:0> " + ("a" * 4096), "stop"))
+    assert audit["status"] == "incomplete"
+    assert audit["reason"] == "pathological_generation_loop"
+
+
+@pytest.mark.parametrize("manifest_view", ["effective", "legacy", "planned"])
+def test_legacy_completed_checkpoint_cannot_hide_length_finish(tmp_path, monkeypatch, manifest_view):
+    """A previously accepted but exhausted response must fail on replay too."""
+    import hashlib
+
+    wav = tmp_path / "short.wav"
+    with wave.open(str(wav), "wb") as f:
+        f.setnchannels(1)
+        f.setsampwidth(2)
+        f.setframerate(16000)
+        f.writeframes(b"\x00\x00" * 16000 * 2)
+    invocations = []
+
+    def fake(self, path, config=None):
+        invocations.append(Path(path).name)
+        return {
+            "raw_response": _response("<spk:0> Bonjour.", "stop"),
+            "contract": {"raw_text": "Bonjour."}, "latency_s": 0.01,
+        }
+
+    monkeypatch.setattr(NemotronVLLMClient, "transcribe", fake)
+    cfg = RecordingPipelineConfig(source_language="fr", speaker_embeddings="none")
+    root = tmp_path / "run"
+    client = NemotronVLLMClient(model="stub")
+    process_media(wav, output_dir=root, client=client, config=cfg)
+    assert len(invocations) == 1
+    response_path = root / "chunks" / "chunk_000.raw.json"
+    suspect = _response("<spk:0> Ah" + ("!" * 3000), "length")
+    rendered = json.dumps(suspect, ensure_ascii=False, indent=2)
+    response_path.write_text(rendered, encoding="utf-8")
+    manifest_path = root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest_view == "legacy":
+        manifest.pop("planned_chunks")
+    target_view = "planned_chunks" if manifest_view == "planned" else "chunks"
+    manifest[target_view][0]["raw_response_sha256"] = hashlib.sha256(
+        rendered.encode("utf-8")
+    ).hexdigest()
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    # The original unrelated finished contract is not rewritten on failure.
+    original_contract = (root / "recording.contract.json").read_bytes()
+    with pytest.raises(IncompleteASRGeneration):
+        process_media(wav, output_dir=root, client=client, config=cfg)
+    assert len(invocations) == 1  # existing response was audited, not trusted
+    updated = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert updated["chunks"][0]["status"] == "incomplete_generation"
+    assert (root / "recording.contract.json").read_bytes() == original_contract
+    rejected = Path(updated["chunks"][0]["rejected_raw_response_path"])
+    assert json.loads(rejected.read_text()) == suspect
+    assert response_path.read_bytes() == rendered.encode("utf-8")
+    assert updated["asr_run_status"] == "incomplete_generation"
+    if manifest_view != "legacy":
+        assert updated["planned_chunks"][0]["status"] == "incomplete_generation"
+        assert updated["checkpoint_conflict"]["differences"] == ["raw_response_sha256"]
+
+
+def test_conflicting_complete_checkpoint_views_are_not_a_cache_miss(tmp_path, monkeypatch):
+    wav = tmp_path / "source.wav"
+    with wave.open(str(wav), "wb") as f:
+        f.setnchannels(1)
+        f.setsampwidth(2)
+        f.setframerate(16000)
+        f.writeframes(b"\x00\x00" * 16000 * 2)
+    calls = []
+    def fake(self, path, config=None):
+        calls.append(str(path))
+        return {"raw_response": _response("<spk:0> Bonjour."),
+                "contract": {"raw_text": "Bonjour."}, "latency_s": .01}
+    monkeypatch.setattr(NemotronVLLMClient, "transcribe", fake)
+    cfg = RecordingPipelineConfig(source_language="fr", speaker_embeddings="none")
+    root = tmp_path / "run"
+    client = NemotronVLLMClient(model="stub")
+    process_media(wav, output_dir=root, client=client, config=cfg)
+    raw = root / "chunks" / "chunk_000.raw.json"
+    raw_before = raw.read_bytes()
+    contract = root / "recording.contract.json"
+    contract_before = contract.read_bytes()
+    manifest_path = root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["chunks"][0]["raw_response_sha256"] = "0" * 64
+    manifest_path.write_text(json.dumps(manifest))
+    with pytest.raises(RuntimeError, match="checkpoint manifest views conflict"):
+        process_media(wav, output_dir=root, client=client, config=cfg)
+    assert len(calls) == 1
+    assert raw.read_bytes() == raw_before
+    assert contract.read_bytes() == contract_before
+    updated = json.loads(manifest_path.read_text())
+    assert updated["asr_run_status"] == "checkpoint_conflict"
+    assert updated["checkpoint_conflict"]["differences"] == ["raw_response_sha256"]
+    assert updated["chunks"][0]["raw_response_sha256"] == "0" * 64
+
+
+def test_bounded_generation_retry_recovers_without_accepting_first_length_response(tmp_path, monkeypatch):
+    wav = tmp_path / "source.wav"
+    with wave.open(str(wav), "wb") as f:
+        f.setnchannels(1)
+        f.setsampwidth(2)
+        f.setframerate(16000)
+        f.writeframes(b"\x00\x00" * 16000 * 3)
+    bad = _response("<spk:0> " + "!" * 20000, "length")
+    good = _response("<spk:0> Bonjour.", "stop")
+    calls = []
+
+    def fake_transcribe(self, audio_path, config=None):
+        calls.append(Path(audio_path))
+        return {"raw_response": bad if len(calls) == 1 else good,
+                "contract": {"raw_text": "Bonjour."}, "latency_s": 0.2}
+
+    monkeypatch.setattr(NemotronVLLMClient, "transcribe", fake_transcribe)
+    root = tmp_path / "run"
+    result = process_media(
+        wav, output_dir=root, client=NemotronVLLMClient(model="stub"),
+        config=RecordingPipelineConfig(source_language="fr", speaker_embeddings="none")
+    )
+    assert calls == [root / "chunks" / "chunk_000.wav"] * 2
+    assert result["contract"]["utterances"]
+    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["asr_run_status"] == "completed"
+    entry = manifest["chunks"][0]
+    assert entry["generation_limit_retry_attempted"] is True
+    assert entry["generation_integrity"]["status"] == "complete"
+    assert [a["generation_status"] for a in entry["generation_attempts"]] == [
+        "incomplete", "complete"
+    ]
+    assert entry["latency_s"] == pytest.approx(0.4)
+    first = entry["generation_attempts"][0]
+    archived = Path(first["rejected_raw_response_path"])
+    assert archived.is_file()
+    assert json.loads(archived.read_text(encoding="utf-8")) == bad
+    assert json.loads((root / "chunks" / "chunk_000.raw.json").read_text(encoding="utf-8")) == good
+
+
+def test_failed_generation_preserves_raw_and_does_not_mark_resume_completed(tmp_path, monkeypatch):
+    wav = tmp_path / "source.wav"
+    with wave.open(str(wav), "wb") as f:
+        f.setnchannels(1)
+        f.setsampwidth(2)
+        f.setframerate(16000)
+        f.writeframes(b"\x00\x00" * 16000 * 3)
+
+    calls = []
+    bad = _response("<spk:0> Ah" + ("!" * 21000), "length")
+    good = _response("<spk:0> Bonjour.", "stop")
+
+    def fake_transcribe(self, audio_path, config=None):
+        calls.append(Path(audio_path).name)
+        raw = bad if len(calls) <= 2 else good
+        return {"raw_response": raw, "contract": {"raw_text": "Bonjour."}, "latency_s": 0.01}
+
+    monkeypatch.setattr(NemotronVLLMClient, "transcribe", fake_transcribe)
+    cfg = RecordingPipelineConfig(source_language="fr", speaker_embeddings="none", resume=True)
+    root = tmp_path / "private-run"
+    with pytest.raises(IncompleteASRGeneration, match="Chunk 0 ASR generation incomplete"):
+        process_media(wav, output_dir=root, client=NemotronVLLMClient(model="stub"), config=cfg)
+    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["asr_run_status"] == "incomplete_generation"
+    assert manifest["chunks"][0]["status"] == "incomplete_generation"
+    assert manifest["chunks"][0]["generation_integrity"]["reason"] == "generation_limit_exhausted"
+    assert manifest["chunks"][0]["generation_limit_retry_attempted"] is True
+    assert len(manifest["chunks"][0]["generation_attempts"]) == 2
+    assert manifest["chunks"][0]["raw_response_sha256"]
+    rejected = Path(manifest["chunks"][0]["rejected_raw_response_path"])
+    assert rejected.parent.name == "rejected" and rejected.is_file()
+    assert json.loads(rejected.read_text()) == bad
+    assert json.loads((root / "chunks" / "chunk_000.raw.json").read_text()) == bad
+    assert not (root / "recording.contract.json").exists()
+
+    result = process_media(wav, output_dir=root, client=NemotronVLLMClient(model="stub"), config=cfg)
+    assert len(calls) == 3
+    assert result["contract"]["model_provenance"]["resumed_chunks"] == 0
+    assert result["contract"]["utterances"]
+    accepted = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    assert accepted["asr_run_status"] == "completed"
+    assert accepted["chunks"][0]["status"] == "completed"
+    assert accepted["chunks"][0]["generation_integrity"]["status"] == "complete"
+    assert json.loads(rejected.read_text()) == bad
+
+
+
+def test_failed_long_core_rechunks_and_preserves_leaf_identity_on_resume(tmp_path, monkeypatch):
+    wav=tmp_path/"source.wav"
+    with wave.open(str(wav),"wb") as f:
+        f.setnchannels(1)
+        f.setsampwidth(2)
+        f.setframerate(16000)
+        f.writeframes(b"\x00\x00"*16000*20)
+    bad=_response("<spk:0> "+"Ah! "*8192,"length")
+    bad["ctc_timestamps"]["words"]=[]
+    calls=[]
+    def fake(self,path,config=None):
+        with wave.open(str(path)) as f:
+            duration=f.getnframes()/f.getframerate()
+        calls.append((str(path),config.source_offset_s,duration))
+        response=bad if duration>15 else _response("<spk:0> Bonjour.")
+        return {"raw_response":response,"contract":{"raw_text":"Bonjour."},"latency_s":.01}
+    monkeypatch.setattr(NemotronVLLMClient,"transcribe",fake)
+    root=tmp_path/"run"
+    cfg=RecordingPipelineConfig(source_language="fr",speaker_embeddings="none",
+                               enable_subinterval_recovery=False)
+    client=NemotronVLLMClient(model="stub")
+    result=process_media(wav,output_dir=root,client=client,config=cfg)
+    manifest=json.loads((root/"manifest.json").read_text())
+    assert len(calls)==4
+    assert manifest["planned_chunks"][0]["status"]=="completed_rechunked"
+    assert [(x["core_start_s"],x["core_end_s"]) for x in manifest["chunks"]]==[(0,10),(10,20)]
+    assert [x["chunk_index"] for x in manifest["chunks"]]==[0,1]
+    assert manifest["chunks"][1]["infer_start_s"]==8
+    assert all(x["generation_integrity"]["status"]=="complete" for x in manifest["chunks"])
+    assert result["contract"]["processing"]["chunks"][1]["raw_response_sha256"]==manifest["chunks"][1]["raw_response_sha256"]
+    assert json.loads((root/"chunks"/"chunk_000.raw.json").read_text())==bad
+    calls.clear()
+    result=process_media(wav,output_dir=root,client=client,config=cfg)
+    assert not calls
+    assert result["contract"]["model_provenance"]["resumed_chunks"]==2
+    assert len(result["contract"]["processing"]["chunks"])==2
+
+
+def test_rechunk_terminal_failure_does_not_publish_and_reuses_verified_leaf(tmp_path, monkeypatch):
+    wav=tmp_path/"source.wav"
+    with wave.open(str(wav),"wb") as f:
+        f.setnchannels(1)
+        f.setsampwidth(2)
+        f.setframerate(16000)
+        f.writeframes(b"\x00\x00"*16000*20)
+    bad=_response("<spk:0> "+"Ah! "*8192,"length")
+    calls=[]
+    fail_right=True
+    def fake(self,path,config=None):
+        with wave.open(str(path)) as f:
+            duration=f.getnframes()/f.getframerate()
+        calls.append(config.source_offset_s)
+        response=bad if duration>15 or (fail_right and config.source_offset_s>0) else _response("<spk:0> Bonjour.")
+        return {"raw_response":response,"contract":{"raw_text":"Bonjour."},"latency_s":.01}
+    monkeypatch.setattr(NemotronVLLMClient,"transcribe",fake)
+    root=tmp_path/"run"
+    cfg=RecordingPipelineConfig(source_language="fr",speaker_embeddings="none",
+                               enable_subinterval_recovery=False)
+    client=NemotronVLLMClient(model="stub")
+    with pytest.raises(IncompleteASRGeneration,match="recovery exhausted"):
+        process_media(wav,output_dir=root,client=client,config=cfg)
+    assert not (root/"recording.contract.json").exists()
+    manifest=json.loads((root/"manifest.json").read_text())
+    assert manifest["asr_run_status"]=="incomplete_generation"
+    fail_right=False
+    calls.clear()
+    result=process_media(wav,output_dir=root,client=client,config=cfg)
+    assert calls==[8]
+    assert result["contract"]["model_provenance"]["resumed_chunks"]==1
+
+
+
+def test_rechunk_effective_indices_do_not_change_neighbor_checkpoint_identity(tmp_path, monkeypatch):
+    wav=tmp_path/"source.wav"
+    with wave.open(str(wav),"wb") as f:
+        f.setnchannels(1)
+        f.setsampwidth(2)
+        f.setframerate(16000)
+        f.writeframes(b"\x00\x00"*16000*60)
+    bad=_response("<spk:0> "+"Ah! "*8192,"length")
+    calls=[]
+    def fake(self,path,config=None):
+        with wave.open(str(path)) as f:
+            duration=f.getnframes()/f.getframerate()
+        calls.append((Path(path).name,config.source_offset_s,duration))
+        response=bad if config.source_offset_s==18 and duration>15 else _response("<spk:0> Bonjour.")
+        return {"raw_response":response,"contract":{"raw_text":"Bonjour."},"latency_s":.01}
+    monkeypatch.setattr(NemotronVLLMClient,"transcribe",fake)
+    cfg=RecordingPipelineConfig(source_language="fr",speaker_embeddings="none",
+        chunk_seconds=20,context_seconds=2,min_tail_seconds=0,enable_subinterval_recovery=False)
+    root=tmp_path/"run"
+    client=NemotronVLLMClient(model="stub")
+    result=process_media(wav,output_dir=root,client=client,config=cfg)
+    manifest=json.loads((root/"manifest.json").read_text())
+    assert [x["planned_chunk_index"] for x in manifest["chunks"]]==[0,1,1,2]
+    assert [(x["core_start_s"],x["core_end_s"]) for x in manifest["chunks"]]==[
+        (0,20),(20,30),(30,40),(40,60)]
+    assert [x["chunk_index"] for x in manifest["chunks"]]==[0,1,2,3]
+    assert manifest["chunks"][3]["raw_response_path"].endswith("chunk_002.raw.json")
+    assert manifest["planned_chunks"][2]["chunk_index"]==2
+    assert result["contract"]["processing"]["chunks"][3]["raw_response_sha256"]==manifest["chunks"][3]["raw_response_sha256"]
+    calls.clear()
+    result=process_media(wav,output_dir=root,client=client,config=cfg)
+    assert not calls
+    assert result["contract"]["model_provenance"]["resumed_chunks"]==4

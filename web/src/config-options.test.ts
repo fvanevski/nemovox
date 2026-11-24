@@ -23,6 +23,7 @@ describe("Studio configuration guidance", () => {
     expect(INITIAL_OPTIONS.translator).toBe("riva");
     expect(INITIAL_OPTIONS.translation_review).toBe("balanced");
     expect(INITIAL_OPTIONS.condense_high_cps).toBe(false);
+    expect(INITIAL_OPTIONS.chunk_policy).toBe("fixed");
     expect(isEnglishSourceToEnglish("en", "en")).toBe(true);
     expect(isEnglishSourceToEnglish("en-US", "English")).toBe(true);
     expect(isEnglishSourceToEnglish("eng", "en")).toBe(true);

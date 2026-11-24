@@ -137,8 +137,8 @@ built-in `asr_local`. These environment variables do not silently rewrite
 new, independently named resources.
 
 ```bash
-# Normal dedicated MT path with untouched ASR and selective English review:
-nvidia-transcribe generate-subtitles \
+# Normal current-media source-quality, dedicated MT and English review:
+nvidia-transcribe generate-subtitles episode.webm \
   --model-resources configs/model-resources.local.json \
   --recording-contract outputs/episode_run/recording.contract.json \
   --output-dir outputs/episode_subs \
@@ -194,18 +194,14 @@ over `NEMOVOX_MODEL_RESOURCES` for the config-file location.
 
 ## Studio host configuration
 
-Studio is a CLI subprocess orchestrator, not a second inference pipeline. It never makes a text-model call to correct the source-language ASR transcript.
-Export `NEMOVOX_MODEL_RESOURCES` and any credential variables **before**
-starting the FastAPI Studio service. Child CLI jobs inherit that environment
-and perform the same role resolution as standalone CLI commands. The **Studio
-GUI uses Riva as the primary translator** and enables balanced English text-model
-post-editing by default. An extra text-model condensation pass is off by default. It does not surface legacy `swiftu` as a primary
-translation dropdown. The existing CLI's default `--translator openai_chat`
-and `--translation-review off` remain unchanged for compatibility. For
-per-role resource IDs, configure host JSON instead of editing source.
-
-Keep the Studio server bound to loopback and separate its HTTP Python
-environment from the inference environment; see `web/README.md`.
+Studio is a CLI subprocess orchestrator, not a second inference pipeline.
+Export NEMOVOX_MODEL_RESOURCES and credential variables before starting it.
+Current-media Riva subtitle jobs use the translation_review resource for
+bounded NInfer Messages source advice and English postedit, with ASR acquired
+separately for acoustic challenges. The CLI default is Riva and balanced
+review; alternative primary translators default to review off. Configure
+the existing owned model units and resource bindings; source review requires
+a compatible NInfer Messages endpoint, not merely a Chat Completions URL.
 
 ## Validation, caches, and safety
 

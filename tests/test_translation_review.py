@@ -425,3 +425,243 @@ def test_blocked_review_resource_preserves_all_mt_and_propagates_typed_failure(t
     assert all(u["machine_translated_text"] == "Hello." for u in saved["utterances"])
     assert all(u["translated_text"] == "Hello." for u in saved["utterances"])
     assert len(blocked.calls) == 1  # no seven-batch startup retry storm
+
+
+def test_messages_comparative_review_rejects_worse_proposal_and_preserves_original():
+    class Client(FakeClient):
+        def complete(self, **kwargs):
+            response = super().complete(**kwargs)
+            response["choices"][0]["finish_reason"] = "stop"
+            return response
+    rows = [{"id": "u1", "source_text": "Tu crois cette histoire ?",
+             "translated_text": "Do you believe that story?"}]
+    proposed = {"reviews": [{"utterance_id": "u1",
+                             "corrected_text": "Because do you believe that story?",
+                             "reason": "Add conversational conjunction."}]}
+    decision = {"decisions": [{"utterance_id": "u1", "choice": "original",
+                               "reason": "The proposal introduces an ungrammatical question."}]}
+    client = Client(proposed, decision)
+    out, report = review_translated_utterances(
+        rows, source_language="fr", config=_cfg(wire_protocol="ninfer_messages",
+                                               thinking_budget=0, reasoning_effort="none"),
+        text_client=client)
+    assert out[0]["translated_text"] == out[0]["machine_translated_text"] == rows[0]["translated_text"]
+    assert out[0]["translation_review_status"] == "review_rejected_comparative_preserved_machine_translation"
+    assert report["comparative_calls"] == report["comparative_rejections"] == 1
+    assert client.calls[1]["thinking_budget"] == 1024
+    assert client.calls[1]["reasoning_effort"] == "xhigh"
+
+
+def test_messages_comparative_review_accepts_contextual_repair():
+    class Client(FakeClient):
+        def complete(self, **kwargs):
+            response = super().complete(**kwargs)
+            response["choices"][0]["finish_reason"] = "stop"
+            return response
+    rows = [{"id": "u1", "source_text": "Ils se sont fichus de nous !",
+             "translated_text": "They don't care about us!"}]
+    proposed = {"reviews": [{"utterance_id": "u1",
+                             "corrected_text": "They made fools of us!",
+                             "reason": "Contextual idiom."}]}
+    decision = {"decisions": [{"utterance_id": "u1", "choice": "proposal",
+                               "reason": "The past reflexive idiom denotes ridicule or deception."}]}
+    out, report = review_translated_utterances(
+        rows, source_language="fr", config=_cfg(wire_protocol="ninfer_messages",
+                                               thinking_budget=0, reasoning_effort="none"),
+        text_client=Client(proposed, decision))
+    assert out[0]["translated_text"] == "They made fools of us!"
+    assert out[0]["machine_translated_text"] == rows[0]["translated_text"]
+    assert report["changed"] == 1
+
+
+def test_messages_incomplete_comparative_review_does_not_accept_candidate():
+    class Client(FakeClient):
+        def complete(self, **kwargs):
+            response = super().complete(**kwargs)
+            response["choices"][0]["finish_reason"] = "stop"
+            return response
+    rows = [{"id": "u1", "source_text": "Bonjour", "translated_text": "Hello."}]
+    proposed = {"reviews": [{"utterance_id": "u1",
+                             "corrected_text": "Good evening.", "reason": "Greeting."}]}
+    out, report = review_translated_utterances(
+        rows, source_language="fr", config=_cfg(wire_protocol="ninfer_messages",
+                                               thinking_budget=0, reasoning_effort="none"),
+        text_client=Client(proposed, {"decisions": []}))
+    assert out[0]["translated_text"] == rows[0]["translated_text"]
+    assert report["status"] == "completed_with_errors"
+
+
+
+def test_messages_source_first_and_comparator_receive_coherent_cross_turn_passage():
+    class Client(FakeClient):
+        def complete(self, **kwargs):
+            response=super().complete(**kwargs)
+            response["choices"][0]["finish_reason"]="stop"
+            return response
+    rows=[{"id":"u0","source_text":"Il a fermé la","translated_text":"He closed it",
+           "source_start":1,"source_end":3,"speaker_id":"A"},
+          {"id":"u1","source_text":"porte avant de partir.","translated_text":"Door before leaving.",
+           "source_start":3,"source_end":5,"speaker_id":"A"}]
+    proposed={"reviews":[{"utterance_id":"u0","corrected_text":"He closed the","reason":"Object follows"},
+                         {"utterance_id":"u1","corrected_text":"door before leaving.","reason":"Continuation"}]}
+    decision={"decisions":[{"utterance_id":uid,"choice":"proposal","reason":"Coherent complete passage"}
+                            for uid in ("u0","u1")]}
+    client=Client(proposed,decision)
+    out,report=review_translated_utterances(rows,source_language="fr",
+        config=_cfg(wire_protocol="ninfer_messages",thinking_budget=2048,reasoning_effort="xhigh"),
+        text_client=client)
+    first=json.loads(client.calls[0]["messages"][1]["content"])
+    assert all("machine_translation" not in x for x in first["target_utterances"])
+    assert "He closed it" not in client.calls[0]["messages"][1]["content"]
+    assert client.calls[0]["thinking_budget"]==2048
+    assert "changed" not in client.calls[0]["response_format"]["schema"]["properties"]["reviews"]["items"]["required"]
+    compare=json.loads(client.calls[1]["messages"][1]["content"])
+    assert [x["utterance_id"] for x in compare["complete_target_passage"]]==["u0","u1"]
+    assert compare["joined_primary_passage"]=="He closed it Door before leaving."
+    assert compare["joined_candidate_passage"]=="He closed the door before leaving."
+    assert client.calls[0]["retry_max_tokens"]==16384
+    assert client.calls[1]["retry_max_tokens"]==16384
+    assert [x["translated_text"] for x in out]==["He closed the","door before leaving."]
+    assert [x["machine_translated_text"] for x in out]==[x["translated_text"] for x in rows]
+    assert report["changed"]==2
+
+
+def test_restrictive_construction_is_not_negative_action():
+    from nvidia_transcribe.translation_review import _unsupported_polarity_inversion
+    assert not _unsupported_polarity_inversion("Ils ont menti. Il n'a que deux amis.",
+                                               "They don't care. He has only two friends.",
+                                               "They lied. He has only two friends.","fr")
+    assert _unsupported_polarity_inversion("Il n'a pas de bateau.","He has no boat.","He has a boat.","fr")
+    assert _unsupported_polarity_inversion("Il n'a que deux amis. Il ne vient jamais.",
+                                           "He has two friends. He never comes.",
+                                           "He has two friends. He comes.","fr")
+
+
+
+def test_nonrestrictive_subordinate_clause_does_not_remove_negative_guard():
+    from nvidia_transcribe.translation_review import _unsupported_polarity_inversion
+    assert _unsupported_polarity_inversion("Je n'ose dire que c'est vrai.",
+                                           "I don't dare say it is true.",
+                                           "I dare say it is true.","fr")
+
+
+
+class _LoopReviewClient(FakeClient):
+    """Native response shapes, including an exhausted, deceptively valid prefix."""
+    def complete(self, **kwargs):
+        self.calls.append(kwargs)
+        item = self.responses.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        if item == "loop":
+            return {"choices": [{"finish_reason": "length",
+                                "message": {"content": '{"decisions":[{"utterance_id":"u0","choice":"proposal"' + "\n " * 4096}}],
+                    "_client_request_diagnostics": {"native_stop_reason": "max_tokens",
+                                                     "completion_attempts": [{"stop_reason": "max_tokens"}]}}
+        return {"choices": [{"finish_reason": "stop", "message": {"content": json.dumps(item)}}]}
+
+
+def _loop_proposals():
+    return {"reviews": [{"utterance_id": "u0", "corrected_text": "Hello, Esteban.", "reason": "Source name."},
+                        {"utterance_id": "u1", "corrected_text": "Hi!", "reason": "No change."}]}
+
+
+def _loop_cfg():
+    return _cfg(wire_protocol="ninfer_messages", thinking_budget=2048,
+                reasoning_effort="xhigh", max_tokens=8192)
+
+
+def test_comparison_loop_uses_compact_response_same_evidence_and_caches_success(tmp_path):
+    client = _LoopReviewClient(_loop_proposals(), "loop",
+                               {"reason": "The name matches the source.", "verdicts": ["u0=proposal"]})
+    checkpoint = tmp_path / "review.json"
+    out, report = review_translated_utterances(_utts(), source_language="fr",
+        config=_loop_cfg(), text_client=client, checkpoint_path=checkpoint)
+    assert report["status"] == "completed" and report["reviewed"] == 2
+    assert report["api_calls"] == 3 and report["comparative_calls"] == 2
+    assert out[0]["translated_text"] == "Hello, Esteban."
+    assert out[0]["translation_comparative_review"]["response_format"] == "compact_passage"
+    assert client.calls[1]["messages"][1] == client.calls[2]["messages"][1]
+    assert client.calls[1]["response_format"] != client.calls[2]["response_format"]
+    assert "retry_max_tokens" not in client.calls[2]
+    assert report["comparison_recoveries"][0]["outcome"] == "complete"
+    replay = _LoopReviewClient()
+    again, stats = review_translated_utterances(_utts(), source_language="fr",
+        config=_loop_cfg(), text_client=replay, checkpoint_path=checkpoint)
+    assert not replay.calls and stats["cache_hits"] == 2
+    assert again == out
+
+
+def test_comparison_loop_terminal_exhaustion_preserves_primary_and_remains_deferred(tmp_path):
+    client = _LoopReviewClient(_loop_proposals(), "loop", "loop")
+    checkpoint = tmp_path / "review.json"
+    out, report = review_translated_utterances(_utts(), source_language="fr",
+        config=_loop_cfg(), text_client=client, checkpoint_path=checkpoint)
+    assert report["status"] == "completed_with_deferred_comparisons"
+    assert report["deferred_comparison_ids"] == ["u0"] and report["reviewed"] == 1
+    assert report["changed"] == 0 and report["errors"] == []
+    assert report["comparison_recoveries"][0]["outcome"] == "deferred_preserved_primary"
+    assert out[0]["translated_text"] == out[0]["machine_translated_text"] == "Hello, Estban."
+    assert out[0]["translation_review_status"] == "review_deferred_comparative_preserved_machine_translation"
+    assert "translation_comparative_review" not in out[0]
+    assert not checkpoint.exists()
+
+
+def test_compact_invalid_ids_and_transport_failure_remain_errors():
+    for failed in ({"reason": "Invalid ID.", "verdicts": ["other=proposal"]},
+                   RuntimeError("transport failed")):
+        client = _LoopReviewClient(_loop_proposals(), "loop", failed)
+        out, report = review_translated_utterances(_utts(), source_language="fr",
+            config=_loop_cfg(), text_client=client)
+        assert report["status"] == "completed_with_errors"
+        assert report["errors"] and not report["deferred_comparison_ids"]
+        assert out[0]["translated_text"] == "Hello, Estban."
+
+
+
+def test_deferred_comparator_renders_without_claiming_complete_review(tmp_path, monkeypatch):
+    from pathlib import Path
+    from types import SimpleNamespace
+    from nvidia_transcribe import translation
+    from nvidia_transcribe.translation import TranslationConfig
+    from nvidia_transcribe.subtitle_pipeline import SubtitlePipelineConfig, generate_subtitles
+
+    record = tmp_path / "recording.contract.json"
+    record.write_text(json.dumps({
+        "source_language": "fr", "source": {"path": "/sample/french.mkv", "duration_s": 5.0},
+        "utterances": _utts(),
+    }), encoding="utf-8")
+    def fake_riva(_command, **kwargs):
+        original = {u["id"]: u["translated_text"] for u in _utts()}
+        items = json.loads(kwargs["input"])["items"]
+        return SimpleNamespace(returncode=0, stderr="", stdout=json.dumps({
+            "status": "ok", "device_used": "cuda:0",
+            "results": [{"utterance_id": item["utterance_id"],
+                         "translated_text": original[item["utterance_id"]]} for item in items],
+        }))
+    monkeypatch.setattr(translation.subprocess, "run", fake_riva)
+    client = _LoopReviewClient(_loop_proposals(), "loop", "loop")
+    root = tmp_path / "rendered"
+    cfg = SubtitlePipelineConfig(
+        source_language="fr", translation=TranslationConfig(backend="riva", riva_device="cuda:0"),
+        translation_review=_loop_cfg(), formats=("srt", "ass"))
+    metadata = generate_subtitles(recording_contract_path=record, output_dir=root,
+                                  config=cfg, text_client=client)
+    assert metadata["translation_review"]["status"] == "completed_with_deferred_comparisons"
+    assert metadata["translation_review"]["deferred_comparison_ids"] == ["u0"]
+    contract_path = root / "translated.contract.json"
+    contract_bytes = contract_path.read_bytes()
+    saved = json.loads(contract_bytes)
+    assert saved["utterances"][0]["translated_text"] == "Hello, Estban."
+    assert saved["utterances"][0]["translation_review_status"] == "review_deferred_comparative_preserved_machine_translation"
+    files = {name: Path(metadata["files"][name]) for name in ("srt", "ass")}
+    before = {name: path.read_bytes() for name, path in files.items()}
+    assert all(before.values())
+    assert b"Hello, Estban." in before["srt"]
+    assert len(client.calls) == 3
+    replay = generate_subtitles(output_dir=root, config=SubtitlePipelineConfig(
+        re_render_only=True, formats=("srt", "ass")), text_client=_LoopReviewClient())
+    assert replay["translation_review"]["retained_review_status"] == "completed_with_deferred_comparisons"
+    assert replay["translation_review"]["deferred_comparison_ids"] == ["u0"]
+    assert contract_path.read_bytes() == contract_bytes
+    assert {name: path.read_bytes() for name, path in files.items()} == before

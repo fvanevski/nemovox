@@ -1,0 +1,15 @@
+{
+  "application_head": "31f7c4848f3740c4df2bd5619f90455ed64da946",
+  "application_tree": "ee31d0f8d2d760984859699fbd86b014ceeb2b75",
+  "result": "LIVE_BOUNDED_COMPLETE_FULL_GATE_FAILED",
+  "verified_prior_archive_sha256": "6bf6b304f4c7d2d2254181942d2d46fe2b5148eb819164a2f7e703fef3916ed8",
+  "private_archive_sha256": "47c908e0c0a21f09f38445ffecaca782eb59af206e58432d8f0d21ea85da2e4e",
+  "private_archive_bytes": 5958014,
+  "checksummed_members": 237,
+  "packet_members_sha256": {
+    "COMMAND_SHAPE_FRICTION.txt": "0fe5c1d0f6d3bb3cd77ed05cc29fb47c5943f84cd2e43f1be211d3667cb3356c",
+    "README.md": "e41b2fffc4325864c3cb844e873f83b5cd05d90aead65def6039c5501cd66b49",
+    "commands.md": "c4129a50e45798a280851324c712275dcbe9e98357ac412e78cf44e586d5b9c8",
+    "metrics.json": "7ea6c88c3965ad39d99a5e587ac1de6448c48270aa4d4badff79525aa416fce8"
+  }
+}

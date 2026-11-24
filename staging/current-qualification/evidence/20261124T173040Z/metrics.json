@@ -1,0 +1,206 @@
+{
+  "application_commit": "b3e5a785e849e909b89d45df8aa606f98cde7925",
+  "application_tree": "b50175de4e70d6dd20736443540c6f5fb426b345",
+  "archived_selector": {
+    "original_media_intervals": {
+      "fr": [
+        [
+          792.310996,
+          794.850996
+        ]
+      ],
+      "zh": [
+        [
+          238.82,
+          247.26
+        ],
+        [
+          247.83999999999997,
+          255.64
+        ]
+      ]
+    },
+    "partial_caption_status": "pass",
+    "prior_archive_verified_members": 237,
+    "source_archive_verified_members": 176
+  },
+  "baseline": {
+    "ass_events": 308,
+    "ass_events_over_18_cps": 63,
+    "ass_events_over_22_cps": 30,
+    "carrier": "5bf6f37d173cfcc160fdf03b60b051cd0f5e7dea",
+    "duration_s": 1379.901,
+    "metadata_high_reading_speed_flags": 29,
+    "micro_utterances": 90,
+    "original_execution_sha": "unverified",
+    "raw_ctc_words": 2415,
+    "reconstructed_utterances": 234,
+    "same_denominator_after": null
+  },
+  "completion": {
+    "host_config_max_context": 262144,
+    "native_startup_max_context": "262144 in latest retained startup; no candidate NInfer start",
+    "normal_tokens": 8192,
+    "retry_tokens": 16384,
+    "runtime_calls": 0,
+    "timeout_s": 600
+  },
+  "cpu": {
+    "compile": "pass",
+    "completion_validation": "cpu_production_mock_transport_pass",
+    "current_base_git_diff_check_exit": 0,
+    "displaced_and_overlap_repros": "pass",
+    "focused": 130,
+    "full_cli": 417,
+    "full_studio": 417,
+    "imports": "pass",
+    "incremental_git_diff_check_exit": 0,
+    "missing_contract_offline_rerender": "pass_zero_managed_acquisitions"
+  },
+  "episode": {
+    "cli_wall_seconds": [
+      280.113,
+      270.669
+    ],
+    "complete_core_through_s": 1104.141292,
+    "duration_s": 1379.901,
+    "first": {
+      "attempts": [
+        {
+          "attempt": 1,
+          "finish_reason": "length",
+          "generation_reason": "generation_limit_exhausted",
+          "generation_status": "incomplete",
+          "latency_s": 81.2448,
+          "raw_response_sha256": "730b5530b303998ca69b6e6fe37ed65bf4bfa7f35f7998592a59afb89d858bf8"
+        },
+        {
+          "attempt": 2,
+          "finish_reason": "length",
+          "generation_reason": "generation_limit_exhausted",
+          "generation_status": "incomplete",
+          "latency_s": 81.2376,
+          "raw_response_sha256": "bae2e45862213f2d6b6a9005c497655cf49fd0779e85d8f5421efffd2befd002"
+        }
+      ],
+      "audio_sha256": "9359b7fde646f3c2d7c673322aea6d02eb47394c6e11108a31c55949b3e61170",
+      "chunk_index": 20,
+      "completed_chunks": 20,
+      "core_seconds": [
+        771.664542,
+        811.256375
+      ],
+      "generation_integrity": {
+        "ctc_metadata_present": true,
+        "finish_reason": "length",
+        "loop_guard_removed_chars": 32752,
+        "post_loop_guard_chars": 25,
+        "raw_text_chars": 32777,
+        "reason": "generation_limit_exhausted",
+        "schema": "nemovox-asr-generation-integrity/v1",
+        "source_text_not_modified": true,
+        "status": "incomplete"
+      },
+      "infer_seconds": [
+        767.664542,
+        815.256375
+      ],
+      "status": "incomplete_generation"
+    },
+    "outputs": {
+      "ass": 0,
+      "recording_contract": false,
+      "srt": 0,
+      "translated_contract": false
+    },
+    "planned_chunks": 35,
+    "rejected_native_responses": [
+      {
+        "completion_tokens": 16384,
+        "ctc_words": 0,
+        "finish_reason": "length",
+        "sha256": "730b5530b303998ca69b6e6fe37ed65bf4bfa7f35f7998592a59afb89d858bf8",
+        "source_text_length": 20544
+      },
+      {
+        "completion_tokens": 16384,
+        "ctc_words": 0,
+        "finish_reason": "length",
+        "sha256": "bae2e45862213f2d6b6a9005c497655cf49fd0779e85d8f5421efffd2befd002",
+        "source_text_length": 32777
+      },
+      {
+        "completion_tokens": 16384,
+        "ctc_words": 0,
+        "finish_reason": "length",
+        "sha256": "d35ff97c052d3fee017a988d604eb8fd4ba9011136420803f0c51d299965a64f",
+        "source_text_length": 32774
+      },
+      {
+        "completion_tokens": 16384,
+        "ctc_words": 0,
+        "finish_reason": "length",
+        "sha256": "e8133c42b7ef099257e31d2670eefeae9317873940e68f810deb601315c861f2",
+        "source_text_length": 32770
+      }
+    ],
+    "resume": {
+      "attempts": [
+        {
+          "attempt": 1,
+          "finish_reason": "length",
+          "generation_reason": "generation_limit_exhausted",
+          "generation_status": "incomplete",
+          "latency_s": 80.9237,
+          "raw_response_sha256": "e8133c42b7ef099257e31d2670eefeae9317873940e68f810deb601315c861f2"
+        },
+        {
+          "attempt": 2,
+          "finish_reason": "length",
+          "generation_reason": "generation_limit_exhausted",
+          "generation_status": "incomplete",
+          "latency_s": 80.8879,
+          "raw_response_sha256": "d35ff97c052d3fee017a988d604eb8fd4ba9011136420803f0c51d299965a64f"
+        }
+      ],
+      "audio_sha256": "930dd58203e0313883ba70dad2c69368fa49e7d4033b389280d66282b87e6cc4",
+      "chunk_index": 28,
+      "completed_chunks": 28,
+      "core_seconds": [
+        1104.141292,
+        1150.141292
+      ],
+      "generation_integrity": {
+        "ctc_metadata_present": true,
+        "finish_reason": "length",
+        "loop_guard_removed_chars": 32760,
+        "post_loop_guard_chars": 14,
+        "raw_text_chars": 32774,
+        "reason": "generation_limit_exhausted",
+        "schema": "nemovox-asr-generation-integrity/v1",
+        "source_text_not_modified": true,
+        "status": "incomplete"
+      },
+      "infer_seconds": [
+        1100.141292,
+        1154.141292
+      ],
+      "status": "incomplete_generation"
+    },
+    "same_job_reused_complete_chunk_digests_verified": 20
+  },
+  "run_disposition": "BLOCKING_ASR_INCOMPLETE_AFTER_BOUNDED_RECOVERY",
+  "runtime": {
+    "model_lifecycle_samples": 552,
+    "observed_ctc_middleware": true,
+    "observed_modelopt_mixed": true,
+    "peak_sampled_gpu_mib": 28237,
+    "released_and_studio_healthy": true,
+    "successful_asr_http_posts": 32
+  },
+  "studio": {
+    "clip_duration_s": 200.0,
+    "original_offset_s": 150,
+    "status": "NOT_RUN_STOP_CONDITION"
+  }
+}

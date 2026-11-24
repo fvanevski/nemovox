@@ -1,0 +1,14 @@
+{
+  "application_head": "9858da306a79aab77348b0b5c8a0ea71b1551a3c",
+  "application_tree": "0e3d6aa036859fb29b00b9becd816579fb070104",
+  "result": "NATIVE_VISION_PASS_DIAGNOSTIC_COMPLETE_QUALITY_UNRESOLVED",
+  "private_archive_sha256": "781a9d28c047f653878bb859cbb653c099ce1a671249001218a174242218bbf4",
+  "private_archive_bytes": 11492184,
+  "checksummed_members": 105,
+  "public_members_sha256": {
+    "COMMAND_SHAPE_FRICTION.txt": "6446110bb790154065e9a77e8cb916fc540b80de5f6a127c7c77bbe3c97732b8",
+    "README.md": "3a4cbed81091b803fa60910b292b6aa654839f114abe644c431896bdac40fbe0",
+    "commands.md": "bcb9bfe16a928821ba0fd1a739fdc7b16002d31919f33154a7779c2761f4a02a",
+    "metrics.json": "bfe35ea9e14fe2ec8a2382c6c95a63a1744de205908da4bb75abcd9509dd2b5a"
+  }
+}

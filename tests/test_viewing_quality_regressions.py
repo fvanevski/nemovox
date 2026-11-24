@@ -255,10 +255,11 @@ def test_c2_c4_d_positive_duration_slack_extension_third_lane_and_raised_main(tm
     assert "I am speaking third." in ass and ",TopAlt," in ass
     # Raised-main ASS header has raised MarginV=140 and BorderStyle=4 opaque backdrop
     assert "Style: Main,DejaVu Sans,52,&H00FFFFFF,&H000000FF,&H00000000,&H96000000,0,0,0,0,100,100,0,0,4,1.5,0.0,2,54,54,140,1" in ass
-    # Duplicate concurrent cue appears only once (may wrap across 2 lines)
-    assert srt.count("The interior of the") == 1
-    assert srt.count("still unexplored.") == 1
-    assert ass.count("still unexplored.") == 1
+    # Two distinct source utterance IDs may be two simultaneous speakers;
+    # identical translated wording alone cannot delete either source event.
+    assert srt.count("The interior of the") == 2
+    assert srt.count("still unexplored.") == 2
+    assert ass.count("still unexplored.") == 2
 
     # Check CLI parser supports raised_main flags cleanly
     parser = build_parser()

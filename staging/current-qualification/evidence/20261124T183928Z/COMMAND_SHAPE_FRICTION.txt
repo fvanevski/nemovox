@@ -1,0 +1,34 @@
+COMMAND_SHAPE_FRICTION
+encountered=yes
+
+- requested_shape=gh pr view 15 --repo fvanevski/nemovox --json headRefOid,headRefName,isDraft,state
+  effective_shape=same-as-requested
+  rewrite_provenance=none
+  event_kind=guard_annotation
+  execution_effect=executed_succeeded
+  correction_or_annotation=gh prints an event-listen preview hint alongside the JSON object
+  replacement_shape=none
+
+- requested_shape=python rerender-existing.py (expecting 3 output files per job directory)
+  effective_shape=standalone zh-scene offline rerender verification script
+  rewrite_provenance=none
+  event_kind=execution_failure
+  execution_effect=recovered_after_retry
+  correction_or_annotation=French output had only translated.contract.json without SRT/ASS due to incomplete review, failing the script's len(expected)==3 check; ran the identical --re-render verification directly on zh-scene output with zero owned-service journal activity
+  replacement_shape=zh-only offline --re-render check
+
+- requested_shape=python -c inline metrics script globbing zh-scene-studio/jobs/*
+  effective_shape=python -c globbing zh-scene-studio/jobs/*/output
+  rewrite_provenance=none
+  event_kind=execution_failure
+  execution_effect=recovered_after_retry
+  correction_or_annotation=jobs/* matched the .studio-owner.lock file inside jobs/; switched glob to jobs/*/output and took .parent
+  replacement_shape=next((p/"zh-scene-studio/jobs").glob("*/output")).parent
+
+- requested_shape=French CLI generate-subtitles resume with balanced NInfer English review
+  effective_shape=original-media resume followed by one bounded same-job resume
+  rewrite_provenance=none
+  event_kind=execution_failure
+  execution_effect=executed_failed
+  correction_or_annotation=Primary ASR, source_quality, Riva translation, and 30/31 review batches succeeded, but NInfer deterministically entered a whitespace repetition loop on batch[72:78] (utt-0077) at 8192 and 16384 max_tokens across both attempts; stopped without retry storm and executed Mandarin Studio control
+  replacement_shape=none

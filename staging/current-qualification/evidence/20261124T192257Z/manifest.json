@@ -1,0 +1,15 @@
+{
+  "application_head": "1e0caf42bfa7c7959f70af0c641e9cdcab6e10ba",
+  "application_tree": "0366372439c3fad3bed253e2f6621a564e0885df",
+  "result": "CODEX_P1_REMEDIATION_VERIFIED_CAUSAL_EQUIVALENCE_PROVEN",
+  "carrier_binding": "Evidence commit on issue/14-longform-timing-boundaries",
+  "private_archive_sha256": "1e94e556b5d5eda101a50f2be04625a57b61df5889cb882ff168f76eff7e8509",
+  "private_archive_bytes": 20210,
+  "checksummed_members": 24,
+  "packet_members_sha256": {
+    "COMMAND_SHAPE_FRICTION.txt": "72d70231fbac09bc55514d25dc598cc3a7279d84493b5848b8d7175fea8d3951",
+    "README.md": "7b4dda6e28d4b49c1363aba777265e8b528ebe9b7243bd118376cbb56790fab6",
+    "commands.md": "c9b0e5c809cb492f6eb5e78fc7722879cc346e4413f75b092eefc5f78f1dd989",
+    "metrics.json": "34b222d66cbd41e80a1dc778889c747e64f9da2e637fe008d051591728edd9e2"
+  }
+}

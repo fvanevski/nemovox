@@ -304,6 +304,21 @@ def _best_bipartite_assignment(
     return pairs
 
 
+def _near_threshold_single_embedding_candidate(
+    similarity: float, threshold: float, ambiguity_margin: float = 0.05,
+) -> bool:
+    """A sole barely admissible cosine score is not positive voice identity proof.
+
+    Similarities are recorded at four decimal places. Round the distance
+    before comparing it with the ambiguity margin so an exact 0.70 score
+    is not incorrectly treated as below 0.65 + 0.05 in binary64.
+    """
+    return (
+        similarity >= threshold
+        and round(similarity - threshold, 6) < round(ambiguity_margin, 6)
+    )
+
+
 def reconcile_speakers(
     *,
     chunks: list[ChunkSpec],
@@ -546,6 +561,20 @@ def reconcile_speakers(
                     ),
                     key=lambda x: (-x[1], x[0]),
                 )
+                if len(nbrs) == 1 and _near_threshold_single_embedding_candidate(
+                    nbrs[0][1], embedding_threshold, emb_ambiguity_margin
+                ):
+                    ambiguous_matches.append({
+                        "stage": "embedding",
+                        "source_cluster": ca,
+                        "candidates": [
+                            {"target_cluster": nbrs[0][0], "cosine": nbrs[0][1]}
+                        ],
+                        "reason": "single_candidate_near_threshold",
+                        "resolution": "left_unresolved_not_merged",
+                    })
+                    ambiguous_emb_pairs.add((ca, nbrs[0][0]))
+                    ambiguous_emb_pairs.add((nbrs[0][0], ca))
                 if len(nbrs) >= 2 and (nbrs[0][1] - nbrs[1][1]) < emb_ambiguity_margin:
                     ambiguous_matches.append(
                         {

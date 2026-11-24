@@ -557,6 +557,9 @@ class OpenAIChatTextClient:
         self.timeout_s = timeout_s
         self.reasoning_effort = reasoning_effort
         self._schema_rejected = False
+        # A rejected effort value does not imply other levels are unsupported.
+        # Keep request-level diagnostics for resource-owned QA probes.
+        self._rejected_reasoning_efforts: set[str] = set()
         self._reasoning_rejected = False
 
     def complete(
@@ -567,9 +570,16 @@ class OpenAIChatTextClient:
         temperature: float = 0.0,
         response_format: dict[str, Any] | None = None,
         reasoning_effort: str | None = None,
+        thinking_budget: int | None = None,
+        strict_reasoning_effort: bool = False,
     ) -> dict[str, Any]:
         import httpx
 
+        # Standard Chat Completions does NOT define thinking_budget, and the
+        # installed NInfer parser silently ignored it. Never claim a bounded
+        # reasoning request using this route; use the Messages adapter.
+        if thinking_budget is not None:
+            raise ValueError("Chat Completions cannot enforce thinking_budget; use NInferMessagesTextClient")
         headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
         payload: dict[str, Any] = {
             "model": self.model,
@@ -578,7 +588,8 @@ class OpenAIChatTextClient:
             "max_tokens": max_tokens,
         }
         effort = reasoning_effort if reasoning_effort is not None else self.reasoning_effort
-        if effort is not None and not self._reasoning_rejected:
+        self._reasoning_rejected = False
+        if effort is not None and (strict_reasoning_effort or effort not in self._rejected_reasoning_efforts):
             payload["reasoning_effort"] = effort
         if response_format is not None and not self._schema_rejected:
             payload["response_format"] = response_format
@@ -586,16 +597,31 @@ class OpenAIChatTextClient:
         with httpx.Client(headers=headers, timeout=self.timeout_s) as client:
             resp = client.post(f"{self.base_url}/chat/completions", json=payload)
             if resp.status_code in (400, 422) and "reasoning_effort" in payload:
-                self._reasoning_rejected = True
-                payload.pop("reasoning_effort", None)
-                resp = client.post(f"{self.base_url}/chat/completions", json=payload)
-            if resp.status_code in (400, 422) and "response_format" in payload:
-                # Endpoint doesn't support JSON schema constraint cleanly; fall back transparently.
+                message = resp.text.lower()
+                if ("reasoning" in message or "invalid prompt" in message) and not strict_reasoning_effort:
+                    self._reasoning_rejected = True
+                    self._rejected_reasoning_efforts.add(str(effort))
+                    payload.pop("reasoning_effort", None)
+                    resp = client.post(f"{self.base_url}/chat/completions", json=payload)
+            if (resp.status_code in (400, 422) and "response_format" in payload
+                    and not strict_reasoning_effort):
+                # Legacy relaxed schema fallback; strict tiered QC never
+                # retries with a relaxed schema after a rejected effort.
                 self._schema_rejected = True
                 payload.pop("response_format", None)
                 resp = client.post(f"{self.base_url}/chat/completions", json=payload)
             resp.raise_for_status()
-            return resp.json()
+            result = resp.json()
+            if not isinstance(result, dict):
+                raise ValueError("Expected an OpenAI-compatible completion object")
+            result["_client_request_diagnostics"] = {
+                "reasoning_effort_requested": effort,
+                "reasoning_effort_sent": payload.get("reasoning_effort"),
+                "reasoning_effort_fallback": self._reasoning_rejected,
+                "thinking_budget_sent": payload.get("thinking_budget"),
+                "response_format_sent": "response_format" in payload,
+            }
+            return result
 
 
 def _copy_utt_unrefined(u: dict[str, Any], profile: str) -> dict[str, Any]:

@@ -1,0 +1,30 @@
+COMMAND_SHAPE_FRICTION
+encountered=yes
+
+- requested_shape=GitHub CLI JSON identity
+  effective_shape=unchanged native invocation; preview hint co-appears with JSON in tool capture
+  provenance=gh standard-error hint in combined output
+  execution_effect=valid JSON record with extra hint lines
+  correction=preserved native output and parsed the JSON record
+  durable_gap=none
+
+- requested_shape=read same-denominator baseline and current manifests
+  effective_shape=unchanged read-only local audit
+  provenance=the archived baseline predates asr_run_status
+  execution_effect=the first supplemental baseline calculation exited 1
+  correction=treated old missing status as unrecorded and independently matched all published fragmentation and CPS checks
+  durable_gap=historical run SHA and episode-wide speech truth remain unverified
+
+- requested_shape=simulate HTTP through the managed scene completion call
+  effective_shape=unchanged CPU-only diagnostic
+  provenance=HTTP dependency is imported within the production method
+  execution_effect=first supplementary transport patch could not find the expected module attribute
+  correction=patched httpx at its actual import boundary, verified 600 s extensions, one lease, retry and negative cases
+  durable_gap=none
+
+- requested_shape=one fresh complete French CLI with existing pause-aware plan
+  effective_shape=original-media one-command managed CLI, then one bounded same-job checkpoint resume
+  provenance=ASR recorded native generation-limit exhaustion
+  execution_effect=first native CLI exit 1 at chunk 20; no translated/source contract produced
+  correction=preserved manifest and rejected native responses; resumed using verified same-job complete checkpoints
+  durable_gap=see final application-stage disposition; no integrity bypass

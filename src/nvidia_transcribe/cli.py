@@ -59,10 +59,12 @@ def build_parser() -> argparse.ArgumentParser:
     pm.add_argument("--source-language", default=None, help="Explicit source language (e.g. 'fr', 'zh') or omit for auto.")
     pm.add_argument("--mode", default="speaker", choices=["speaker", "multispeaker_sot", "rich", "verbatim"])
     pm.add_argument("--chunk-seconds", type=float, default=90.0)
+    pm.add_argument("--chunk-policy", choices=["pause_aware", "fixed"], default="fixed",
+                    help="Pause-aware inference cores or legacy fixed-size cores.")
     pm.add_argument("--context-seconds", type=float, default=10.0)
     pm.add_argument("--min-tail-seconds", type=float, default=15.0)
     pm.add_argument("--audio-stream", type=int, default=0)
-    pm.add_argument("--speaker-embeddings", default="titanet", choices=["titanet", "none"])
+    pm.add_argument("--speaker-embeddings", default="none", choices=["titanet", "none"])
     pm.add_argument("--embedding-threshold", type=float, default=0.65)
     pm.add_argument("--no-subinterval-recovery", action="store_true")
     pm.add_argument("--alignment-fallback", default="off", choices=["off", "qwen"])
@@ -73,19 +75,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run or resume ASR -> dedicated translation -> optional English review -> SRT/ASS rendering.",
     )
     gs.add_argument("media", nargs="?", default=None, help="Path to local media file (omit when using --recording-contract).")
-    gs.add_argument("--recording-contract", default=None, help="Existing recording.contract.json to start from (skips ASR).")
+    gs.add_argument("--recording-contract", default=None, help="Existing recording.contract.json (skips initial ASR); supply original media as well for current-source review.")
+    gs.add_argument("--source-quality", choices=["auto", "on", "off"], default="auto",
+                    help="Bounded current-media source review (auto for Riva jobs, off for fast output or other text providers).")
     gs.add_argument("--output-dir", required=True, help="Directory for refined/translated contracts and SRT/ASS outputs.")
     gs.add_argument("--source-language", default=None, help="Source language code (e.g. 'fr', 'zh').")
     gs.add_argument("--target-language", default="en", help="Target subtitle language (default: en).")
     gs.add_argument("--refinement", default="off",
                     choices=["off", "conservative", "balanced", "expressive"],
                     help="Source-language text correction is OFF by default. Non-off profiles are explicit legacy opt-ins.")
-    gs.add_argument("--translator", default="openai_chat", choices=["openai_chat", "swiftu", "riva", "none"],
+    gs.add_argument("--translator", default="riva", choices=["openai_chat", "swiftu", "riva", "none"],
                     help="OpenAI chat text model, Riva worker, or none; swiftu is a compatibility alias.")
     gs.add_argument("--style", default="natural", choices=["natural", "literal", "expressive"])
-    gs.add_argument("--translation-review", default="off",
+    gs.add_argument("--translation-review", default=None,
                     choices=["off", "conservative", "balanced", "expressive"],
-                    help="Contextual English post-edit after dedicated translation; off keeps legacy CLI behavior.")
+                    help="Contextual English post-edit; defaults to balanced with Riva, otherwise off.")
     gs.add_argument("--glossary", default=None, help="Path to character/term glossary (.yaml/.json) or comma-separated terms.")
     gs.add_argument("--formats", default="srt,ass", help="Comma-separated subtitle formats (default: srt,ass).")
     gs.add_argument("--episode-stem", default=None, help="Override subtitle output filename stem.")
@@ -94,7 +98,12 @@ def build_parser() -> argparse.ArgumentParser:
     gs.add_argument("--base-url", default=None, help="Explicit ASR endpoint override.")
     gs.add_argument("--model", default=None, help="Explicit served ASR model override.")
     gs.add_argument("--alignment-fallback", default="off", choices=["off", "qwen"])
+    gs.add_argument("--audio-stream", type=int, default=0)
+    gs.add_argument("--speaker-embeddings", default="none", choices=["titanet", "none"],
+                    help="Optional locally provisioned TitaNet embeddings; default none.")
     gs.add_argument("--chunk-seconds", type=float, default=90.0)
+    gs.add_argument("--chunk-policy", choices=["pause_aware", "fixed"], default="fixed",
+                    help="Pause-aware ~39–46s inference cores or legacy fixed-size cores.")
     gs.add_argument("--context-seconds", type=float, default=10.0)
     gs.add_argument("--min-tail-seconds", type=float, default=15.0)
     gs.add_argument("--text-url", "--swiftu-url", dest="text_url", default=None,
@@ -147,12 +156,15 @@ def build_parser() -> argparse.ArgumentParser:
     recover.add_argument("--model", required=True)
     recover.add_argument("--lease-path", required=True)
     recover.add_argument("--journal", required=True)
+
     return p
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    if args.command == "generate-subtitles" and args.translation_review is None:
+        args.translation_review = "balanced" if args.translator == "riva" else "off"
 
     if args.command == "recover-qwen-asr":
         try:
@@ -211,6 +223,8 @@ def main(argv: list[str] | None = None) -> int:
                     "subtitle_condensation", resource_name=args.condensation_resource, **text_overrides)
                 review_resource = registry.resolve(
                     "translation_review", resource_name=args.translation_review_resource, **text_overrides)
+                challenger_resource = (registry.resolve("source_challenger")
+                                       if "source_challenger" in registry.roles else None)
                 riva_resource = registry.resolve(
                     "riva_translation", require_local_paths=(
                         args.translator == "riva" and not args.re_render and not same_language))
@@ -270,6 +284,7 @@ def main(argv: list[str] | None = None) -> int:
             mode=args.mode,
             chunk_seconds=args.chunk_seconds,
             context_seconds=args.context_seconds,
+            chunk_policy=args.chunk_policy,
             min_tail_seconds=args.min_tail_seconds,
             audio_stream_index=args.audio_stream,
             speaker_embeddings=args.speaker_embeddings,
@@ -368,8 +383,11 @@ def main(argv: list[str] | None = None) -> int:
         scfg = SubtitlePipelineConfig(
             source_language=args.source_language,
             target_language=args.target_language,
+            audio_stream_index=args.audio_stream,
+            speaker_embeddings=args.speaker_embeddings,
             chunk_seconds=args.chunk_seconds,
             context_seconds=args.context_seconds,
+            chunk_policy=args.chunk_policy,
             min_tail_seconds=args.min_tail_seconds,
             alignment_fallback=args.alignment_fallback,
             qwen_policy=args.qwen_policy,
@@ -403,6 +421,7 @@ def main(argv: list[str] | None = None) -> int:
             condense_high_cps=args.condense_high_cps,
             condense_cps_threshold=args.condense_threshold,
             validation_overlay_path=args.validation_overlay,
+            source_quality=args.source_quality,
         )
         try:
             res = generate_subtitles(
@@ -419,6 +438,7 @@ def main(argv: list[str] | None = None) -> int:
                     "asr": asr_resource, "source_refinement": refinement_resource,
                     "text_translation": translation_resource, "riva_translation": riva_resource,
                     "translation_review": review_resource, "subtitle_condensation": condensation_resource,
+                    **({"source_challenger": challenger_resource} if challenger_resource else {}),
                 },
             )
         except (FileExistsError, FileNotFoundError, MediaInspectionError, ValueError, RuntimeError) as exc:

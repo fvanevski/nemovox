@@ -9,8 +9,8 @@ export function isEnglishSourceToEnglish(source: string, target: string): boolea
 
 export const INITIAL_OPTIONS: JobOptions = {
   source_language: "auto", target_language: "en", asr_mode: "speaker",
-  audio_stream: 0, chunk_seconds: 90, context_seconds: 10,
-  speaker_embeddings: "titanet", alignment_fallback: "off",
+  audio_stream: 0, chunk_seconds: 90, context_seconds: 10, chunk_policy: "fixed",
+  speaker_embeddings: "none", alignment_fallback: "off",
   refinement: "off", translator: "riva", translation_review: "balanced", style: "natural",
   glossary: null, ass_layout: "standard", ass_max_lanes: 3,
   condense_high_cps: false, formats: ["srt", "ass"],

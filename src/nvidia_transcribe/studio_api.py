@@ -151,7 +151,8 @@ class Options(BaseModel):
     audio_stream: int = Field(default=0, ge=0, le=15)
     chunk_seconds: int = Field(default=90, ge=30, le=300)
     context_seconds: int = Field(default=10, ge=0, le=30)
-    speaker_embeddings: Literal["titanet", "none"] = "titanet"
+    chunk_policy: Literal["fixed", "pause_aware"] = "fixed"
+    speaker_embeddings: Literal["titanet", "none"] = "none"
     alignment_fallback: Literal["off", "qwen"] = "off"
     refinement: Literal["off", "conservative", "balanced", "expressive"] = "off"
     translator: Literal["openai_chat", "swiftu", "riva", "none"] = "openai_chat"
@@ -414,7 +415,7 @@ class JobRunner:
 
     def _stage_event(self, job_id: str, name: str, status: str, detail: str = "") -> None:
         """Record only known typed CLI milestones, preserving arrival order."""
-        if name not in {"download", "asr", "translation", "review", "condensation", "render", "export"}:
+        if name not in {"download", "asr", "source_quality", "translation", "review", "condensation", "render", "export"}:
             return
         if status not in {"running", "complete", "skipped", "failed", "cancelled"}:
             return
@@ -440,10 +441,11 @@ class JobRunner:
                 stages.append(event)
             record["stage_history"] = stages
             if status == "running":
-                progress = {"download": 4, "asr": 8, "translation": 60,
+                progress = {"download": 4, "asr": 8, "source_quality": 55, "translation": 60,
                             "review": 76, "condensation": 83, "render": 90, "export": 96}[name]
                 record["stage"] = {"download": "Downloading remote media",
                                    "asr": "Transcribing audio and speakers",
+                                   "source_quality": "Checking source dialogue and timing",
                                    "translation": "Translating to English",
                                    "review": "Reviewing English translation",
                                    "condensation": "Condensing high-CPS cues",
@@ -649,6 +651,7 @@ class JobRunner:
                     "--mode", opt.asr_mode, "--audio-stream", str(opt.audio_stream),
                     "--chunk-seconds", str(opt.chunk_seconds),
                     "--context-seconds", str(opt.context_seconds),
+                    "--chunk-policy", opt.chunk_policy,
                     "--speaker-embeddings", opt.speaker_embeddings,
                     "--alignment-fallback", opt.alignment_fallback,
                 ]
@@ -669,6 +672,9 @@ class JobRunner:
                     "--ass-max-lanes", str(opt.ass_max_lanes),
                     "--formats", ",".join(opt.formats if spec.task == "subtitles" else ["srt"]),
                 ]
+                if spec.source.kind != "contract":
+                    # Admit the actual job media, not an arbitrary path embedded in an imported contract.
+                    args.insert(1, str(source))
                 if opt.source_language != "auto":
                     args.extend(["--source-language", opt.source_language])
                 if opt.condense_high_cps and spec.task == "subtitles":

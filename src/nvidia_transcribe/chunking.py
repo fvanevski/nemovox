@@ -6,6 +6,16 @@ import math
 from dataclasses import dataclass
 from typing import Any
 
+from nvidia_transcribe.boundary_evidence import (
+    reconcile_displaced_sequences,
+    recover_extended_right_context,
+    recover_ownerless_straddled_overlap,
+)
+from nvidia_transcribe.semantic_review import (
+    DEFAULT_SEMANTIC_REVIEW_POLICY,
+    plan_boundary_semantic_reviews,
+)
+
 
 @dataclass(frozen=True)
 class ChunkConfig:
@@ -211,6 +221,8 @@ def reconcile_chunk_boundaries(
     *,
     boundary_window_s: float = 2.5,
     match_time_tolerance_s: float = 0.85,
+    semantic_review_policy: dict[str, Any] | None = None,
+    semantic_review_activity_by_chunk: dict[int, list[dict[str, Any]]] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Merge per-chunk timed units across core boundaries without duplicating or losing speech.
 
@@ -247,6 +259,16 @@ def reconcile_chunk_boundaries(
                 }
             )
         tagged_by_chunk.append(tagged)
+
+    # Collect source hypotheses before core/dedup decisions discard neighbor
+    # observations. Review candidates never modify the raw words or select a
+    # replacement. A versioned policy can tune the QC cost/sensitivity.
+    semantic_review = plan_boundary_semantic_reviews(
+        tagged_by_chunk, chunks,
+        policy=(semantic_review_policy if semantic_review_policy is not None
+                else DEFAULT_SEMANTIC_REVIEW_POLICY),
+        activity_by_chunk=semantic_review_activity_by_chunk,
+    )
 
     dedup_count = 0
     recovered_count = 0
@@ -398,6 +420,20 @@ def reconcile_chunk_boundaries(
                         }
                     )
 
+    # Evidence-gated multiword reconciliation handles displaced lexical echoes
+    # and more complete neighboring observations that the narrow token matcher
+    # cannot see. Recovery outside the historical 1.5s cap requires an entire
+    # coherent missing phrase and a neighboring-coverage check.
+    sequence_diag = reconcile_displaced_sequences(
+        tagged_by_chunk, chunks, match_time_tolerance_s=match_time_tolerance_s)
+    extended_diag = recover_extended_right_context(tagged_by_chunk, chunks)
+    # Two ASR contexts can agree on a phrase while each timestamps it
+    # outside its own nominal core. Preserve an untimed source hypothesis
+    # rather than silently dropping the entire phrase or inventing time.
+    straddled_diag = recover_ownerless_straddled_overlap(tagged_by_chunk, chunks)
+    dedup_count += sequence_diag["sequence_deduplicated_units"]
+    recovered_count += extended_diag["extended_recovered_units"]
+
     chunk_core_starts = {s.chunk_index: s.core_start_s for s in chunks}
     retained_raw: list[dict[str, Any]] = []
     untimed_boundary_count = 0
@@ -423,7 +459,7 @@ def reconcile_chunk_boundaries(
     for u in retained_raw:
         clean_u = {k: v for k, v in u.items() if not k.startswith("_")}
         if u["_recovered"]:
-            clean_u["boundary_provenance"] = "boundary_recovered"
+            clean_u["boundary_provenance"] = u.get("_recovery_kind") or "boundary_recovered"
         elif u["_in_core"]:
             clean_u["boundary_provenance"] = "core"
         else:
@@ -436,4 +472,8 @@ def reconcile_chunk_boundaries(
         "untimed_preserved_units": untimed_boundary_count,
         "ambiguities": ambiguities,
         "dedup_examples": dedup_examples,
+        "sequence_evidence": sequence_diag,
+        "extended_recovery": extended_diag,
+        "straddled_overlap_source": straddled_diag,
+        "semantic_review_candidates": semantic_review,
     }

@@ -1,0 +1,49 @@
+{
+  "application_commit": "db8faeaa7432e1f53fbbc254b145453b191551dc",
+  "application_tree": "06cc432bd15fe7a5086a1dd7bab4d412de81960d",
+  "run_disposition": "BLOCKING_CPU_REGRESSION_FAILURE",
+  "cpu": {
+    "compile": "pass",
+    "imports_cli": "pass",
+    "imports_studio": "pass",
+    "origin_main_git_diff_check_exit": 0,
+    "incremental_git_diff_check_exit": 0,
+    "focused": {
+      "passed": 279,
+      "failed": 1,
+      "exit_code": 1,
+      "failing_test": "tests/test_issue14_asr_integrity.py::test_legacy_completed_checkpoint_cannot_hide_length_finish"
+    },
+    "full_cli": {
+      "passed": 419,
+      "failed": 1,
+      "exit_code": 1,
+      "failing_test": "tests/test_issue14_asr_integrity.py::test_legacy_completed_checkpoint_cannot_hide_length_finish"
+    },
+    "full_studio": {
+      "passed": 419,
+      "failed": 1,
+      "exit_code": 1,
+      "failing_test": "tests/test_issue14_asr_integrity.py::test_legacy_completed_checkpoint_cannot_hide_length_finish"
+    }
+  },
+  "episode": {
+    "status": "NOT_RUN_CPU_STOP_CONDITION",
+    "preserved_manifest_config_signature": "65c6a4af9fc2169a0924c60ee38a3afd9f68c6c13584bcc3138f6e995fc91137",
+    "preserved_planned_chunks": 35,
+    "preserved_completed_chunks": 28,
+    "preserved_incomplete_chunks": 1
+  },
+  "studio": {
+    "status": "NOT_RUN_CPU_STOP_CONDITION"
+  },
+  "runtime": {
+    "asr_unit_active": false,
+    "text_review_unit_active": false,
+    "studio_unit_active": true,
+    "studio_health_status": "ok",
+    "ports_8190_8001_listeners": 0,
+    "lifecycle_lock_acquirable": true,
+    "gpu_runs_executed": 0
+  }
+}

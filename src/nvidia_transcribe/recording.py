@@ -14,6 +14,8 @@ from typing import Any
 from nvidia_transcribe.alignment import ExternalForcedAligner, recover_chunk_alignment
 from nvidia_transcribe.chunking import ChunkConfig, ChunkSpec, plan_chunks, reconcile_chunk_boundaries
 from nvidia_transcribe.client import InferenceRequestConfig, NemotronVLLMClient
+from nvidia_transcribe.asr_integrity import IncompleteASRGeneration, audit_asr_generation
+from nvidia_transcribe.asr_recovery import recover_generation, split_spec
 from nvidia_transcribe.contract import (
     build_recording_contract,
     detect_script_language_hint,
@@ -32,6 +34,9 @@ from nvidia_transcribe.speakers import (
     reconcile_speakers,
 )
 from nvidia_transcribe.utterances import reconstruct_speaker_utterances
+from nvidia_transcribe.timing_evidence import audit_ctc_timing_units
+from nvidia_transcribe.speech_chunks import detect_silence_intervals, plan_pause_aware_chunks
+from nvidia_transcribe.source_events import build_source_evidence_ledger
 
 
 @dataclass(frozen=True)
@@ -40,9 +45,10 @@ class RecordingPipelineConfig:
     mode: str = "speaker"
     chunk_seconds: float = 90.0
     context_seconds: float = 10.0
+    chunk_policy: str = "fixed"  # "fixed" legacy/resume | opt-in "pause_aware"
     min_tail_seconds: float = 15.0
     audio_stream_index: int = 0
-    speaker_embeddings: str = "titanet"  # "titanet" | "none"
+    speaker_embeddings: str = "none"  # "titanet" | "none"
     embedding_threshold: float = 0.65
     enable_subinterval_recovery: bool = True
     alignment_fallback: str = "off"  # "off" | "qwen"
@@ -75,6 +81,76 @@ def _atomic_write_text(path: Path, text: str) -> None:
         raise
 
 
+def _validate_resume_manifest_views(manifest: dict[str, Any], *, manifest_path: Path,
+                                    chunks_dir: Path) -> None:
+    """Reject contradictory identities before any checkpoint can be replaced.
+
+    The planned view owns parent checkpoints. The effective view is derived:
+    an unsplit observation must agree with its parent, whereas a recovered
+    leaf has an independent receipt and different raw path. Legacy manifests
+    have only one view. A disagreement is not an ordinary cache miss.
+    """
+    if "planned_chunks" not in manifest:
+        return
+    planned = {int(row["chunk_index"]): row for row in manifest["planned_chunks"]}
+    fields = ("raw_response_path", "raw_response_sha256", "wav_path", "wav_sha256",
+              "extraction_signature", "core_start_s", "core_end_s", "infer_start_s",
+              "infer_end_s", "status")
+    for effective in manifest.get("chunks", []):
+        index = int(effective["planned_chunk_index"])
+        parent = planned.get(index)
+        if (parent is not None and parent.get("status") == "completed_rechunked"
+                and effective.get("raw_response_path") != parent.get("raw_response_path")):
+            # Independent recovery receipts are verified by recover_generation.
+            continue
+        differences = [key for key in fields
+                       if parent is None or parent.get(key) != effective.get(key)]
+        if not differences:
+            continue
+        conflict = {
+            "planned_chunk_index": index,
+            "effective_chunk_index": effective["chunk_index"],
+            "differences": differences,
+            "planned": {key: parent.get(key) for key in fields} if parent else None,
+            "effective": {key: effective.get(key) for key in fields},
+        }
+        manifest["checkpoint_conflict"] = conflict
+        manifest["asr_run_status"] = "checkpoint_conflict"
+        # Only classify actual bytes as a known rejected generation if at
+        # least one of the existing receipts binds that exact parent file.
+        # Do not elect either inconsistent view as accepted authority.
+        raw_path = chunks_dir / f"chunk_{index:03d}.raw.json"
+        if (parent is not None
+                and parent.get("raw_response_path") == effective.get("raw_response_path") == str(raw_path)
+                and raw_path.is_file()):
+            raw_dump = raw_path.read_text(encoding="utf-8")
+            digest = _sha256_text(raw_dump)
+            conflict["observed_raw_sha256"] = digest
+            if digest in (parent.get("raw_response_sha256"), effective.get("raw_response_sha256")):
+                try:
+                    integrity = audit_asr_generation(json.loads(raw_dump))
+                except (ValueError, TypeError, AttributeError):
+                    integrity = None
+                if integrity and integrity["status"] == "incomplete":
+                    rejected = chunks_dir / "rejected" / f"chunk_{index:03d}_{digest[:16]}.raw.json"
+                    if not rejected.is_file():
+                        _atomic_write_text(rejected, raw_dump)
+                    for row in (parent, effective):
+                        # Retain the disagreeing receipt digests; the rejected
+                        # digest identifies the observed bytes, not acceptance.
+                        row.update(status="incomplete_generation", generation_integrity=integrity,
+                                   rejected_raw_response_path=str(rejected),
+                                   rejected_raw_response_sha256=digest)
+                    manifest["asr_run_status"] = "incomplete_generation"
+                    _atomic_write_text(manifest_path, json.dumps(manifest, ensure_ascii=False, indent=2))
+                    raise IncompleteASRGeneration(
+                        f"Chunk {index} ASR generation incomplete in conflicting checkpoint views; "
+                        f"rejected raw response retained at {rejected}. No replacement output produced."
+                    )
+        _atomic_write_text(manifest_path, json.dumps(manifest, ensure_ascii=False, indent=2))
+        raise RuntimeError(f"Chunk {index} checkpoint manifest views conflict: {', '.join(differences)}")
+
+
 def _extraction_signature(*, media: MediaInfo, spec: ChunkSpec, audio_stream_index: int, sample_rate_hz: int = 16000) -> str:
     payload = {
         "media_path": media.path,
@@ -94,6 +170,8 @@ def _config_signature(
     model_name: str,
     cfg: RecordingPipelineConfig,
     model_endpoint: str = "",
+    chunks: list[ChunkSpec] | None = None,
+    plan_metadata: dict[str, Any] | None = None,
 ) -> str:
     payload = {
         "media_path": media.path,
@@ -111,6 +189,13 @@ def _config_signature(
         "context_seconds": cfg.context_seconds,
         "min_tail_seconds": cfg.min_tail_seconds,
     }
+    # Current source contracts bind the actual plan; invalidate pre-consolidation checkpoints.
+    payload.update({
+        "source_pipeline_schema": "current-job-source/v1",
+        "chunk_policy": cfg.chunk_policy,
+        "chunk_plan": [s.to_dict() for s in chunks] if chunks is not None else None,
+        "chunk_plan_metadata": plan_metadata,
+    })
     return _sha256_text(json.dumps(payload, sort_keys=True))
 
 
@@ -194,6 +279,8 @@ def process_media(
     """Process a complete audio or video recording through bounded Nemotron chunks."""
     t_start = time.perf_counter()
     cfg = config or RecordingPipelineConfig()
+    if cfg.chunk_policy not in ("fixed", "pause_aware"):
+        raise ValueError("chunk_policy must be fixed or pause_aware")
     if cfg.alignment_fallback not in ("off", "qwen"):
         raise ValueError(f"Unsupported alignment_fallback {cfg.alignment_fallback!r}; expected 'off' or 'qwen'.")
     if cfg.qwen_policy not in ("subtitle", "fine"):
@@ -213,9 +300,34 @@ def process_media(
         context_seconds=cfg.context_seconds,
         min_tail_seconds=cfg.min_tail_seconds,
     )
-    chunks: list[ChunkSpec] = plan_chunks(media.duration_s, chunk_cfg)
-    sig = _config_signature(media=media, model_name=client.model, cfg=cfg,
-                            model_endpoint=getattr(client, "base_url", ""))
+    if cfg.chunk_policy == "pause_aware":
+        if media.duration_s > 54.0:
+            pauses, detector_diag = detect_silence_intervals(
+                media.path, audio_stream_index=cfg.audio_stream_index,
+                duration_s=media.duration_s,
+            )
+        else:
+            pauses, detector_diag = [], {
+                "status": "not_needed_short_media", "silence_intervals": 0,
+            }
+        chunks, planner_diag = plan_pause_aware_chunks(
+            media.duration_s, pauses,
+            max_requested_core_s=cfg.chunk_seconds,
+            requested_context_s=cfg.context_seconds,
+        )
+        planner_diag["detector"] = detector_diag
+        planner_diag["fallback_used"] = (
+            detector_diag["status"] == "failed"
+            or planner_diag["forced_cut_count"] > 0
+        )
+    else:
+        chunks = plan_chunks(media.duration_s, chunk_cfg)
+        planner_diag = {"schema": "fixed/v1", "policy": "fixed"}
+    sig = _config_signature(
+        media=media, model_name=client.model, cfg=cfg,
+        model_endpoint=getattr(client, "base_url", ""),
+        chunks=chunks, plan_metadata=planner_diag,
+    )
 
     existing_manifest: dict[str, Any] = {}
     if cfg.resume and manifest_path.is_file():
@@ -226,6 +338,10 @@ def process_media(
         except Exception:
             existing_manifest = {}
 
+    if existing_manifest:
+        _validate_resume_manifest_views(existing_manifest, manifest_path=manifest_path,
+                                        chunks_dir=chunks_dir)
+
     if not cfg.resume or not existing_manifest:
         # Invalidate any stale chunk WAVs / raw JSONs from an earlier or changed run
         for stale in chunks_dir.glob("chunk_*"):
@@ -233,8 +349,10 @@ def process_media(
                 stale.unlink(missing_ok=True)
 
     completed_by_idx: dict[int, dict[str, Any]] = {}
-    for entry in existing_manifest.get("chunks", []):
-        if entry.get("status") == "completed":
+    for entry in existing_manifest.get("planned_chunks", existing_manifest.get("chunks", [])):
+        # A verified failed parent can commission smaller crops immediately
+        # on resume, without another pair of identical doomed requests.
+        if entry.get("status") in ("completed","completed_rechunked","incomplete_generation"):
             raw_p = Path(entry.get("raw_response_path", ""))
             if raw_p.is_file() and _sha256_text(raw_p.read_text(encoding="utf-8")) == entry.get("raw_response_sha256"):
                 completed_by_idx[int(entry["chunk_index"])] = entry
@@ -242,6 +360,8 @@ def process_media(
     chunk_wavs: list[Path] = []
     chunk_raws: list[dict[str, Any]] = []
     chunk_manifest_entries: list[dict[str, Any]] = []
+    planned_entries: list[dict[str, Any]] = []
+    effective_chunks: list[ChunkSpec] = []
     chunk_latencies: list[float] = []
     resumed_count = 0
 
@@ -254,6 +374,9 @@ def process_media(
         cur_ext_sig = _extraction_signature(media=media, spec=spec, audio_stream_index=cfg.audio_stream_index)
 
         prev_entry = completed_by_idx.get(spec.chunk_index)
+        if (prev_entry is not None and prev_entry.get("status")!="completed"
+                and not split_spec(spec)):
+            prev_entry=None
         wav_valid_for_reuse = False
         actual_dur = 0.0
         wav_sha256 = ""
@@ -286,12 +409,11 @@ def process_media(
             )
             wav_sha256 = compute_file_sha256(wav_path)
 
-        chunk_wavs.append(wav_path)
-
+        reused_parent=False
         if wav_valid_for_reuse and prev_entry is not None and raw_path.is_file():
             raw_resp = json.loads(raw_path.read_text(encoding="utf-8"))
-            entry = prev_entry
-            resumed_count += 1
+            entry = dict(prev_entry)
+            reused_parent=True
         else:
             req_cfg = InferenceRequestConfig(
                 mode=cfg.mode,
@@ -300,11 +422,42 @@ def process_media(
                 require_ctc_timestamps=False,
                 source_offset_s=spec.infer_start_s,
             )
-            res = client.transcribe(wav_path, req_cfg)
-            raw_resp = res["raw_response"]
-            raw_text_dump = json.dumps(raw_resp, ensure_ascii=False, indent=2)
+            # One bounded, same-input retry is permitted ONLY for a raw
+            # generation-limit stop. The first response is never accepted or
+            # loop-cleaned into a transcript; retain its exact bytes and SHA
+            # in rejected/ before making another request. If it still fails,
+            # use bounded smaller crops or fail closed without a contract.
+            generation_attempts: list[dict[str, Any]] = []
+            for generation_attempt in range(2):
+                res = client.transcribe(wav_path, req_cfg)
+                raw_resp = res["raw_response"]
+                raw_text_dump = json.dumps(raw_resp, ensure_ascii=False, indent=2)
+                attempt_integrity = audit_asr_generation(raw_resp)
+                attempt_sha = _sha256_text(raw_text_dump)
+                generation_attempts.append({
+                    "attempt": generation_attempt + 1,
+                    "raw_response_sha256": attempt_sha,
+                    "finish_reason": ((raw_resp.get("choices") or [{}])[0]).get("finish_reason"),
+                    "latency_s": float(res["latency_s"]),
+                    "generation_status": attempt_integrity["status"],
+                    "generation_reason": attempt_integrity.get("reason"),
+                })
+                chunk_latencies.append(float(res["latency_s"]))
+                if (generation_attempt == 0
+                        and attempt_integrity["status"] == "incomplete"
+                        and attempt_integrity["reason"] == "generation_limit_exhausted"):
+                    rejected_path = (
+                        chunks_dir / "rejected"
+                        / f"chunk_{spec.chunk_index:03d}_{attempt_sha[:16]}.raw.json"
+                    )
+                    if not rejected_path.is_file():
+                        _atomic_write_text(rejected_path, raw_text_dump)
+                    generation_attempts[-1]["rejected_raw_response_path"] = str(rejected_path)
+                    # Retry the identical authenticated WAV and language
+                    # once, never a different or truncated audio span.
+                    continue
+                break
             _atomic_write_text(raw_path, raw_text_dump)
-            chunk_latencies.append(float(res["latency_s"]))
             entry = {
                 **spec.to_dict(),
                 "status": "completed",
@@ -314,24 +467,118 @@ def process_media(
                 "actual_wav_duration_s": actual_dur,
                 "raw_response_path": str(raw_path),
                 "raw_response_sha256": _sha256_text(raw_text_dump),
-                "latency_s": res["latency_s"],
+                "latency_s": sum(attempt["latency_s"] for attempt in generation_attempts),
                 "finish_reason": ((raw_resp.get("choices") or [{}])[0]).get("finish_reason"),
                 "usage": raw_resp.get("usage"),
+                "generation_attempts": generation_attempts,
+                "generation_limit_retry_attempted": len(generation_attempts) > 1,
             }
 
-        chunk_raws.append(raw_resp)
-        chunk_manifest_entries.append(entry)
+        # A response ending at the generation limit is not a completed
+        # transcription: c28 exhausted 16K tokens, loop-cleaned to one
+        # untimed interjection, and previously flowed to rendered subtitles.
+        # Persist the *raw* response and its checksum, but never mark this
+        # chunk completed or resume it as though its speech was covered.
+        integrity = audit_asr_generation(raw_resp)
+        entry["generation_integrity"] = integrity
+        if integrity["status"] == "incomplete":
+            entry["status"] = "incomplete_generation"
+            # Keep the exact rejected response across the next retry.
+            # Existing chunk_*.raw.json readers must not mistake it for
+            # another completed inference; archive in a separate directory.
+            rejected_dump = raw_path.read_text(encoding="utf-8")
+            rejected_hash = _sha256_text(rejected_dump)
+            rejected_path = (
+                chunks_dir / "rejected"
+                / f"chunk_{spec.chunk_index:03d}_{rejected_hash[:16]}.raw.json"
+            )
+            if not rejected_path.is_file():
+                _atomic_write_text(rejected_path, rejected_dump)
+            entry["rejected_raw_response_path"] = str(rejected_path)
+            entry["rejected_raw_response_sha256"] = rejected_hash
+        planned_entries.append(entry)
 
-        # Persist incremental manifest atomically after every chunk so interruption can safely resume.
+        # Persist the original plan identities independently of the effective
+        # sequential chunk indices used by every downstream consumer.
         manifest_state = {
             "config_signature": sig,
+            "asr_run_status": (
+                "incomplete_generation" if integrity["status"] == "incomplete"
+                else "in_progress"
+            ),
             "media": media.to_dict(),
             "model": client.model,
-            "chunk_config": chunk_cfg.to_dict(),
+            "chunk_config": {**chunk_cfg.to_dict(), "chunk_policy": cfg.chunk_policy},
+            "chunk_plan": planner_diag,
             "chunks": chunk_manifest_entries,
+            "planned_chunks": [*planned_entries, *[
+                completed_by_idx[i] for i in sorted(completed_by_idx)
+                if i > spec.chunk_index
+            ]],
         }
-        _atomic_write_text(manifest_path, json.dumps(manifest_state, ensure_ascii=False, indent=2))
+        if integrity["status"]=="incomplete":
+            manifest_state["chunks"]=[*chunk_manifest_entries,
+                {**entry,"chunk_index":len(effective_chunks),"planned_chunk_index":spec.chunk_index}]
+            _atomic_write_text(manifest_path,json.dumps(manifest_state,ensure_ascii=False,indent=2))
 
+        # Previously completed but corrupt checkpoints still fail closed.
+        # A positively identified failed generation (fresh or verified
+        # incomplete parent on resume) can be recovered with distinct crops.
+        may_recover=(integrity["status"]=="incomplete" and split_spec(spec)
+                     and not (reused_parent and prev_entry.get("status")=="completed"))
+        if may_recover:
+            def extract_recovery(child,path):
+                extract_wav_segment(media.path,start_s=child.infer_start_s,
+                    duration_s=child.infer_duration_s,out_wav=path,
+                    audio_stream_index=cfg.audio_stream_index)
+            def transcribe_recovery(child,path):
+                result=client.transcribe(path,InferenceRequestConfig(
+                    mode=cfg.mode,source_language=lang_hint_for_prompt,
+                    capture_ctc_timestamps=True,require_ctc_timestamps=False,
+                    source_offset_s=child.infer_start_s))
+                chunk_latencies.append(float(result["latency_s"]))
+                return result
+            leaves=recover_generation(spec,root=chunks_dir/"recovery"/f"chunk_{spec.chunk_index:03d}",
+                signature=sig,resume=cfg.resume,extract=extract_recovery,
+                transcribe=transcribe_recovery,write=_atomic_write_text)
+            entry["status"]="completed_rechunked"
+            entry["recovery_leaf_count"]=len(leaves)
+            entry["recovery_leaf_receipts"]=[
+                {"identity":leaf[3]["identity"],"raw_response_sha256":leaf[3]["raw_response_sha256"],
+                 "wav_sha256":leaf[3]["wav_sha256"],"raw_response_path":leaf[3]["raw_response_path"]}
+                for leaf in leaves]
+            manifest_state["asr_run_status"]="in_progress"
+        elif integrity["status"] == "incomplete":
+            raise IncompleteASRGeneration(
+                f"Chunk {spec.chunk_index} ASR generation incomplete "
+                f"({integrity['reason']}); rejected raw response retained at {rejected_path}. "
+                "No replacement recording contract or subtitles were produced by this attempt. "
+                "Prior files, if present, are stale and must not be treated as current. "
+                "Use a source-verified bounded retry/rechunk, not the loop-cleaned fragment."
+            )
+        else:
+            leaves=[(spec,wav_path,raw_resp,{**entry,"recovery_checkpoint_reused":reused_parent})]
+
+        for leaf,wav,response,record in leaves:
+            effective=ChunkSpec(chunk_index=len(effective_chunks),
+                core_start_s=leaf.core_start_s,core_end_s=leaf.core_end_s,
+                infer_start_s=leaf.infer_start_s,infer_end_s=leaf.infer_end_s)
+            effective_chunks.append(effective)
+            chunk_wavs.append(wav)
+            chunk_raws.append(response)
+            chunk_manifest_entries.append({**record,**effective.to_dict(),
+                "planned_chunk_index":spec.chunk_index})
+            resumed_count+=int(record.get("recovery_checkpoint_reused",False))
+        manifest_state["chunks"]=chunk_manifest_entries
+        _atomic_write_text(manifest_path,json.dumps(manifest_state,ensure_ascii=False,indent=2))
+
+    # Reconciliation, alignment, ledger and recording contract all use the
+    # actual accepted leaf geometry, never the rejected parent's offsets.
+    if (not effective_chunks or effective_chunks[0].core_start_s!=chunks[0].core_start_s
+            or effective_chunks[-1].core_end_s!=chunks[-1].core_end_s
+            or any(a.core_end_s!=b.core_start_s for a,b in zip(effective_chunks,effective_chunks[1:]))):
+        raise RuntimeError("Effective ASR cores do not cover the planned media")
+    chunks=effective_chunks
     raw_texts = [
         cleanup_generation_loops((((r.get("choices") or [{}])[0]).get("message") or {}).get("content") or "")
         for r in chunk_raws
@@ -524,7 +771,23 @@ def process_media(
                     "localized_spans": plan[1],
                 }
 
-    # Phase 2: normalize speakers and build final utterances only after the
+    # Phase 2: audit CTC timing against actual inference excerpt bounds and
+    # local lexical sequence before trusting any words for global chronology.
+    # The raw responses, checkpoints and original wording are immutable.
+    for idx, rec in enumerate(native_records):
+        audited, timing_diag = audit_ctc_timing_units(
+            rec["units"],
+            infer_start_s=chunks[idx].infer_start_s,
+            infer_end_s=chunks[idx].infer_end_s,
+        )
+        rec["units"] = audited
+        rec["diagnostic"]["timing_evidence"] = timing_diag
+        if timing_diag["quarantined_units"]:
+            rec["diagnostic"]["status_before_timing_audit"] = rec["diagnostic"].get("status")
+            rec["diagnostic"]["status"] = "partial_timing_suspect"
+            rec["alignment_status"] = "partial_timing_suspect"
+
+    # Phase 3: normalize speakers and build final utterances only after the
     # Qwen session has been torn down and ASR restoration verified.
     for idx, rec in enumerate(native_records):
         alignment_diagnostics.append(rec["diagnostic"])
@@ -570,8 +833,38 @@ def process_media(
         if ev.get("local_speaker_id") in local_to_global:
             ev["global_speaker_id"] = local_to_global[ev["local_speaker_id"]]
 
-    # Boundary deduplication & recovery.
-    merged_units, boundary_diag = reconcile_chunk_boundaries(chunk_units_norm, chunks)
+    # Preserve every native lexical observation BEFORE legacy boundary deletion,
+    # utterance reconstruction and translation. This observational ledger is
+    # deliberately not a source transcript or a suppression authority.
+    source_evidence = build_source_evidence_ledger(
+        media_fingerprint_sha256=media.fingerprint_sha256,
+        source_language=resolved_lang,
+        chunk_specs=chunks,
+        chunk_units=chunk_units_norm,
+        raw_response_sha256=[e["raw_response_sha256"] for e in chunk_manifest_entries],
+        raw_source_texts=raw_texts,
+        diarization_by_chunk=[rec["diarization"] for rec in native_records],
+    )
+
+    # The immutable source ledger already contains model-derived activity
+    # hypotheses. Use them ONLY to prioritize review of potentially missing
+    # speech; this does not certify acoustic occurrence or alter source units.
+    chunk_of_asr = {
+        observation["id"]: int(observation["chunk_index"])
+        for observation in source_evidence["asr_observations"]
+    }
+    semantic_activity_by_chunk: dict[int, list[dict[str, Any]]] = {}
+    for activity in source_evidence["diarization_activity_hypotheses"]:
+        idx = chunk_of_asr.get(activity["asr_observation_id"])
+        if idx is not None:
+            semantic_activity_by_chunk.setdefault(idx, []).append(activity)
+
+    # Legacy v1 boundary acceptance stays unchanged pending independently
+    # adjudicated source revision; review candidates are diagnostic only.
+    merged_units, boundary_diag = reconcile_chunk_boundaries(
+        chunk_units_norm, chunks,
+        semantic_review_activity_by_chunk=semantic_activity_by_chunk,
+    )
 
     # Independent per-speaker utterance reconstruction anchored to true chunk bounds.
     chunk_windows = {c.chunk_index: (c.infer_start_s, c.infer_end_s) for c in chunks}
@@ -607,7 +900,8 @@ def process_media(
             "resumed_chunks": resumed_count,
             "chunk_request_latencies_s": chunk_latencies,
         },
-        chunk_config=chunk_cfg.to_dict(),
+        chunk_config={**chunk_cfg.to_dict(), "chunk_policy": cfg.chunk_policy,
+                      "chunk_plan": planner_diag},
         chunk_records=chunk_records,
         speakers=spk_res["speakers"],
         utterances=utterances,
@@ -620,13 +914,27 @@ def process_media(
 
     contract_path = out_dir / "recording.contract.json"
     transcript_path = out_dir / "transcript.txt"
+    source_evidence_path = out_dir / "source-evidence.v1.json"
+    source_evidence_text = json.dumps(source_evidence, ensure_ascii=False, indent=2)
+    _atomic_write_text(source_evidence_path, source_evidence_text)
     _atomic_write_text(contract_path, json.dumps(contract, ensure_ascii=False, indent=2))
     _atomic_write_text(transcript_path, _format_transcript_txt(contract))
+    # This manifest digest binds the extra sidecar to a completed ASR run;
+    # a standalone/stale sidecar is never proof of a current transcript.
+    manifest_state["source_evidence"] = {
+        "schema_version": source_evidence["schema_version"],
+        "path": str(source_evidence_path),
+        "sha256": _sha256_text(source_evidence_text),
+        "mode": "shadow_observation_only",
+    }
+    manifest_state["asr_run_status"] = "completed"
+    _atomic_write_text(manifest_path, json.dumps(manifest_state, ensure_ascii=False, indent=2))
 
     return {
         "contract": contract,
         "contract_path": str(contract_path),
         "transcript_path": str(transcript_path),
+        "source_evidence_path": str(source_evidence_path),
         "manifest_path": str(manifest_path),
         "total_wall_time_s": total_elapsed,
     }

@@ -174,3 +174,16 @@ def test_translation_review_role_defaults_to_text_and_rejects_specialized_adapte
     assert review.adapter == "openai_chat"
     assert review.name == "text_local"
     assert registry.resolve("riva_translation").device == "cuda:0"
+
+
+
+def test_optional_independent_challenger_requires_explicit_local_cpu_binding(tmp_path):
+    assert "source_challenger" not in load_model_resources(environ={}).roles
+    spec={"adapter":"whisper_cpu","checkpoint_path":"/local/model",
+          "worker_python":"/local/python","device":"cpu"}
+    path=_file(tmp_path,{"version":1,"resources":{"whisper":spec},
+                         "roles":{"source_challenger":"whisper"}})
+    assert load_model_resources(path,environ={}).resolve("source_challenger").device=="cpu"
+    with pytest.raises(ResourceConfigError,match="explicitly configured CPU"):
+        load_model_resources(_file(tmp_path,{"version":1,"resources":{"whisper":{**spec,"device":"cuda:0"}},
+                                             "roles":{"source_challenger":"whisper"}}),environ={})

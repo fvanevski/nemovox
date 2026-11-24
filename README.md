@@ -4,13 +4,45 @@ Multilingual speech transcription, speaker diarization, contextual transcript re
 
 *(Python package and CLI entrypoint remain `nvidia_transcribe` / `nvidia-transcribe`.)*
 
+### Development status and compatibility
+
+Nemovox is under active development for personal use. The current supported
+workflow takes precedence over historical experimental implementations.
+Superseded code, fixtures, schemas, configuration and development evidence
+should be removed rather than maintained for backward compatibility. New
+acceptance evidence must be generated with the current code, configuration
+and model resources. The development contract in [AGENTS.md](AGENTS.md)
+governs this transition. Current implementation requires fresh host qualification.
+
+### Subtitle quality objective
+
+Nemovox aims to generate fluent, grammatical, readable subtitles that convey
+the original dialogue's intended meaning and make sense in context, not to
+maximize verbatim word-for-word correspondence. Idiomatic translation,
+condensation, and flexible phrasing are welcome when important meaning,
+negation, narrative sequence, and relevant speaker turns survive. Utterance-level
+timing can be useful even when individual word timing is uncertain.
+
+Source audio, ASR, CTC, diarization and optional visual observations serve as
+separate evidence for **reasoned** correction of problematic dialogue. Lightweight
+contextual text QC should handle routine wording; richer audio-aware, and only
+selectively audiovisual, reasoning belongs on genuinely ambiguous material.
+Correct English phrasing does not certify unheard words as source-acoustic truth.
+The normal current-media subtitle workflow performs bounded source quality
+review before translation. Text assessments prioritize candidates; separately
+extracted acoustic contexts can corroborate a missing turn or an extended or
+untimed source event. The same ASR model may be used for both contexts: this
+does not establish independent-model agreement or human-verified speech.
+Competing or unsupported hypotheses and exhausted budgets remain explicit
+in the current job's source-quality report. No historical dossier is needed.
+
 ---
 
 ## Key Capabilities
 
 - **Single-Clip & Chunked Recording ASR:** Transcribe short clips (`transcribe`) or full-length audio/video recordings (`process-media`) with chunk-overlap boundary reconciliation, CTC word/character timestamp extraction, optional sub-interval recovery, and resumable manifests.
 - **Speaker Tracking & Contracts:** Reconstruct per-speaker utterances across overlapping streams, reconcile speakers across chunks, and emit structured JSON contracts (`recording.contract.json`) that preserve verbatim source Unicode text and honest timestamp provenance without fabricating missing timings.
-- **Untouched ASR → dedicated translation → selective English review:** Preserve the unmodified source-language ASR transcript. **No source-language text-model correction is part of the normal Studio workflow.** The Studio subtitle path uses a **dedicated Riva-Translate worker** for initial English machine translation, then uses the configured text model (e.g., SwiftU/NInfer) **only to assess and selectively correct original English translations**, using adjacent raw English cues, untouched ASR text, speaker context and an optional glossary. The initial machine translation remains inspectable; stage-specific caching prevents stale cross-model reuse. Source-language refinement remains an explicit legacy CLI opt-in (`--refinement` non-off). For standalone CLI backward compatibility, primary translation still defaults to `openai_chat` unless `--translator riva` is chosen explicitly; **Studio always sends `riva`** and selects the English review independently.
+- **ASR → current-source quality → Riva → English review:** Preserve original ASR observations, then select acoustically corroborated current source events before dedicated translation. Bounded NInfer Messages reasoning prioritizes review; lightweight English postediting is separate and preserves original MT. CLI and Studio share the pipeline. `--source-quality off` explicitly skips acoustic review; a recording contract without original media cannot be acoustically reviewed.
 - **Post-Processing & Export (`generate-subtitles`):** Render `SRT` and multi-lane `ASS` subtitles (`Main`, `Top`, `TopAlt`), optional hardsub-clearing layout (`--ass-layout raised_main`), explicit optional high-CPS condensation (`--condense-high-cps`, disabled by default in Studio to avoid a second English text-model pass), reversible review overlays (`--validation-overlay`), and zero-inference CPU re-rendering (`--re-render`).
 
 ---
@@ -43,7 +75,7 @@ export NEMOVOX_MODEL_RESOURCES="$PWD/configs/model-resources.local.json"
 # Optional: source a locally reviewed .env for per-resource overrides.
 ```
 
-The resource file binds functional roles (ASR, **dedicated Riva translation and English translation review**, optional legacy source refinement/condensation, alignment, embeddings) to installed local resources. The shipped `text_local` binding points to the existing SwiftU/NInfer host endpoint for selective English post-editing. The CLI and Studio use the same resolver, but the Studio uses Riva for primary translation while the legacy CLI text translator remains opt-in. See [model-resource configuration](docs/model-resources/CONFIGURATION.md) and the [Studio subtitle workflow guide](docs/gui/SUBTITLE_WORKFLOW.md). Reading this configuration never starts inference services.
+The resource file binds functional roles (ASR, **dedicated Riva translation and English translation review**, optional legacy source refinement/condensation, alignment, embeddings) to installed local resources. The shipped `text_local` binding points to the existing SwiftU/NInfer host endpoint for selective English post-editing. The CLI and Studio use the same resolver and default to dedicated Riva translation and balanced English review in their normal subtitle workflow. See [model-resource configuration](docs/model-resources/CONFIGURATION.md) and the [Studio subtitle workflow guide](docs/gui/SUBTITLE_WORKFLOW.md). Reading this configuration never starts inference services.
 
 For automatic per-job ASR/reviewer service acquisition, provision the explicitly owned user-systemd units once (not per job) and configure `NEMOVOX_LIFECYCLE_CONFIG` as described in [model lifecycle](docs/model-resources/LIFECYCLE.md). The CLI/Studio then starts and releases required owned resources automatically. The following standalone launcher remains available for explicit diagnostics:
 
@@ -71,10 +103,10 @@ nvidia-transcribe process-media episode.webm \
   --source-language zh \
   --mode speaker
 
-# 4. Dedicated Riva English translation followed by contextual text-model review.
+# 4. Current-source quality, Riva translation, and contextual English review.
 # Requires an installed Riva checkpoint/worker and a compatible text endpoint.
 # Omit --glossary for unrelated media.
-nvidia-transcribe generate-subtitles \
+nvidia-transcribe generate-subtitles episode.webm \
   --recording-contract outputs/episode_run/recording.contract.json \
   --output-dir outputs/episode_subs \
   --source-language zh \
@@ -134,3 +166,7 @@ Set `NEMOVOX_EXPORT_ROOTS` to explicitly approved writable host directories
 (or use the built-in `outputs/exports` root). Internal job artifacts, logs and
 remote downloads are retained independently of selected exports. See
 [Studio output configuration](docs/gui/STUDIO_OUTPUTS.md).
+
+### Optional speaker embeddings
+
+The normal CLI and Studio path uses existing ASR speaker tags and reconciliation without TitaNet. To use separately provisioned local TitaNet embeddings, explicitly select `--speaker-embeddings titanet` (or the Studio option). `generate-subtitles` also accepts `--audio-stream` and `--speaker-embeddings`, as does `process-media`. No implicit model download is required by the default path.

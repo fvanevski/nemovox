@@ -1,0 +1,802 @@
+{
+  "cpu": {
+    "early_regressions": 30,
+    "remediation": 53,
+    "focused": 70,
+    "cli": 387,
+    "studio": 387,
+    "web": 14,
+    "native_exits": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "missing_rerender_asr_acquisitions": 0,
+    "displaced_timing": "unresolved_possible_displaced_or_repeated_turn",
+    "overlap_repro": 0
+  },
+  "bounded_native_exits": {
+    "fr_question": 0,
+    "zh_studio": 0,
+    "fr_control": 0,
+    "fr_rerender": 0,
+    "zh_rerender": 0
+  },
+  "full_integrated": "blocked_by_bounded_quality",
+  "input_media_sha256": [
+    "0e77ce3c809e498b97ffe48b53575c29e10d8b08a039b78e2150cd0c845c81b0",
+    "2cfcffb70b4d168239afc47db3f763f2cac1d858512309bfc90085c4375ca0aa"
+  ],
+  "fresh_clip_sha256": {
+    "fr-question": "340d3eae226a6bbb8c4c490f6b25b1a38389bd471522b1a8fd8f18b51b274a71",
+    "zh-gap": "7870f012602c575c5e9d6a41ceed045388b42bb343eac35dbd69d0c5b36b4d79",
+    "fr-control": "a0c1ee1b4eefb693c16e25fb2f95406241085def50f4d131540ff017db288478"
+  },
+  "fresh_jobs": {
+    "fr-question": {
+      "key": "fr-question",
+      "offset_s": 770.0,
+      "duration_s": 78.0,
+      "stream": 0,
+      "language": "fr",
+      "asr_manifest": "completed",
+      "chunks": 2,
+      "chunk_plan": {
+        "schema": "pause_aware/v1",
+        "selected_pause_count": 1,
+        "forced_cut_count": 0,
+        "max_actual_infer_s": 45.257375
+      },
+      "asr_wall_s": 97.1131,
+      "asr_resumed_chunks": 0,
+      "original_utterances": 7,
+      "canonical_utterances": 7,
+      "original_model_speaker_labels": 1,
+      "original_untimed": 0,
+      "canonical_untimed": 0,
+      "changed_existing_rows": 0,
+      "removed_original_ids": 0,
+      "unchanged_original_rows": 7,
+      "quality_recording_digest_matches_original": true,
+      "source_quality": "partial",
+      "windows": 5,
+      "deferred_windows": 0,
+      "observations": 15,
+      "acoustic_requests": 15,
+      "extra_acoustic_contexts": 5,
+      "source_decisions": {},
+      "unresolved_window_reasons": {
+        "unmatched_acoustic_observations": 2,
+        "no_unique_corroborated_event": 3
+      },
+      "source_advisory_calls": 0,
+      "source_advisory_token_reservation": 0,
+      "riva_actual_items": 7,
+      "riva_canonical_text_and_identity_exact": true,
+      "riva_stdin_sha256": [
+        "3b79343efd802d842ccbad2b65e69d3109b16d789002903d38bbd719bee03a3c"
+      ],
+      "riva_exits": [
+        0
+      ],
+      "original_mt_retained": 7,
+      "original_mt_items": 7,
+      "translation": {
+        "backend": "riva",
+        "resource_fingerprint": "51e174c84e775b5a5628be1117811fc126df47af95526fa9645492bda3096210",
+        "lang_pair": "fr-en",
+        "total_utterances": 7,
+        "cache_hits": 0,
+        "elapsed_s": 13.078,
+        "device_used": "cuda:0",
+        "dtype": "torch.bfloat16",
+        "load_s": 4.1058,
+        "infer_s": 3.3889,
+        "peak_vram_mib": 8016.87
+      },
+      "translation_review": {
+        "status": "completed",
+        "profile": "balanced",
+        "style": "natural",
+        "resource_fingerprint": "7c4ddcaf9e48cbcb1e675f1484eef3d9e08aadc9fc6b4a921c8f3f6c0a03cb2a",
+        "reviewed": 7,
+        "changed": 2,
+        "rejected_polarity": 0,
+        "comparative_calls": 1,
+        "comparative_rejections": 0,
+        "cache_hits": 0,
+        "api_calls": 3,
+        "resource_blocked_reason": null,
+        "elapsed_s": 13.235
+      },
+      "review_errors": 0,
+      "review_status": {
+        "unchanged": 5,
+        "corrected": 2
+      },
+      "wall_s": 218.72,
+      "srt": {
+        "count": 10,
+        "end_max_s": 76.125,
+        "end_past_media": 0,
+        "nonpositive_intervals": 0,
+        "above_25_cps": 0,
+        "worst_cps": 20.611,
+        "median_cps": 12.649,
+        "multi_lane": 0
+      },
+      "ass": {
+        "count": 10,
+        "end_max_s": 76.12,
+        "end_past_media": 0,
+        "nonpositive_intervals": 0,
+        "above_25_cps": 0,
+        "worst_cps": 20.611,
+        "median_cps": 12.633,
+        "multi_lane": 0
+      },
+      "hashes": {
+        "recording.contract.json": "fcbd8054f164f08e3fd50e3d6ae72b170caaf8a497e3b261d2c49e80e501d115",
+        "source-quality.json": "20e42439b6d5d751e112a3b3979ce0299c90443ec825796f16e5ad6ebf95db2a",
+        "canonical-source.contract.json": "266cb22cdd0f7a32ce8f9899a1c2c82024e7a98a78b1dba8bbb6a79f4260042f",
+        "translated.contract.json": "b16df780ad16aedd629b1baa93ec42a9f35b2198835531ab4bc082f30e303bae",
+        "subtitles.metadata.json": "cd6e126445153c96763b7ad1a9b2c19f45fcccd384a2bd68ae3e7140b1ae4057"
+      }
+    },
+    "zh-gap": {
+      "key": "zh-gap",
+      "offset_s": 195.0,
+      "duration_s": 72.0,
+      "stream": 0,
+      "language": "zh",
+      "asr_manifest": "completed",
+      "chunks": 2,
+      "chunk_plan": {
+        "schema": "fixed/v1",
+        "selected_pause_count": null,
+        "forced_cut_count": null,
+        "max_actual_infer_s": null
+      },
+      "asr_wall_s": 93.9135,
+      "asr_resumed_chunks": 0,
+      "original_utterances": 18,
+      "canonical_utterances": 18,
+      "original_model_speaker_labels": 1,
+      "original_untimed": 4,
+      "canonical_untimed": 4,
+      "changed_existing_rows": 18,
+      "removed_original_ids": 0,
+      "unchanged_original_rows": 0,
+      "quality_recording_digest_matches_original": false,
+      "source_quality": "partial",
+      "windows": 4,
+      "deferred_windows": 0,
+      "observations": 12,
+      "acoustic_requests": 12,
+      "extra_acoustic_contexts": 4,
+      "source_decisions": {},
+      "unresolved_window_reasons": {
+        "no_unique_corroborated_event": 3,
+        "unmatched_acoustic_observations": 1
+      },
+      "source_advisory_calls": 0,
+      "source_advisory_token_reservation": 0,
+      "riva_actual_items": 18,
+      "riva_canonical_text_and_identity_exact": true,
+      "riva_stdin_sha256": [
+        "c7ef22e856a04ddf4f1805a8ac7b5f12bda6aa3ec798012f9a09b469eae6f22c"
+      ],
+      "riva_exits": [
+        0
+      ],
+      "original_mt_retained": 18,
+      "original_mt_items": 18,
+      "translation": {
+        "backend": "riva",
+        "resource_fingerprint": "51e174c84e775b5a5628be1117811fc126df47af95526fa9645492bda3096210",
+        "lang_pair": "zh-en",
+        "total_utterances": 18,
+        "cache_hits": 0,
+        "elapsed_s": 17.792,
+        "device_used": "cuda:0",
+        "dtype": "torch.bfloat16",
+        "load_s": 4.1926,
+        "infer_s": 7.8897,
+        "peak_vram_mib": 8019.13
+      },
+      "translation_review": {
+        "status": "completed",
+        "profile": "balanced",
+        "style": "natural",
+        "resource_fingerprint": "7c4ddcaf9e48cbcb1e675f1484eef3d9e08aadc9fc6b4a921c8f3f6c0a03cb2a",
+        "reviewed": 18,
+        "changed": 9,
+        "rejected_polarity": 0,
+        "comparative_calls": 3,
+        "comparative_rejections": 2,
+        "cache_hits": 0,
+        "api_calls": 6,
+        "resource_blocked_reason": null,
+        "elapsed_s": 29.496
+      },
+      "review_errors": 0,
+      "review_status": {
+        "unchanged": 7,
+        "review_rejected_comparative_preserved_machine_translation": 2,
+        "corrected": 9
+      },
+      "wall_s": 141.387,
+      "srt": {
+        "count": 20,
+        "end_max_s": 72.0,
+        "end_past_media": 0,
+        "nonpositive_intervals": 0,
+        "above_25_cps": 5,
+        "worst_cps": 45.703,
+        "median_cps": 19.989,
+        "multi_lane": 0
+      },
+      "ass": {
+        "count": 20,
+        "end_max_s": 72.0,
+        "end_past_media": 0,
+        "nonpositive_intervals": 0,
+        "above_25_cps": 5,
+        "worst_cps": 45.578,
+        "median_cps": 19.942,
+        "multi_lane": 0
+      },
+      "hashes": {
+        "recording.contract.json": "959cfb6c9e056b597d6f78808b79153052cc30ba170035c406ea8d2895268a6d",
+        "source-quality.json": "4427e3e47911e07b5df4baf845112e705c49df1806425f2bb6567df15983b094",
+        "canonical-source.contract.json": "d4056bfe1b05eb59b6e76d229f6479a4349f8c7bc008b0a5f216f74a76483469",
+        "translated.contract.json": "ab702bccdeb7f1b7f3e930fd372bdc0ba0de8da24f40df074ab2866bc71542a3",
+        "subtitles.metadata.json": "12a9d42000b53c46aeb694b03aa31705a8c558c7d58524ceee6caa3aa618d299"
+      }
+    },
+    "fr-control": {
+      "key": "fr-control",
+      "offset_s": 235.0,
+      "duration_s": 50.0,
+      "stream": 0,
+      "language": "fr",
+      "asr_manifest": "completed",
+      "chunks": 1,
+      "chunk_plan": {
+        "schema": "pause_aware/v1",
+        "selected_pause_count": 0,
+        "forced_cut_count": 0,
+        "max_actual_infer_s": 50.0
+      },
+      "asr_wall_s": 93.3303,
+      "asr_resumed_chunks": 0,
+      "original_utterances": 12,
+      "canonical_utterances": 12,
+      "original_model_speaker_labels": 4,
+      "original_untimed": 0,
+      "canonical_untimed": 0,
+      "changed_existing_rows": 0,
+      "removed_original_ids": 0,
+      "unchanged_original_rows": 12,
+      "quality_recording_digest_matches_original": true,
+      "source_quality": "complete",
+      "windows": 0,
+      "deferred_windows": 0,
+      "observations": 0,
+      "acoustic_requests": 0,
+      "extra_acoustic_contexts": 0,
+      "source_decisions": {},
+      "unresolved_window_reasons": {},
+      "source_advisory_calls": 0,
+      "source_advisory_token_reservation": 0,
+      "riva_actual_items": 12,
+      "riva_canonical_text_and_identity_exact": true,
+      "riva_stdin_sha256": [
+        "af7894911c30ca7babfcadc88baea75e237820001e45b81fb817c8a89121507e"
+      ],
+      "riva_exits": [
+        0
+      ],
+      "original_mt_retained": 12,
+      "original_mt_items": 12,
+      "translation": {
+        "backend": "riva",
+        "resource_fingerprint": "51e174c84e775b5a5628be1117811fc126df47af95526fa9645492bda3096210",
+        "lang_pair": "fr-en",
+        "total_utterances": 12,
+        "cache_hits": 0,
+        "elapsed_s": 14.331,
+        "device_used": "cuda:0",
+        "dtype": "torch.bfloat16",
+        "load_s": 4.2131,
+        "infer_s": 4.4524,
+        "peak_vram_mib": 8022.05
+      },
+      "translation_review": {
+        "status": "completed",
+        "profile": "balanced",
+        "style": "natural",
+        "resource_fingerprint": "7c4ddcaf9e48cbcb1e675f1484eef3d9e08aadc9fc6b4a921c8f3f6c0a03cb2a",
+        "reviewed": 12,
+        "changed": 2,
+        "rejected_polarity": 1,
+        "comparative_calls": 2,
+        "comparative_rejections": 0,
+        "cache_hits": 0,
+        "api_calls": 4,
+        "resource_blocked_reason": null,
+        "elapsed_s": 18.044
+      },
+      "review_errors": 0,
+      "review_status": {
+        "unchanged": 9,
+        "review_rejected_polarity_preserved_machine_translation": 1,
+        "corrected": 2
+      },
+      "wall_s": 128.229,
+      "srt": {
+        "count": 16,
+        "end_max_s": 49.901,
+        "end_past_media": 0,
+        "nonpositive_intervals": 0,
+        "above_25_cps": 0,
+        "worst_cps": 18.895,
+        "median_cps": 13.242,
+        "multi_lane": 0
+      },
+      "ass": {
+        "count": 16,
+        "end_max_s": 49.9,
+        "end_past_media": 0,
+        "nonpositive_intervals": 0,
+        "above_25_cps": 0,
+        "worst_cps": 18.895,
+        "median_cps": 13.252,
+        "multi_lane": 4
+      },
+      "hashes": {
+        "recording.contract.json": "8c424e948ddbaf44303be25cd72931af7fe499e30c45fd66258bc54a6ad87c14",
+        "source-quality.json": "002b016ff59e796cba869bafb4c23ae932f5db49b7792050aced8caa0701ac26",
+        "canonical-source.contract.json": "96aac325cb2395c5b27ef23bdea1662ed3730defa1321059aeda471000e16b9d",
+        "translated.contract.json": "f0d583030a122cc8971d69b4c7664b643fd156bfd9e11b21ffd97f6f3aec6d3e",
+        "subtitles.metadata.json": "89b0e9b8b6a00e48b54e94cd4c49b25502d2abee50e12f4896c1ce5906c04e9b"
+      }
+    }
+  },
+  "studio_terminal": {
+    "http": 202,
+    "state": "complete",
+    "error": null,
+    "stage_history": [
+      {
+        "id": "asr",
+        "status": "complete",
+        "detail": "",
+        "duration_s": 96.573
+      },
+      {
+        "id": "source_quality",
+        "status": "complete",
+        "detail": "partial",
+        "duration_s": 93.634
+      },
+      {
+        "id": "translation",
+        "status": "complete",
+        "detail": "",
+        "duration_s": 18.007
+      },
+      {
+        "id": "review",
+        "status": "complete",
+        "detail": "completed",
+        "duration_s": 29.611
+      },
+      {
+        "id": "condensation",
+        "status": "skipped",
+        "detail": "Optional condensation disabled"
+      },
+      {
+        "id": "render",
+        "status": "complete",
+        "detail": "",
+        "duration_s": 0.0
+      }
+    ],
+    "export": "disabled",
+    "elapsed_s": 238.380676984787,
+    "persisted_terminal_exact": true,
+    "artifact_suffix_counts": {
+      ".json": 4,
+      ".txt": 4,
+      ".srt": 1,
+      ".ass": 1
+    },
+    "preview_count": 20
+  },
+  "studio_asr_identity": {
+    "studio_asr_unchanged": true,
+    "quality_bound_to_reconstructed_recording": true,
+    "source_quality_selected_rows_equal_reconstructed_recording": true,
+    "reconstructed_utterance_count": 18,
+    "source_mutations_by_quality": 0
+  },
+  "offline_rerender": {
+    "managed_service_journal_unchanged": true,
+    "fr": {
+      "byte_identical_outputs": {
+        ".json": "b16df780ad16aedd629b1baa93ec42a9f35b2198835531ab4bc082f30e303bae",
+        ".srt": "5268ddd07bba6bfb85ed75eab2b5b3cf2a04330cbea2750f7769b6d540197881",
+        ".ass": "cfca584704d3244b9b9aa0828eca35e0f7040fe4e2366a3e10ad554aad140d4c"
+      },
+      "riva_calls": 0,
+      "wall_s": 0.002
+    },
+    "zh": {
+      "byte_identical_outputs": {
+        ".json": "ab702bccdeb7f1b7f3e930fd372bdc0ba0de8da24f40df074ab2866bc71542a3",
+        ".srt": "f6ad49990328cfb0fddfe5a270b9c386bc756ee05a6b8cde3c6e41011cb082e2",
+        ".ass": "fd629253b99569168e592b75c86422a6d7c3f5ecdbccf7e2f8e77d8e7c6023ca"
+      },
+      "riva_calls": 0,
+      "wall_s": 0.007
+    }
+  },
+  "runtime": {
+    "cli": {
+      "python": "3.13.15",
+      "prefix": ".venv",
+      "candidate_import": "src/nvidia_transcribe/cli.py",
+      "versions": {
+        "nvidia-transcribe": "0.1.0",
+        "pytest": "9.2.0",
+        "torch": "2.13.0",
+        "vllm": "0.32.0",
+        "nemo-speechlm": null,
+        "nemo_toolkit": "3.1.0+99c252a",
+        "openai": "3.13.0",
+        "httpx": "0.28.1",
+        "PyYAML": "6.0.3",
+        "fastapi": "0.135.3",
+        "uvicorn": "0.44.0",
+        "python-multipart": "0.0.32"
+      },
+      "resources": {
+        "asr": {
+          "name": "asr_local",
+          "adapter": "nemotron_ctc",
+          "fingerprint": "4952e76413eacb15c4f01a8c71e04fa04917651bc8e3beade431ea2cc304153d",
+          "device": null,
+          "checkpoint_exists": true,
+          "worker_exists": null,
+          "unit": "nemovox-asr.service",
+          "state": "inactive",
+          "ownership_markers_match": true,
+          "unit_sha256": "1bdf5ede2ae038535916dc1076454dceb3b7f2470a5da7ed9b3d589b8657f00f",
+          "stop_after_stage": true,
+          "min_free_vram_mb": 26000
+        },
+        "translation_review": {
+          "name": "text_local",
+          "adapter": "openai_chat",
+          "fingerprint": "7c4ddcaf9e48cbcb1e675f1484eef3d9e08aadc9fc6b4a921c8f3f6c0a03cb2a",
+          "device": null,
+          "checkpoint_exists": null,
+          "worker_exists": null,
+          "unit": "nemovox-text-review.service",
+          "state": "inactive",
+          "ownership_markers_match": true,
+          "unit_sha256": "5180818c0fcf0190264a225d428365b8d9979a9e78513086b07e6b7dd2d9ce6c",
+          "stop_after_stage": true,
+          "min_free_vram_mb": 0
+        },
+        "riva_translation": {
+          "name": "riva_local",
+          "adapter": "riva_worker",
+          "fingerprint": "51e174c84e775b5a5628be1117811fc126df47af95526fa9645492bda3096210",
+          "device": "cuda:0",
+          "checkpoint_exists": true,
+          "worker_exists": true
+        },
+        "speaker_embedding": {
+          "name": "titanet_cpu",
+          "adapter": "titanet",
+          "fingerprint": "431f090200ea1a8358e508fd8535592757dc8f3c94810165a98b31525cad11a7",
+          "device": "cpu",
+          "checkpoint_exists": null,
+          "worker_exists": null
+        },
+        "forced_alignment": {
+          "name": "qwen_local",
+          "adapter": "qwen_forced_aligner",
+          "fingerprint": "72b18920eecb6c0b0c7eb267dc23817fb79972e391779977b5c4cedb806a3f03",
+          "device": "cuda:0",
+          "checkpoint_exists": true,
+          "worker_exists": true
+        }
+      },
+      "config_selectors": {
+        "NEMOVOX_MODEL_RESOURCES": false,
+        "NEMOVOX_LIFECYCLE_CONFIG": false,
+        "NEMOVOX_LIFECYCLE_LOCK": false,
+        "ASR_BASE_URL": false,
+        "ASR_MODEL": false,
+        "TEXT_BASE_URL": false,
+        "TEXT_MODEL": false,
+        "SWIFTU_BASE_URL": false,
+        "SWIFTU_MODEL": false
+      },
+      "lock_mode": "0o600",
+      "lock_owner_matches": true
+    },
+    "studio": {
+      "python": "3.13.15",
+      "prefix": ".venv-studio",
+      "candidate_import": "src/nvidia_transcribe/cli.py",
+      "versions": {
+        "nvidia-transcribe": "0.1.0",
+        "pytest": "9.2.0",
+        "torch": null,
+        "vllm": null,
+        "nemo-speechlm": null,
+        "nemo_toolkit": null,
+        "openai": "3.57.0",
+        "httpx": "0.28.1",
+        "PyYAML": "6.0.4",
+        "fastapi": "0.165.0",
+        "uvicorn": "0.54.0",
+        "python-multipart": "0.0.34"
+      },
+      "resources": {
+        "asr": {
+          "name": "asr_local",
+          "adapter": "nemotron_ctc",
+          "fingerprint": "4952e76413eacb15c4f01a8c71e04fa04917651bc8e3beade431ea2cc304153d",
+          "device": null,
+          "checkpoint_exists": true,
+          "worker_exists": null,
+          "unit": "nemovox-asr.service",
+          "state": "inactive",
+          "ownership_markers_match": true,
+          "unit_sha256": "1bdf5ede2ae038535916dc1076454dceb3b7f2470a5da7ed9b3d589b8657f00f",
+          "stop_after_stage": true,
+          "min_free_vram_mb": 26000
+        },
+        "translation_review": {
+          "name": "text_local",
+          "adapter": "openai_chat",
+          "fingerprint": "7c4ddcaf9e48cbcb1e675f1484eef3d9e08aadc9fc6b4a921c8f3f6c0a03cb2a",
+          "device": null,
+          "checkpoint_exists": null,
+          "worker_exists": null,
+          "unit": "nemovox-text-review.service",
+          "state": "inactive",
+          "ownership_markers_match": true,
+          "unit_sha256": "5180818c0fcf0190264a225d428365b8d9979a9e78513086b07e6b7dd2d9ce6c",
+          "stop_after_stage": true,
+          "min_free_vram_mb": 0
+        },
+        "riva_translation": {
+          "name": "riva_local",
+          "adapter": "riva_worker",
+          "fingerprint": "51e174c84e775b5a5628be1117811fc126df47af95526fa9645492bda3096210",
+          "device": "cuda:0",
+          "checkpoint_exists": true,
+          "worker_exists": true
+        },
+        "speaker_embedding": {
+          "name": "titanet_cpu",
+          "adapter": "titanet",
+          "fingerprint": "431f090200ea1a8358e508fd8535592757dc8f3c94810165a98b31525cad11a7",
+          "device": "cpu",
+          "checkpoint_exists": null,
+          "worker_exists": null
+        },
+        "forced_alignment": {
+          "name": "qwen_local",
+          "adapter": "qwen_forced_aligner",
+          "fingerprint": "72b18920eecb6c0b0c7eb267dc23817fb79972e391779977b5c4cedb806a3f03",
+          "device": "cuda:0",
+          "checkpoint_exists": true,
+          "worker_exists": true
+        }
+      },
+      "config_selectors": {
+        "NEMOVOX_MODEL_RESOURCES": false,
+        "NEMOVOX_LIFECYCLE_CONFIG": false,
+        "NEMOVOX_LIFECYCLE_LOCK": false,
+        "ASR_BASE_URL": false,
+        "ASR_MODEL": false,
+        "TEXT_BASE_URL": false,
+        "TEXT_MODEL": false,
+        "SWIFTU_BASE_URL": false,
+        "SWIFTU_MODEL": false
+      },
+      "lock_mode": "0o600",
+      "lock_owner_matches": true
+    },
+    "lifecycle": {
+      "samples": 652,
+      "global_observed_peak_mib": 31567,
+      "first_utc": "2026-11-24T05:13:54.364019+00:00",
+      "last_utc": "2026-11-24T05:24:45.460886+00:00",
+      "both_managed_active_samples": 0,
+      "stable_foreign_process_names": [
+        "/usr/bin/kwin_wayland",
+        "/usr/local/bin/text-embeddings-router"
+      ],
+      "services": {
+        "nemovox-asr.service": [
+          {
+            "sample_count": 99,
+            "peak_gpu_used_mib": 31515,
+            "states": [
+              "active",
+              "deactivating"
+            ],
+            "journal_exit": 0,
+            "sampled_interval_s": 98.015,
+            "asr_post_statuses": {
+              "200": 2
+            },
+            "quantization_modelopt_mixed": true,
+            "ctc_checkpoint_enabled": true,
+            "ctc_encoder_bound": true
+          },
+          {
+            "sample_count": 93,
+            "peak_gpu_used_mib": 31567,
+            "states": [
+              "active",
+              "deactivating"
+            ],
+            "journal_exit": 0,
+            "sampled_interval_s": 92.014,
+            "asr_post_statuses": {
+              "200": 15
+            },
+            "quantization_modelopt_mixed": true,
+            "ctc_checkpoint_enabled": true,
+            "ctc_encoder_bound": true
+          },
+          {
+            "sample_count": 96,
+            "peak_gpu_used_mib": 28233,
+            "states": [
+              "active",
+              "deactivating"
+            ],
+            "journal_exit": 0,
+            "sampled_interval_s": 95.014,
+            "asr_post_statuses": {
+              "200": 12
+            },
+            "quantization_modelopt_mixed": true,
+            "ctc_checkpoint_enabled": true,
+            "ctc_encoder_bound": true
+          },
+          {
+            "sample_count": 94,
+            "peak_gpu_used_mib": 28301,
+            "states": [
+              "active",
+              "deactivating"
+            ],
+            "journal_exit": 0,
+            "sampled_interval_s": 93.015,
+            "asr_post_statuses": {
+              "200": 12
+            },
+            "quantization_modelopt_mixed": true,
+            "ctc_checkpoint_enabled": true,
+            "ctc_encoder_bound": true
+          },
+          {
+            "sample_count": 95,
+            "peak_gpu_used_mib": 31514,
+            "states": [
+              "active",
+              "deactivating"
+            ],
+            "journal_exit": 0,
+            "sampled_interval_s": 94.014,
+            "asr_post_statuses": {
+              "200": 1
+            },
+            "quantization_modelopt_mixed": true,
+            "ctc_checkpoint_enabled": true,
+            "ctc_encoder_bound": true
+          }
+        ],
+        "nemovox-text-review.service": [
+          {
+            "sample_count": 13,
+            "peak_gpu_used_mib": 30734,
+            "states": [
+              "active"
+            ],
+            "journal_exit": 0,
+            "sampled_interval_s": 12.002,
+            "requests_started": 3,
+            "requests_done": 3,
+            "thinking_modes": {
+              "off": 2,
+              "xhigh, budget 1,024": 1
+            },
+            "output_token_budgets": {
+              "4096": 3
+            },
+            "messages_http_ready": true
+          },
+          {
+            "sample_count": 30,
+            "peak_gpu_used_mib": 30682,
+            "states": [
+              "active",
+              "deactivating"
+            ],
+            "journal_exit": 0,
+            "sampled_interval_s": 29.004,
+            "requests_started": 6,
+            "requests_done": 6,
+            "thinking_modes": {
+              "off": 3,
+              "xhigh, budget 1,024": 3
+            },
+            "output_token_budgets": {
+              "4096": 6
+            },
+            "messages_http_ready": true
+          },
+          {
+            "sample_count": 19,
+            "peak_gpu_used_mib": 30681,
+            "states": [
+              "active",
+              "deactivating"
+            ],
+            "journal_exit": 0,
+            "sampled_interval_s": 18.003,
+            "requests_started": 4,
+            "requests_done": 4,
+            "thinking_modes": {
+              "off": 2,
+              "xhigh, budget 1,024": 2
+            },
+            "output_token_budgets": {
+              "4096": 4
+            },
+            "messages_http_ready": true
+          }
+        ]
+      },
+      "studio_production_invocation_count": 1
+    },
+    "final": {
+      "owned_asr": "inactive",
+      "owned_text": "inactive",
+      "both_ports_closed": true,
+      "lease_released": true
+    },
+    "gpu": {
+      "name": "RTX 5090",
+      "driver": "620.73.04",
+      "total_mib": 32607,
+      "baseline_used_mib": 3165,
+      "sample_period_s": 1
+    },
+    "nemo_git_head": "99c252a77e7a1f57319618539882faa0d9c1abd2",
+    "nemo_git_tree": "e841c20f192cffa9633ae318a5bf9f8f4e2694fc",
+    "installed_hashes": {
+      "ninfer_bin": "e7e207d15a71e72bc0e58bd297fe8b48ef9dc1ab056d6f262f34ede697077c5e",
+      "riva_config": "7262a2cf3e6d45be9ab5bff9f295d10073798e43045121a41e457e30851d6dcd",
+      "nemotron_config": "c6509c7a68ae4bd94fca06a39216029c233f8dc43428d6228fe425cfe4926313",
+      "asr_launcher": "a736674622cfa590293bbd298af662c84346f893bacb430243d02a425c4307ff"
+    }
+  }
+}

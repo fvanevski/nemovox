@@ -1,0 +1,13 @@
+{
+  "input_voice_a_seconds": 2.82,
+  "input_voice_b_overlap_seconds": 0.215,
+  "srt_voice_a_seconds": 3.5,
+  "ass_voice_a_seconds": 3.5,
+  "voice_a_characters": 63,
+  "srt_voice_a_characters_per_second": 18.0,
+  "ass_layers": [
+    "0",
+    "1"
+  ],
+  "conflicts": []
+}
