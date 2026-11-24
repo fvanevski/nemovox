@@ -1,4 +1,4 @@
-"""NInfer Anthropic Messages transport for explicitly bounded text reasoning.
+"""NInfer Anthropic Messages transport for bounded text and image reasoning.
 
 This adapter is opt-in; the ordinary OpenAI-compatible translation/review
 client is unchanged. NInfer's pinned Chat Completions parser ignores the
@@ -8,7 +8,83 @@ thinking.budget_tokens. No silent downgrade to an unbounded request.
 
 from __future__ import annotations
 
+import base64
+import binascii
+import hashlib
 from typing import Any
+
+
+# Bound request size before decoding; media decoding and vision memory
+# admission remain NInfer's responsibility. Only inline still images are
+# supported: no URLs, remote fetching, implicit file reads or video.
+_MAX_IMAGE_BYTES = 8 * 1024 * 1024
+_MAX_IMAGES = 12
+_MAX_TOTAL_IMAGE_BYTES = 24 * 1024 * 1024
+_IMAGE_SIGNATURES = {"image/png": b"\x89PNG\r\n\x1a\n", "image/jpeg": b"\xff\xd8\xff"}
+
+
+def image_content_block(data: bytes, *, media_type: str = "image/png") -> dict[str, Any]:
+    """Encode explicit caller-supplied image bytes as native Messages content."""
+    if not isinstance(data, bytes) or not 0 < len(data) <= _MAX_IMAGE_BYTES:
+        raise ValueError("Invalid inline image byte length")
+    if media_type not in _IMAGE_SIGNATURES or not data.startswith(_IMAGE_SIGNATURES[media_type]):
+        raise ValueError("Unsupported or mismatched inline image format")
+    return {"type": "image", "source": {"type": "base64", "media_type": media_type,
+                                       "data": base64.b64encode(data).decode("ascii")}}
+
+
+def _normalize_messages(messages: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    if not isinstance(messages, list) or not messages:
+        raise ValueError("Messages must be a nonempty list")
+    normalized = []
+    images = []
+    total = 0
+    for message_index, message in enumerate(messages):
+        if (not isinstance(message, dict)
+                or message.get("role") not in ("system", "user", "assistant")
+                or set(message) != {"role", "content"}):
+            raise ValueError("Invalid Messages role/content pair")
+        role, content = message["role"], message["content"]
+        if isinstance(content, str):
+            normalized.append(dict(message))
+            continue
+        if role != "user" or not isinstance(content, list) or not content:
+            raise ValueError("Content blocks require a nonempty user message; system and assistant content must be text")
+        parts = []
+        for block_index, block in enumerate(content):
+            if not isinstance(block, dict):
+                raise ValueError("Invalid Messages content block")
+            if (block.get("type") == "text" and set(block) == {"type", "text"}
+                    and isinstance(block.get("text"), str)):
+                parts.append(dict(block))
+                continue
+            if block.get("type") != "image" or set(block) != {"type", "source"}:
+                raise ValueError("Only text and inline image content blocks are supported")
+            source = block["source"]
+            if (not isinstance(source, dict)
+                    or set(source) != {"type", "media_type", "data"}
+                    or source.get("type") != "base64"
+                    or not isinstance(source.get("media_type"), str)
+                    or source["media_type"] not in _IMAGE_SIGNATURES
+                    or not isinstance(source.get("data"), str)):
+                raise ValueError("Only inline base64 PNG or JPEG image sources are supported")
+            encoded = source["data"]
+            if not encoded or len(encoded) > 4 * ((_MAX_IMAGE_BYTES + 2) // 3):
+                raise ValueError("Invalid inline image byte length")
+            try:
+                data = base64.b64decode(encoded, validate=True)
+            except (ValueError, binascii.Error) as exc:
+                raise ValueError("Invalid inline image base64") from exc
+            canonical = image_content_block(data, media_type=source["media_type"])
+            total += len(data)
+            if len(images) >= _MAX_IMAGES or total > _MAX_TOTAL_IMAGE_BYTES:
+                raise ValueError("Inline image request exceeds bounded media budget")
+            images.append({"message_index": message_index, "block_index": block_index,
+                           "media_type": source["media_type"], "size_bytes": len(data),
+                           "sha256": hashlib.sha256(data).hexdigest()})
+            parts.append(canonical)
+        normalized.append({"role": role, "content": parts})
+    return normalized, images
 
 
 class NInferMessagesTextClient:
@@ -25,7 +101,7 @@ class NInferMessagesTextClient:
         self.reasoning_effort = reasoning_effort
 
     def complete(
-        self, *, messages: list[dict[str, str]], max_tokens: int = 2048,
+        self, *, messages: list[dict[str, Any]], max_tokens: int = 2048,
         temperature: float = 0.0, response_format: dict[str, Any] | None = None,
         reasoning_effort: str | None = None,
         thinking_budget: int | None = None,
@@ -46,13 +122,7 @@ class NInferMessagesTextClient:
                     or not isinstance(response_format.get("schema"), dict)
                     or set(response_format) != {"type", "schema"}):
                 raise ValueError("NInfer Messages requires an explicit JSON Schema for constrained output")
-        if not isinstance(messages, list) or not messages:
-            raise ValueError("Messages must be a nonempty list")
-        for message in messages:
-            if (not isinstance(message, dict)
-                    or message.get("role") not in ("system", "user", "assistant")
-                    or not isinstance(message.get("content"), str)):
-                raise ValueError("NInfer Messages QC supports only text role/content pairs")
+        messages, input_images = _normalize_messages(messages)
         # Anthropic Messages puts introductory system instructions at the
         # top level. NInfer rejects a leading role=system inside messages.
         # Only move the initial contiguous system prefix; any later system
@@ -146,6 +216,8 @@ class NInferMessagesTextClient:
                       "completion_tokens_details": {"reasoning_tokens": reasoning_tokens}},
             "_client_request_diagnostics": {
                 "protocol": "ninfer_anthropic_messages",
+                "input_image_count": len(input_images),
+                "input_images": input_images,
                 "reasoning_effort_requested": effort,
                 "reasoning_effort_sent": sent_effort,
                 "reasoning_effort_fallback": False,

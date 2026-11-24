@@ -9,7 +9,10 @@ import argparse
 import hashlib
 import json
 import subprocess
+import struct
 import time
+import zlib
+import secrets
 from difflib import SequenceMatcher
 from pathlib import Path
 
@@ -22,6 +25,7 @@ from nvidia_transcribe.resource_lifecycle import (
 )
 from nvidia_transcribe.source_quality import _lex
 from nvidia_transcribe.asr_integrity import audit_asr_generation
+from nvidia_transcribe.ninfer_messages_client import image_content_block
 
 # Original-media seconds; these are diagnostic regions, not expected text.
 REGIONS = (
@@ -455,6 +459,127 @@ def run_assessments(client, root, manifest, collected, output, independent, visu
         save(output / f"{name}-integrated.json", {"input": fused_input, "result": after})
 
 
+def _calibration_png(rgb):
+    """Make a plain color card with no textual hints or metadata."""
+    def chunk(kind, data):
+        return (struct.pack(">I", len(data)) + kind + data
+                + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff))
+    width = height = 192
+    scan = b"\0" + bytes(rgb) * width
+    return (b"\x89PNG\r\n\x1a\n"
+            + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(scan * height))
+            + chunk(b"IEND", b""))
+
+
+def visual_request(client, parts, schema, *, system, budget=2048, max_tokens=4096):
+    started = time.perf_counter()
+    response = client.complete(
+        messages=[{"role":"system","content":system}, {"role":"user","content":parts}],
+        max_tokens=max_tokens, temperature=0.0, thinking_budget=budget,
+        reasoning_effort="xhigh" if budget else "none",
+        response_format={"type":"json_schema","schema":schema},
+        strict_reasoning_effort=True,
+    )
+    choice = (response.get("choices") or [{}])[0]
+    if choice.get("finish_reason") != "stop":
+        raise ValueError("Incomplete visual response")
+    return {"parsed":json.loads(choice["message"]["content"]), "response":response,
+            "elapsed_s":round(time.perf_counter()-started,3)}
+
+
+def inspect_visual(client, collected, output, reviewer):
+    """Qualify real image processing, then inspect frames without acoustic priming.
+
+    Runs inside the very same managed Messages scope as contextual reasoning.
+    Preserve raw response and image digests, not duplicate base64 media.
+    """
+    inputs = load(collected / "inputs.json")
+    colors = {"red":(255,0,0), "blue":(0,0,255), "green":(0,200,0),
+              "yellow":(255,255,0)}
+    ordered = secrets.SystemRandom().sample(list(colors), 2)
+    parts = [{"type":"text","text":"Identify the predominant color of each image in order. Return the two color names."}]
+    cards = []
+    for i, name in enumerate(ordered):
+        data = _calibration_png(colors[name])
+        path = output / f"vision-calibration-{i}.png"
+        path.write_bytes(data)
+        parts.append(image_content_block(data))
+        cards.append({"path":str(path),"sha256":sha256(path),"expected_color":name})
+    # Expected colors remain private assessment data, not prompt material.
+    schema = string_schema("first","second")
+    schema["properties"]["first"]["enum"] = list(colors)
+    schema["properties"]["second"]["enum"] = list(colors)
+    try:
+        calibration = visual_request(client, parts, schema,
+            system="Inspect the pixels of the actual ordered images. Do not guess from metadata.",
+            budget=1024, max_tokens=1792)
+        predicted = [calibration["parsed"].get("first"),calibration["parsed"].get("second")]
+        sent = calibration["response"]["_client_request_diagnostics"]["input_images"]
+        passed = predicted == ordered and [x["sha256"] for x in sent] == [x["sha256"] for x in cards]
+        save(output / "vision-calibration.json", {"cards":cards,"result":calibration,"passed":passed})
+    except Exception as exc:
+        save(output / "vision-calibration.json", {"cards":cards,"passed":False,
+                                                  "error":type(exc).__name__,"detail":str(exc)})
+        return None, 1
+    if not passed:
+        return None, 1
+
+    descriptions = []
+    calls = 1
+    for target in TARGETS:
+        name = target[0]
+        frames = [f for f in inputs.get("frames", [])
+                  if f["target"] == name and f["status"] == "captured"]
+        frames.sort(key=lambda f:f["requested_seek_s"])
+        if not frames:
+            continue
+        parts = [{"type":"text","text":
+                  "Inspect these chronological screenshots. Describe each frame independently, "
+                  "including visible characters, actions, objects, reactions, scene changes, "
+                  "and verbatim legible onscreen text (identify source-language captions if visible). "
+                  "Do not infer exact spoken words, lip-read, invent character names or assume that "
+                  "a visible person is speaking. Explain uncertainties. Use frame IDs exactly."}]
+        for frame in frames:
+            path = Path(frame["path"])
+            data = path.read_bytes()
+            if hashlib.sha256(data).hexdigest() != frame["sha256"]:
+                raise ValueError("Visual evidence frame mismatch")
+            parts += [{"type":"text","text":f"Frame {frame['frame_id']}; requested original-media seek {frame['requested_seek_s']:.3f}s"},
+                      image_content_block(data)]
+        ids = [f["frame_id"] for f in frames]
+        item = string_schema("frame_id","description","uncertainty","onscreen_text")
+        item["properties"]["frame_id"]["enum"] = ids
+        schema = {"type":"object","properties":{"frames":{"type":"array","items":item,
+                  "minItems":len(ids),"maxItems":len(ids)}},
+                  "required":["frames"],"additionalProperties":False}
+        calls += 1
+        try:
+            result = visual_request(client,parts,schema,
+                system="Describe only the supplied visual evidence. No acoustic hypotheses are supplied.")
+            rows = result["parsed"]["frames"]
+            if (len(rows) != len(ids) or {r["frame_id"] for r in rows} != set(ids)
+                    or any(not isinstance(r.get(k),str) for r in rows
+                           for k in ("description","uncertainty","onscreen_text"))):
+                raise ValueError("Incomplete or invalid frame descriptions")
+            sent = result["response"]["_client_request_diagnostics"]["input_images"]
+            if [x["sha256"] for x in sent] != [f["sha256"] for f in frames]:
+                raise ValueError("Visual request digest mismatch")
+            lookup = {f["frame_id"]:f for f in frames}
+            descriptions += [{**r,"sha256":lookup[r["frame_id"]]["sha256"]} for r in rows]
+            save(output / f"{name}-vision.json", {"frames":frames,"result":result})
+        except Exception as exc:
+            save(output / f"{name}-vision-error.json", {"frames":frames,
+                "error":type(exc).__name__,"detail":str(exc)})
+    if not descriptions:
+        return None, calls
+    visual = {"observer_identity":f"NInfer Messages {reviewer.model} ({reviewer.fingerprint()})",
+              "frames":descriptions}
+    save(output / "visual-observations.json", visual)
+    return visual, calls
+
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--prior-root", required=True, type=Path)
@@ -486,10 +611,14 @@ def main():
         registry = load_model_resources(args.model_resources)
         reviewer = registry.resolve("translation_review")
         with managed_text_client(ModelLifecycle(), reviewer, wire_protocol="ninfer_messages") as text:
+            vision_calls = 0
+            if visual is None:
+                visual, vision_calls = inspect_visual(text, collected, out, reviewer)
             run_assessments(text, root, manifest, collected, out, independent, visual)
             decisions = text_probe(text, root, manifest, out)
-        save(out / "completed.json", {"text_requests": 12, "blind_selected_origins": decisions,
-                                      "quality_accepted": False})
+        save(out / "completed.json", {"text_requests": 12, "vision_requests": vision_calls,
+                                      "visual_frame_count":len(visual["frames"]) if visual else 0,
+                                      "blind_selected_origins": decisions, "quality_accepted": False})
         return
     inspect_prior(root, manifest, out)
     if args.inspect_only:
@@ -558,9 +687,12 @@ def main():
         return
     # Default combined mode remains useful when no external observations are available.
     with managed_text_client(lifecycle, reviewer, wire_protocol="ninfer_messages") as text:
-        run_assessments(text, root, manifest, out, out, None, None)
+        visual, vision_calls = inspect_visual(text, out, out, reviewer)
+        run_assessments(text, root, manifest, out, out, None, visual)
         decisions = text_probe(text, root, manifest, out)
     save(out / "completed.json", {"asr_requests": 20, "text_requests": 12,
+                                  "vision_requests":vision_calls,
+                                  "visual_frame_count":len(visual["frames"]) if visual else 0,
                                   "blind_selected_origins": decisions,
                                   "quality_accepted": False})
 

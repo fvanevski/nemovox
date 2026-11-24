@@ -277,3 +277,84 @@ def test_messages_json_schema_is_required_and_never_downgraded(monkeypatch):
                         reasoning_effort="none")
     assert "output_config" not in requests[-1][1]
     assert out["_client_request_diagnostics"]["response_format_sent"] is False
+
+
+
+# Actual valid tiny PNGs generated with the standard library, not fixture
+# filenames or arbitrary encoded text.
+def _png(rgb):
+    import struct
+    import zlib
+    def chunk(kind, data):
+        return (struct.pack(">I", len(data)) + kind + data
+                + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff))
+    return (b"\x89PNG\r\n\x1a\n"
+            + chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(b"\0" + bytes(rgb)))
+            + chunk(b"IEND", b""))
+
+
+def test_messages_native_images_preserve_order_budget_schema_and_digest(monkeypatch):
+    import hashlib
+    from nvidia_transcribe.ninfer_messages_client import image_content_block
+    requests = _client_transport(monkeypatch)
+    red, blue = _png((255, 0, 0)), _png((0, 0, 255))
+    parts = [{"type": "text", "text": "Frame A"}, image_content_block(red),
+             {"type": "text", "text": "Frame B"}, image_content_block(blue)]
+    messages = [{"role": "system", "content": "Inspect actual pixels"},
+                {"role": "user", "content": parts}]
+    prior = copy.deepcopy(messages)
+    client = NInferMessagesTextClient(base_url="http://localhost:8001/v1", model="chat")
+    result = client.complete(messages=messages, max_tokens=4096,
+                             thinking_budget=2048, reasoning_effort="xhigh",
+                             response_format=JSON_OBJECT_SCHEMA)
+    url, body = requests[0]
+    assert url.endswith("/v1/messages")
+    assert body["system"] == "Inspect actual pixels"
+    assert body["messages"] == [messages[1]]
+    assert body["thinking"] == {"type": "enabled", "budget_tokens": 2048}
+    assert body["output_config"]["format"] == JSON_OBJECT_SCHEMA
+    assert messages == prior
+    diag = result["_client_request_diagnostics"]
+    assert diag["input_image_count"] == 2
+    assert [x["sha256"] for x in diag["input_images"]] == [
+        hashlib.sha256(red).hexdigest(), hashlib.sha256(blue).hexdigest()]
+    assert [x["block_index"] for x in diag["input_images"]] == [1, 3]
+    assert "data" not in json.dumps(diag)
+    assert len(requests) == 1
+
+
+@pytest.mark.parametrize("role,content", [
+    ("user", []),
+    ("system", [{"type":"text","text":"system block"}]),
+    ("assistant", [{"type":"text","text":"assistant block"}]),
+    ("user", [{"type":"image","source":{"type":"url","url":"https://example.org/a.png"}}]),
+    ("user", [{"type":"image","source":{"type":"base64","media_type":"image/png","data":"!!!"}}]),
+    ("user", [{"type":"image","source":{"type":"base64","media_type":"image/png","data":"YWJj"}}]),
+    ("user", [{"type":"text","text":123}]),
+    ("user", [{"type":"tool_use","name":"unknown"}]),
+])
+def test_messages_reject_unsupported_image_inputs_before_network(monkeypatch, role, content):
+    requests = _client_transport(monkeypatch)
+    client = NInferMessagesTextClient(base_url="http://localhost:8001/v1", model="chat")
+    with pytest.raises(ValueError):
+        client.complete(messages=[{"role":role,"content":content}],
+                        max_tokens=512, thinking_budget=0, reasoning_effort="none")
+    assert requests == []
+
+
+def test_messages_image_budget_and_http_failure_have_no_fallback(monkeypatch):
+    from nvidia_transcribe.ninfer_messages_client import image_content_block
+    import nvidia_transcribe.ninfer_messages_client as mod
+    requests = _client_transport(monkeypatch, responses=[Reply(400, {"error":"vision_disabled"})])
+    client = NInferMessagesTextClient(base_url="http://localhost:8001/v1", model="chat")
+    block = image_content_block(_png((5, 20, 60)))
+    kw = {"max_tokens":512,"thinking_budget":0,"reasoning_effort":"none"}
+    monkeypatch.setattr(mod, "_MAX_IMAGES", 1)
+    with pytest.raises(ValueError, match="bounded media budget"):
+        client.complete(messages=[{"role":"user","content":[block,block]}], **kw)
+    assert requests == []
+    with pytest.raises(RuntimeError, match="vision_disabled"):
+        client.complete(messages=[{"role":"user","content":[block]}], **kw)
+    assert len(requests) == 1
+    assert requests[0][1]["messages"][0]["content"] == [block]
