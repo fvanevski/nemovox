@@ -80,7 +80,7 @@ def test_t2_sends_real_anthropic_thinking_budget_and_normalizes_content(monkeypa
     diag = result["_client_request_diagnostics"]
     assert diag["protocol"] == "ninfer_anthropic_messages"
     assert diag["thinking_budget_sent"] == 1024
-    assert diag["json_validated_client_side"] is True
+    assert diag["json_validation_required"] is True
     assert diag["reasoning_effort_fallback"] is False
     assert len(requests) == 1
 

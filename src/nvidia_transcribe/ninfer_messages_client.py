@@ -128,7 +128,7 @@ class NInferMessagesTextClient:
                 "thinking_budget_sent": thinking_budget,
                 "thinking_mode": body["thinking"]["type"],
                 "response_format_sent": False,
-                "json_validated_client_side": response_format is not None,
+                "json_validation_required": response_format is not None,
                 "strict_reasoning_effort": strict_reasoning_effort,
             },
         }
