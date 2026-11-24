@@ -710,9 +710,25 @@ def process_media(
         diarization_by_chunk=[rec["diarization"] for rec in native_records],
     )
 
-    # Legacy v1 boundary behavior stays unchanged pending independent
-    # acoustic qualification of a source-event acceptance replacement.
-    merged_units, boundary_diag = reconcile_chunk_boundaries(chunk_units_norm, chunks)
+    # The immutable source ledger already contains model-derived activity
+    # hypotheses. Use them ONLY to prioritize review of potentially missing
+    # speech; this does not certify acoustic occurrence or alter source units.
+    chunk_of_asr = {
+        observation["id"]: int(observation["chunk_index"])
+        for observation in source_evidence["asr_observations"]
+    }
+    semantic_activity_by_chunk: dict[int, list[dict[str, Any]]] = {}
+    for activity in source_evidence["diarization_activity_hypotheses"]:
+        idx = chunk_of_asr.get(activity["asr_observation_id"])
+        if idx is not None:
+            semantic_activity_by_chunk.setdefault(idx, []).append(activity)
+
+    # Legacy v1 boundary acceptance stays unchanged pending independently
+    # adjudicated source revision; review candidates are diagnostic only.
+    merged_units, boundary_diag = reconcile_chunk_boundaries(
+        chunk_units_norm, chunks,
+        semantic_review_activity_by_chunk=semantic_activity_by_chunk,
+    )
 
     # Independent per-speaker utterance reconstruction anchored to true chunk bounds.
     chunk_windows = {c.chunk_index: (c.infer_start_s, c.infer_end_s) for c in chunks}

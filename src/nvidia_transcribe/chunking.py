@@ -222,6 +222,7 @@ def reconcile_chunk_boundaries(
     boundary_window_s: float = 2.5,
     match_time_tolerance_s: float = 0.85,
     semantic_review_policy: dict[str, Any] | None = None,
+    semantic_review_activity_by_chunk: dict[int, list[dict[str, Any]]] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Merge per-chunk timed units across core boundaries without duplicating or losing speech.
 
@@ -266,6 +267,7 @@ def reconcile_chunk_boundaries(
         tagged_by_chunk, chunks,
         policy=(semantic_review_policy if semantic_review_policy is not None
                 else DEFAULT_SEMANTIC_REVIEW_POLICY),
+        activity_by_chunk=semantic_review_activity_by_chunk,
     )
 
     dedup_count = 0
