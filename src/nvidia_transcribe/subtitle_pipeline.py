@@ -148,6 +148,14 @@ def generate_subtitles(
             raise ValueError("Source quality requires managed ASR and NInfer review resources")
         if cfg.refinement.profile != "off":
             raise ValueError("Current source quality cannot be combined with text-only source rewriting")
+    if cfg.translation_review.profile != "off" and cfg.translation.backend != "riva":
+        raise ValueError("Contextual English post-edit requires dedicated Riva primary translation")
+    if (cfg.condense_high_cps and cfg.translation.backend == "riva"
+            and cfg.condensation is None and not cfg.re_render_only):
+        raise ValueError(
+            "Riva translation with subtitle condensation requires an explicit "
+            "OpenAI-compatible condensation resource config."
+        )
     # An explicitly supplied canonical contract is a supported downstream
     # entry point, not an implicit cache hit. Keep its accepted source rows
     # and quality evidence instead of re-auditing their order or re-running ASR.
@@ -174,14 +182,6 @@ def generate_subtitles(
             wire_protocol="ninfer_messages", thinking_budget=2048, reasoning_effort="xhigh",
             max_tokens=max(cfg.translation_review.max_tokens,QUALITY_COMPLETION_TOKENS),
             timeout_s=max(cfg.translation_review.timeout_s,QUALITY_TIMEOUT_S)))
-    if cfg.translation_review.profile != "off" and cfg.translation.backend != "riva":
-        raise ValueError("Contextual English post-edit requires dedicated Riva primary translation")
-    if (cfg.condense_high_cps and cfg.translation.backend == "riva"
-            and cfg.condensation is None and not cfg.re_render_only):
-        raise ValueError(
-            "Riva translation with subtitle condensation requires an explicit "
-            "OpenAI-compatible condensation resource config."
-        )
     out_dir.mkdir(parents=True, exist_ok=True)
     gl = glossary if isinstance(glossary, GlossaryConfig) else load_glossary(glossary)
 
