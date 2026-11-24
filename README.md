@@ -4,6 +4,17 @@ Multilingual speech transcription, speaker diarization, contextual transcript re
 
 *(Python package and CLI entrypoint remain `nvidia_transcribe` / `nvidia-transcribe`.)*
 
+### Development status and compatibility
+
+Nemovox is under active development for personal use. The current supported
+workflow takes precedence over historical experimental implementations.
+Superseded code, fixtures, schemas, configuration and development evidence
+should be removed rather than maintained for backward compatibility. New
+acceptance evidence must be generated with the current code, configuration
+and model resources. The development contract in [AGENTS.md](AGENTS.md)
+governs this transition; existing experimental commands documented below
+describe the current implementation, not permanent compatibility promises.
+
 ### Subtitle quality objective
 
 Nemovox aims to generate fluent, grammatical, readable subtitles that convey
