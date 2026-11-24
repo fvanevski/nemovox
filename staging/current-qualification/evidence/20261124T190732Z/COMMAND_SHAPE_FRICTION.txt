@@ -1,0 +1,18 @@
+COMMAND_SHAPE_FRICTION
+encountered=yes
+
+- requested_shape=gh pr view 15 --repo fvanevski/nemovox --json headRefOid,headRefName,isDraft,state
+  effective_shape=same-as-requested
+  rewrite_provenance=none
+  event_kind=guard_annotation
+  execution_effect=executed_succeeded
+  correction_or_annotation=gh prints an event-listen preview hint alongside the JSON object
+  replacement_shape=none
+
+- requested_shape=python episode-metrics.py (globbing asr/chunks/*.raw.json)
+  effective_shape=unchanged helper read alongside manifest effective chunks audit
+  rewrite_provenance=none
+  event_kind=interface_discovery
+  execution_effect=executed_succeeded
+  correction_or_annotation=episode-metrics.py globs top-level chunks/*.raw.json (35 files including rejected parent chunk_028.raw.json), whereas manifest.json["chunks"] tracks the 36 accepted effective chunks including recovery/chunk_028/0.raw.json and 1.raw.json; metrics.json reports the exact 36 accepted effective chunks (2309 CTC words, 36 stop)
+  replacement_shape=none
