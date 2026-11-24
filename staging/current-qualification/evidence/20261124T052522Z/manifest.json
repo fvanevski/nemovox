@@ -1,0 +1,19 @@
+{
+  "application_head": "c4f339288a984e0517ea1cb94b579cdc0d2c3597",
+  "application_tree": "65e613f626d74d48e3415907a094bfcd63277c5d",
+  "private_archive": {
+    "sha256": "91bfdc21cd6ea35d7024e41ebc98e47781512a2b69ad41569d584f79eb6bfec6",
+    "size": 375145,
+    "members": 42,
+    "verified": true
+  },
+  "raw_local_manifest_sha256": "eb4905de5ec0e0471e182078788cf6b0004cf3f5545e9e6dbcdf9a9e1bf03371",
+  "public_members_sha256": {
+    "COMMAND_SHAPE_FRICTION.txt": "0abc3e189c4504186974a0a2ce66392190d53000c91c44ad383f8cc2292e50fb",
+    "README.md": "09635535f557011614f62b5cc66d8089e35a2161464766b61463e4a012ca55d4",
+    "candidate-files.txt": "46662fcbdd56043a1a2aaa5e8eda661f605272c8759099a8090da0c8977272c2",
+    "commands.md": "8ae4eb49e98bd47f0edcea5d54c38fbef1ff0c4dd73bc1fbbed72d5bfd61861a",
+    "metrics.json": "4a52152877889d323107d7b3019fd955d334fdcbbe9982e68dd838771d919e36",
+    "overlap-repro.json": "ca895c69fd91b24c7544797156b8bdc0c011f67e863b7d3d43028f8071fa53b2"
+  }
+}
