@@ -1,0 +1,18 @@
+COMMAND_SHAPE_FRICTION
+encountered=yes
+
+- requested_shape=gh pr view 15 --repo fvanevski/nemovox --json headRefOid,headRefName,isDraft,state
+  effective_shape=same-as-requested
+  rewrite_provenance=none
+  event_kind=guard_annotation
+  execution_effect=executed_succeeded
+  correction_or_annotation=gh prints an event-listen preview hint alongside the JSON object
+  replacement_shape=none
+
+- requested_shape=inline ledger inspection referencing se["lexical_units"]
+  effective_shape=inline ledger inspection referencing se["lexical_observations"]
+  rewrite_provenance=none
+  event_kind=interface_discovery
+  execution_effect=recovered_after_retry
+  correction_or_annotation=source-evidence.v1.json uses key lexical_observations rather than lexical_units; inspected source_events.py and updated replay script key
+  replacement_shape=se["lexical_observations"]
