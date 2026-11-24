@@ -1,0 +1,17 @@
+{
+  "application_head": "b3e5a785e849e909b89d45df8aa606f98cde7925",
+  "application_tree": "b50175de4e70d6dd20736443540c6f5fb426b345",
+  "result": "BLOCKING_ASR_INCOMPLETE_AFTER_BOUNDED_RECOVERY",
+  "verified_prior_archive": "47c908e0c0a21f09f38445ffecaca782eb59af206e58432d8f0d21ea85da2e4e",
+  "carrier_binding": "Verified external evidence commit reported in consolidated handback",
+  "private_archive_sha256": "baf2f7b95f45b3e294dadff9e3847bbb31e62e7d9f75de908c521dbb3149aaff",
+  "private_archive_bytes": 376034,
+  "checksummed_members": 147,
+  "packet_members_sha256": {
+    "COMMAND_SHAPE_FRICTION.txt": "f6d6ed5d1bb69d96688bf01b00c87ebdb6551a0c5b59cac8447f7441abd76870",
+    "README.md": "5e6411c506aa90d9a45efbaf88b0fa63be25afdbb8e9f9d81a949544f960dcc8",
+    "commands.md": "119466bb944337458413e94c0b814a1e886616e5d656f0199169b53fca0e18cf",
+    "gate-matrix.md": "69f445834335d548583cdd7c895d85527e6ac65a2c3a5cb9560c1a1d7e4c5253",
+    "metrics.json": "bac8cae0c0d9ff7e4067d5525f49e0de49e7a4d193e774ac2b425c7dc85e8408"
+  }
+}
