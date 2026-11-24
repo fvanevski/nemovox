@@ -119,6 +119,7 @@ def review_translated_utterances(
     text_client: Any = None,
     checkpoint_path: str | Path | None = None,
     resume: bool = True,
+    target_utterance_ids: set[str] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Review primary translations with contextual evidence, never retranslate source."""
     cfg = config or TranslationReviewConfig()
@@ -127,12 +128,21 @@ def review_translated_utterances(
     if cfg.style not in VALID_REVIEW_STYLES:
         raise ValueError(f"Unsupported translation-review style {cfg.style!r}")
     out = [{**u} for u in utterances]
-    for u in out:
-        u["machine_translated_text"] = str(u.get("translated_text") or "")
+    all_ids = [_uid(u, i) for i, u in enumerate(out)]
+    if target_utterance_ids is not None and (
+            not isinstance(target_utterance_ids, set) or not target_utterance_ids
+            or len(set(all_ids)) != len(all_ids) or not target_utterance_ids <= set(all_ids)):
+        raise ValueError("Selective translation review requires unique existing target IDs")
+    selected = set(all_ids) if target_utterance_ids is None else target_utterance_ids
+    for i, u in enumerate(out):
+        if all_ids[i] in selected or "machine_translated_text" not in u:
+            u["machine_translated_text"] = str(u.get("translated_text") or "")
     if cfg.profile == "off":
-        for u in out:
-            u["translation_review_status"] = "off"
-        return out, {"status": "disabled", "profile": "off", "reviewed": 0, "changed": 0}
+        for i, u in enumerate(out):
+            if all_ids[i] in selected:
+                u["translation_review_status"] = "off"
+        return [u if all_ids[i] in selected else {**utterances[i]} for i, u in enumerate(out)], {
+            "status": "disabled", "profile": "off", "reviewed": 0, "changed": 0}
     gl = glossary or GlossaryConfig()
     signature = {
         "version": _PROMPT_VERSION, "profile": cfg.profile, "style": cfg.style,
@@ -162,8 +172,20 @@ def review_translated_utterances(
     started = time.perf_counter()
     n = len(out)
     batch = max(1, int(cfg.batch_size))
-    for start in range(0, n, batch):
-        end = min(n, start + batch)
+    # Only consecutive selected rows become targets. Other rows remain
+    # read-only context and are restored exactly in the returned result.
+    ranges = []
+    pos = 0
+    while pos < n:
+        if all_ids[pos] not in selected:
+            pos += 1
+            continue
+        end = pos + 1
+        while end < n and end - pos < batch and all_ids[end] in selected:
+            end += 1
+        ranges.append((pos, end))
+        pos = end
+    for start, end in ranges:
         if blocked_reason is not None:
             for i in range(start, end):
                 out[i]["translation_review_status"] = "review_error_preserved_machine_translation"
@@ -281,6 +303,8 @@ def review_translated_utterances(
                 ensure_ascii=False, indent=2,
             ), encoding="utf-8")
             tmp.replace(ckpt)
+    if target_utterance_ids is not None:
+        out = [u if all_ids[i] in selected else {**utterances[i]} for i, u in enumerate(out)]
     return out, {
         "status": "completed_with_errors" if errors else "completed",
         "profile": cfg.profile, "style": cfg.style,

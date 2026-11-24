@@ -153,8 +153,13 @@ def assemble_revised_translation(
         raise ValueError("Duplicate utterance identity or baseline translation mismatch")
     replaced = set(report.get("superseded_legacy_ids") or [])
     new_ids = set(revised) - set(originals)
-    if (not replaced or not new_ids or set(originals) - set(revised) != replaced
-            or new_ids & set(originals)):
+    # A separately attested audio recovery may be insertion-only. The
+    # ordinary owned-unit partition still requires supersession.
+    insertion_allowed = (report.get("schema") == "nemovox-audio-source-recovery-application/v1"
+                         and isinstance(report.get("review_evidence_sha256"), str)
+                         and _SHA.fullmatch(report["review_evidence_sha256"]) is not None)
+    if ((not replaced and not insertion_allowed) or not new_ids
+            or set(originals) - set(revised) != replaced or new_ids & set(originals)):
         raise ValueError("Revised recording IDs do not match superseded source")
     events = set(report.get("reviewed_event_ids") or [])
     if {revised[x].get("audio_event_id") for x in new_ids} != events:
