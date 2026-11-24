@@ -254,3 +254,30 @@ def test_completion_limit_blocks_even_valid_structured_but_unfinished_review():
         light_tokens=512,reasoned_tokens=512)["outcomes"][0]
     assert outcome["status"]=="unaccepted_model_response"
     assert "output limit" in outcome["error"]
+
+
+def test_systemic_reasoning_starvation_stops_remaining_cases_without_repeat_calls():
+    from nvidia_transcribe.semantic_review import run_tiered_text_reviews
+    right=[w(x,80+i*.25,i,1) for i,x in enumerate(["No","valid","source","response"])]
+    left=[w(x,355+i*.25,i,1) for i,x in enumerate(["Another","boundary","needs","review"])]
+    # Two boundaries with distinct hypotheses, same model session.
+    specs=[C(0,0,90,0,100),C(1,90,180,80,190),
+           C(2,180,360,180,370),C(3,360,450,350,460)]
+    request=plan_boundary_semantic_reviews([[],right,[],left],specs,policy=P)
+    assert len(request["cases"])==2
+    class Exhausted:
+        def __init__(self): self.calls=0
+        def complete(self,**kwargs):
+            self.calls+=1
+            return {"choices":[{"finish_reason":"length","message":{"content":""}}],
+                "usage":{"completion_tokens":512,
+                         "completion_tokens_details":{"reasoning_tokens":512}}}
+    model=Exhausted()
+    result=run_tiered_text_reviews(request,client=model,token_budget=1024,
+        light_tokens=512,reasoned_tokens=512)
+    assert model.calls==1
+    assert result["model_calls"]==1
+    assert result["systemic_failure"]=="reasoning_tokens_exhausted_completion_budget"
+    assert [x["status"] for x in result["outcomes"]]==[
+        "unaccepted_model_response","deferred_systemic_model_failure"]
+    assert result["source_or_subtitles_modified"] is False
