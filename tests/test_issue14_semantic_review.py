@@ -117,3 +117,69 @@ def test_injected_tiered_text_client_is_advisory_and_bounded():
     assert out['source_or_subtitles_modified'] is False
     with pytest.raises(ValueError,match='budgets'):
         run_tiered_text_reviews(q,client=client,token_budget=100,light_tokens=512)
+
+
+def test_interleaved_left_voice_is_matched_in_its_own_lexical_order():
+    # A's coherent cross-chunk phrase is interleaved in CTC lexical order
+    # with a genuinely separate B speaker. Never build a fake global stream.
+    words=["nothing","important","should","be","lost"]
+    left=[]
+    for i,txt in enumerate(words):
+        left.append(w(txt,303+i*.32,2*i,0,"A"))
+        left.append(w("interjection"+str(i),304+i*.32,2*i+1,0,"B"))
+    right=[w(txt,355+i*.28,i,1,"RIGHT") for i,txt in enumerate(words)]
+    case=plan_boundary_semantic_reviews([left,right],chunks(),policy=P)["cases"][0]
+    match=case["left_lexical_correspondence"]
+    assert match["matched_words"]==len(words)
+    assert match["left_local_voice_hypothesis"]=="A"
+    assert [unit["text"] for unit in match["left_words"]]==words
+    assert case["proposed_source_action"].startswith("none")
+
+
+def test_reasoned_model_uses_supported_effort_and_enforced_final_headroom():
+    from nvidia_transcribe.semantic_review import run_tiered_text_reviews
+    import json
+    right=[w(x,355+i*.3,i,1) for i,x in enumerate(["It","does","not","work"])]
+    request=plan_boundary_semantic_reviews([[],right],chunks(),policy=P,
+        activity_by_chunk={0:[{"start_s":355.0,"end_s":356.5,
+                               "possible_unrepresented_speech":True}]})
+    class Stub:
+        def __init__(self): self.calls=[]
+        def complete(self,**kwargs):
+            self.calls.append(kwargs)
+            return {"choices":[{"finish_reason":"stop","message":{"content":json.dumps({
+                "schema":"nemovox-semantic-review-decision/v1",
+                "request_sha256":request["request_sha256"],
+                "case_id":request["cases"][0]["case_id"],
+                "decision":"unresolved","rationale":"Acoustic event not independently verified",
+                "supporting_evidence":["right_context_words"],"contrary_evidence":[],
+                "unresolved":["acoustic_occurrence"]})}}],
+                "usage":{"completion_tokens":440,"completion_tokens_details":{"reasoning_tokens":240}}}
+    stub=Stub()
+    batch=run_tiered_text_reviews(request,client=stub,token_budget=1280,
+        light_tokens=512,reasoned_tokens=1280,
+        light_thinking_budget=128,reasoned_thinking_budget=512)
+    assert batch["outcomes"][0]["status"]=="advisory_only"
+    assert batch["outcomes"][0]["telemetry"]["reserved_answer_headroom_tokens"]==768
+    assert stub.calls[0]["reasoning_effort"]=="xhigh"
+    assert stub.calls[0]["thinking_budget"]==512
+    assert stub.calls[0]["strict_reasoning_effort"] is True
+    assert batch["source_or_subtitles_modified"] is False
+
+
+def test_thinking_starvation_cannot_be_reported_as_accepted_review():
+    from nvidia_transcribe.semantic_review import run_tiered_text_reviews
+    right=[w(x,355+i*.3,i,1) for i,x in enumerate(["No","speech","was","verified"])]
+    req=plan_boundary_semantic_reviews([[],right],chunks(),policy=P)
+    class Starved:
+        def complete(self, **kw):
+            return {"choices":[{"finish_reason":"length","message":{
+                "content":"","reasoning_content":"unfinished analysis"}}],
+                "usage":{"completion_tokens":512,
+                         "completion_tokens_details":{"reasoning_tokens":512}}}
+    outcome=run_tiered_text_reviews(req,client=Starved(),
+        token_budget=512,light_tokens=512,reasoned_tokens=512,
+        light_thinking_budget=128,reasoned_thinking_budget=128)["outcomes"][0]
+    assert outcome["status"]=="unaccepted_model_response"
+    assert "exhausted by reasoning" in outcome["error"]
+    assert outcome["telemetry"]["reasoning_tokens"]==512
