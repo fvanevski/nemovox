@@ -277,6 +277,7 @@ def run_tiered_text_reviews(
     light_effort: str = "low", reasoned_effort: str = "xhigh",
     light_thinking_budget: int | None = None,
     reasoned_thinking_budget: int | None = None,
+    abort_on_reasoning_starvation: bool = True,
 ) -> dict[str, Any]:
     """Explicit injected text-model QC, capped by case and total token budget.
 
@@ -289,7 +290,8 @@ def run_tiered_text_reviews(
             or not isinstance(token_budget, int) or isinstance(token_budget, bool) or token_budget < 1
             or not all(isinstance(n, int) and not isinstance(n, bool) and 256 <= n <= token_budget
                        for n in (light_tokens, reasoned_tokens))
-            or not all(isinstance(e, str) and e for e in (light_effort, reasoned_effort))):
+            or not all(isinstance(e, str) and e for e in (light_effort, reasoned_effort))
+            or not isinstance(abort_on_reasoning_starvation, bool)):
         raise ValueError("Invalid model review budgets")
     # Defaults adapt to legacy callers that override just max_tokens. An
     # explicitly supplied impossible cap NEVER gets silently shrunk.
@@ -306,7 +308,13 @@ def run_tiered_text_reviews(
         raise ValueError("Invalid model review budgets: reserve at least 128 output tokens")
     outcomes: list[dict[str, Any]] = []
     remaining = token_budget
+    systemic_failure: str | None = None
     for case in request.get("cases", [])[:case_limit]:
+        if systemic_failure is not None:
+            outcomes.append({"case_id": case["case_id"],
+                             "status": "deferred_systemic_model_failure",
+                             "reason": systemic_failure})
+            continue
         reasoned = case.get("suggested_review_tier") == "reasoned_text"
         per_case = reasoned_tokens if reasoned else light_tokens
         effort = reasoned_effort if reasoned else light_effort
@@ -353,14 +361,23 @@ def run_tiered_text_reviews(
             outcomes.append({"case_id": case["case_id"], "status": "unaccepted_model_response",
                              "error": str(exc), "telemetry": telemetry,
                              "raw_response_sha256": hashlib.sha256(raw.encode()).hexdigest()})
+            # A repeat of the host's reasoning-only token exhaustion is a
+            # SYSTEMIC transport/budget issue, not six independent bad cases.
+            if (abort_on_reasoning_starvation and not raw.strip()
+                    and choice.get("finish_reason") == "length"
+                    and isinstance(details.get("reasoning_tokens"), int)
+                    and isinstance(usage.get("completion_tokens"), int)
+                    and details["reasoning_tokens"] >= usage["completion_tokens"]):
+                systemic_failure = "reasoning_tokens_exhausted_completion_budget"
         else:
             outcomes.append({"case_id": case["case_id"], "status": "advisory_only",
                              "assessment": assessed, "telemetry": telemetry,
                              "raw_response_sha256": hashlib.sha256(raw.encode()).hexdigest()})
     return {"schema": "nemovox-tiered-semantic-review-batch/v1",
             "request_sha256": request["request_sha256"], "model_calls": sum(
-                o["status"] != "deferred_token_budget" for o in outcomes),
+                o["status"] in ("unaccepted_model_response", "advisory_only") for o in outcomes),
             "tokens_reserved": token_budget - remaining,
+            "systemic_failure": systemic_failure,
             "outcomes": outcomes, "source_or_subtitles_modified": False}
 
 
@@ -375,7 +392,7 @@ def run_configured_tiered_text_reviews(
     allowed = {
         "case_limit", "token_budget", "light_tokens", "reasoned_tokens",
         "light_effort", "reasoned_effort", "light_thinking_budget",
-        "reasoned_thinking_budget",
+        "reasoned_thinking_budget", "abort_on_reasoning_starvation",
     }
     if not isinstance(config, dict) or set(config) - allowed:
         raise ValueError("Invalid model_review execution configuration")
