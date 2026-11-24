@@ -371,3 +371,53 @@ def test_same_crop_cannot_supply_third_context():
     replay = _probe((0, 12), "C", [_row("3", "Allons vite", 4, 5)])
     assert not _third_context(event, replay, .85)
     assert len(event["audio_sha256"]) == 2
+
+
+
+def test_explicit_canonical_resume_preserves_order_evidence_and_messages_review(tmp_path, monkeypatch):
+    import json
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+    from nvidia_transcribe import subtitle_pipeline as pipeline
+    from nvidia_transcribe.translation import TranslationConfig
+    from nvidia_transcribe.translation_review import TranslationReviewConfig
+
+    record = _recording([_row("a", "Bonjour.", 4.2, 5.8),
+                         _row("b", "Bonsoir.", None, None)])
+    record["source_quality"] = {"schema": "nemovox-current-source-quality/v1",
+                               "status": "partial",
+                               "media_fingerprint_sha256": record["source"]["fingerprint_sha256"],
+                               "source_language": record["source_language"]}
+    path = tmp_path / "canonical-source.contract.json"
+    path.write_text(json.dumps(record))
+    resource = SimpleNamespace(name="test", credential=lambda: None)
+    resources = {name: resource for name in ("asr", "source_refinement", "text_translation",
+                                             "riva_translation", "translation_review")}
+    def forbidden(*a, **k):
+        raise AssertionError("Explicit canonical resume must not regenerate source")
+    @contextmanager
+    def text_scope(*a, **kw):
+        yield object()
+    def translate(rows, **kw):
+        assert [r["id"] for r in rows] == ["a", "b"]
+        assert [r["source_text"] for r in rows] == ["Bonjour.", "Bonsoir."]
+        return [{**r, "translated_text": "Hello."} for r in rows], {"backend": "riva"}
+    def review(rows, **kw):
+        assert kw["config"].wire_protocol == "ninfer_messages"
+        assert kw["config"].max_tokens == 8192
+        return [{**r, "machine_translated_text": "Hello."} for r in rows], {"status": "completed"}
+    for name in ("process_media", "review_current_source", "audit_and_reconstruct_contract"):
+        monkeypatch.setattr(pipeline, name, forbidden)
+    monkeypatch.setattr(pipeline, "managed_text_client", text_scope)
+    monkeypatch.setattr(pipeline, "translate_utterances", translate)
+    monkeypatch.setattr(pipeline, "review_translated_utterances", review)
+    monkeypatch.setattr(pipeline, "render_subtitles", lambda *a, **k: {
+        "outputs": {}, "stats": {}, "conflicts": [], "sidecars": {}})
+    out = tmp_path / "output"
+    result = pipeline.generate_subtitles(recording_contract_path=path, output_dir=out,
+        config=pipeline.SubtitlePipelineConfig(source_quality="off",
+            translation=TranslationConfig(backend="riva"),
+            translation_review=TranslationReviewConfig(profile="balanced")),
+        lifecycle=object(), lifecycle_resources=resources)
+    assert result["source_quality"] == record["source_quality"]
+    assert json.loads(path.read_text()) == record

@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from nvidia_transcribe.resource_lifecycle import ResourceLifecycleError
-from nvidia_transcribe.ninfer_messages_client import QUALITY_RETRY_TOKENS
+from nvidia_transcribe.ninfer_messages_client import QUALITY_RETRY_TOKENS, runaway_whitespace
 from nvidia_transcribe.refinement import GlossaryConfig, OpenAIChatTextClient
 
 VALID_REVIEW_PROFILES = ("off", "conservative", "balanced", "expressive")
@@ -122,6 +122,61 @@ def _unsupported_polarity_inversion(
     )
 
 
+def _native_output_exhausted(reply: dict[str, Any]) -> bool:
+    choice = (reply.get("choices") or [{}])[0]
+    return (choice.get("finish_reason") == "length"
+            and reply.get("_client_request_diagnostics", {}).get("native_stop_reason") == "max_tokens")
+
+
+def _compact_comparison(client, messages, ids, max_tokens):
+    """Change response geometry, not the evidence or the semantic judgment."""
+    tokens = {f"{uid}={choice}": (uid, choice)
+              for uid in ids for choice in ("original", "proposal")}
+    schema = {"type": "object", "properties": {
+        "reason": {"type": "string"},
+        "verdicts": {"type": "array", "minItems": len(ids), "maxItems": len(ids),
+                     "items": {"type": "string", "enum": list(tokens)}}},
+        "required": ["reason", "verdicts"], "additionalProperties": False}
+    # Keep the complete passage and neighboring evidence identical. Use
+    # a single passage rationale and compact ID-bound decision tokens.
+    alternate = [dict(m) for m in messages]
+    alternate[0]["content"] += (
+        " Use the compact response format: give one concise passage-level rationale "
+        "covering your decisions, then one exact ID=choice token for each requested "
+        "utterance. Do not emit the earlier nested decisions format. Avoid repeated whitespace.")
+    reply = client.complete(messages=alternate, max_tokens=max_tokens, temperature=0.0,
+                            response_format={"type": "json_schema", "schema": schema},
+                            thinking_budget=1024, reasoning_effort="xhigh",
+                            strict_reasoning_effort=True, stop_on_whitespace_loop=True)
+    return reply, tokens
+
+
+def _parse_compact_comparison(reply, tokens, ids):
+    result = (reply.get("choices") or [{}])[0]
+    if result.get("finish_reason") != "stop":
+        raise ValueError("Incomplete compact comparative review: "+
+                         json.dumps(reply.get("_client_request_diagnostics", {}), ensure_ascii=False))
+    parsed = json.loads(result["message"]["content"])
+    if (not isinstance(parsed, dict) or set(parsed) != {"reason", "verdicts"}
+            or not isinstance(parsed["reason"], str) or not parsed["reason"].strip()
+            or not isinstance(parsed["verdicts"], list) or len(parsed["verdicts"]) != len(ids)):
+        raise ValueError("Invalid compact comparative review")
+    decisions = []
+    seen = set()
+    for token in parsed["verdicts"]:
+        if not isinstance(token, str) or token not in tokens:
+            raise ValueError("Invalid compact comparative decision token")
+        uid, choice = tokens[token]
+        if uid in seen:
+            raise ValueError("Duplicate compact comparative decision")
+        seen.add(uid)
+        decisions.append({"utterance_id": uid, "choice": choice, "reason": parsed["reason"],
+                          "response_format": "compact_passage"})
+    if seen != set(ids):
+        raise ValueError("Missing compact comparative decision")
+    return decisions
+
+
 def review_translated_utterances(
     utterances: list[dict[str, Any]], *,
     source_language: str | None,
@@ -195,6 +250,8 @@ def review_translated_utterances(
     calls = hits = changed_count = reviewed_count = rejected_polarity = 0
     comparative_calls = comparative_rejections = 0
     completion_retries = 0
+    comparison_recoveries = []
+    deferred_comparison_ids: list[str] = []
     started = time.perf_counter()
     n = len(out)
     batch = max(1, int(cfg.batch_size))
@@ -368,7 +425,7 @@ def review_translated_utterances(
                             "required": ["decisions"], "additionalProperties": False}
                         calls += 1
                         comparative_calls += 1
-                        verdict = client.complete(messages=[
+                        comparison_messages = [
                             {"role": "system", "content":
                              "Adjudicate competing English subtitle translations using the source dialogue "
                              "and surrounding context. First read the complete source passage and both joined English "
@@ -390,18 +447,49 @@ def review_translated_utterances(
                                                            for t in targets],
                                 "joined_primary_passage":" ".join(t["machine_translation"] for t in targets),
                                 "joined_candidate_passage":" ".join(entries[t["utterance_id"]]["corrected_text"] for t in targets)}, ensure_ascii=False)}
-                        ], max_tokens=cfg.max_tokens, temperature=0.0,
+                        ]
+                        verdict = client.complete(messages=comparison_messages,
+                            max_tokens=cfg.max_tokens, temperature=0.0,
                             response_format={"type": "json_schema", "schema": schema},
                             thinking_budget=1024, reasoning_effort="xhigh", strict_reasoning_effort=True,
+                            stop_on_whitespace_loop=True,
                             **({"retry_max_tokens":QUALITY_RETRY_TOKENS} if cfg.max_tokens<QUALITY_RETRY_TOKENS else {}))
                         retries=max(0,len(verdict.get("_client_request_diagnostics",{}).get("completion_attempts",[]))-1)
                         calls+=retries
                         completion_retries+=retries
                         result = (verdict.get("choices") or [{}])[0]
-                        if result.get("finish_reason") != "stop":
-                            raise ValueError("Incomplete comparative review: "+
-                                json.dumps(verdict.get("_client_request_diagnostics",{}),ensure_ascii=False))
-                        decisions = json.loads(result["message"]["content"])["decisions"]
+                        if (_native_output_exhausted(verdict)
+                                and runaway_whitespace(str((result.get("message") or {}).get("content") or ""))):
+                            calls += 1
+                            comparative_calls += 1
+                            compact, tokens = _compact_comparison(client, comparison_messages,
+                                                                  changed_ids, cfg.max_tokens)
+                            receipt = {"target_ids": list(changed_ids),
+                                       "reason": "runaway_output_whitespace",
+                                       "initial": verdict.get("_client_request_diagnostics", {}),
+                                       "compact": compact.get("_client_request_diagnostics", {})}
+                            comparison_recoveries.append(receipt)
+                            if (_native_output_exhausted(compact)
+                                    and all(t["machine_translation"].strip() for t in targets)):
+                                # A complete source-first candidate is NOT
+                                # an approved correction. Preserve original
+                                # MT when the secondary adjudicator cannot
+                                # finish either bounded response format.
+                                # Do not cache this as a successful review.
+                                receipt["outcome"] = "deferred_preserved_primary"
+                                for uid in changed_ids:
+                                    entries[uid]["deferred_comparison"] = receipt
+                                decisions = []
+                            else:
+                                decisions = _parse_compact_comparison(compact, tokens, changed_ids)
+                                receipt["outcome"] = "complete"
+                                for uid in changed_ids:
+                                    entries[uid]["comparison_recovery"] = receipt
+                        else:
+                            if result.get("finish_reason") != "stop":
+                                raise ValueError("Incomplete comparative review: "+
+                                    json.dumps(verdict.get("_client_request_diagnostics",{}),ensure_ascii=False))
+                            decisions = json.loads(result["message"]["content"])["decisions"]
                         by_id = {}
                         for decision in decisions:
                             uid = decision["utterance_id"]
@@ -411,10 +499,11 @@ def review_translated_utterances(
                                     or not decision["reason"].strip()):
                                 raise ValueError("Invalid comparative review decision")
                             by_id[uid] = decision
-                        if set(by_id) != set(changed_ids):
-                            raise ValueError("Missing comparative review decisions")
-                        for uid in changed_ids:
-                            entries[uid]["comparative_review"] = by_id[uid]
+                        if not all("deferred_comparison" in entries[uid] for uid in changed_ids):
+                            if set(by_id) != set(changed_ids):
+                                raise ValueError("Missing comparative review decisions")
+                            for uid in changed_ids:
+                                entries[uid]["comparative_review"] = by_id[uid]
             except Exception as exc:
                 if isinstance(exc, ResourceLifecycleError):
                     # Do not repeatedly attempt a blocked model acquisition on
@@ -441,6 +530,14 @@ def review_translated_utterances(
                 continue
             out[i]["translation_review_reason"] = item["reason"]
             out[i]["translation_reviewed_text"] = candidate.strip()
+            if changed and item.get("deferred_comparison"):
+                out[i]["translation_review_status"] = "review_deferred_comparative_preserved_machine_translation"
+                out[i]["translation_comparison_recovery"] = item["deferred_comparison"]
+                deferred_comparison_ids.append(uid)
+                valid_for_cache = False
+                continue
+            if item.get("comparison_recovery"):
+                out[i]["translation_comparison_recovery"] = item["comparison_recovery"]
             if changed and _unsupported_polarity_inversion(
                 str(out[i].get("source_text") or ""),
                 original, candidate, source_language,
@@ -483,13 +580,16 @@ def review_translated_utterances(
     if target_utterance_ids is not None:
         out = [u if all_ids[i] in selected else {**utterances[i]} for i, u in enumerate(out)]
     return out, {
-        "status": "completed_with_errors" if errors else "completed",
+        "status": ("completed_with_errors" if errors else
+                   "completed_with_deferred_comparisons" if deferred_comparison_ids else "completed"),
         "profile": cfg.profile, "style": cfg.style,
         "resource_fingerprint": cfg.resource_fingerprint,
         "reviewed": reviewed_count, "changed": changed_count,
         "rejected_polarity": rejected_polarity,
         "comparative_calls": comparative_calls, "comparative_rejections": comparative_rejections,
         "completion_retries": completion_retries,
+        "comparison_recoveries": comparison_recoveries,
+        "deferred_comparison_ids": deferred_comparison_ids,
         "cache_hits": hits, "api_calls": calls, "errors": errors,
         "resource_blocked_reason": blocked_reason,
         "elapsed_s": round(time.perf_counter() - started, 3),

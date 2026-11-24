@@ -403,3 +403,18 @@ def test_retry_never_repeats_http_error(monkeypatch):
         client.complete(messages=_messages(),max_tokens=8192,retry_max_tokens=16384,
                         thinking_budget=2048,reasoning_effort="xhigh")
     assert len(requests)==1
+
+
+
+def test_comparator_whitespace_loop_suppresses_identical_larger_retry(monkeypatch):
+    answer = _finished_response(reason="max_tokens")
+    answer["content"][-1]["text"] = '{"decision":"proposal"' + "\n " * 4096
+    requests = _client_transport(monkeypatch, responses=[Reply(body=answer)])
+    client = NInferMessagesTextClient(base_url="http://localhost:8001/v1", model="chat")
+    reply = client.complete(messages=_messages(), max_tokens=8192, retry_max_tokens=16384,
+                            thinking_budget=1024, reasoning_effort="xhigh",
+                            response_format=JSON_OBJECT_SCHEMA, stop_on_whitespace_loop=True)
+    assert len(requests) == 1
+    assert reply["choices"][0]["finish_reason"] == "length"
+    assert reply["_client_request_diagnostics"]["native_stop_reason"] == "max_tokens"
+    assert reply["_client_request_diagnostics"]["completion_attempts"][0]["retry_suppressed_reason"] == "runaway_output_whitespace"

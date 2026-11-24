@@ -543,3 +543,76 @@ def test_nonrestrictive_subordinate_clause_does_not_remove_negative_guard():
     assert _unsupported_polarity_inversion("Je n'ose dire que c'est vrai.",
                                            "I don't dare say it is true.",
                                            "I dare say it is true.","fr")
+
+
+
+class _LoopReviewClient(FakeClient):
+    """Native response shapes, including an exhausted, deceptively valid prefix."""
+    def complete(self, **kwargs):
+        self.calls.append(kwargs)
+        item = self.responses.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        if item == "loop":
+            return {"choices": [{"finish_reason": "length",
+                                "message": {"content": '{"decisions":[{"utterance_id":"u0","choice":"proposal"' + "\n " * 4096}}],
+                    "_client_request_diagnostics": {"native_stop_reason": "max_tokens",
+                                                     "completion_attempts": [{"stop_reason": "max_tokens"}]}}
+        return {"choices": [{"finish_reason": "stop", "message": {"content": json.dumps(item)}}]}
+
+
+def _loop_proposals():
+    return {"reviews": [{"utterance_id": "u0", "corrected_text": "Hello, Esteban.", "reason": "Source name."},
+                        {"utterance_id": "u1", "corrected_text": "Hi!", "reason": "No change."}]}
+
+
+def _loop_cfg():
+    return _cfg(wire_protocol="ninfer_messages", thinking_budget=2048,
+                reasoning_effort="xhigh", max_tokens=8192)
+
+
+def test_comparison_loop_uses_compact_response_same_evidence_and_caches_success(tmp_path):
+    client = _LoopReviewClient(_loop_proposals(), "loop",
+                               {"reason": "The name matches the source.", "verdicts": ["u0=proposal"]})
+    checkpoint = tmp_path / "review.json"
+    out, report = review_translated_utterances(_utts(), source_language="fr",
+        config=_loop_cfg(), text_client=client, checkpoint_path=checkpoint)
+    assert report["status"] == "completed" and report["reviewed"] == 2
+    assert report["api_calls"] == 3 and report["comparative_calls"] == 2
+    assert out[0]["translated_text"] == "Hello, Esteban."
+    assert out[0]["translation_comparative_review"]["response_format"] == "compact_passage"
+    assert client.calls[1]["messages"][1] == client.calls[2]["messages"][1]
+    assert client.calls[1]["response_format"] != client.calls[2]["response_format"]
+    assert "retry_max_tokens" not in client.calls[2]
+    assert report["comparison_recoveries"][0]["outcome"] == "complete"
+    replay = _LoopReviewClient()
+    again, stats = review_translated_utterances(_utts(), source_language="fr",
+        config=_loop_cfg(), text_client=replay, checkpoint_path=checkpoint)
+    assert not replay.calls and stats["cache_hits"] == 2
+    assert again == out
+
+
+def test_comparison_loop_terminal_exhaustion_preserves_primary_and_remains_deferred(tmp_path):
+    client = _LoopReviewClient(_loop_proposals(), "loop", "loop")
+    checkpoint = tmp_path / "review.json"
+    out, report = review_translated_utterances(_utts(), source_language="fr",
+        config=_loop_cfg(), text_client=client, checkpoint_path=checkpoint)
+    assert report["status"] == "completed_with_deferred_comparisons"
+    assert report["deferred_comparison_ids"] == ["u0"] and report["reviewed"] == 1
+    assert report["changed"] == 0 and report["errors"] == []
+    assert report["comparison_recoveries"][0]["outcome"] == "deferred_preserved_primary"
+    assert out[0]["translated_text"] == out[0]["machine_translated_text"] == "Hello, Estban."
+    assert out[0]["translation_review_status"] == "review_deferred_comparative_preserved_machine_translation"
+    assert "translation_comparative_review" not in out[0]
+    assert not checkpoint.exists()
+
+
+def test_compact_invalid_ids_and_transport_failure_remain_errors():
+    for failed in ({"reason": "Invalid ID.", "verdicts": ["other=proposal"]},
+                   RuntimeError("transport failed")):
+        client = _LoopReviewClient(_loop_proposals(), "loop", failed)
+        out, report = review_translated_utterances(_utts(), source_language="fr",
+            config=_loop_cfg(), text_client=client)
+        assert report["status"] == "completed_with_errors"
+        assert report["errors"] and not report["deferred_comparison_ids"]
+        assert out[0]["translated_text"] == "Hello, Estban."

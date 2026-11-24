@@ -148,11 +148,32 @@ def generate_subtitles(
             raise ValueError("Source quality requires managed ASR and NInfer review resources")
         if cfg.refinement.profile != "off":
             raise ValueError("Current source quality cannot be combined with text-only source rewriting")
-        if cfg.translation_review.profile != "off":
-            cfg = replace(cfg, translation_review=replace(cfg.translation_review,
-                wire_protocol="ninfer_messages", thinking_budget=2048, reasoning_effort="xhigh",
-                max_tokens=max(cfg.translation_review.max_tokens,QUALITY_COMPLETION_TOKENS),
-                timeout_s=max(cfg.translation_review.timeout_s,QUALITY_TIMEOUT_S)))
+    # An explicitly supplied canonical contract is a supported downstream
+    # entry point, not an implicit cache hit. Keep its accepted source rows
+    # and quality evidence instead of re-auditing their order or re-running ASR.
+    retained_contract = None
+    retained_canonical = False
+    if recording_contract_path is not None and not cfg.re_render_only:
+        rc_input = Path(recording_contract_path)
+        if not rc_input.is_file():
+            raise FileNotFoundError(f"Recording contract not found: {rc_input}")
+        retained_contract = json.loads(rc_input.read_text(encoding="utf-8"))
+        if not quality_enabled:
+            quality = retained_contract.get("source_quality") or {}
+            if quality.get("schema") == "nemovox-current-source-quality/v1":
+                if (quality.get("status") not in ("complete", "partial")
+                        or not quality.get("media_fingerprint_sha256")
+                        or quality["media_fingerprint_sha256"] != retained_contract["source"].get("fingerprint_sha256")
+                        or quality.get("source_language") != retained_contract.get("source_language")):
+                    raise ValueError("Retained canonical source quality identity mismatch")
+                retained_canonical = True
+    if (cfg.translation_review.profile != "off"
+            and (quality_enabled or (retained_canonical and lifecycle is not None
+                 and lifecycle_resources and "translation_review" in lifecycle_resources))):
+        cfg = replace(cfg, translation_review=replace(cfg.translation_review,
+            wire_protocol="ninfer_messages", thinking_budget=2048, reasoning_effort="xhigh",
+            max_tokens=max(cfg.translation_review.max_tokens,QUALITY_COMPLETION_TOKENS),
+            timeout_s=max(cfg.translation_review.timeout_s,QUALITY_TIMEOUT_S)))
     if cfg.translation_review.profile != "off" and cfg.translation.backend != "riva":
         raise ValueError("Contextual English post-edit requires dedicated Riva primary translation")
     if (cfg.condense_high_cps and cfg.translation.backend == "riva"
@@ -213,8 +234,9 @@ def generate_subtitles(
             if not rc_path.is_file():
                 raise FileNotFoundError(f"Recording contract not found: {rc_path}")
             _log(f"Stage 1/4: Loading existing recording contract {rc_path}")
-            contract = json.loads(rc_path.read_text(encoding="utf-8"))
-            if cfg.reconstruct_untimed_order and any(u.get("source_start") is None for u in (contract.get("utterances") or [])):
+            contract = retained_contract
+            if (not retained_canonical and cfg.reconstruct_untimed_order
+                    and any(u.get("source_start") is None for u in (contract.get("utterances") or []))):
                 m_path = rc_path.parent / "manifest.json"
                 manifest_chunks = None
                 if m_path.is_file():
@@ -289,7 +311,9 @@ def generate_subtitles(
             _atomic_write(out_dir / "canonical-source.contract.json", json.dumps(contract, ensure_ascii=False, indent=2))
             _event("source_quality", "complete", quality_report["status"])
         else:
-            _event("source_quality", "skipped", "No current-media quality review requested")
+            _event("source_quality", "skipped",
+                   "Using explicitly supplied canonical source: " + contract["source_quality"]["status"]
+                   if retained_canonical else "No current-media quality review requested")
         src_lang = cfg.source_language or contract.get("source_language")
         raw_utterances = list(contract.get("utterances") or [])
 
@@ -370,6 +394,18 @@ def generate_subtitles(
                     checkpoint_path=out_dir / "translation-review.checkpoint.json",
                     resume=cfg.resume_translation_review,
                 )
+            if review_summary.get("status") == "completed_with_deferred_comparisons":
+                deferred = set(review_summary.get("deferred_comparison_ids") or [])
+                observed = {str(u.get("utterance_id") or u.get("id")) for u in translated_utts
+                            if u.get("translation_review_status") ==
+                            "review_deferred_comparative_preserved_machine_translation"}
+                if (not deferred or deferred != observed or trans_summary.get("errors")
+                        or review_summary.get("reviewed", 0) + len(deferred) != len(translated_utts)
+                        or any(not str(u.get("machine_translated_text") or "").strip()
+                               or (str(u.get("utterance_id") or u.get("id")) in deferred
+                                   and u.get("translated_text") != u.get("machine_translated_text"))
+                               for u in translated_utts)):
+                    raise RuntimeError("Deferred comparative review lacks complete preserved primary MT")
             _event("review",
                    "skipped" if review_summary.get("status") == "disabled" else
                    "failed" if review_summary.get("status") == "completed_with_errors" else "complete",

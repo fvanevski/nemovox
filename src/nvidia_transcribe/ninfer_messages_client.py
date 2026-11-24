@@ -23,6 +23,12 @@ _MAX_IMAGE_BYTES = 8 * 1024 * 1024
 QUALITY_COMPLETION_TOKENS = 8192
 QUALITY_RETRY_TOKENS = 16384
 QUALITY_TIMEOUT_S = 600.0
+_RUNAWAY_WHITESPACE_CHARS = 1024
+
+
+def runaway_whitespace(text: str) -> bool:
+    """Recognize an exhausted completion that is only appending whitespace."""
+    return len(text) - len(text.rstrip()) >= _RUNAWAY_WHITESPACE_CHARS
 
 _MAX_IMAGES = 12
 _MAX_TOTAL_IMAGE_BYTES = 24 * 1024 * 1024
@@ -113,6 +119,7 @@ class NInferMessagesTextClient:
         thinking_budget: int | None = None,
         strict_reasoning_effort: bool = False,
         retry_max_tokens: int | None = None,
+        stop_on_whitespace_loop: bool = False,
     ) -> dict[str, Any]:
         import httpx
 
@@ -191,8 +198,19 @@ class NInferMessagesTextClient:
                     "response_id":answer.get("id"),"usage":answer.get("usage"),
                     "response_sha256":hashlib.sha256(
                         json.dumps(answer,ensure_ascii=False,sort_keys=True).encode()).hexdigest()})
-                if answer.get("stop_reason")!="max_tokens":
+                if answer.get("stop_reason") != "max_tokens":
                     break
+                # Some constrained outputs repeat JSON whitespace forever.
+                # A caller with a different response-format recovery can
+                # avoid another larger generation of the identical grammar.
+                blocks = answer.get("content")
+                if stop_on_whitespace_loop and isinstance(blocks, list):
+                    partial = "".join(b["text"] for b in blocks
+                                      if isinstance(b, dict) and b.get("type") == "text"
+                                      and isinstance(b.get("text"), str))
+                    if runaway_whitespace(partial):
+                        attempts[-1]["retry_suppressed_reason"] = "runaway_output_whitespace"
+                        break
         if not isinstance(answer, dict) or answer.get("type") != "message":
             raise ValueError("Expected an Anthropic Messages response object")
         blocks = answer.get("content")
