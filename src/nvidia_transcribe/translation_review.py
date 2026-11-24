@@ -111,7 +111,7 @@ def _unsupported_polarity_inversion(
     # Restrictive ne ... que expresses "only", not semantic negation.
     # Remove only the restrictive marker, leaving explicit negative words
     # (including in the same clause) available to the existing guard.
-    source = re.sub(r"(?i)(?:\bne\s+|(?<!\w)n['’])(?=(?:\w+\s+){1,5}que\b)",
+    source = re.sub(r"(?i)(?:\bne\s+|(?<!\w)n['’])(?=\w+\s+que\b)",
                     "",source)
     return bool(
         language and language.lower().startswith("fr")
@@ -281,7 +281,8 @@ def review_translated_utterances(
                     messages=[
                         {"role":"system","content":(
                             f"Interpret and translate {source_language or 'source'} dialogue into {cfg.target_language}. "
-                            + _PROFILE[cfg.profile] + " " + _STYLE[cfg.style]
+                            + _STYLE[cfg.style]
+                            + " Prefer a conservative rendering of uncertain source; do not invent meaning. "
                             + " First establish the intended meaning of each complete clause and adjacent exchange. "
                             "Resolve idioms by their construction and discourse, not surface word substitution. "
                             "Track who did what to whom, negation versus restriction, tense, modality and referents. "
@@ -325,7 +326,9 @@ def review_translated_utterances(
                         raise ValueError("Unexpected or duplicate utterance ID")
                     if cfg.wire_protocol=="ninfer_messages":
                         candidate=item.get("corrected_text")
-                        if not isinstance(candidate,str) or not candidate.strip() or not isinstance(item.get("reason"),str):
+                        if (set(item)!={"utterance_id","corrected_text","reason"}
+                                or not isinstance(candidate,str) or not candidate.strip()
+                                or not isinstance(item.get("reason"),str)):
                             raise ValueError("Invalid source-first translation candidate")
                         original=next(t["machine_translation"] for t in targets if t["utterance_id"]==uid)
                         item={**item,"changed":candidate.strip()!=original.strip()}

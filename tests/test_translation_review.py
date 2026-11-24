@@ -435,7 +435,7 @@ def test_messages_comparative_review_rejects_worse_proposal_and_preserves_origin
             return response
     rows = [{"id": "u1", "source_text": "Tu crois cette histoire ?",
              "translated_text": "Do you believe that story?"}]
-    proposed = {"reviews": [{"utterance_id": "u1", "changed": True,
+    proposed = {"reviews": [{"utterance_id": "u1", 
                              "corrected_text": "Because do you believe that story?",
                              "reason": "Add conversational conjunction."}]}
     decision = {"decisions": [{"utterance_id": "u1", "choice": "original",
@@ -460,7 +460,7 @@ def test_messages_comparative_review_accepts_contextual_repair():
             return response
     rows = [{"id": "u1", "source_text": "Ils se sont fichus de nous !",
              "translated_text": "They don't care about us!"}]
-    proposed = {"reviews": [{"utterance_id": "u1", "changed": True,
+    proposed = {"reviews": [{"utterance_id": "u1", 
                              "corrected_text": "They made fools of us!",
                              "reason": "Contextual idiom."}]}
     decision = {"decisions": [{"utterance_id": "u1", "choice": "proposal",
@@ -481,7 +481,7 @@ def test_messages_incomplete_comparative_review_does_not_accept_candidate():
             response["choices"][0]["finish_reason"] = "stop"
             return response
     rows = [{"id": "u1", "source_text": "Bonjour", "translated_text": "Hello."}]
-    proposed = {"reviews": [{"utterance_id": "u1", "changed": True,
+    proposed = {"reviews": [{"utterance_id": "u1", 
                              "corrected_text": "Good evening.", "reason": "Greeting."}]}
     out, report = review_translated_utterances(
         rows, source_language="fr", config=_cfg(wire_protocol="ninfer_messages",
@@ -531,3 +531,11 @@ def test_restrictive_construction_is_not_negative_action():
     assert _unsupported_polarity_inversion("Il n'a que deux amis. Il ne vient jamais.",
                                            "He has two friends. He never comes.",
                                            "He has two friends. He comes.","fr")
+
+
+
+def test_nonrestrictive_subordinate_clause_does_not_remove_negative_guard():
+    from nvidia_transcribe.translation_review import _unsupported_polarity_inversion
+    assert _unsupported_polarity_inversion("Je n'ose dire que c'est vrai.",
+                                           "I don't dare say it is true.",
+                                           "I dare say it is true.","fr")
