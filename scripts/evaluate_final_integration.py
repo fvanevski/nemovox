@@ -10,15 +10,13 @@ import argparse
 from collections import Counter
 import hashlib
 import json
-import math
 from pathlib import Path, PurePosixPath
-import re
 import tarfile
 
 from nvidia_transcribe.media import probe_media
 from nvidia_transcribe.source_quality import _bounds, _digest, _lex, load_current_ledger
 from scripts.evaluate_chunk_geometry import (
-    REGIONS, compare_reference, comparison_metrics, paired_comparison, read_authority,
+    REGIONS, compare_reference, comparison_metrics, read_authority, DIAGNOSTIC_SHA,
 )
 
 GEOMETRY_SHA="805ab0e43275171b16c0beebbc6c938d15ed5b055d4a6e5b342180f46d61eefe"
@@ -173,6 +171,50 @@ def compare_rows(prior, current):
                   for uid in old if uid in new]}
 
 
+def archived_diagnostic_translation(path, fingerprint):
+    """Select only a unique translated contract from the exact archive.
+    Multiple distinct matching contracts require explicit adjudication.
+    """
+    if sha(path)!=DIAGNOSTIC_SHA:
+        raise ValueError("Diagnostic archive digest mismatch")
+    candidates={}
+    with tarfile.open(path,"r:gz") as archive:
+        for m in archive:
+            if not m.isfile() or not m.name.endswith(".json") or m.size>32*1024*1024:
+                continue
+            data=archive.extractfile(m).read()
+            try:
+                value=json.loads(data)
+            except (ValueError,UnicodeError):
+                continue
+            if (isinstance(value,dict) and isinstance(value.get("source"),dict)
+                    and value["source"].get("fingerprint_sha256")==fingerprint
+                    and isinstance(value.get("utterances"),list)
+                    and value["utterances"]
+                    and isinstance(value.get("translation"),dict)
+                    and isinstance(value.get("translation_review"),dict)
+                    and all(isinstance(row,dict) and isinstance(row.get("translated_text"),str)
+                            for row in value["utterances"])):
+                key=hashlib.sha256(data).hexdigest()
+                candidates.setdefault(key,{"path":m.name,"contract":value})
+    inventory=[{"sha256":key,"member":v["path"]} for key,v in candidates.items()]
+    if len(candidates)!=1:
+        return {"status":"not_found" if not candidates else "ambiguous","inventory":inventory},None
+    item=next(iter(candidates.values()))
+    return {"status":"unique","inventory":inventory},item["contract"]
+
+
+def regional_passages(rows):
+    """Original-media coordinates, not row-ID alignment across versions."""
+    regions={}
+    for name,region,target,_ in REGIONS:
+        lo,hi=region
+        regions[name]=[{"source":row_identity(r),"primary_mt":r.get("machine_translated_text"),
+                        "final":r.get("translated_text")}
+                       for r in rows if _bounds(r) and _bounds(r)[0]<hi and _bounds(r)[1]>lo]
+    return {"regions":regions,"wholly_untimed_count":sum(_bounds(r) is None for r in rows)}
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--job",required=True,type=Path)
@@ -229,17 +271,32 @@ def main():
             authority="authenticated_original_full_episode"
         original_arm=arm(rec["utterances"],ledger,offset)
         final_arm=arm(canonical["utterances"],ledger,offset)
+        strict_original=arm(rec["utterances"],ledger,offset,strict=True)
         comparisons={}
         for name in names:
             events=refs[name]["reference_events"]
             original=compare_reference(events,original_arm)
             final=compare_reference(events,final_arm)
-            comparisons[name]={"original":original,"final":final}
+            comparisons[name]={"original":original,"final":final,
+                "strict_original":compare_reference(events,strict_original)}
         write(root/"private-reference-comparison.json",comparisons)
         summary["reference_comparison"]={"authority":authority,"offset_s":offset,
             "criterion":"event_level_positive_same_model_reference_not_human_truth",
             "regions":{name:{k:comparison_metrics(v) for k,v in values.items()}
                        for name,values in comparisons.items()}}
+        if not args.region:
+            receipt,prior=archived_diagnostic_translation(args.diagnostic_archive,media.fingerprint_sha256)
+            summary["prior_diagnostic_translation"]=receipt
+            if prior is not None:
+                summary["prior_diagnostic_translation"].update(
+                    rows=len(prior["utterances"]),
+                    review={k:prior["translation_review"].get(k) for k in
+                            ("api_calls","comparative_calls","reviewed","changed",
+                             "comparative_rejections","elapsed_s")})
+                write(root/"private-diagnostic-regions.json",{
+                    "prior":regional_passages(prior["utterances"]),
+                    "current":regional_passages(translated["utterances"]),
+                    "matching":"same_original_media_intervals_not_ordinal_ids"})
     if args.prior_semantic_archive:
         members=sealed(args.prior_semantic_archive,C2_SHA)
         prefix="phase_b_job/"

@@ -837,3 +837,25 @@ def test_joined_passage_verdict_vetoes_individually_approved_fragments(tmp_path)
         assert report["joined_passage_rejections"]==2 and report["changed"]==0
         assert [r["translated_text"] for r in out]==["He headed","west."]
         assert all(r["translation_review_passage"]["verdict"]["choice"]=="original" for r in out)
+
+
+
+def test_missing_joined_passage_verdict_preserves_primary_and_not_cached(tmp_path):
+    class Native(FakeClient):
+        def complete(self,**kwargs):
+            result=super().complete(**kwargs)
+            result["choices"][0]["finish_reason"]="stop"
+            return result
+    rows=[{"id":"a","speaker_id":"A","source_text":"Il ferme la","translated_text":"He closes it"},
+          {"id":"b","speaker_id":"A","source_text":"porte.","translated_text":"Door."}]
+    prop={"reviews":[{"utterance_id":"a","corrected_text":"He closes the","reason":"Object follows"},
+                     {"utterance_id":"b","corrected_text":"door.","reason":"Object"}]}
+    incomplete={"decisions":[{"utterance_id":"a","choice":"proposal","reason":"Approve"},
+                             {"utterance_id":"b","choice":"proposal","reason":"Approve"}]}
+    path=tmp_path/"review.json"
+    result,report=review_translated_utterances(rows,source_language="fr",
+        config=_cfg(wire_protocol="ninfer_messages",thinking_budget=2048,reasoning_effort="xhigh"),
+        text_client=Native(prop,incomplete),checkpoint_path=path)
+    assert report["status"]=="completed_with_errors" and report["changed"]==0
+    assert [r["translated_text"] for r in result]==[r["translated_text"] for r in rows]
+    assert not path.exists()
