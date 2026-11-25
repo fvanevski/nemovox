@@ -766,3 +766,21 @@ def test_riva_example_receipt_and_cache_bind_actual_primary_input(tmp_path,monke
         assert report["context_example_rows"]==1 and report["native_input_tokens"]==33
         assert out[0]["machine_translated_text"]=="Close the door."
     assert len(calls)==2 and calls[-1]["items"][0]["context_examples"][0]["target"]=="gate"
+
+
+
+def test_joint_source_and_mt_negation_veto_even_if_native_comparator_approves():
+    class Native(FakeClient):
+        def complete(self,**kwargs):
+            response=super().complete(**kwargs)
+            response["choices"][0]["finish_reason"]="stop"
+            return response
+    rows=[{"id":"negative","source_text":"Il ne ferme pas la porte.",
+           "translated_text":"He does not close the door."}]
+    prop={"reviews":[{"utterance_id":"negative","corrected_text":"He closes the door.","reason":"Bad proposal"}]}
+    verdict={"decisions":[{"utterance_id":"negative","choice":"proposal","reason":"Bad approval"}]}
+    result,report=review_translated_utterances(rows,source_language="fr",
+        config=_loop_cfg(),text_client=Native(prop,verdict))
+    assert result[0]["translated_text"]==rows[0]["translated_text"]
+    assert report["rejected_polarity"]==1
+    assert result[0]["translation_review_status"]=="review_rejected_polarity_preserved_machine_translation"

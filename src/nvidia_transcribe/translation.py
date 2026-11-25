@@ -542,7 +542,8 @@ def translate_utterances(
             ).hexdigest()[:24]
             ekey = f"{uid}:{rkey}"
             riva_keys[uid] = ekey
-            if (ekey in cached and cached[ekey].get("context_example_ids",[])==[ex["id"] for ex in examples]
+            if (isinstance(cached.get(ekey),dict)
+                    and cached[ekey].get("context_example_ids",[])==[ex["id"] for ex in examples]
                     and isinstance(cached[ekey].get("translated_text"),str)):
                 u["translated_text"] = cached[ekey]["translated_text"]
                 u["translation_status"] = "translated_cached"

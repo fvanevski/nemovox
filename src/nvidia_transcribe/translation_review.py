@@ -59,7 +59,7 @@ class TranslationReviewConfig:
     target_language: str = "en"
     context_utterances_before: int = 5
     context_utterances_after: int = 4
-    batch_size: int = 6
+    batch_size: int = 12
     base_url: str = "http://127.0.0.1:8001/v1"
     model: str = "chat"
     resource_fingerprint: str = ""
@@ -662,6 +662,11 @@ def review_translated_utterances(
         "dependent_passage_rejections": dependent_rejections,
         "native_attempts":native_attempts,
         "batch_size":batch,
+        "glossary_digest":gl.digest(),
+        "review_policy":{"wire_protocol":cfg.wire_protocol,"thinking_budget":cfg.thinking_budget,
+                         "reasoning_effort":cfg.reasoning_effort,"max_tokens":cfg.max_tokens,
+                         "context_before":cfg.context_utterances_before,"context_after":cfg.context_utterances_after,
+                         "temperature":cfg.temperature,"target_language":cfg.target_language},
         "subdivisions":subdivisions,
         "completion_retries": completion_retries,
         "comparison_recoveries": comparison_recoveries,

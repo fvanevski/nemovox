@@ -102,8 +102,9 @@ def literal_examples(row, glossary, context_rows=()):
     for source, target in glossary.translation_examples:
         if not source or not target:
             continue
-        if any(source == passage or (len(source) >= 2 and re.search(
-                r"(?<!\w)" + re.escape(source) + r"(?!\w)", passage))
+        if any(source == passage or (len(source) >= 2 and (
+                (re.search(r"[\u3400-\u9fff\u3040-\u30ff]",source) and source in passage)
+                or re.search(r"(?<!\w)" + re.escape(source) + r"(?!\w)", passage)))
                for passage in [text,*related]):
             item = {"source":source,"target":target}
             item["id"] = text_digest(json.dumps(item,ensure_ascii=False,sort_keys=True))
