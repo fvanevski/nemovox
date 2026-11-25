@@ -1,0 +1,20 @@
+diff --git a/tests/test_translation_review.py b/tests/test_translation_review.py
+index 0937aee..2fe8e53 100644
+--- a/tests/test_translation_review.py
++++ b/tests/test_translation_review.py
+@@ -495,7 +495,15 @@ def test_messages_incomplete_comparative_review_does_not_accept_candidate():
+ def test_messages_source_first_and_comparator_receive_coherent_cross_turn_passage():
+     class Client(FakeClient):
+         def complete(self, **kwargs):
++            request=json.loads(kwargs["messages"][1]["content"])
+             response=super().complete(**kwargs)
++            if "passage_checks" in request:
++                payload=json.loads(response["choices"][0]["message"]["content"])
++                payload["decisions"].extend(
++                    {"utterance_id":item["utterance_id"],"choice":"proposal","reason":"Coherent complete passage"}
++                    for item in request["passage_checks"]
++                )
++                response["choices"][0]["message"]["content"]=json.dumps(payload)
+             response["choices"][0]["finish_reason"]="stop"
+             return response
+     rows=[{"id":"u0","source_text":"Il a fermé la","translated_text":"He closed it",
