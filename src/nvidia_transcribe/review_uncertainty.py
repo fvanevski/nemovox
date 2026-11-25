@@ -141,7 +141,7 @@ def uncertainty_veto(row, original, candidate, glossary):
         if [w for w in _tokens(original) if w not in _ARTICLES]!=[
                 w for w in _tokens(candidate) if w not in _ARTICLES]:
             return "unresolved_source_material_lexical_change"
-    elif kinds&_ENTITY or uncertainty["scene_outcome"] in ("unresolved","partial","error"):
+    elif kinds&_ENTITY or uncertainty["scene_outcome"] in ("unresolved","partial","error","deferred"):
         # A name/number stability guard where the uncertainty is less
         # specific. Preserve grammatical/idiomatic edits around anchors.
         if not _anchors_preserved(original, candidate):

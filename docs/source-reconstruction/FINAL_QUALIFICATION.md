@@ -161,3 +161,19 @@ and old metadata is invalidated before the attempt. The evaluator counts only
 a matching salvage receipt with all referenced output bytes present, and
 reports the distinct salvage status, never a completed required review.
 Ordinary successful and deferred rerender behavior is unchanged.
+
+
+## Deferred scene uncertainty (Codex follow-up)
+
+A scene case deferred by budget or missing localization still has unresolved
+source uncertainty. Apply the existing name/number anchor guard to that
+disposition even when no source nomination survives. Do not elevate it to
+the material lexical veto without material evidence. Preserve case-only and
+ordinary grammatical improvements, explicit whole-row operator mappings,
+and the normal treatment of resolved rows. Prompt and cache key remain
+unchanged; the guard re-adjudicates retained proposals.
+
+The 249-row retained positive qualification has 21 deferred rows, of which
+four lack nominations (one bounded, three full French), and none of those
+four currently accepts a changed proposal. Expect exact prior row outputs
+and statuses; confirm by sealed replay, not live model inference.

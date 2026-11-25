@@ -1202,3 +1202,61 @@ def test_salvage_never_binds_render_to_contract_modified_during_render(tmp_path,
         pipeline.generate_subtitles(output_dir=tmp_path, config=pipeline.SubtitlePipelineConfig(
             re_render_only=True, formats=("srt",)))
     assert not metadata.exists()
+
+
+@pytest.mark.parametrize("candidate,rejected", [
+    ("Paul arrives on bus 403.", True),
+    ("John arrives on bus 404.", True),
+    ("john arrives on bus 403.", False),
+    ("John is arriving on bus 403.", False),
+])
+def test_deferred_scene_uncertainty_preserves_anchors_after_comparator_approval(
+        candidate, rejected):
+    from nvidia_transcribe.review_uncertainty import bind_review_uncertainty, current_uncertainty
+    row = {"id": "u", "speaker_id": "A", "source_text": "Jean arrive dans le bus 403.",
+           "source_start": 1.0, "source_end": 2.0,
+           "translated_text": "John arrives on bus 403.", "source_unit_ids": ["unit"]}
+    quality = {"schema": "nemovox-current-source-quality/v1",
+               "scene_evidence": {"decisions": [], "deferred_source_ids": ["u"]}}
+    bound, = bind_review_uncertainty([row], quality)
+    uncertainty = current_uncertainty(bound)
+    assert uncertainty["scene_outcome"] == "deferred"
+    assert uncertainty["nominations"] == []
+    assert uncertainty["source_quality_status"] == ""
+    client = _LoopReviewClient(
+        {"reviews": [{"utterance_id": "u", "corrected_text": candidate,
+                      "reason": "Candidate interpretation"}]},
+        {"decisions": [{"utterance_id": "u", "choice": "proposal",
+                        "reason": "Approve candidate"}]})
+    out, report = review_translated_utterances(
+        [bound], source_language="fr", config=_loop_cfg(), text_client=client)
+    assert len(client.calls) == 2
+    assert report["status"] == "completed"
+    assert out[0]["machine_translated_text"] == row["translated_text"]
+    assert out[0]["translation_comparative_review"]["choice"] == "proposal"
+    assert report["unresolved_source_rejections"] == int(rejected)
+    assert report["changed"] == int(not rejected)
+    if rejected:
+        assert out[0]["translation_review_rejection_reason"] == "unresolved_source_name_or_number_change"
+        assert out[0]["translated_text"] == row["translated_text"]
+    else:
+        assert out[0]["translation_review_status"] == "corrected"
+        assert out[0]["translated_text"] == candidate
+
+
+def test_deferred_scene_guard_is_not_material_veto_or_operator_override():
+    from nvidia_transcribe.review_uncertainty import bind_review_uncertainty, uncertainty_veto
+    row = {"id": "u", "source_text": "Jean arrive.", "translated_text": "John arrives."}
+    quality = {"schema": "nemovox-current-source-quality/v1",
+               "scene_evidence": {"decisions": [], "deferred_source_ids": ["u"]}}
+    bound, = bind_review_uncertainty([row], quality)
+    assert uncertainty_veto(bound, "John arrives.", "Paul arrives.", GlossaryConfig()) == (
+        "unresolved_source_name_or_number_change")
+    assert uncertainty_veto(bound, "John arrives.", "John is arriving.", GlossaryConfig()) is None
+    assert uncertainty_veto(bound, "John arrives.", "Paul arrives.",
+        GlossaryConfig(translation_examples=((row["source_text"], "Paul arrives."),))) is None
+    # An actually resolved, non-deferred case has no scene uncertainty.
+    resolved, = bind_review_uncertainty([row], {
+        **quality, "scene_evidence": {"decisions": [{"source_id": "u",
+            "outcome": "context_supported"}], "deferred_source_ids": []}})
+    assert uncertainty_veto(resolved, "John arrives.", "Paul arrives.", GlossaryConfig()) is None
