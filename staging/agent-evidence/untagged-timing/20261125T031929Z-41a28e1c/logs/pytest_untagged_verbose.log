@@ -1,0 +1,27 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.15, pytest-9.2.0, pluggy-1.7.0 -- /workspace/nvidia-transcribe/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /tmp/nemovox-untagged-timing.amNjD8/candidate
+configfile: pyproject.toml
+plugins: anyio-4.13.0, hydra-core-1.3.8
+collecting ... collected 21 items / 13 deselected / 8 selected
+
+tests/test_source_occurrences.py::test_untagged_recognition_retains_ctc_timing_without_speaker_attribution[labels0] PASSED [ 12%]
+tests/test_source_occurrences.py::test_untagged_recognition_retains_ctc_timing_without_speaker_attribution[labels1] PASSED [ 25%]
+tests/test_source_occurrences.py::test_untagged_recognition_retains_ctc_timing_without_speaker_attribution[labels2] PASSED [ 37%]
+tests/test_source_occurrences.py::test_untagged_recognition_retains_ctc_timing_without_speaker_attribution[labels3] PASSED [ 50%]
+tests/test_source_occurrences.py::test_untagged_partial_stream_uses_all_native_labels_for_ambiguity PASSED [ 62%]
+tests/test_source_occurrences.py::test_untagged_fallback_does_not_steal_explicit_tagged_observation PASSED [ 75%]
+tests/test_source_occurrences.py::test_untagged_native_error_and_invalid_interval_do_not_become_usable PASSED [ 87%]
+tests/test_source_occurrences.py::test_untagged_cjk_localized_observation_keeps_order_and_unknown_voice PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../workspace/nvidia-transcribe/.venv/lib/python3.13/site-packages/anyio/pytest_plugin.py:14
+  /workspace/nvidia-transcribe/.venv/lib/python3.13/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+  The CallSpec2 alias will be removed in pytest 10.
+  Update imports to use CallSpec instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
+    from _pytest.python import CallSpec2
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 8 passed, 13 deselected, 1 warning in 0.10s ==================

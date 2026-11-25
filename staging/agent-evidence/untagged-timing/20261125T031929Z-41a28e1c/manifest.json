@@ -1,0 +1,87 @@
+{
+  "run_id": "20261125T031929Z-41a28e1c",
+  "tested_source_sha": "41a28e1cf8d702d140afdd1b76108edc2e7b6cdf",
+  "tested_tree_sha": "61d1fefee3659146a53a5dad487dfd18858c3632",
+  "command_exits": {
+    "import_core": 0,
+    "import_studio": 0,
+    "compileall": 0,
+    "git_diff_check": 0,
+    "pytest_focused": 0,
+    "pytest_untagged_verbose": 0,
+    "pytest_full_cpu": 0,
+    "pytest_studio": 0
+  },
+  "artifacts": [
+    {
+      "path": "HANDback.md",
+      "bytes": 2036,
+      "sha256": "f4c5f4d8b2e17ba5fd4b40b9c4c65f55d05aa3cadcf525a100279b262e11c901"
+    },
+    {
+      "path": "README.md",
+      "bytes": 712,
+      "sha256": "be8734002d99e20bb95f641256f057d1282bfdc1c82ba085752cd798509012a3"
+    },
+    {
+      "path": "friction.json",
+      "bytes": 78,
+      "sha256": "6644850f48bdfab3541fc0ce179845dc300a422881ed615cddf4fbebe2ef220a"
+    },
+    {
+      "path": "identities.json",
+      "bytes": 1728,
+      "sha256": "c0af3e1871089b30c46709be121b1acbf329070f5b9444fbc2dc760412e0bffc"
+    },
+    {
+      "path": "logs/compileall.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/git_diff_check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/import_core.log",
+      "bytes": 126,
+      "sha256": "88e9c6a05e989b395a211cc775605baf5059b8aa22f7bf9e6417831d69d25f63"
+    },
+    {
+      "path": "logs/import_studio.log",
+      "bytes": 133,
+      "sha256": "dacc34b2e9e5d6dfb6d1b5006fdd562db60b317d2d7b196137fcbe15e006676a"
+    },
+    {
+      "path": "logs/pytest_focused.log",
+      "bytes": 747,
+      "sha256": "fcce84d22fa2fa87f35805715a117e2e110cb126ab23b13f9a83c53f899d1c44"
+    },
+    {
+      "path": "logs/pytest_full_cpu.log",
+      "bytes": 1229,
+      "sha256": "3326822be97e1b70dd00cd19c4e39ec0fcad520ade14864f0a575910032aae3c"
+    },
+    {
+      "path": "logs/pytest_studio.log",
+      "bytes": 99,
+      "sha256": "f5dd378bd48fb9f30bb150b4afebf01a3c78a4d629b94f25f36ac4490126f257"
+    },
+    {
+      "path": "logs/pytest_untagged_verbose.log",
+      "bytes": 2103,
+      "sha256": "2cf50afbe93d9c39fae76ba14ddd4dc63ddc6cd65ebb62ab42af4a83c1be2589"
+    },
+    {
+      "path": "receipts/invariants_verification.json",
+      "bytes": 1645,
+      "sha256": "13fccea4db7309cb21fc442afc926bda3df97d1e4aeec55fa436d639be0456f7"
+    },
+    {
+      "path": "receipts/resource_state.json",
+      "bytes": 808,
+      "sha256": "1f7fa470ec05bf3aee863fc3c0e8fec5c002fdc77f9350f76c491e72b2782ede"
+    }
+  ]
+}

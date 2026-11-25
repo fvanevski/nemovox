@@ -1,0 +1,39 @@
+{
+  "run_id": "20261125T031929Z-41a28e1c",
+  "repo_id": "fvanevski/nemovox",
+  "pr_number": 20,
+  "pr_state": "OPEN",
+  "pr_is_draft": true,
+  "pr_base_ref": "main",
+  "pr_base_oid": "9dd863841f72ab5f9aebf5bb4deb322bee99edf1",
+  "pr_head_ref": "issue/17",
+  "pr_head_oid": "41a28e1cf8d702d140afdd1b76108edc2e7b6cdf",
+  "issue_numbers": [
+    17,
+    18
+  ],
+  "execution_class": "CPU_ONLY",
+  "base_commit_identity": "9dd863841f72ab5f9aebf5bb4deb322bee99edf1",
+  "previous_qualified_source": "1d0dc2a3c95d7657967088087effb5267dd05fcf",
+  "previous_evidence_carrier": "4fd870a9f05df5c5e2bf5e54de9328e81c1b2e3f",
+  "codex_reviewed_head": "4fd870a9f05df5c5e2bf5e54de9328e81c1b2e3f",
+  "tested_source_sha": "41a28e1cf8d702d140afdd1b76108edc2e7b6cdf",
+  "tested_source_tree": "61d1fefee3659146a53a5dad487dfd18858c3632",
+  "delta_files": {
+    "src/nvidia_transcribe/source_occurrences.py": "1063669aa5c7b5bda575d61b905512646d7cf6aa",
+    "tests/test_source_occurrences.py": "7ec78d8d7691169502d6524d899ebf258dd7aa17"
+  },
+  "interpreters": {
+    "core_python": "/workspace/nvidia-transcribe/.venv/bin/python",
+    "core_pkg": "/tmp/nemovox-untagged-timing.amNjD8/candidate/src/nvidia_transcribe/__init__.py",
+    "studio_python": "/workspace/nvidia-transcribe/.venv-studio/bin/python",
+    "studio_pkg": "/tmp/nemovox-untagged-timing.amNjD8/candidate/src/nvidia_transcribe/__init__.py"
+  },
+  "private_review_archive": {
+    "path": "/workspace/nvidia-transcribe/outputs/handbacks/untagged-timing-20261125T031929Z-41a28e1c/untagged-timing-review-20261125T031929Z-41a28e1c.tar.gz",
+    "bytes": 7116,
+    "sha256": "5095b8bac3b5870f72d5effa34d19c44ffaae40de5a2a27a8e4b5eccb73debcd",
+    "artifact_count": 22
+  },
+  "result": "PASS"
+}
