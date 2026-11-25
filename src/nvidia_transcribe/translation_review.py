@@ -217,6 +217,9 @@ def review_translated_utterances(
             u["machine_translated_text"] = str(u.get("translated_text") or "")
         if all_ids[i] in selected:
             u["translated_text"]=u["machine_translated_text"]
+            for key in list(u):
+                if key.startswith("translation_review") or key.startswith("translation_comparison") or key=="translation_comparative_review":
+                    del u[key]
     if cfg.profile == "off":
         for i, u in enumerate(out):
             if all_ids[i] in selected:
@@ -274,7 +277,13 @@ def review_translated_utterances(
             end += 1
         ranges.append((pos, end))
         pos = end
-    for start, end in ranges:
+    subdivisions=[]
+    def subdivide(start,end,index,stage):
+        mid=(start+end)//2
+        ranges[index+1:index+1]=[(start,mid),(mid,end)]
+        subdivisions.append({"stage":stage,"target_ids":all_ids[start:end],
+                             "subranges":[all_ids[start:mid],all_ids[mid:end]]})
+    for range_index,(start,end) in enumerate(ranges):
         if blocked_reason is not None:
             for i in range(start, end):
                 out[i]["translation_review_status"] = "review_error_preserved_machine_translation"
@@ -383,6 +392,9 @@ def review_translated_utterances(
                 choice = (response.get("choices") or [{}])[0]
                 raw = str((choice.get("message") or {}).get("content") or "")
                 if cfg.wire_protocol == "ninfer_messages":
+                    if _native_output_exhausted(response) and end-start>1:
+                        subdivide(start,end,range_index,"proposal")
+                        continue
                     if choice.get("finish_reason") != "stop":
                         raise ValueError("Incomplete bounded Messages postedit: "+
                             json.dumps(response.get("_client_request_diagnostics",{}),ensure_ascii=False))
@@ -504,6 +516,9 @@ def review_translated_utterances(
                                 for uid in changed_ids:
                                     entries[uid]["comparison_recovery"] = receipt
                         else:
+                            if _native_output_exhausted(verdict) and end-start>1:
+                                subdivide(start,end,range_index,"comparison")
+                                continue
                             if result.get("finish_reason") != "stop":
                                 raise ValueError("Incomplete comparative review: "+
                                     json.dumps(verdict.get("_client_request_diagnostics",{}),ensure_ascii=False))
@@ -647,6 +662,7 @@ def review_translated_utterances(
         "dependent_passage_rejections": dependent_rejections,
         "native_attempts":native_attempts,
         "batch_size":batch,
+        "subdivisions":subdivisions,
         "completion_retries": completion_retries,
         "comparison_recoveries": comparison_recoveries,
         "deferred_comparison_ids": deferred_comparison_ids,

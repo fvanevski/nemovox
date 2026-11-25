@@ -2,8 +2,7 @@
 
 Current source quality authenticates the original recording and its ledger
 before projecting compact original source rows with bound unit references.
-One native NInfer Messages text phase runs recording context before the existing
-boundary advisory. The source is unchanged. Explicit xhigh effort, 2048
+One native NInfer Messages text phase runs recording context. Structural boundary cases enter the shared acoustic scheduler directly, without redundant per-case text votes. The source is unchanged. Explicit xhigh effort, 2048
 thinking tokens and 8192 completion tokens leave separate answer capacity.
 Native usage reports input, output and thinking tokens; no character/token
 estimate is reported as tokenizer evidence. A byte envelope admits a request
@@ -21,10 +20,7 @@ automatic glossary, speaker attribution, transcript edit or time assignment.
 Consequential anomaly nominations carry one cited original target. The shared
 acoustic scheduler receives only its actual provisional event bounds, or an
 explicit unlocalized request. Its existing priorities, coalescing, resource
-budgets and positive-evidence resolver remain authoritative. Boundary and scene
-advisory paths remain until integrated semantic consolidation; this change
-does not claim semantic resolution, optimized translation review or final
-geometry promotion.
+budgets and positive-evidence resolver remain authoritative. Context nominations also enter bounded post-acoustic scene adjudication. See SEMANTIC_ADJUDICATION.md for the grounded context and translation integration. Final geometry promotion remains separate.
 
 The actual current-media CLI and Studio source-quality path invokes the stage.
 The acoustic-only evaluation entry remains explicit and does not call context.

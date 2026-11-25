@@ -143,3 +143,17 @@ def test_context_nominations_and_visual_literals_are_row_bound():
     base["source_text"]="Nadya ferme la porte."
     assert current_row_context(base) is None
     assert not row_nominations([base],{"proposals":[prop]})[0]
+
+
+
+def test_competing_cross_model_wordings_remain_unresolved():
+    base=row("t","I told you not to leave.",100,104)
+    alt={**row("alt","I told you not to speak.",100,104),"observation_id":"a"}
+    current={**base,"observation_id":"b"}
+    candidates=audio_candidates(base,[base],[{"audio_sha256":"one","utterances":[alt,current]}],
+        [{"audio_sha256":"two","rows":[{**alt,"observation_id":"c"},{**current,"observation_id":"d"}]}],
+        include_current=True)
+    chosen=next(x for x in candidates if x["id"]!="current")
+    assert not apply_decision(base,{"decision":{"action":"acoustic","candidate_id":chosen["id"],
+        "materially_resolved":True}},candidates,[])
+    assert base["source_text"]=="I told you not to leave."

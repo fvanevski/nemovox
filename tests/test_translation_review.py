@@ -718,3 +718,51 @@ def test_riva_operator_examples_are_literal_bound_and_alternating(tmp_path):
         {"role":"user","content":"porte"},{"role":"assistant","content":"door"},
         {"role":"user","content":"Ferme la porte."}]
     assert not literal_examples({"source_text":"portefeuille"},gl)
+
+
+
+def test_native_length_subdivision_preserves_all_primary_rows_and_counts_attempts():
+    class Native:
+        def complete(self, **kwargs):
+            request=json.loads(kwargs["messages"][1]["content"])
+            targets=request["target_utterances"]
+            if len(targets)>1:
+                return {"choices":[{"finish_reason":"length","message":{"content":"partial"}}],
+                        "_client_request_diagnostics":{"native_stop_reason":"max_tokens",
+                        "completion_attempts":[{"stop_reason":"max_tokens","usage":{"input_tokens":50,"output_tokens":8192}}]}}
+            target=targets[0]
+            text={"u0":"Hello, Estban.","u1":"Hi!"}[target["utterance_id"]]
+            return {"choices":[{"finish_reason":"stop","message":{"content":json.dumps(
+                {"reviews":[{"utterance_id":target["utterance_id"],"corrected_text":text,"reason":"Keep"}]})}}],
+                "_client_request_diagnostics":{"native_stop_reason":"end_turn",
+                "completion_attempts":[{"stop_reason":"end_turn","usage":{"input_tokens":25,"output_tokens":10}}]}}
+    out,report=review_translated_utterances(_utts(),source_language="fr",config=_loop_cfg(),text_client=Native())
+    assert report["status"]=="completed" and report["api_calls"]==3
+    assert report["reviewed"]==2 and report["changed"]==0
+    assert len(report["native_attempts"])==3 and len(report["subdivisions"])==1
+    assert [x["translated_text"] for x in out]==[x["translated_text"] for x in _utts()]
+
+
+def test_riva_example_receipt_and_cache_bind_actual_primary_input(tmp_path,monkeypatch):
+    from types import SimpleNamespace
+    from nvidia_transcribe import translation
+    from nvidia_transcribe.translation import TranslationConfig, translate_utterances
+    calls=[]
+    def run(command,**kwargs):
+        payload=json.loads(kwargs["input"])
+        calls.append(payload)
+        return SimpleNamespace(returncode=0,stderr="",stdout=json.dumps(
+            {"status":"ok","device_used":"cuda:0","results":[
+                {"utterance_id":item["utterance_id"],"translated_text":"Close the door.",
+                 "input_tokens":33,"context_example_ids":[ex["id"] for ex in item["context_examples"]]}
+                for item in payload["items"]]}))
+    monkeypatch.setattr(translation.subprocess,"run",run)
+    rows=[{"id":"a","source_text":"Ferme la porte.","machine_translated_text":"stale"}]
+    cfg=TranslationConfig(backend="riva",riva_device="cuda:0")
+    cache=tmp_path/"mt.json"
+    for target in ("door","door","gate"):
+        gl=GlossaryConfig(translation_examples=(("porte",target),))
+        out,report=translate_utterances(rows,source_language="fr",config=cfg,glossary=gl,checkpoint_path=cache)
+        assert report["context_example_rows"]==1 and report["native_input_tokens"]==33
+        assert out[0]["machine_translated_text"]=="Close the door."
+    assert len(calls)==2 and calls[-1]["items"][0]["context_examples"][0]["target"]=="gate"

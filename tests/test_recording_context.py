@@ -211,6 +211,8 @@ def test_normal_source_quality_runs_context_before_shared_acoustic_planner(tmp_p
     assert rec == before and canonical["utterances"] == before["utterances"]
     assert report["recording_context"]["proposals"][0]["kind"] == "polarity"
     assert report["status"] == "partial"  # nomination is not semantic resolution
+    assert report["context_proposal_dispositions"][0]["status"]=="hypothesis_unresolved"
+    assert report["boundary_triage"]["mode"]=="shared_structural_scheduler"
     compact = canonical["source_quality"]["recording_context"]
     assert compact["proposals"] == report["recording_context"]["proposals"]
     assert "answer_text" in report["recording_context"]["attempts"][0]

@@ -249,6 +249,11 @@ def apply_decision(row,assessment,alternatives,visual):
     caption_evidence=None
     partial=False
     candidate=None
+    supported=[a for a in alternatives if independent_support(a)]
+    if len(supported)!=1:
+        # Multiple independently supported incompatible wordings remain
+        # competing hypotheses, not a vote for a model-preferred answer.
+        return False
     if d["action"]=="acoustic":
         candidate=next((a for a in alternatives if a["id"]==d["candidate_id"]),None)
         if candidate and independent_support(candidate):
@@ -371,6 +376,11 @@ def adjudicate_scene(recording,observations,independent,media,text_scope,output_
         alternatives=audio_candidates(row,rows,observations,independent,include_current=True)
         uncertain=str(row.get("source_quality_status","")).startswith("unresolved_wording")
         nominated=nominations.get(row["id"],[])
+        # Reuse already acquired acoustic evidence even when no extra
+        # semantic/visual call is justified.
+        context=accepted_row_context(row,alternatives,[])
+        if context:
+            row["semantic_context"]=context
         if any(a["id"]!="current" for a in alternatives) or uncertain or nominated:
             cases.append((row,alternatives,uncertain,nominated))
     cases.sort(key=lambda item:(not (item[2] or any(n["kind"] not in ("entity_variant","relationship")
@@ -406,8 +416,8 @@ def adjudicate_scene(recording,observations,independent,media,text_scope,output_
                     d=current["decision"]
                 retain=d["action"]=="retain" or (d["action"]=="acoustic" and d["candidate_id"]=="current"
                         and any(a["id"]=="current" for a in alternatives))
-                supported_current=any(a["id"]=="current" and independent_support(a)
-                                      for a in alternatives)
+                supported=[a for a in alternatives if independent_support(a)]
+                supported_current=len(supported)==1 and supported[0]["id"]=="current"
                 if d["materially_resolved"] and ((retain and supported_current) or
                         (not retain and apply_decision(row,current,alternatives,[]))):
                     case["applied"]=not retain
@@ -442,4 +452,6 @@ def adjudicate_scene(recording,observations,independent,media,text_scope,output_
                 if context:
                     row["semantic_context"]=context
                     case["accepted_context"]=context
+                elif case["applied"]:
+                    row.pop("semantic_context",None)
     return rows,report

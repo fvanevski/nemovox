@@ -21,7 +21,6 @@ from nvidia_transcribe.asr_integrity import audit_asr_generation
 from nvidia_transcribe.client import InferenceRequestConfig
 from nvidia_transcribe.media import extract_wav_segment, probe_media, validate_wav_file
 from nvidia_transcribe.parser import split_lexical_units
-from nvidia_transcribe.semantic_review import run_tiered_text_reviews
 from nvidia_transcribe.source_occurrences import stable_id
 from nvidia_transcribe.recording_context import (
     RecordingContextPolicy, compact_recording_context, context_inventory, run_recording_context,
@@ -34,8 +33,6 @@ class SourceQualityPolicy:
     max_extra_contexts: int = 8
     max_target_seconds: float = 14.0
     timing_tolerance_s: float = 0.85
-    max_text_cases: int = 6
-    max_text_tokens: int = 9472
     # Relative geometry, not fixed episode-specific crop sizes.
     challenge_scales: tuple[float, ...] = (.65, 1.5, 2.5)
     challenge_max_seconds: float = 45.
@@ -55,8 +52,6 @@ class SourceQualityPolicy:
 
     def __post_init__(self):
         if (not 1 <= self.max_windows <= 24 or not 0 <= self.max_extra_contexts <= 12
-                or not 1 <= self.max_text_cases <= 24
-                or not 1792 <= self.max_text_tokens <= 49152
                 or not 4 <= self.max_target_seconds <= 14
                 or not 0 < self.timing_tolerance_s <= 2
                 or not self.challenge_scales
@@ -817,25 +812,18 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
                                      selected_audio_stream=media.selected_audio_stream,
                                      source_language=recording["source_language"])
     request = recording["processing"]["boundary_reconciliation"]["semantic_review_candidates"]
-    advisory = None
     context = None
     if semantic_review:
         eligible, _ = context_inventory(recording, ledger)
-        if eligible or request["cases"]:
-            # One owned text phase for both recording context and the existing
-            # boundary advisory; release it before any acoustic acquisition.
+        if eligible:
+            # Recording context nominates new material anomalies. Structural
+            # boundary cases already go to the same evidence scheduler; no
+            # separate pre-acoustic per-case text vote is required.
             with text_scope() as text:
                 if text is None:
                     raise ValueError("Source quality requires an admitted NInfer text client")
                 context = run_recording_context(recording, ledger, client=text,
                                                 policy=policy.recording_context)
-                if request["cases"]:
-                    advisory = run_tiered_text_reviews(
-                        request, client=text, case_limit=policy.max_text_cases,
-                        token_budget=policy.max_text_tokens, light_tokens=512, reasoned_tokens=1792,
-                        light_effort="none", reasoned_effort="xhigh",
-                        light_thinking_budget=0, reasoned_thinking_budget=1024,
-                    )
         else:
             context = run_recording_context(recording, ledger, client=None,
                                             policy=policy.recording_context)
@@ -843,7 +831,7 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
     # scheduler consumes a combined nomination view, not a modified source.
     scheduling_request = {**request, "occurrence_requests": [
         *request.get("occurrence_requests", []), *(context or {}).get("occurrence_requests", [])]}
-    windows, deferred = plan_windows(recording, ledger, scheduling_request, advisory, policy)
+    windows, deferred = plan_windows(recording, ledger, scheduling_request, None, policy)
     observations, events, unresolved, acquisition = acquire_acoustic_evidence(
         recording,observed_media,windows,asr_scope=asr_scope,output_dir=output_dir,policy=policy)
     # Independent work is scheduled from the same admitted task inventory,
@@ -869,9 +857,6 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
         # Explicit acoustic-only evaluation entry. Normal CLI/Studio never
         # disables semantic review through this parameter.
         scene={"status":"not_requested","decisions":[],"errors":[],"deferred_source_ids":[]}
-    reviewed_case_ids = {o["case_id"] for o in (advisory or {}).get("outcomes", [])}
-    deferred_case_ids = [c["case_id"] for c in request["cases"]
-                         if c["case_id"] not in reviewed_case_ids]
     discovery_deferred = request.get("deferred_by_budget", 0)
     occurrence_receipts = resolution_receipts(recording,ledger,rows,decisions,policy)
     pending_spans = sorted(r["occurrence_span_id"] for r in occurrence_receipts
@@ -885,18 +870,37 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
         task_receipts.append({**task,"decision_count":len(related),
             "decision_statuses":sorted({d["status"] for d in related}),
             "resolution_state":"unresolved" if not related else "partially_adjudicated"})
-    uncertain = (bool(unresolved or deferred or deferred_case_ids or discovery_deferred or pending_spans)
+    # A useful nomination is not a demonstrated resolution. Bind scene
+    # receipts to proposal IDs, and preserve missing/hallucination hypotheses
+    # even when a neighboring current row is corroborated.
+    context_dispositions=[]
+    for prop in (context or {}).get("proposals",[]):
+        pid=prop["proposal_id"]
+        cases=[case for case in scene["decisions"] if any(
+            n.get("proposal_id")==pid for n in case.get("nominations",[]))]
+        related=[task for task in task_receipts if pid in task["evidence_ids"]]
+        supported=prop["kind"] in ("wording","polarity") and any(
+            case.get("outcome") in ("context_supported","supported")
+            and case.get("source_id")==prop["target_source_id"] for case in cases)
+        context_dispositions.append({"proposal_id":pid,"kind":prop["kind"],
+            "source_ids":sorted({c["source_id"] for c in prop["citations"]}),
+            "task_ids":[task["task_id"] for task in related],
+            "scene_outcomes":[{"source_id":case["source_id"],"outcome":case.get("outcome")}
+                              for case in cases],
+            "status":"current_wording_supported" if supported else "hypothesis_unresolved",
+            "source_truth_human_verified":False})
+    uncertain = (bool(unresolved or deferred or discovery_deferred or pending_spans)
                  or any(d["status"].startswith("unresolved") for d in decisions)
                  or bool(recovery["decisions"] or recovery["errors"] or recovery["deferred_targets"])
                  or (recovery["status"] == "not_configured" and bool(targets))
                  or not semantic_review
-                 or bool(context and (context["status"] == "partial" or context["occurrence_requests"]))
+                 or bool(context and context["status"] == "partial")
+                 or any(x["status"]=="hypothesis_unresolved" and
+                        x["kind"] not in ("entity_variant","relationship") for x in context_dispositions)
                  or bool(scene["errors"] or scene["deferred_source_ids"]
                          or scene.get("unavailable_context_references"))
                  or any(x.get("outcome") not in ("context_supported","supported") for x in scene["decisions"])
-                 or recovery["status"] in ("unresolved","unsupported_language")
-                 or bool(advisory and (advisory.get("systemic_failure")
-                          or any(o["status"] != "advisory_only" for o in advisory["outcomes"]))))
+                 or recovery["status"] in ("unresolved","unsupported_language"))
     report = {
         "schema": "nemovox-current-source-quality/v1",
         "status": "partial" if uncertain else "complete",
@@ -904,7 +908,9 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
         "recording_sha256": _digest(recording),
         "source_language": recording["source_language"],
         "recording_context": context,
-        "text_advisory": advisory, "deferred_text_case_ids": deferred_case_ids,
+        "context_proposal_dispositions":context_dispositions,
+        "boundary_triage":{"mode":"shared_structural_scheduler",
+                           "case_ids":[c["case_id"] for c in request["cases"]]},
         "discovery_deferred_by_budget": discovery_deferred,
         "pending_occurrence_span_ids": pending_spans,
         "windows": windows, "deferred_windows": deferred,
@@ -927,6 +933,9 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
     # Store raw challenge observations in the current private job, not a
     # historical correction tree. The canonical recording references them.
     return {**recording, "utterances": rows, "source_quality": {
-        k: compact_recording_context(v) if k == "recording_context" else v
+        k: (compact_recording_context(v) if k == "recording_context" else
+            {**v,"decisions":[{key:value for key,value in case.items()
+                               if key not in ("assessments","vision_response")} for case in v["decisions"]]}
+            if k=="scene_evidence" else v)
         for k, v in report.items() if k != "acoustic_observations"
     }}, report

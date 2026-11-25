@@ -96,7 +96,7 @@ def main():
     policy = SourceQualityPolicy(max_windows=4,max_extra_contexts=2,
         max_acoustic_audio_s=240.,max_acoustic_wall_s=420.,
         max_independent_targets=2,max_independent_audio_s=100.,max_independent_wall_s=420.,
-        max_text_cases=2,scene_max_cases=1)
+        scene_max_cases=1)
     write(root/"resources.json", {"input_authority": (
         {"mode":"sealed_prior_evaluation", "archive_sha256":LIVE_ARCHIVE_SHA,
          "original_source_sha":LIVE_SOURCE_SHA} if args.sealed_recovery_archive else

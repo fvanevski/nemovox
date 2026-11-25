@@ -542,10 +542,12 @@ def translate_utterances(
             ).hexdigest()[:24]
             ekey = f"{uid}:{rkey}"
             riva_keys[uid] = ekey
-            if ekey in cached:
+            if (ekey in cached and cached[ekey].get("context_example_ids",[])==[ex["id"] for ex in examples]
+                    and isinstance(cached[ekey].get("translated_text"),str)):
                 u["translated_text"] = cached[ekey]["translated_text"]
                 u["translation_status"] = "translated_cached"
                 u["riva_context_example_ids"] = cached[ekey].get("context_example_ids", [])
+                u["riva_input_tokens"] = cached[ekey].get("input_tokens")
                 cache_hits += 1
             else:
                 pending_items.append({"utterance_id": uid, "text": src_txt, "lang_pair": lang_pair,
@@ -582,6 +584,7 @@ def translate_utterances(
                 raise RuntimeError("Riva worker response is missing translation results")
             by_uid: dict[str, str] = {}
             example_ids = {}
+            input_tokens={}
             requested_examples={item["utterance_id"]:[x["id"] for x in item["context_examples"]]
                                 for item in pending_items}
             for row in rows:
@@ -593,7 +596,12 @@ def translate_utterances(
                 used=row.get("context_example_ids", [])
                 if not isinstance(used,list) or used!=requested_examples[uid]:
                     raise RuntimeError("Riva worker context-example receipt mismatch")
+                tokens=row.get("input_tokens")
+                if ((used and type(tokens) is not int) or
+                        (tokens is not None and (type(tokens) is not int or not 0<tokens<=8192))):
+                    raise RuntimeError("Riva worker token receipt mismatch")
                 example_ids[uid]=used
+                input_tokens[uid]=tokens
                 by_uid[uid] = row["translated_text"]
             if set(by_uid) != expected_uids or any(
                 not by_uid[item["utterance_id"]].strip() and item["text"].strip()
@@ -606,12 +614,16 @@ def translate_utterances(
                     u["translated_text"] = by_uid[uid]
                     u["translation_status"] = "translated"
                     u["riva_context_example_ids"]=example_ids[uid]
+                    u["riva_input_tokens"]=input_tokens[uid]
                     cached[riva_keys[uid]] = {"translated_text": by_uid[uid], "grouped_with_prev": False,
-                                              "context_example_ids":example_ids[uid]}
+                                              "context_example_ids":example_ids[uid],
+                                              "input_tokens":input_tokens[uid]}
             if ckpt_file:
                 ckpt_file.parent.mkdir(parents=True, exist_ok=True)
                 ckpt_file.write_text(json.dumps({"schema": "translation_cache/v2", "signature": gl_sig, "items": cached}, ensure_ascii=False, indent=2), encoding="utf-8")
 
+        for u in out_utts:
+            u["machine_translated_text"]=u["translated_text"]
         return out_utts, {
             "backend": "riva",
             "resource_fingerprint": cfg.resource_fingerprint,
@@ -619,6 +631,8 @@ def translate_utterances(
             "total_utterances": len(out_utts),
             "cache_hits": cache_hits,
             "context_example_rows":sum(bool(u.get("riva_context_example_ids")) for u in out_utts),
+            "native_input_tokens":sum(u["riva_input_tokens"] for u in out_utts
+                                      if type(u.get("riva_input_tokens")) is int),
             "elapsed_s": round(time.perf_counter() - t0, 3),
             **riva_meta,
         }

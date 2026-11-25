@@ -25,7 +25,7 @@ MEDIA_SHA="30234a1c67ae9ed310ed6c76e4b97d4d0c9d54a7220129ac0a05c61eb368f314"
 POLICY=SourceQualityPolicy(max_windows=4,max_extra_contexts=2,
     max_acoustic_audio_s=240.,max_acoustic_wall_s=420.,
     max_independent_targets=2,max_independent_audio_s=100.,max_independent_wall_s=420.,
-    max_text_cases=2,scene_max_cases=1)
+    scene_max_cases=1)
 
 
 def read_archive(path):
