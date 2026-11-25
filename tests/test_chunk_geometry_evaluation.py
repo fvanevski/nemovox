@@ -7,7 +7,7 @@ from io import BytesIO
 import pytest
 
 from scripts.evaluate_chunk_geometry import (
-    compare_reference, comparison_metrics, read_authority, validate_partition, validate_regions,
+    compare_reference, comparison_metrics, paired_comparison, read_authority, validate_partition, validate_regions,
 )
 from nvidia_transcribe.source_quality import _lex
 
@@ -89,3 +89,15 @@ def test_diagnostic_authority_requires_real_raw_bytes_and_matching_media(tmp_pat
     assert read_authority(path,digest)["selected_audio_stream"] == 1
     with pytest.raises(ValueError,match="digest mismatch"):
         read_authority(path,"0"*64)
+
+
+def test_paired_timing_summary_uses_only_common_supported_reference_events():
+    refs = [reference("r1","first phrase",10.,12.),reference("r2","second phrase",20.,22.)]
+    fixed = compare_reference(refs, arm([event("a","first phrase",10.5,12.4)]))
+    short = compare_reference(refs, arm([event("b","first phrase",10.2,12.1),
+                                          event("c","second phrase",20.8,22.8)]))
+    result = paired_comparison(fixed, short)
+    assert result["shared_supported_events"] == 1
+    assert result["common_mean_abs_onset_delta_s"] == {"fixed":.5,"pause_aware":.2}
+    assert result["common_mean_abs_end_delta_s"] == {"fixed":.4,"pause_aware":.1}
+    assert sum(row["events"] for row in result["transitions"]) == 2

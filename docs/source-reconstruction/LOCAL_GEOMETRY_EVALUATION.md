@@ -121,7 +121,9 @@ in private-comparison.json and the fresh recording/ledger/raw leaves:
   and forced cuts.
 - Compare matched reference-event positive support, timing deltas, exact
   source/selected lexical sequence evidence, unresolved and ambiguous
-  matches. Inspect differing decisions, not every transcript word.
+  matches. Use common-event paired timing deltas for direct comparisons;
+  per-arm means may cover different events. Inspect differing decisions,
+  not every transcript word.
   Strict event-match absence is not a proven omitted event; a long gap is
   not alone a timing defect. Same-model consensus is not human verification.
 - Specifically assess early compression, the previously substituted

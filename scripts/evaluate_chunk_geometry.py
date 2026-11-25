@@ -11,7 +11,6 @@ import argparse
 from collections import Counter
 import hashlib
 import json
-import math
 from pathlib import Path
 import tarfile
 import time
@@ -209,7 +208,11 @@ def inspect_run(out, crop, wav_sha):
     disputed = {s["id"] for s in spans if s["locality_status"] == "disputed"}
     all_rows, timed_rows = [], []
     for row in rows:
-        item = {**row, "observation_id": row["id"], "local_voice": row["speaker_id"]}
+        # Project only event-level timing here. Original word timing is kept
+        # in the per-run contract with its explicit crop offset.
+        item = {k: row.get(k) for k in ("id", "source_text", "source_start",
+                                        "source_end", "source_unit_ids", "occurrence_span_ids")}
+        item.update(observation_id=row["id"], local_voice=row["speaker_id"])
         for key in ("source_start", "source_end"):
             if item.get(key) is not None:
                 item[key] = float(item[key]) + crop[0]
@@ -241,7 +244,11 @@ def inspect_run(out, crop, wav_sha):
     # IDs need per-run namespace in matching, since the same crop can emit
     # identical observations across policies. Never compare ordinal IDs across crops.
     return metrics, {"crop": list(crop), "audio_sha256": wav_sha,
-                     "raw_response_sha256": sha_file(out["manifest_path"]),
+                     # corroborated_events carries each observation's value
+                     # into its evidence; use actual leaf hashes, never label
+                     # the manifest digest as a raw response digest.
+                     "raw_response_sha256": [c["raw_response_sha256"] for c in chunks],
+                     "manifest_sha256": sha_file(out["manifest_path"]),
                      "utterances": timed_rows, "all_rows": all_rows,
                      "raw_turn_lexemes": [_lex(t["text"]) for inv in inventories
                                           for t in inv["recognized_turns"]]}
@@ -298,6 +305,29 @@ def comparison_metrics(decisions):
             "selected_exact_sequence_support": sum(d["selected_row_contains_exact_lexical_sequence"] for d in decisions),
             "mean_abs_onset_delta_s": round(sum(abs(d["onset_delta_s"]) for d in supported)/len(supported), 4) if supported else None,
             "mean_abs_end_delta_s": round(sum(abs(d["end_delta_s"]) for d in supported)/len(supported), 4) if supported else None}
+
+
+def paired_comparison(fixed, pause_aware):
+    """Compare event timing deltas only over the shared supported events."""
+    if len(fixed) != len(pause_aware):
+        raise ValueError("Different reference populations")
+    transitions = Counter()
+    common = []
+    for a, b in zip(fixed, pause_aware):
+        if a["reference_ids"] != b["reference_ids"]:
+            raise ValueError("Reference identity mismatch")
+        transitions[(a["status"], b["status"])] += 1
+        if a["status"] == b["status"] == "same_model_timing_support":
+            common.append((a, b))
+    def mean_delta(index, field):
+        return round(sum(abs(pair[index][field]) for pair in common)/len(common), 4) if common else None
+    return {"shared_supported_events": len(common),
+            "transitions": [{"fixed": a, "pause_aware": b, "events": count}
+                            for (a, b), count in sorted(transitions.items())],
+            "common_mean_abs_onset_delta_s": {label: mean_delta(i, "onset_delta_s")
+                                               for i,label in enumerate(POLICIES)},
+            "common_mean_abs_end_delta_s": {label: mean_delta(i, "end_delta_s")
+                                             for i,label in enumerate(POLICIES)}}
 
 
 def main():
@@ -393,10 +423,15 @@ def main():
                 metrics[label], observations[label] = m, obs
             reference = corroborated_events(observations["local_a"], observations["local_b"],
                                             target, TOLERANCE_S)
+            for event in reference:
+                event["supporting_run_leaf_raw_sha256"] = event.pop("raw_response_sha256")
+                event["supporting_run_manifest_sha256"] = [
+                    observations[label]["manifest_sha256"] for label in ("local_a", "local_b")]
             comparisons = {label: compare_reference(reference, observations[label]) for label in POLICIES}
             summary[name] = {"region": list(region), "target": list(target), "runs": metrics,
                              "same_model_reference_events": len(reference),
                              "comparisons": {label: comparison_metrics(ds) for label,ds in comparisons.items()},
+                             "paired_comparison": paired_comparison(comparisons["fixed"], comparisons["pause_aware"]),
                              "acoustic_truth_accepted": False}
             private[name] = {"reference_events": reference, "comparisons": comparisons}
             write_json(root/"private-comparison.json", private)
