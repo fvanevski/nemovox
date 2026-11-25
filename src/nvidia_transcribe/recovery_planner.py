@@ -56,7 +56,6 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
         raise ValueError("Invalid recording duration")
     parents = {r["id"]: r for r in ledger.get("asr_observations", [])}
     by_chunk = {r["chunk_index"]: r for r in parents.values()}
-    units = {u["id"]: u for u in ledger.get("lexical_observations", [])}
     proposals, unavailable = [], []
     media_id = recording["source"]["fingerprint_sha256"]
     decisions = {r["case_id"]: r.get("assessment", {}).get("decision")
@@ -118,8 +117,8 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
                      if not o.get("source_unit_id")]
         if unmatched:
             # Native-only lexical hypotheses are not new source words.
-            add(inv["asr_observation_id"],"unassociated_native_observations",2,
-                parent_window(parent),chunks)
+            for uid in unmatched:
+                add(uid,"unassociated_native_observations",2,parent_window(parent),chunks)
 
     for case in request.get("cases", []):
         bounds = interval(case.get("context_window_s"),duration)
@@ -168,6 +167,10 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
     i = 0
     while i < len(rows):
         if row_bounds(rows[i]):
+            row = rows[i]
+            if row.get("untimed_unit_count",0) and row.get("source_unit_ids"):
+                add(row["id"],"partial_source_dialogue",2,padded_window(row_bounds(row),duration),
+                    row.get("chunk_indices",[]),row["source_unit_ids"],[row["id"]])
             i += 1
             continue
         j = i+1

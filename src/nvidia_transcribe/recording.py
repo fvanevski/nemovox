@@ -192,7 +192,7 @@ def _config_signature(
     }
     # Current source contracts bind the actual plan; invalidate pre-consolidation checkpoints.
     payload.update({
-        "source_pipeline_schema": "current-job-source/v4",
+        "source_pipeline_schema": "current-job-source/v5",
         "chunk_policy": cfg.chunk_policy,
         "chunk_plan": [s.to_dict() for s in chunks] if chunks is not None else None,
         "chunk_plan_metadata": plan_metadata,
