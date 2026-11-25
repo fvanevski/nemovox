@@ -23,6 +23,9 @@ from nvidia_transcribe.media import extract_wav_segment, probe_media, validate_w
 from nvidia_transcribe.parser import split_lexical_units
 from nvidia_transcribe.semantic_review import run_tiered_text_reviews
 from nvidia_transcribe.source_occurrences import stable_id
+from nvidia_transcribe.recording_context import (
+    RecordingContextPolicy, context_inventory, run_recording_context,
+)
 
 
 @dataclass(frozen=True)
@@ -48,6 +51,7 @@ class SourceQualityPolicy:
     scene_context_char_budget: int = 24000
     scene_max_cases: int = 6
     scene_max_frames: int = 6
+    recording_context: RecordingContextPolicy = RecordingContextPolicy()
 
     def __post_init__(self):
         if (not 1 <= self.max_windows <= 24 or not 0 <= self.max_extra_contexts <= 12
@@ -814,17 +818,32 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
                                      source_language=recording["source_language"])
     request = recording["processing"]["boundary_reconciliation"]["semantic_review_candidates"]
     advisory = None
-    if semantic_review and request["cases"]:
-        with text_scope() as text:
-            if text is None:
-                raise ValueError("Source quality requires an admitted NInfer text client")
-            advisory = run_tiered_text_reviews(
-                request, client=text, case_limit=policy.max_text_cases,
-                token_budget=policy.max_text_tokens, light_tokens=512, reasoned_tokens=1792,
-                light_effort="none", reasoned_effort="xhigh",
-                light_thinking_budget=0, reasoned_thinking_budget=1024,
-            )
-    windows, deferred = plan_windows(recording, ledger, request, advisory, policy)
+    context = None
+    if semantic_review:
+        eligible, _ = context_inventory(recording, ledger)
+        if eligible or request["cases"]:
+            # One owned text phase for both recording context and the existing
+            # boundary advisory; release it before any acoustic acquisition.
+            with text_scope() as text:
+                if text is None:
+                    raise ValueError("Source quality requires an admitted NInfer text client")
+                context = run_recording_context(recording, ledger, client=text,
+                                                policy=policy.recording_context)
+                if request["cases"]:
+                    advisory = run_tiered_text_reviews(
+                        request, client=text, case_limit=policy.max_text_cases,
+                        token_budget=policy.max_text_tokens, light_tokens=512, reasoned_tokens=1792,
+                        light_effort="none", reasoned_effort="xhigh",
+                        light_thinking_budget=0, reasoned_thinking_budget=1024,
+                    )
+        else:
+            context = run_recording_context(recording, ledger, client=None,
+                                            policy=policy.recording_context)
+    # Preserve the authenticated boundary request and its digest. The shared
+    # scheduler consumes a combined nomination view, not a modified source.
+    scheduling_request = {**request, "occurrence_requests": [
+        *request.get("occurrence_requests", []), *(context or {}).get("occurrence_requests", [])]}
+    windows, deferred = plan_windows(recording, ledger, scheduling_request, advisory, policy)
     observations, events, unresolved, acquisition = acquire_acoustic_evidence(
         recording,observed_media,windows,asr_scope=asr_scope,output_dir=output_dir,policy=policy)
     # Independent work is scheduled from the same admitted task inventory,
@@ -871,6 +890,7 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
                  or bool(recovery["decisions"] or recovery["errors"] or recovery["deferred_targets"])
                  or (recovery["status"] == "not_configured" and bool(targets))
                  or not semantic_review
+                 or bool(context and (context["status"] == "partial" or context["occurrence_requests"]))
                  or bool(scene["errors"] or scene["deferred_source_ids"])
                  or any(x.get("outcome") not in ("context_supported","supported") for x in scene["decisions"])
                  or recovery["status"] in ("unresolved","unsupported_language")
@@ -882,6 +902,7 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
         "media_fingerprint_sha256": media.fingerprint_sha256,
         "recording_sha256": _digest(recording),
         "source_language": recording["source_language"],
+        "recording_context": context,
         "text_advisory": advisory, "deferred_text_case_ids": deferred_case_ids,
         "discovery_deferred_by_budget": discovery_deferred,
         "pending_occurrence_span_ids": pending_spans,

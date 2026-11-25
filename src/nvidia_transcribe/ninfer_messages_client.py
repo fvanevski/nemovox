@@ -231,6 +231,10 @@ class NInferMessagesTextClient:
         usage = answer.get("usage") or {}
         if not isinstance(usage, dict):
             raise ValueError("Invalid Anthropic Messages usage")
+        input_tokens = usage.get("input_tokens")
+        if (input_tokens is not None and
+                (type(input_tokens) is not int or input_tokens < 0)):
+            raise ValueError("Invalid Anthropic Messages input token usage")
         output_tokens = usage.get("output_tokens")
         details = usage.get("output_tokens_details") or {}
         if not isinstance(details, dict):
@@ -253,7 +257,8 @@ class NInferMessagesTextClient:
                 "message": {"role": "assistant", "content": "".join(texts),
                             "reasoning_content": "".join(thoughts)},
             }],
-            "usage": {"completion_tokens": output_tokens,
+            "usage": {**({"prompt_tokens": input_tokens} if input_tokens is not None else {}),
+                      "completion_tokens": output_tokens,
                       "completion_tokens_details": {"reasoning_tokens": reasoning_tokens}},
             "_client_request_diagnostics": {
                 "protocol": "ninfer_anthropic_messages",
