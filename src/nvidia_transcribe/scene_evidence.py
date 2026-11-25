@@ -418,12 +418,13 @@ def adjudicate_scene(recording,observations,independent,media,text_scope,output_
                         and any(a["id"]=="current" for a in alternatives))
                 supported=[a for a in alternatives if independent_support(a)]
                 supported_current=len(supported)==1 and supported[0]["id"]=="current"
-                if d["materially_resolved"] and ((retain and supported_current) or
+                visual_requested=d["next_evidence"]=="visual"
+                if not visual_requested and d["materially_resolved"] and ((retain and supported_current) or
                         (not retain and apply_decision(row,current,alternatives,[]))):
                     case["applied"]=not retain
                     case["outcome"]="context_supported"
                     continue
-                if (d["next_evidence"]!="visual"
+                if (not visual_requested
                         and not any(n["kind"]=="entity_variant" for n in nominated)):
                     case["outcome"]="unresolved"
                     continue

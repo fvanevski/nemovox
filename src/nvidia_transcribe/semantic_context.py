@@ -20,6 +20,14 @@ def independent_support(candidate):
                for a in support for b in support)
 
 
+def literal_match(text, literal):
+    if not isinstance(text,str) or not isinstance(literal,str) or not literal:
+        return False
+    return bool(text==literal or (len(literal)>=2 and (
+        (re.search(r"[\u3400-\u9fff\u3040-\u30ff]",literal) and literal in text)
+        or re.search(r"(?<!\w)"+re.escape(literal)+r"(?!\w)",text))))
+
+
 def row_nominations(rows, context):
     index = {r["id"]: r for r in rows}
     by_id, unavailable = {}, []
@@ -28,26 +36,29 @@ def row_nominations(rows, context):
         citations = prop.get("citations", [])
         targets = ({c["source_id"] for c in citations} if entity
                    else {prop.get("target_source_id")})
-        for uid in sorted(targets, key=str):
-            row = index.get(uid)
-            matches = []
-            for c in citations:
-                if c.get("source_id") != uid or row is None:
-                    continue
-                span = c.get("character_span")
-                text = row.get("source_text", "")
-                if (isinstance(span, list) and len(span) == 2
-                        and all(type(x) is int for x in span)
-                        and 0 <= span[0] < span[1] <= len(text)
-                        and text[span[0]:span[1]] == c.get("quote")
-                        and c.get("source_row_unit_ids") == row.get("source_unit_ids")):
-                    matches.append({"quote": c["quote"], "character_span": span})
+        valid=[]
+        for citation in citations:
+            uid=citation.get("source_id")
+            row=index.get(uid)
+            span=citation.get("character_span")
+            text=(row or {}).get("source_text","")
+            if (row is not None and isinstance(span,list) and len(span)==2
+                    and all(type(x) is int for x in span)
+                    and 0<=span[0]<span[1]<=len(text)
+                    and text[span[0]:span[1]]==citation.get("quote")
+                    and citation.get("source_row_unit_ids")==row.get("source_unit_ids")):
+                valid.append({"source_id":uid,"quote":citation["quote"],"character_span":span})
+        for uid in sorted(targets,key=str):
+            matches=[c for c in valid if c["source_id"]==uid]
             if not matches:
-                unavailable.append({"proposal_id": prop["proposal_id"], "source_id": uid,
-                                    "reason": "source_reference_changed_or_retired"})
+                unavailable.append({"proposal_id":prop["proposal_id"],"source_id":uid,
+                                    "reason":"source_reference_changed_or_retired"})
                 continue
-            by_id.setdefault(uid, []).append({"proposal_id": prop["proposal_id"],
-                "kind": prop["kind"], "citations": matches, "status": "advisory_only"})
+            by_id.setdefault(uid,[]).append({"proposal_id":prop["proposal_id"],
+                "kind":prop["kind"],"citations":matches,
+                "related_citations":[c for c in valid if c["source_id"]!=uid],
+                "hypothesis":prop.get("hypothesis",""),
+                "status":"advisory_only"})
     return by_id, unavailable
 
 
@@ -62,7 +73,7 @@ def accepted_row_context(row, alternatives, visual):
         literal = frame.get("visible_text")
         if (frame.get("inside_event") is True and frame.get("text_kind") in ("entity_label", "title")
                 and not frame.get("uncertainty") and isinstance(literal, str)
-                and 2 <= len(literal.strip()) <= 120 and literal.strip() in text
+                and 2 <= len(literal.strip()) <= 120 and literal_match(text,literal.strip())
                 and isinstance(frame.get("sha256"), str)
                 and re.fullmatch(r"[a-f0-9]{64}", frame["sha256"])):
             labels.append({"literal": literal.strip(), "frame_id": frame["id"],
@@ -102,10 +113,7 @@ def literal_examples(row, glossary, context_rows=()):
     for source, target in glossary.translation_examples:
         if not source or not target:
             continue
-        if any(source == passage or (len(source) >= 2 and (
-                (re.search(r"[\u3400-\u9fff\u3040-\u30ff]",source) and source in passage)
-                or re.search(r"(?<!\w)" + re.escape(source) + r"(?!\w)", passage)))
-               for passage in [text,*related]):
+        if any(literal_match(passage,source) for passage in [text,*related]):
             item = {"source":source,"target":target}
             item["id"] = text_digest(json.dumps(item,ensure_ascii=False,sort_keys=True))
             result.append(item)

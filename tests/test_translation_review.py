@@ -784,3 +784,23 @@ def test_joint_source_and_mt_negation_veto_even_if_native_comparator_approves():
     assert result[0]["translated_text"]==rows[0]["translated_text"]
     assert report["rejected_polarity"]==1
     assert result[0]["translation_review_status"]=="review_rejected_polarity_preserved_machine_translation"
+
+
+
+def test_dependent_edits_from_separate_native_comparisons_are_not_spliced():
+    class Native(FakeClient):
+        def complete(self,**kwargs):
+            result=super().complete(**kwargs)
+            result["choices"][0]["finish_reason"]="stop"
+            return result
+    rows=[{"id":"a","speaker_id":"A","source_text":"Il a fermé la","translated_text":"He closed it"},
+          {"id":"b","speaker_id":"A","source_text":"porte.","translated_text":"Door."}]
+    client=Native(
+        {"reviews":[{"utterance_id":"a","corrected_text":"He closed the","reason":"Object follows"}]},
+        {"decisions":[{"utterance_id":"a","choice":"proposal","reason":"Approve"}]},
+        {"reviews":[{"utterance_id":"b","corrected_text":"door.","reason":"Continuation"}]},
+        {"decisions":[{"utterance_id":"b","choice":"proposal","reason":"Approve"}]})
+    cfg=_cfg(wire_protocol="ninfer_messages",thinking_budget=2048,reasoning_effort="xhigh",batch_size=1)
+    out,report=review_translated_utterances(rows,source_language="fr",config=cfg,text_client=client)
+    assert [r["translated_text"] for r in out]==[r["translated_text"] for r in rows]
+    assert report["dependent_passage_rejections"]==2 and report["changed"]==0

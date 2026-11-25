@@ -546,39 +546,6 @@ def review_translated_utterances(
                 for i in range(start, end):
                     out[i]["translation_review_status"] = "review_error_preserved_machine_translation"
                 continue
-        # A mixed verdict on edits to one unfinished source sentence is
-        # not the joined candidate passage the comparator evaluated.
-        dependent_veto=set()
-        if cfg.wire_protocol=="ninfer_messages":
-            groups=[]
-            group=[]
-            for i in range(start,end):
-                if group:
-                    prev=out[i-1]
-                    speaker=out[i].get("speaker_id")
-                    if ((prev.get("speaker_id") and speaker and prev.get("speaker_id")!=speaker)
-                            or re.search(r"""[.!?。！？…][\s"'”’]*$""",str(prev.get("source_text") or ""))):
-                        groups.append(group)
-                        group=[]
-                group.append(i)
-            if group:
-                groups.append(group)
-            for group in groups:
-                changed_group=[i for i in group if entries[all_ids[i]].get("changed") is True]
-                if len(changed_group)<2:
-                    continue
-                eligible=[]
-                for i in changed_group:
-                    item=entries[all_ids[i]]
-                    comparison=item.get("comparative_review")
-                    candidate=item.get("corrected_text")
-                    eligible.append(isinstance(comparison,dict) and comparison.get("choice")=="proposal"
-                        and not item.get("deferred_comparison") and isinstance(candidate,str)
-                        and bool(candidate.strip())
-                        and not _unsupported_polarity_inversion(str(out[i].get("source_text") or ""),
-                            out[i]["machine_translated_text"],candidate,source_language))
-                if any(eligible) and not all(eligible):
-                    dependent_veto.update(all_ids[i] for i,ok in zip(changed_group,eligible) if ok)
         valid_for_cache = True
         for i in range(start, end):
             uid = _uid(out[i], i)
@@ -595,6 +562,7 @@ def review_translated_utterances(
                 valid_for_cache = False
                 continue
             out[i]["translation_review_source_sha256"]=text_digest(str(out[i].get("source_text") or ""))
+            out[i]["translation_review_batch_sha256"]=key
             out[i]["translation_review_reason"] = item["reason"]
             out[i]["translation_reviewed_text"] = candidate.strip()
             if changed and item.get("deferred_comparison"):
@@ -630,11 +598,6 @@ def review_translated_utterances(
                     comparative_rejections += 1
                     reviewed_count += 1
                     continue
-            if uid in dependent_veto:
-                out[i]["translation_review_status"]="review_rejected_dependent_passage_preserved_machine_translation"
-                dependent_rejections+=1
-                reviewed_count+=1
-                continue
             out[i]["translation_review_status"] = "corrected" if changed else "unchanged"
             if changed:
                 out[i]["translated_text"] = candidate.strip()
@@ -649,6 +612,46 @@ def review_translated_utterances(
                 ensure_ascii=False, indent=2,
             ), encoding="utf-8")
             tmp.replace(ckpt)
+    # Validate the final selection across batch and subdivision boundaries.
+    # A mixed verdict, or separately compared dependent changes, is not the
+    # complete joined passage the comparator saw. Retain primary for that
+    # unfinished source sentence; unrelated complete cues are unaffected.
+    if cfg.wire_protocol=="ninfer_messages":
+        groups=[]
+        group=[]
+        for i,u in enumerate(out):
+            if all_ids[i] not in selected:
+                if group:
+                    groups.append(group)
+                    group=[]
+                continue
+            if group:
+                prev=out[i-1]
+                speaker=u.get("speaker_id") or u.get("global_speaker_id")
+                prior_speaker=prev.get("speaker_id") or prev.get("global_speaker_id")
+                if ((prior_speaker and speaker and prior_speaker!=speaker)
+                        or re.search(r"""[.!?。！？…][\s"'”’]*$""",str(prev.get("source_text") or ""))):
+                    groups.append(group)
+                    group=[]
+            group.append(i)
+        if group:
+            groups.append(group)
+        for group in groups:
+            accepted=[i for i in group if out[i].get("translation_review_status")=="corrected"]
+            if not accepted:
+                continue
+            keys={out[i].get("translation_review_batch_sha256") for i in accepted}
+            rejected=any(
+                out[i].get("translation_review_status") not in ("corrected","unchanged")
+                and (out[i].get("translation_reviewed_text")!=out[i].get("machine_translated_text")
+                     or out[i].get("translation_review_status","").startswith(("review_error","review_invalid","review_deferred")))
+                for i in group)
+            if rejected or len(keys)>1:
+                for i in accepted:
+                    out[i]["translated_text"]=out[i]["machine_translated_text"]
+                    out[i]["translation_review_status"]="review_rejected_dependent_passage_preserved_machine_translation"
+                    dependent_rejections+=1
+                    changed_count-=1
     if target_utterance_ids is not None:
         out = [u if all_ids[i] in selected else {**utterances[i]} for i, u in enumerate(out)]
     return out, {

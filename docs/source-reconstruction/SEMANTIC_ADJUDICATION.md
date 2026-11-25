@@ -51,8 +51,9 @@ English review receives source-bound acoustic/visual evidence and the same
 literal operator examples in proposal and comparison. Original dedicated MT
 is retained even on rereview. Source-first candidate generation and independent
 comparison remain required for changed proposals; no blanket bypass. A mixed
-accept/reject result within an unfinished same-speaker source passage cannot
-splice a new unsupported English passage. The existing French source/primary
+accept/reject result within an unfinished same-speaker source passage, including
+across subdivision or separately compared batches, cannot splice a new
+unsupported English passage. The existing French source/primary
 negation guard also remains in force. Twelve target rows is the draft candidate
 batch default (previously six). Explicit native completion exhaustion can
 subdivide a batch without accepting incomplete output; whitespace-loop compact

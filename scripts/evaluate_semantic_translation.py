@@ -181,6 +181,8 @@ def controls(root,registry,manager,resource):
         frames,reply=inspect_scene(client,media,row,root,SceneEvidencePolicy(max_frames=3))
         context=accepted_row_context(row,[],frames)
         mismatch=accepted_row_context({**row,"source_text":"Nadya attend."},[],frames)
+        # The known rendered text is Nadia. A misread frame is recorded as
+        # model error, never treated as verified identity or speech.
         original=deepcopy(row)
         if frames:
             applied=apply_decision(row,{"decision":{"action":"caption","candidate_id":frames[0]["id"],
@@ -189,7 +191,8 @@ def controls(root,registry,manager,resource):
                 raise ValueError("Visual-only text changed a spoken source row")
         write(root/"private-visual-control.json",{"known_rendered_text":"Nadia","frames":frames,
             "response":reply,"accepted_literal_context":context,"mismatched_source_context":mismatch,
-            "source_mutated":row!=original,"synthetic_pixels_not_asr":True})
+            "source_mutated":row!=original,"synthetic_pixels_not_asr":True,
+            "known_literal_observed":any(f.get("visible_text")=="Nadia" or f.get("caption")=="Nadia" for f in frames)})
     write(root/"private-language-controls.json",results)
 
 
