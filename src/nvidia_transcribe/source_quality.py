@@ -24,7 +24,7 @@ from nvidia_transcribe.parser import split_lexical_units
 from nvidia_transcribe.semantic_review import run_tiered_text_reviews
 from nvidia_transcribe.source_occurrences import stable_id
 from nvidia_transcribe.recording_context import (
-    RecordingContextPolicy, context_inventory, run_recording_context,
+    RecordingContextPolicy, compact_recording_context, context_inventory, run_recording_context,
 )
 
 
@@ -926,5 +926,6 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
     # Store raw challenge observations in the current private job, not a
     # historical correction tree. The canonical recording references them.
     return {**recording, "utterances": rows, "source_quality": {
-        k: v for k, v in report.items() if k != "acoustic_observations"
+        k: compact_recording_context(v) if k == "recording_context" else v
+        for k, v in report.items() if k != "acoustic_observations"
     }}, report

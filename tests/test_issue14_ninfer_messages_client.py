@@ -418,3 +418,15 @@ def test_comparator_whitespace_loop_suppresses_identical_larger_retry(monkeypatc
     assert reply["choices"][0]["finish_reason"] == "length"
     assert reply["_client_request_diagnostics"]["native_stop_reason"] == "max_tokens"
     assert reply["_client_request_diagnostics"]["completion_attempts"][0]["retry_suppressed_reason"] == "runaway_output_whitespace"
+
+
+
+def test_messages_preserves_native_input_token_usage(monkeypatch):
+    response = _finished_response()
+    response["usage"]["input_tokens"] = 1234
+    _client_transport(monkeypatch, responses=[Reply(body=response)])
+    result = NInferMessagesTextClient(base_url="http://localhost:8001/v1", model="chat").complete(
+        messages=_messages(), max_tokens=1792, thinking_budget=1024, reasoning_effort="xhigh")
+    assert result["usage"]["prompt_tokens"] == 1234
+    attempt, = result["_client_request_diagnostics"]["completion_attempts"]
+    assert attempt["usage"] == response["usage"]

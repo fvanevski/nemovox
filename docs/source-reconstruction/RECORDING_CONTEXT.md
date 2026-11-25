@@ -15,7 +15,7 @@ relationship coverage. A transport/schema/usage failure is a partial report,
 not a reason to invent or silently relax native reasoning settings.
 
 Literal citations must resolve within the actual request and quote unique
-observed substrings, with original source row and unit references. Entity and
+observed substrings, with original source row references and their complete unit inventory (not a claim of exact quote-to-unit alignment). Entity and
 relationship proposals are advisory only, including suggested spellings; no
 automatic glossary, speaker attribution, transcript edit or time assignment.
 Consequential anomaly nominations carry one cited original target. The shared
@@ -36,10 +36,10 @@ Use the current candidate source and existing owned resources. The script
 requires current manifest-bound original recording contracts and their sidecars.
 It never rewrites an old manifest to accept an incompatible historical input.
 
-Run \`PYTHONPATH=src <core-python> -m scripts.evaluate_recording_context --help\`.
-Use repeated \`--recording\` with actual authenticated retained bounded French
-and multilingual recordings, an absolute \`--model-resources\` path, optional
-\`--lifecycle-config\`, and a new \`--output-dir\`. The default mode executes
+Run `PYTHONPATH=src <core-python> -m scripts.evaluate_recording_context --help`.
+Use repeated `--recording` with actual authenticated retained bounded French
+and multilingual recordings, an absolute `--model-resources` path, optional
+`--lifecycle-config`, and a new `--output-dir`. The default mode executes
 real native context and the actual planner with/without nominations on the
 same inputs, no acoustic/model translation calls. Preserve private response
 texts and usage receipts. Review actual hypotheses for unsupported entity
@@ -50,7 +50,9 @@ and bounded subdivision via the CPU suite.
 
 If a suitable exact bounded crop is available and actual nominations merit
 acoustic investigation, use the same module with one recording and
-\`--live-media\` pointing to its fingerprint-identical media. This uses the
+`--live-media` pointing to its fingerprint-identical media. This uses the
 actual source-quality orchestrator, not an alternate resolver. Its bounded
 evaluation policy does not change normal defaults. No requirement to repeat
 all prior acoustic controls or run a full episode at this increment.
+
+The private source-quality report retains raw answer text; the canonical contract carries only validated hypotheses and compact attempt receipts. No raw rejected answer is passed to downstream consumers.

@@ -8,6 +8,8 @@ import json
 import math
 import time
 
+import httpx
+
 from nvidia_transcribe.source_occurrences import stable_id
 
 SCHEMA = "nemovox-recording-context/v1"
@@ -25,7 +27,7 @@ SYSTEM = (
     "source_text, with their source_id. For entity_variant and relationship cite at least two "
     "distinct rows and set target_source_id to an empty string. For an acoustic nomination "
     "cite the exact target row and set target_source_id to that row's ID. "
-    "Use an empty proposals array for no useful hypotheses. "
+    "Keep within maximum_proposals; use an empty proposals array for no useful hypotheses. "
     "Never propose timestamps, speaker assignments, source replacements or accepted facts."
 )
 
@@ -94,9 +96,10 @@ def context_inventory(recording, ledger):
     return rows, excluded
 
 
-def _request(recording_sha, language, rows):
+def _request(recording_sha, language, rows, proposal_limit):
     # Keep source-unit IDs in local provenance, not in the model's token stream.
     body = {"recording_sha256": recording_sha, "source_language": language,
+            "maximum_proposals": proposal_limit,
             "rows": [{k: v for k, v in r.items() if k != "source_unit_ids"} for r in rows]}
     return {**body, "request_sha256": digest(body)}
 
@@ -153,7 +156,7 @@ def _validate_proposal(proposal, rows, request_sha):
         seen.add(key)
         citations.append({"source_id": uid, "quote": quote,
                           "character_span": [key[1], key[2]],
-                          "source_unit_ids": index[uid]["source_unit_ids"]})
+                          "source_row_unit_ids": list(index[uid]["source_unit_ids"])})
     ids = {c["source_id"] for c in citations}
     if kind in ADVISORY_KINDS:
         if target or len(ids) < 2:
@@ -227,7 +230,8 @@ def run_recording_context(recording, ledger, *, client, policy=None):
     while queue:
         batch = queue.popleft()
         ids = [r["source_id"] for r in batch]
-        request = _request(recording_sha, recording["source_language"], batch)
+        request = _request(recording_sha, recording["source_language"], batch,
+                           policy.max_proposals_per_call)
         prompt = json.dumps(request, ensure_ascii=False, separators=(",", ":"))
         schema = _schema(request["request_sha256"])
         byte_count = len(SYSTEM.encode()) + len(prompt.encode()) + len(
@@ -282,7 +286,8 @@ def run_recording_context(recording, ledger, *, client, policy=None):
                     proposals.append(item)
             covered.update(ids)
             receipt["status"] = "validated_response"
-        except Exception as exc:
+        except (ValueError, KeyError, IndexError, TypeError, AttributeError, RuntimeError,
+                OSError, httpx.HTTPError) as exc:
             # Record failure, do not substitute guesses or retry transport
             # failures. Details may contain private prompt/auth information.
             receipt["status"] = "failed"
@@ -318,5 +323,16 @@ def run_recording_context(recording, ledger, *, client, policy=None):
             "native_token_totals": {key: sum(a[key] for a in attempts if type(a.get(key)) is int)
                 for key in ("input_tokens", "output_tokens", "reasoning_tokens", "final_answer_tokens")},
             "all_attempt_token_usage_reported": all(a.get("token_accounting_complete") for a in attempts),
-            "cross_segment_relationships_evaluated": len(attempts) == 1 and len(covered) == len(rows),
+            "whole_recording_in_single_validated_request": (
+                len(attempts) == 1 and len(covered) == len(rows) and not excluded
+                and attempts[0]["status"] == "validated_response"),
             "source_truth_accepted": False, "source_modified": False}
+
+
+
+def compact_recording_context(report):
+    """Carry validated hypotheses and receipts, not rejected raw model answers."""
+    if report is None:
+        return None
+    return {**report, "attempts": [{k: v for k, v in attempt.items() if k != "answer_text"}
+                                  for attempt in report["attempts"]]}
