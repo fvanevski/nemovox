@@ -63,3 +63,7 @@ See [Studio output/export and log behavior](../docs/gui/STUDIO_OUTPUTS.md) for t
 host export-root configuration, task-specific artifact choices, collision-safe
 copies, persistent logs, typed progress and full job history. Selecting a host
 folder does not change the browser download directory or the CLI runtime.
+
+### Independent source evidence
+
+Studio uses the same occurrence-directed source-quality pipeline as the CLI. An optional explicit `source_challenger` resource binding enables bounded cached CPU Whisper observations; see [model resource configuration](../docs/model-resources/CONFIGURATION.md). Unavailable or unresolved evidence remains visible in the current job's source-quality report.

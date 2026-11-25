@@ -255,3 +255,37 @@ def test_global_alignment_budget_retains_late_candidate_and_defers_others():
     assert [len(x[0]) for x in admitted]==[1,1]
     assert receipt["admitted_candidates"]==2
     assert sum(d["status"]=="skipped_recording_alignment_budget" for _,ds in admitted for d in ds)==4
+
+
+def test_independent_worker_admission_binds_receipts_and_cpu_device(tmp_path,monkeypatch):
+    import json
+    from types import SimpleNamespace
+    from nvidia_transcribe.model_resources import ModelResource
+    from nvidia_transcribe import source_recovery as recovery
+    python=tmp_path/"python"
+    python.touch()
+    checkpoint=tmp_path/"checkpoint"
+    checkpoint.mkdir()
+    resource=ModelResource("test","whisper_cpu",checkpoint_path=str(checkpoint),
+                           worker_python=str(python),device="cpu")
+    monkeypatch.setattr(recovery,"extract_wav_segment",lambda *a,**kw:None)
+    monkeypatch.setattr(recovery,"validate_wav_file",lambda p:(10.,p.stem))
+    target={"target_id":"target","crops":[(0.,10.),(2.,12.)]}
+    bad=False
+    def run(cmd,**kw):
+        req=json.loads(kw["input"])
+        assert kw["env"]["CUDA_VISIBLE_DEVICES"]=="" and kw["env"]["HF_HUB_OFFLINE"]=="1"
+        assert 0<kw["timeout"]<=900
+        result={"device":"cpu","backend":"faster-whisper","compute_type":"int8",
+                "observations":[{"id":c["id"],"audio_sha256":c["audio_sha256"] if not bad else "wrong",
+                "crop":[c["start"],c["end"]],"rows":[]} for c in req["crops"]]}
+        return SimpleNamespace(returncode=0,stdout=json.dumps(result),stderr="")
+    monkeypatch.setattr(recovery.subprocess,"run",run)
+    media=SimpleNamespace(path="media",selected_audio_stream=0,duration_s=100.)
+    kwargs=dict(challenger_resource=resource,output_dir=tmp_path,policy=SourceQualityPolicy())
+    report=recovery.acquire_independent_evidence(recording(),[target],media,**kwargs)
+    assert report["status"]=="observed" and report["requests"]==2
+    assert report["resource"]["resource_fingerprint"]==resource.fingerprint()
+    bad=True
+    report=recovery.acquire_independent_evidence(recording(),[target],media,**kwargs)
+    assert report["status"]=="error" and not report["observations"]

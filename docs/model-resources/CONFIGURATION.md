@@ -39,6 +39,7 @@ environment) before running the CLI or Studio.
 | `translation_review` | `openai_chat` | `text_local` | Independent English post-edit of dedicated MT using source context |
 | `subtitle_condensation` | `openai_chat` | `text_local` | Shorten dense subtitle cues |
 | `riva_translation` | `riva_worker` | `riva_local` | Dedicated Riva translation worker |
+| `source_challenger` | `whisper_cpu` | none (optional explicit binding) | Independent, selectively admitted CPU acoustic evidence |
 | `forced_alignment` | `qwen_forced_aligner` | `qwen_local` | Optional selective Qwen forced alignment |
 | `speaker_embedding` | `titanet` | `titanet_cpu` | NeMo speaker embeddings on CPU |
 
@@ -249,3 +250,23 @@ exact source and do not verify these changes. Fresh CPU/TypeScript/UI tests
 and bounded host checks are required. Live ASR/Riva/text inference is UNVERIFIED
 until safely exercised on the actual configured host without interrupting
 shared GPU processes.
+
+## Optional independent acoustic challenger
+
+The shared source-quality scheduler can request bounded independent faster-whisper evidence after the managed Nemotron scope releases. Configure the optional `source_challenger` role explicitly in the host-local resource JSON, using an existing complete multilingual CTranslate2 checkpoint and a dedicated Nemovox-owned Python environment with faster-whisper installed. No model or environment is downloaded automatically. Example additional entries (replace the placeholder paths with authenticated host paths):
+
+```json
+{
+  "resources": {
+    "whisper_local": {
+      "adapter": "whisper_cpu",
+      "checkpoint_path": "/absolute/path/to/cached/large-v3-ct2",
+      "worker_python": "/workspace/nvidia-transcribe/.venv-challenger/bin/python",
+      "device": "cpu"
+    }
+  },
+  "roles": {"source_challenger": "whisper_local"}
+}
+```
+
+Merge these entries into the existing version-1 configuration; do not replace unrelated roles. Worker execution uses CPU int8 and local-files-only admission. Missing or unusable resources are explicit unresolved/error outcomes, not silent model substitution. The source-quality report distinguishes admitted tasks, acquisition receipts, resource deferral, occurrence resolutions and unresolved candidates. Qwen remains optional timing-only work; it cannot supply independent recognition of submitted wording.
