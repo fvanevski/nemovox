@@ -1,0 +1,29 @@
+REPO_ID=fvanevski/nemovox
+REMOTE_ORIGIN=https://github.com/fvanevski/nemovox.git
+ISSUE_NUMBER=17
+WORKING_BRANCH=issue/17
+BASE_SHA=9dd863841f72ab5f9aebf5bb4deb322bee99edf1
+TESTED_SOURCE_SHA=a3b59a7898e6aa0509173d751a2c23409d5185a4
+OBJECT_TYPE=commit
+CANDIDATE_WORKTREE=/tmp/nemovox-issue17-a1.acb5qC/candidate
+CANDIDATE_STATUS=0 dirty files
+CORE_PYTHON=/workspace/nvidia-transcribe/.venv/bin/python
+CORE_IMPORT_PATH=/tmp/nemovox-issue17-a1.acb5qC/candidate/src/nvidia_transcribe/__init__.py
+STUDIO_PYTHON=/workspace/nvidia-transcribe/.venv-studio/bin/python
+STUDIO_IMPORT_PATH=/tmp/nemovox-issue17-a1.acb5qC/candidate/src/nvidia_transcribe/__init__.py
+PRIVATE_ARCHIVE_PATH=/workspace/nvidia-transcribe/outputs/handbacks/source-reconstruction-diagnostic-20261124/source-reconstruction-diagnostic-review.tar.gz
+PRIVATE_ARCHIVE_SHA256=307c0a32bd4ae32008be0141d5ac12e066f96a728bfcb179c0b343bf2031fd7b
+UNCOMMITTED_SOURCE_CHANGES=none
+
+=== CHANGED_FILES (BASE..CANDIDATE) ===
+A	docs/source-reconstruction/LOCAL_INTEGRATION.md
+A	scripts/replay_source_occurrences.py
+M	src/nvidia_transcribe/alignment.py
+M	src/nvidia_transcribe/contract.py
+M	src/nvidia_transcribe/recording.py
+M	src/nvidia_transcribe/source_events.py
+A	src/nvidia_transcribe/source_occurrences.py
+M	src/nvidia_transcribe/subtitle_pipeline.py
+M	src/nvidia_transcribe/translation.py
+M	src/nvidia_transcribe/utterances.py
+A	tests/test_source_occurrences.py
