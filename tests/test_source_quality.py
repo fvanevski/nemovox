@@ -216,7 +216,7 @@ def test_shared_pipeline_translates_canonical_source_not_prior_asr(tmp_path, mon
         config=pipeline.SubtitlePipelineConfig(
             source_quality="on", translation=TranslationConfig(backend="riva"),
             translation_review=TranslationReviewConfig(profile="balanced")),
-        lifecycle=object(), lifecycle_resources=resources,
+        lifecycle=object(), lifecycle_resources=resources, asr_client=object(),
     )
     assert order == ["messages", "acoustic", "translate", "messages", "review"]
     assert json.loads(recording_path.read_text()) == original

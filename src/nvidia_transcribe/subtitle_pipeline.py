@@ -6,7 +6,7 @@ import json
 import os
 import time
 from contextlib import nullcontext
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
@@ -302,9 +302,12 @@ def generate_subtitles(
                 challenger_resource=lifecycle_resources.get("source_challenger"),
                 lifecycle=lifecycle)
             if asr_client is None and text_client is None:
-                fingerprints={role:lifecycle_resources[role].fingerprint()
+                fingerprints={role:{"name":lifecycle_resources[role].name,
+                                    "fingerprint":lifecycle_resources[role].fingerprint()}
                     for role in ("asr","translation_review","source_challenger")
                     if lifecycle_resources.get(role) is not None}
+                fingerprints["owned_services"]={name:asdict(service)
+                    for name,service in lifecycle.services.items()}
                 key=quality_checkpoint_identity(contract,rc_path,media_path,cfg.source_quality_policy,fingerprints)
                 contract,quality_report,quality_resume=run_checkpoint(
                     out_dir/"source-quality.checkpoint.json",key,contract,resume=cfg.resume,run=compute_quality)

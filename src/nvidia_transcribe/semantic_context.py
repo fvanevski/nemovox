@@ -72,6 +72,7 @@ def accepted_row_context(row, alternatives, visual):
     for frame in visual:
         literal = frame.get("visible_text")
         if (frame.get("inside_event") is True and frame.get("text_kind") in ("entity_label", "title")
+                and frame.get("literal_observation_status")=="model_observed"
                 and not frame.get("uncertainty") and isinstance(literal, str)
                 and 2 <= len(literal.strip()) <= 120 and literal_match(text,literal.strip())
                 and isinstance(frame.get("sha256"), str)

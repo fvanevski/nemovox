@@ -695,6 +695,7 @@ def test_rereview_preserves_original_mt_and_bound_context():
     row={"id":"u","source_text":"Nadia revient.","machine_translated_text":"Nadia returns.",
          "translated_text":"Nadia comes back.","source_start":1.,"source_end":2.}
     frame={"id":"f","inside_event":True,"visible_text":"Nadia","text_kind":"entity_label",
+           "literal_observation_status":"model_observed",
            "uncertainty":"","sha256":"a"*64,"requested_seek_s":1.5}
     row["semantic_context"]=accepted_row_context(row,[],[frame])
     client=FakeClient({"reviews":[{"utterance_id":"u","corrected_text":"Nadia returns.",

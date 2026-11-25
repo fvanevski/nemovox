@@ -85,3 +85,7 @@ efficiency require adjudication, not simply fewer API calls. Current-version
 resume and final matched geometry/full episode remain C3.
 
 Reference for Riva chat template: https://huggingface.co/nvidia/Riva-Translate-4B-Instruct-v2#chat-template-structure
+
+## Final integration policy
+
+The normal candidate retains twelve-row review and requests an explicit joined-passage verdict in the same comparative call for changed multi-row source passages. The result must include every changed cue and every requested passage ID; a rejected joined passage preserves primary MT even if individual cue verdicts favor the proposal. Compact recovery uses the same ID set. This is a stronger model adjudication contract, not a deterministic proof of grammar or meaning. A visually extracted literal now has one explicit category; only a validated, legible dialogue_caption can enter the caption evidence path. Descriptions, branding and uncertain/malformed literals cannot authorize source text. Caption-supported edits adopt the uniquely supported acoustic candidate's exact observed text. See FINAL_QUALIFICATION.md for the current defaults and campaign.

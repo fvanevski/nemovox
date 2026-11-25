@@ -133,6 +133,7 @@ def test_context_nominations_and_visual_literals_are_row_bound():
     assert nominations["t"][0]["status"]=="advisory_only"
     assert unavailable[0]["source_id"]=="missing"
     frame={"id":"f","inside_event":True,"visible_text":"Nadia","text_kind":"entity_label",
+           "literal_observation_status":"model_observed",
            "uncertainty":"","sha256":"a"*64,"requested_seek_s":101.}
     context=accepted_row_context(base,[],[frame])
     assert context["visual_literals"][0]["literal"]=="Nadia"

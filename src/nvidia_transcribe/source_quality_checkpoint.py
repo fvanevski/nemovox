@@ -24,8 +24,13 @@ def identity(recording, recording_path, media_path, policy, resources):
     # implementation change; no assertion of immutable served model weights.
     root=Path(__file__).parent
     code={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(root.glob("*.py"))}
+    # The existing recording fingerprint samples the file head/tail. Exact
+    # reuse also requires the full media bytes, including its middle.
+    with Path(media_path).open("rb") as stream:
+        media_sha=hashlib.file_digest(stream,"sha256").hexdigest()
     return _digest({"schema":SCHEMA,"recording":_digest(recording),"ledger":_digest(ledger),
-        "media":media.fingerprint_sha256,"audio_stream":source["selected_audio_stream"],
+        "media":media.fingerprint_sha256,"full_media_sha256":media_sha,
+        "audio_stream":source["selected_audio_stream"],
         "policy":asdict(policy),"resources":resources,"code":code})
 
 
@@ -39,7 +44,20 @@ def reusable(report):
         and isinstance(context,dict)
         and not any(a.get("status")=="failed" for a in context.get("attempts",[]))
         and not recovery.get("errors") and recovery.get("status")!="error"
+        and not (recovery.get("status")=="not_configured" and recovery.get("targets"))
         and not scene.get("errors"))
+
+
+def frame_receipts_available(report,root):
+    for case in report.get("scene_evidence",{}).get("decisions",[]):
+        for frame in case.get("visual",[]):
+            path=Path(frame["path"]).resolve()
+            if not path.is_relative_to(root.resolve()) or not path.is_file():
+                return False
+            with path.open("rb") as stream:
+                if hashlib.file_digest(stream,"sha256").hexdigest()!=frame["sha256"]:
+                    return False
+    return True
 
 
 def run_checkpoint(path, key, recording, *, resume, run):
@@ -58,7 +76,7 @@ def run_checkpoint(path, key, recording, *, resume, run):
                     and canonical["source"]==recording["source"]
                     and canonical["source_language"]==recording["source_language"]
                     and canonical["source_quality"]["recording_sha256"]==report["recording_sha256"]
-                    and reusable(report)):
+                    and reusable(report) and frame_receipts_available(report,path.parent)):
                 return canonical,report,"reused_exact_input"
         except (OSError,ValueError,KeyError,TypeError,AttributeError):
             pass
@@ -66,7 +84,7 @@ def run_checkpoint(path, key, recording, *, resume, run):
     # A failed fresh run must not resurrect a previous successful result.
     path.unlink(missing_ok=True)
     canonical,report=run()
-    if reusable(report):
+    if reusable(report) and frame_receipts_available(report,path.parent):
         payload={"canonical":canonical,"report":report}
         doc={"schema":SCHEMA,"input_sha256":key,"payload_sha256":_digest(payload),"payload":payload}
         tmp=path.with_name("."+path.name+".tmp")

@@ -338,8 +338,28 @@ def review_translated_utterances(
         if key in cached and isinstance(cached[key], dict):
             hit = cached[key]
             if set(hit) == set(ids) and all(isinstance(x, dict) for x in hit.values()):
-                entries = hit
-                hits += len(ids)
+                valid_hit=True
+                if cfg.wire_protocol=="ninfer_messages":
+                    try:
+                        for passage in _passage_checks(targets,hit):
+                            for uid in passage["target_ids"]:
+                                if hit[uid]["changed"]:
+                                    receipt=hit[uid]["passage_review"]
+                                    decision=receipt["verdict"]
+                                    if ({k:x for k,x in receipt.items() if k!="verdict"}!=passage
+                                            or decision["utterance_id"]!=passage["utterance_id"]
+                                            or decision["choice"] not in ("original","proposal")
+                                            or not isinstance(decision["reason"],str) or not decision["reason"].strip()):
+                                        valid_hit=False
+                    except (TypeError,KeyError,AttributeError):
+                        valid_hit=False
+                if valid_hit:
+                    entries = hit
+                    hits += len(ids)
+                else:
+                    # Do not leave a malformed old receipt as the only cache
+                    # entry after a successful new comparison.
+                    del cached[key]
         if entries is None:
             payload = {
                 "glossary_characters": list(gl.characters), "glossary_terms": list(gl.terms),

@@ -47,3 +47,54 @@ def test_failed_fresh_run_does_not_resurrect_checkpoint(tmp_path):
     bad={**report,"recording_context":{"attempts":[{"status":"failed"}]}}
     assert run_checkpoint(path,"id",rec,resume=True,run=lambda:({**rec,"source_quality":bad},bad))[2]=="computed_not_reusable"
     assert not path.exists()
+
+
+
+def test_identity_binds_complete_media_ledger_and_policy(tmp_path,monkeypatch):
+    import hashlib
+    from types import SimpleNamespace
+    from dataclasses import replace
+    from nvidia_transcribe import source_quality_checkpoint as checkpoint
+    from nvidia_transcribe.source_quality import SourceQualityPolicy
+    rec={"source":{"fingerprint_sha256":"media","selected_audio_stream":0,"duration_s":2.},
+         "source_language":"fr","processing":{"chunks":[{"chunk_index":0,"raw_response_sha256":"raw"}]},
+         "utterances":[{"id":"a","source_text":"Bonjour"}]}
+    ledger={"schema_version":"nemovox-source-evidence/v1","recognized_occurrence_inventories":[],
+            "media_fingerprint_sha256":"media","source_language":"fr",
+            "asr_observations":[{"chunk_index":0,"raw_response_sha256":"raw"}]}
+    recording=tmp_path/"recording.contract.json"
+    recording.write_text(json.dumps(rec))
+    sidecar=tmp_path/"source-evidence.v1.json"
+    sidecar.write_text(json.dumps(ledger))
+    (tmp_path/"manifest.json").write_text(json.dumps({"asr_run_status":"completed",
+        "recording_contract_sha256":hashlib.sha256(recording.read_bytes()).hexdigest(),
+        "source_evidence":{"sha256":hashlib.sha256(sidecar.read_bytes()).hexdigest()}}))
+    media=tmp_path/"video.mkv"
+    media.write_bytes(b"test media")
+    monkeypatch.setattr(checkpoint,"probe_media",lambda *a,**k:SimpleNamespace(
+        fingerprint_sha256="media",duration_s=2.))
+    policy=SourceQualityPolicy()
+    get=lambda p=policy,r={"asr":"one"}:checkpoint.identity(rec,recording,media,p,r)
+    key=get()
+    assert get()==key
+    assert get(replace(policy,max_windows=5))!=key
+    assert get(r={"asr":"two"})!=key
+    media.write_bytes(b"test other")
+    assert get()!=key
+    sidecar.write_bytes(sidecar.read_bytes()+b" ")
+    with pytest.raises(ValueError,match="source evidence"):
+        get()
+
+
+def test_missing_or_modified_frame_receipt_invalidates_reuse(tmp_path):
+    import hashlib
+    from nvidia_transcribe.source_quality_checkpoint import frame_receipts_available
+    frame=tmp_path/"frame.png"
+    frame.write_bytes(b"original")
+    report={"scene_evidence":{"decisions":[{"visual":[{
+        "path":str(frame),"sha256":hashlib.sha256(frame.read_bytes()).hexdigest()}]}]}}
+    assert frame_receipts_available(report,tmp_path)
+    frame.write_bytes(b"altered!")
+    assert not frame_receipts_available(report,tmp_path)
+    frame.unlink()
+    assert not frame_receipts_available(report,tmp_path)

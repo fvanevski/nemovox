@@ -59,7 +59,7 @@ def review_metrics(report):
         totals["reasoning_tokens"]+=thinking
         totals["final_answer_tokens"]+=out-thinking
     return {**{k:report.get(k) for k in ("status","batch_size","reviewed","changed","rejected_polarity",
-        "comparative_rejections","dependent_passage_rejections","comparative_calls",
+        "comparative_rejections","dependent_passage_rejections","joined_passage_rejections","comparative_calls",
         "completion_retries","api_calls","elapsed_s","deferred_comparison_ids","errors")},
         "native_usage_totals_reported_attempts":totals,"native_attempt_count":len(attempts),
         "native_usage_complete":missing==0 and len(attempts)==report.get("api_calls"),
@@ -140,7 +140,10 @@ def controls(root,registry,manager,resource):
         ("fr", [{"id":"fr-negative","source_text":"Il ne va pas fermer la porte."},
                 {"id":"fr-idiom","source_text":"Ils se sont fichus de nous !"},
                 {"id":"fr-restriction","source_text":"Il ne voit que la porte."},
-                {"id":"fr-name","source_text":"Nadia attend devant la porte."}],
+                {"id":"fr-name","source_text":"Nadia attend devant la porte."},
+                {"id":"fr-idiom-context","source_text":"Ils se sont fichus de nous en nous donnant de fausses pistes."},
+                {"id":"fr-direction-a","speaker_id":"A","source_text":"Il a mis directement"},
+                {"id":"fr-direction-b","speaker_id":"A","source_text":"le cap à l'ouest."}],
          GlossaryConfig(translation_examples=(("fermer la porte","close the door"),("porte","door")))),
         ("zh", [{"id":"zh-negative","source_text":"不要打开门。"},
                 {"id":"zh-positive","source_text":"他已经打开门了。"},
