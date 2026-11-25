@@ -146,3 +146,52 @@ def test_coherent_boundary_span_not_truncated_and_context_alternative_retained()
     assert not merged
     assert diag["source_dispositions"][0]["status"] == "context_candidate_unresolved"
     assert diag["source_dispositions"][0]["source_unit_id"] == context[0]["source_unit_id"]
+
+
+def test_two_real_repeats_keep_both_core_occurrences_with_bound_references():
+    from nvidia_transcribe.chunking import ChunkSpec, reconcile_chunk_boundaries
+    from nvidia_transcribe.occurrence_locality import assess_occurrence_locality
+    words = ["we", "must", "leave", "this", "place", "now"]
+    raw = "<spk:0> " + " ".join(words) + " <spk:0> " + " ".join(words)
+    specs = [ChunkSpec(0, 0, 10, 0, 14), ChunkSpec(1, 10, 20, 6, 20)]
+    chunks = []
+    for spec, shift in zip(specs, (0, .1)):
+        native = recover_chunk_alignment(raw_text=raw, ctc_payload={"words": [
+            word(t, onset+i*.28+shift) for onset in (8, 10)
+            for i, t in enumerate(words)]}, source_offset_s=0, chunk_index=spec.chunk_index,
+            model_path=None)
+        bind_occurrence_inventory(observation_id=source_observation_id("media",
+            str(spec.chunk_index+1)*64, spec), raw_text=raw, projected_text=raw,
+            units=native["units"], native_observations=native["diagnostic"]["native_ctc_observations"])
+        units, _ = assess_occurrence_locality(native["units"],
+            infer_start_s=spec.infer_start_s, infer_end_s=spec.infer_end_s)
+        for u in units:
+            u["global_speaker_id"] = "SPK_A"
+        chunks.append(units)
+    merged, diag = reconcile_chunk_boundaries(chunks, specs)
+    assert [u["text"] for u in merged] == words + words
+    assert all(u["valid_timing"] for u in merged)
+    selected = {u["source_unit_id"] for u in merged}
+    decisions = diag["source_dispositions"]
+    assert len(decisions) == 24
+    assert {d["source_unit_id"] for d in decisions if d["status"].startswith("selected_")} == selected
+    alternatives = [d for d in decisions if d["status"] == "alternate_not_selected"]
+    assert len(alternatives) == 12
+    assert all(d["related_source_unit_ids"] and not d["occurrence_truth_accepted"]
+               for d in alternatives)
+
+
+def test_optional_alignment_refresh_preserves_span_identity():
+    from nvidia_transcribe.occurrence_locality import assess_occurrence_locality, refresh_span_ownership
+    raw = "<spk:0> missing timing"
+    rec = recover(raw, [])
+    bind(rec, raw)
+    units, report = assess_occurrence_locality(rec["units"], infer_start_s=0, infer_end_s=20)
+    before = [u["occurrence_span_id"] for u in units]
+    for i, unit in enumerate(units):
+        unit.update(start=2+i*.3, end=2.2+i*.3, valid_timing=True,
+                    alignment_status="external_qwen_recovered")
+    refresh_span_ownership(units, report)
+    assert [u["occurrence_span_id"] for u in units] == before
+    assert all(u["occurrence_bounds_s"] == [2, 2.5] for u in units)
+    assert report["spans"][0]["locality_status"] == "unlocalized"

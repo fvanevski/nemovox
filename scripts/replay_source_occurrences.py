@@ -6,13 +6,16 @@ import hashlib
 import json
 from pathlib import Path
 import tarfile
-from types import SimpleNamespace
-from collections import Counter
+from collections import Counter, defaultdict
 
 from nvidia_transcribe.alignment import recover_chunk_alignment
 from nvidia_transcribe.prompts import cleanup_generation_loops
 from nvidia_transcribe.source_occurrences import bind_occurrence_inventory, source_observation_id
 from nvidia_transcribe.occurrence_locality import assess_occurrence_locality
+from nvidia_transcribe.chunking import ChunkSpec, reconcile_chunk_boundaries
+from nvidia_transcribe.speakers import normalize_chunk_speakers
+from nvidia_transcribe.timing_evidence import audit_ctc_timing_units
+from nvidia_transcribe.utterances import reconstruct_speaker_utterances
 
 
 def sha(data):
@@ -55,10 +58,27 @@ def main():
         raise ValueError("Expected one unique 16-chunk source ledger with all exact raw bytes")
     ledger = eligible[0]
     summary, details = [], []
+    specs, baseline_chunks, candidate_chunks = [], [], []
+    # Freeze historical speaker hypotheses for this matched comparison.
+    # This isolates selection/locality behavior from new speaker reconciliation.
+    voice_hypotheses = defaultdict(set)
+    for unit in ledger.get("lexical_observations", []):
+        if unit.get("local_speaker_id") and unit.get("global_speaker_hypothesis"):
+            voice_hypotheses[unit["local_speaker_id"]].add(unit["global_speaker_hypothesis"])
+
+    def normalize(units, native, spec):
+        normalized, _ = normalize_chunk_speakers(chunk_index=spec.chunk_index,
+            units=units, diarization=native["diarization"],
+            speaker_mapping=native["speaker_mapping"])
+        for unit in normalized:
+            candidates = voice_hypotheses[unit["local_speaker_id"]]
+            unit["global_speaker_id"] = next(iter(candidates)) if len(candidates) == 1 else "SPK_UNK"
+        return normalized
     for row in sorted(ledger["asr_observations"], key=lambda r: r["chunk_index"]):
         raw = raw_by_sha[row["raw_response_sha256"]]
-        spec = SimpleNamespace(**{k: row[k] for k in (
+        spec = ChunkSpec(**{k: row[k] for k in (
             "chunk_index", "infer_start_s", "infer_end_s", "core_start_s", "core_end_s")})
+        specs.append(spec)
         text = raw["choices"][0]["message"]["content"]
         projected = cleanup_generation_loops(text)
         rec = recover_chunk_alignment(
@@ -87,6 +107,10 @@ def main():
             units, infer_start_s=spec.infer_start_s, infer_end_s=spec.infer_end_s)
         assert {u["source_unit_id"] for u in audited} == ids
         assert sorted(uid for span in locality["spans"] for uid in span["source_unit_ids"]) == sorted(ids)
+        baseline_units, _ = audit_ctc_timing_units(
+            units, infer_start_s=spec.infer_start_s, infer_end_s=spec.infer_end_s)
+        baseline_chunks.append(normalize(baseline_units, rec, spec))
+        candidate_chunks.append(normalize(audited, rec, spec))
         summary.append({
             "chunk_index": spec.chunk_index,
             "raw_response_sha256": row["raw_response_sha256"],
@@ -108,11 +132,55 @@ def main():
                         "locality": locality, "audited_units": audited})
     if len({r["chunk_index"] for r in summary}) != 16:
         raise ValueError("Repeated or incomplete accepted chunk identity")
+    all_ids = {u["source_unit_id"] for group in candidate_chunks for u in group}
+    def selection(chunk_units):
+        selected, diagnostic = reconcile_chunk_boundaries(chunk_units, specs)
+        dispositions = diagnostic["source_dispositions"]
+        assert len(dispositions) == len(all_ids)
+        assert {d["source_unit_id"] for d in dispositions} == all_ids
+        assert all(set(d["related_source_unit_ids"]) <= all_ids for d in dispositions)
+        selected_ids = {u["source_unit_id"] for u in selected}
+        assert len(selected_ids) == len(selected)
+        assert selected_ids == {d["source_unit_id"] for d in dispositions
+                                if d["status"].startswith("selected_")}
+        utterances = reconstruct_speaker_utterances(selected,
+            source_language=ledger["source_language"],
+            chunk_windows={c.chunk_index: (c.infer_start_s, c.infer_end_s) for c in specs})
+        assert {uid for u in utterances for uid in u["source_unit_ids"]} == selected_ids
+        return selected, dispositions, utterances
+
+    baseline, old_dispositions, old_rows = selection(baseline_chunks)
+    candidate, new_dispositions, new_rows = selection(candidate_chunks)
+    old_ids = {u["source_unit_id"] for u in baseline}
+    new_ids = {u["source_unit_id"] for u in candidate}
+    def metrics(units, dispositions, rows):
+        return {"dispositions": dict(Counter(d["status"] for d in dispositions)),
+                "selected_units": len(units),
+                "selected_untimed_units": sum(not u["valid_timing"] for u in units),
+                "utterances": len(rows),
+                "wholly_untimed_utterances": sum(u["source_start"] is None for u in rows)}
+    comparison = {
+        "control": "same candidate lexical association, historical fixed speaker hypotheses, existing timing audit, unit ownership",
+        "candidate": "same input and speaker hypotheses, pre-selection locality and coherent span ownership",
+        "control_metrics": metrics(baseline, old_dispositions, old_rows),
+        "candidate_metrics": metrics(candidate, new_dispositions, new_rows),
+        "selected_only_by_control": len(old_ids - new_ids),
+        "selected_only_by_candidate": len(new_ids - old_ids),
+        "all_original_observations": len(all_ids),
+        "acoustic_truth_accepted": False,
+    }
     args.output_dir.mkdir(parents=True, exist_ok=False)
     (args.output_dir / "summary.json").write_text(json.dumps({
         "archive_sha256": args.archive_sha256, "chunks": summary,
-        "note": "Raw replay only; no acoustic truth, boundary-selection or timing-improvement claim."
+        "matched_selection_comparison": comparison,
+        "note": "Matched offline policy ablation, not an exact historical executable or independent acoustic truth."
     }, indent=2), encoding="utf-8")
+    (args.output_dir / "private-selection.json").write_text(json.dumps({
+        "control_dispositions": old_dispositions, "candidate_dispositions": new_dispositions,
+        "control_utterances": old_rows, "candidate_utterances": new_rows,
+        "selected_only_by_control": sorted(old_ids - new_ids),
+        "selected_only_by_candidate": sorted(new_ids - old_ids),
+    }, ensure_ascii=False, indent=2), encoding="utf-8")
     (args.output_dir / "private-details.json").write_text(
         json.dumps(details, ensure_ascii=False, indent=2), encoding="utf-8")
     print("Replayed 16 authenticated raw responses; inspect per-chunk association statuses.")

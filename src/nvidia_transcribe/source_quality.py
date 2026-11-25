@@ -779,7 +779,16 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
     deferred_case_ids = [c["case_id"] for c in request["cases"]
                          if c["case_id"] not in reviewed_case_ids]
     discovery_deferred = request.get("deferred_by_budget", 0)
-    uncertain = (bool(unresolved or deferred or deferred_case_ids or discovery_deferred)
+    # Occurrence-level alternatives and disputed locality are explicit inputs
+    # to the successor recovery planner (#18). The existing review cannot
+    # declare them resolved merely because its older window queue is empty.
+    pending_spans = sorted({span["id"]
+        for inventory in ledger.get("recognized_occurrence_inventories", [])
+        for span in inventory.get("locality", {}).get("spans", [])
+        if span["locality_status"] == "disputed" or any(
+            d["status"] == "context_candidate_unresolved"
+            for d in span.get("selection_dispositions", []))})
+    uncertain = (bool(unresolved or deferred or deferred_case_ids or discovery_deferred or pending_spans)
                  or any(d["status"].startswith("unresolved") for d in decisions)
                  or bool(recovery["decisions"] or recovery["errors"])
                  or bool(scene["errors"] or scene["deferred_source_ids"])
@@ -795,6 +804,7 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
         "source_language": recording["source_language"],
         "text_advisory": advisory, "deferred_text_case_ids": deferred_case_ids,
         "discovery_deferred_by_budget": discovery_deferred,
+        "pending_occurrence_span_ids": pending_spans,
         "windows": windows, "deferred_windows": deferred,
         "acoustic_observations": observations, "decisions": decisions,
         "unresolved_windows": unresolved, "audio_requests": len(observations),

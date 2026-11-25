@@ -35,7 +35,7 @@ from nvidia_transcribe.speakers import (
     reconcile_speakers,
 )
 from nvidia_transcribe.utterances import reconstruct_speaker_utterances
-from nvidia_transcribe.occurrence_locality import assess_occurrence_locality
+from nvidia_transcribe.occurrence_locality import assess_occurrence_locality, refresh_span_ownership
 from nvidia_transcribe.speech_chunks import detect_silence_intervals, plan_pause_aware_chunks
 from nvidia_transcribe.source_events import build_source_evidence_ledger
 
@@ -192,7 +192,7 @@ def _config_signature(
     }
     # Current source contracts bind the actual plan; invalidate pre-consolidation checkpoints.
     payload.update({
-        "source_pipeline_schema": "current-job-source/v2",
+        "source_pipeline_schema": "current-job-source/v3",
         "chunk_policy": cfg.chunk_policy,
         "chunk_plan": [s.to_dict() for s in chunks] if chunks is not None else None,
         "chunk_plan_metadata": plan_metadata,
@@ -791,6 +791,7 @@ def process_media(
     # Phase 3: normalize speakers and build final utterances only after the
     # Qwen session has been torn down and ASR restoration verified.
     for idx, rec in enumerate(native_records):
+        refresh_span_ownership(rec["units"], occurrence_inventories[idx]["locality"])
         alignment_diagnostics.append(rec["diagnostic"])
         if rec["alignment_status"] not in (
             "ctc_aligned",

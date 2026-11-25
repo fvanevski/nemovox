@@ -100,7 +100,7 @@ def assess_occurrence_locality(units, *, infer_start_s, infer_end_s,
                 # SOT may legitimately emit nonchronological turns. This is a
                 # candidate order conflict, NOT a reason to erase usable timing.
                 prior, previous_bounds = prior_turn
-                refs = [prior[0]["source_unit_id"], turn[0]["source_unit_id"]]
+                refs = [u["source_unit_id"] for u in prior + turn]
                 findings.append({
                     "id": stable_id("locality", ["nonchronological_turn_hypothesis", refs]),
                     "reason": "nonchronological_turn_hypothesis",
@@ -141,3 +141,24 @@ def assess_occurrence_locality(units, *, infer_start_s, infer_end_s,
     return audited, {"schema": "nemovox-occurrence-locality/v1", "spans": spans,
                      "findings": findings, "timing_audit": audit,
                      "acoustic_truth_accepted": False}
+
+
+def refresh_span_ownership(units, report, *, pause_split_s=0.85):
+    """Keep pre-alignment identity, refresh usable ownership after optional alignment.
+
+    A recovered word can change candidate ownership only if the entire
+    original span has coherent usable timing. Never reinterpret a disputed
+    native occurrence as independently established by forced alignment.
+    """
+    by_id = {u["source_unit_id"]: u for u in units}
+    for span in report["spans"]:
+        group = [by_id[uid] for uid in span["source_unit_ids"]]
+        intervals = [_bounds(u) for u in group]
+        coherent = (span["locality_status"] != "disputed" and all(b is not None for b in intervals)
+                    and all(b[0] >= a[0] - .2 and b[0] - a[1] <= pause_split_s
+                            for a, b in zip(intervals, intervals[1:])))
+        bounds = ([min(a for a, _ in intervals), max(b for _, b in intervals)]
+                  if coherent else None)
+        span["post_alignment_usable_bounds_s"] = bounds
+        for u in group:
+            u["occurrence_bounds_s"] = bounds
