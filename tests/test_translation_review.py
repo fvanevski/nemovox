@@ -877,3 +877,92 @@ def test_missing_joined_passage_verdict_preserves_primary_and_not_cached(tmp_pat
     assert report["comparison_recoveries"][0]["reason"]=="missing_comparative_decision_ids"
     assert [r["translated_text"] for r in result]==[r["translated_text"] for r in rows]
     assert not path.exists()
+
+
+
+def test_completed_malformed_comparison_recovers_on_identical_evidence(tmp_path):
+    from nvidia_transcribe.translation_review import _standard_decisions, ComparativeDecisionError
+    import pytest
+    invalid=[
+        ({"decisions":[{"utterance_id":"unknown","choice":"proposal","reason":"x"}]},"unexpected_decision_id:0"),
+        ({"decisions":[{"utterance_id":"u0","choice":"proposal","reason":"x"}]*2},"duplicate_decision_id:1"),
+        ({"decisions":[{"utterance_id":"u0","choice":"maybe","reason":"x"}]},"invalid_decision_choice:0"),
+        ({"decisions":[{"utterance_id":"u0","choice":"proposal","reason":" "}]},"invalid_decision_reason:0"),
+        ({"decisions":[]},"missing_comparative_decision_ids"),
+        ({"decisions":[{"utterance_id":"u0","choice":"proposal"}]},"invalid_decision_shape:0"),
+    ]
+    for i,(bad,code) in enumerate(invalid):
+        client=_LoopReviewClient(_loop_proposals(),bad,
+                                {"reason":"Source spelling","verdicts":["u0=proposal"]})
+        path=tmp_path/f"review-{i}.json"
+        result,report=review_translated_utterances(_utts(),source_language="fr",
+            config=_loop_cfg(),text_client=client,checkpoint_path=path)
+        assert report["status"]=="completed" and report["changed"]==1
+        assert result[0]["translated_text"]=="Hello, Esteban."
+        receipt,=report["comparison_recoveries"]
+        assert receipt["reason"]==code and receipt["outcome"]=="complete"
+        assert json.loads(receipt["initial_rejected_response"]["answer_text"])==bad
+        assert client.calls[1]["messages"][1]==client.calls[2]["messages"][1]
+        assert report["api_calls"]==3 and path.is_file()
+
+
+def test_uncertain_source_hallucinated_locations_veto_even_after_comparator_approval():
+    from nvidia_transcribe.review_uncertainty import bind_review_uncertainty, current_uncertainty
+    from copy import deepcopy
+    row={"id":"bus","source_text":"巴士开往北港，在岩角停靠。","source_unit_ids":["u1"],
+         "translated_text":"The bus goes to Northport, stopping at Rock Point."}
+    prop={"proposal_id":"p","kind":"hallucination","target_source_id":"bus",
+          "status":"advisory_only","source_truth_accepted":False,"citations":[
+          {"source_id":"bus","quote":"巴士","character_span":[0,2],"source_row_unit_ids":["u1"]}]}
+    quality={"schema":"nemovox-current-source-quality/v1","recording_sha256":"record",
+        "recording_context":{"recording_sha256":"record","proposals":[prop]},
+        "context_proposal_dispositions":[{"proposal_id":"p","kind":"hallucination",
+            "source_ids":["bus"],"status":"hypothesis_unresolved"}],
+        "scene_evidence":{"decisions":[{"source_id":"bus","outcome":"unresolved"}]}}
+    bound=bind_review_uncertainty([row],quality)
+    assert "review_source_uncertainty" not in row
+    assert current_uncertainty(bound[0])["nominations"][0]["kind"]=="hallucination"
+    guessed="The bus goes to Singapore, stopping at Rochor."
+    client=_LoopReviewClient({"reviews":[{"utterance_id":"bus","corrected_text":guessed,"reason":"Likely geography"}]},
+        {"decisions":[{"utterance_id":"bus","choice":"proposal","reason":"Plausible setting"}]})
+    result,report=review_translated_utterances(bound,source_language="zh",config=_loop_cfg(),text_client=client)
+    assert result[0]["translated_text"]==row["translated_text"]
+    assert result[0]["translation_comparative_review"]["choice"]=="proposal"
+    assert report["unresolved_source_rejections"]==1
+    assert "unresolved_source_evidence" in json.loads(client.calls[0]["messages"][1]["content"])["target_utterances"][0]
+    assert json.loads(client.calls[1]["messages"][1]["content"])["comparisons"][0]["source_and_original"]["unresolved_source_evidence"]
+    # A stale reference cannot acquire a new row or altered source text.
+    stale=deepcopy(bound[0]);stale["source_text"]="不同的话。"
+    assert current_uncertainty(stale) is None
+    stale_rows=bind_review_uncertainty([{**row,"source_unit_ids":["other"]}],quality)
+    assert not current_uncertainty(stale_rows[0])["nominations"]
+    # Uncertain rows are not frozen: a complete explicit operator mapping
+    # or a lexical-preserving grammatical improvement remains admissible.
+    from nvidia_transcribe.review_uncertainty import uncertainty_veto
+    assert uncertainty_veto(bound[0],row["translated_text"],
+        "A bus goes to Northport, stopping at Rock Point!",GlossaryConfig()) is None
+    assert uncertainty_veto(bound[0],row["translated_text"],guessed,
+        GlossaryConfig(translation_examples=((row["source_text"],guessed),))) is None
+
+
+def test_direction_construction_veto_on_joined_exact_candidate():
+    from nvidia_transcribe.translation_review import _bad_joined_direction
+    assert _bad_joined_direction("He headed straight for west.")
+    assert _bad_joined_direction("He headed straight for the course west.")
+    assert not _bad_joined_direction("He headed straight west.")
+    assert not _bad_joined_direction("He headed for the west coast.")
+    class Native:
+        def complete(self,**kwargs):
+            payload=json.loads(kwargs["messages"][1]["content"])
+            if "target_utterances" in payload:
+                body={"reviews":[{"utterance_id":"a","corrected_text":"He headed straight","reason":"Direction"},
+                                 {"utterance_id":"b","corrected_text":"for west.","reason":"Continuation"}]}
+            else:
+                ids=["a","b"]+[p["utterance_id"] for p in payload["passage_checks"]]
+                body={"decisions":[{"utterance_id":uid,"choice":"proposal","reason":"Approve"} for uid in ids]}
+            return {"choices":[{"finish_reason":"stop","message":{"content":json.dumps(body)}}]}
+    rows=[{"id":"a","source_text":"Il a mis directement","translated_text":"He headed"},
+          {"id":"b","source_text":"le cap à l'ouest.","translated_text":"west."}]
+    out,report=review_translated_utterances(rows,source_language="fr",config=_loop_cfg(),text_client=Native())
+    assert report["direction_grammar_rejections"]==2 and report["changed"]==0
+    assert [r["translated_text"] for r in out]==["He headed","west."]

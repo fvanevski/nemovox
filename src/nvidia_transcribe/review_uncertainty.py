@@ -32,6 +32,9 @@ def bind_review_uncertainty(rows, quality):
     if not isinstance(quality,dict) or quality.get("schema")!="nemovox-current-source-quality/v1":
         return result
     context=quality.get("recording_context") or {}
+    if context and (not quality.get("recording_sha256")
+                    or context.get("recording_sha256")!=quality["recording_sha256"]):
+        raise ValueError("Unresolved context recording identity mismatch")
     dispositions={x["proposal_id"]:x for x in quality.get("context_proposal_dispositions",[])
                   if x.get("status")=="hypothesis_unresolved"}
     props=[p for p in context.get("proposals",[])
@@ -88,7 +91,7 @@ def _tokens(text):
 
 def _anchors(text):
     """Conservative English name/number heuristic, not entity recognition."""
-    return [w.casefold() for w in _WORD.findall(text)
+    return [w.casefold().replace("’","'") for w in _WORD.findall(text)
             if any(c.isdigit() for c in w)
             or (w[0].isupper() and w.casefold() not in _COMMON)]
 
