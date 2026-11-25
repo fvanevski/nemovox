@@ -30,7 +30,7 @@ from nvidia_transcribe.translation import (
 )
 from nvidia_transcribe.translation_review import TranslationReviewConfig, review_translated_utterances
 from nvidia_transcribe.ninfer_messages_client import QUALITY_COMPLETION_TOKENS, QUALITY_TIMEOUT_S
-from nvidia_transcribe.utterances import apply_validation_overlay, audit_and_reconstruct_contract
+from nvidia_transcribe.utterances import apply_validation_overlay
 
 
 @dataclass(frozen=True)
@@ -75,7 +75,6 @@ class SubtitlePipelineConfig:
     re_render_only: bool = False
     condense_high_cps: bool = False
     condense_cps_threshold: float = 25.0
-    reconstruct_untimed_order: bool = True
     source_quality: str = "auto"  # auto: Riva subtitle jobs with original media and managed resources
     source_quality_policy: SourceQualityPolicy = SourceQualityPolicy()
     validation_overlay_path: str | Path | None = None
@@ -239,21 +238,8 @@ def generate_subtitles(
                 raise FileNotFoundError(f"Recording contract not found: {rc_path}")
             _log(f"Stage 1/4: Loading existing recording contract {rc_path}")
             contract = retained_contract
-            if (not retained_canonical and cfg.reconstruct_untimed_order
-                    and any(u.get("source_start") is None for u in (contract.get("utterances") or []))):
-                m_path = rc_path.parent / "manifest.json"
-                manifest_chunks = None
-                if m_path.is_file():
-                    try:
-                        manifest_chunks = json.loads(m_path.read_text(encoding="utf-8")).get("chunks")
-                    except Exception:
-                        manifest_chunks = None
-                chunks_dir = rc_path.parent / "chunks"
-                contract, _audit = audit_and_reconstruct_contract(
-                    contract,
-                    chunk_raw_dir=chunks_dir if chunks_dir.is_dir() else None,
-                    manifest_chunks=manifest_chunks,
-                )
+            # Retained and fresh recordings enter source quality with the same
+            # immutable IDs. No positional renumbering or heuristic duplicate label.
             default_stem = Path(str((contract.get("source") or {}).get("path") or rc_path)).stem
         else:
             if media_path is None:

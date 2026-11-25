@@ -24,6 +24,7 @@ from nvidia_transcribe.contract import (
 )
 from nvidia_transcribe.media import MediaInfo, compute_file_sha256, extract_wav_segment, probe_media, validate_wav_file
 from nvidia_transcribe.prompts import cleanup_generation_loops
+from nvidia_transcribe.source_occurrences import bind_occurrence_inventory, source_observation_id
 from nvidia_transcribe.qwen_aligner import (QwenAlignerConfig, QwenForcedAlignerAdapter, map_language_for_qwen_aligner)
 from nvidia_transcribe.selective_alignment import AdmissionPolicy, apply_selective_recovery, plan_selective_recovery
 from nvidia_transcribe.gpu_handoff import (ManagedASRBlocked, ManagedASRLifecycleError, ManagedASRConfig, managed_asr_handoff)
@@ -191,7 +192,7 @@ def _config_signature(
     }
     # Current source contracts bind the actual plan; invalidate pre-consolidation checkpoints.
     payload.update({
-        "source_pipeline_schema": "current-job-source/v1",
+        "source_pipeline_schema": "current-job-source/v2",
         "chunk_policy": cfg.chunk_policy,
         "chunk_plan": [s.to_dict() for s in chunks] if chunks is not None else None,
         "chunk_plan_metadata": plan_metadata,
@@ -579,10 +580,9 @@ def process_media(
             or any(a.core_end_s!=b.core_start_s for a,b in zip(effective_chunks,effective_chunks[1:]))):
         raise RuntimeError("Effective ASR cores do not cover the planned media")
     chunks=effective_chunks
-    raw_texts = [
-        cleanup_generation_loops((((r.get("choices") or [{}])[0]).get("message") or {}).get("content") or "")
-        for r in chunk_raws
-    ]
+    original_raw_texts = [(((r.get("choices") or [{}])[0]).get("message") or {}).get("content") or ""
+                          for r in chunk_raws]
+    raw_texts = [cleanup_generation_loops(text) for text in original_raw_texts]
 
     resolved_lang, lang_prov, lang_details = _resolve_recording_language(
         explicit_language=cfg.source_language,
@@ -604,6 +604,7 @@ def process_media(
     # Phase 1: finish *every* ASR/LID and native CTC/subinterval request
     # before considering CUDA Qwen or a managed ASR vLLM release.
     native_records: list[dict[str, Any]] = []
+    occurrence_inventories: list[dict[str, Any]] = []
 
     def _extract_sub_wav(index: int, sub_start: float, sub_end: float) -> Path:
         duration = max(0.2, sub_end - sub_start)
@@ -646,6 +647,12 @@ def process_media(
             source_language=resolved_lang,
             subinterval_wav_extractor=_sub_wav_extract,
         )
+        occurrence_inventories.append(bind_occurrence_inventory(
+            observation_id=source_observation_id(media.fingerprint_sha256,
+                chunk_manifest_entries[idx]["raw_response_sha256"], spec),
+            raw_text=original_raw_texts[idx], projected_text=raw_text, units=rec["units"],
+            native_observations=rec["diagnostic"].pop("native_ctc_observations"),
+        ))
         native_records.append(rec)
         raw_events.extend(
             extract_events_from_raw_text(
@@ -846,6 +853,8 @@ def process_media(
         diarization_by_chunk=[rec["diarization"] for rec in native_records],
     )
 
+    source_evidence["recognized_occurrence_inventories"] = occurrence_inventories
+
     # The immutable source ledger already contains model-derived activity
     # hypotheses. Use them ONLY to prioritize review of potentially missing
     # speech; this does not certify acoustic occurrence or alter source units.
@@ -865,6 +874,13 @@ def process_media(
         chunk_units_norm, chunks,
         semantic_review_activity_by_chunk=semantic_activity_by_chunk,
     )
+
+    # Keep an explicit selection disposition for every projected source unit.
+    # A1 does not certify the existing boundary policy; A2 will replace it.
+    retained_ids = {u["source_unit_id"] for u in merged_units}
+    for row in source_evidence["lexical_observations"]:
+        row["boundary_disposition"] = ("selected_by_current_policy" if row["id"] in retained_ids
+                                       else "not_selected_by_current_policy_unadjudicated")
 
     # Independent per-speaker utterance reconstruction anchored to true chunk bounds.
     chunk_windows = {c.chunk_index: (c.infer_start_s, c.infer_end_s) for c in chunks}

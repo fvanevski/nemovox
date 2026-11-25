@@ -351,6 +351,10 @@ def reconstruct_speaker_utterances(
                 elif u.get("chunk_index") is not None and prev.get("chunk_index") is not None and u["chunk_index"] != prev["chunk_index"]:
                     should_split = True
 
+            if (u.get("recognized_turn_id") and prev.get("recognized_turn_id")
+                    and u["recognized_turn_id"] != prev["recognized_turn_id"]):
+                should_split = True
+
             if should_split:
                 groups.append(cur_group)
                 cur_group = [u]
@@ -454,8 +458,16 @@ def reconstruct_speaker_utterances(
             )
 
     reconstructed.sort(key=lambda utt: utt.pop("_order_key"))
+    from nvidia_transcribe.source_occurrences import stable_id
     for idx, utt in enumerate(reconstructed):
-        utt["id"] = f"utt-{idx:04d}"
+        units = utt["source_words"] + utt["source_characters"]
+        refs = sorted(u["source_unit_id"] for u in units if u.get("source_unit_id"))
+        if refs and len(refs) == len(units):
+            utt["id"] = stable_id("utt", refs)
+            utt["source_unit_ids"] = refs
+            utt["recognized_turn_ids"] = sorted({u["recognized_turn_id"] for u in units})
+        else:
+            utt["id"] = f"utt-{idx:04d}"
     return reconstructed
 
 
