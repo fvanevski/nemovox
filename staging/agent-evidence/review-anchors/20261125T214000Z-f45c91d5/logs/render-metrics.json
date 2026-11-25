@@ -1,0 +1,32 @@
+{
+  "bounded": {
+    "baseline_render": null,
+    "candidate_render": null,
+    "baseline_srt_sha256": "5de170b229ca70f7b60737fe75526af59d8393b442ba2f72e43d858639ea0baa",
+    "candidate_srt_sha256": "13d2c7ec65371bfad9b2919a6de3345a10c00a3373d3a8af2f06d98f58da52f4",
+    "srt_identical_to_baseline": false,
+    "baseline_ass_sha256": "9371ddeb19cf01654a4c09f198029e3a91225c0d630666fdcfe3bd3678fc4a57",
+    "candidate_ass_sha256": "6d62099c4700de68386203a471427b984465261ee2185735e3bed17e1085e92f",
+    "ass_identical_to_baseline": false
+  },
+  "mandarin": {
+    "baseline_render": null,
+    "candidate_render": null,
+    "baseline_srt_sha256": "c2145a8f8094c0d04f82f871b92407d724e06cd759088976352b7213606fcd36",
+    "candidate_srt_sha256": "c2145a8f8094c0d04f82f871b92407d724e06cd759088976352b7213606fcd36",
+    "srt_identical_to_baseline": true,
+    "baseline_ass_sha256": "b111d2524a5d5990717aee88f8a418e1b437ebbb4da0e26237380da6b822d8c4",
+    "candidate_ass_sha256": "b111d2524a5d5990717aee88f8a418e1b437ebbb4da0e26237380da6b822d8c4",
+    "ass_identical_to_baseline": true
+  },
+  "french": {
+    "baseline_render": null,
+    "candidate_render": null,
+    "baseline_srt_sha256": "2f4f09a123280682408315a11abfa2087df1ac2a124ba989cf8e298703ece402",
+    "candidate_srt_sha256": "2e1586c7cb70b3cc591c18b04d69c610217f9f6d37df635cb4050ec076b6b31c",
+    "srt_identical_to_baseline": false,
+    "baseline_ass_sha256": "73e11676c150b8f9e7ea98f8496120eec20481c50ef4f5ba94a3d5125ba2bbe7",
+    "candidate_ass_sha256": "b60648795d2d9b97a59f7a70216d46f4dd5ee1ad0b4687d2460ae9d4df769f6f",
+    "ass_identical_to_baseline": false
+  }
+}

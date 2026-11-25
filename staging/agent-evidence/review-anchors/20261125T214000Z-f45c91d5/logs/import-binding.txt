@@ -1,0 +1,8 @@
+[candidate .venv]
+/workspace/nvidia-transcribe/outputs/handbacks/review-anchors-20261125T214000Z-f45c91d5/scratch/wt-candidate/src/nvidia_transcribe/__init__.py
+/workspace/nvidia-transcribe/outputs/handbacks/review-anchors-20261125T214000Z-f45c91d5/scratch/wt-candidate/src/nvidia_transcribe/review_uncertainty.py
+/workspace/nvidia-transcribe/outputs/handbacks/review-anchors-20261125T214000Z-f45c91d5/scratch/wt-candidate/src/nvidia_transcribe/translation_review.py
+[baseline .venv]
+/workspace/nvidia-transcribe/outputs/handbacks/review-anchors-20261125T214000Z-f45c91d5/scratch/wt-baseline/src/nvidia_transcribe/__init__.py
+/workspace/nvidia-transcribe/outputs/handbacks/review-anchors-20261125T214000Z-f45c91d5/scratch/wt-baseline/src/nvidia_transcribe/review_uncertainty.py
+/workspace/nvidia-transcribe/outputs/handbacks/review-anchors-20261125T214000Z-f45c91d5/scratch/wt-baseline/src/nvidia_transcribe/translation_review.py
