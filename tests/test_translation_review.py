@@ -1029,3 +1029,146 @@ def test_scene_uncertainty_retains_names_numbers_and_material_wording():
         assert uncertainty_veto(bound, original, candidate, GlossaryConfig()) == "unresolved_source_name_or_number_change"
     bound["review_source_uncertainty"]["source_quality_status"] = "unresolved_wording"
     assert uncertainty_veto(bound, original, "Nadia leaves on bus 403.", GlossaryConfig()) == "unresolved_source_material_lexical_change"
+
+
+@pytest.mark.parametrize("compact_reply,expected_status,expected_text,cache_written", [
+    ({"reason": "Source name.", "verdicts": ["u0=proposal"]},
+     "completed", "Hello, Esteban.", True),
+    ("exhausted", "completed_with_deferred_comparisons", "Hello, Estban.", False),
+    (RuntimeError("transport failed"), "completed_with_errors", "Hello, Estban.", False),
+])
+def test_terminal_native_comparison_exhaustion_recovers_without_weakening_review(
+        tmp_path, compact_reply, expected_status, expected_text, cache_written):
+    class ExhaustionClient(_LoopReviewClient):
+        def complete(self, *, messages, **kwargs):
+            if self.responses and self.responses[0] == "exhausted":
+                self.calls.append({"messages": messages, **kwargs})
+                self.responses.pop(0)
+                return {"choices": [{"finish_reason": "length",
+                                     "message": {"content": '{"decisions":[{"utterance_id":"u0"'}}],
+                        "_client_request_diagnostics": {"native_stop_reason": "max_tokens",
+                            "completion_attempts": [{"stop_reason": "max_tokens"}]}}
+            return super().complete(messages=messages, **kwargs)
+
+    proposal = {"reviews": [_loop_proposals()["reviews"][0]]}
+    client = ExhaustionClient(proposal, "exhausted", compact_reply)
+    checkpoint = tmp_path / "review.json"
+    out, report = review_translated_utterances(_utts()[:1], source_language="fr",
+        config=_loop_cfg(), text_client=client, checkpoint_path=checkpoint)
+    assert report["status"] == expected_status
+    assert out[0]["translated_text"] == expected_text
+    assert out[0]["machine_translated_text"] == "Hello, Estban."
+    assert report["api_calls"] == 3 and len(client.calls) == 3
+    assert report["subdivisions"] == []
+    receipt, = report["comparison_recoveries"]
+    assert receipt["reason"] == "terminal_comparative_output_exhausted"
+    assert client.calls[1]["messages"][1] == client.calls[2]["messages"][1]
+    assert checkpoint.exists() is cache_written
+    if expected_status == "completed":
+        assert receipt["outcome"] == "complete"
+        assert out[0]["translation_comparative_review"]["choice"] == "proposal"
+        assert report["reviewed"] == 1 and report["changed"] == 1
+    elif expected_status == "completed_with_deferred_comparisons":
+        assert receipt["outcome"] == "deferred_preserved_primary"
+        assert report["deferred_comparison_ids"] == ["u0"] and not report["errors"]
+        assert "translation_comparative_review" not in out[0]
+    else:
+        assert report["errors"] and not report["deferred_comparison_ids"]
+        assert "translation_comparative_review" not in out[0]
+
+
+def test_failed_review_public_offline_salvage_preserves_failure_and_exact_contract(
+        tmp_path, monkeypatch, capsys):
+    from pathlib import Path
+    from types import SimpleNamespace
+    from nvidia_transcribe import cli, translation
+    from nvidia_transcribe.translation import TranslationConfig
+    from nvidia_transcribe.subtitle_pipeline import SubtitlePipelineConfig, generate_subtitles
+    from scripts.evaluate_final_integration import current_render_metadata
+
+    record = tmp_path / "recording.contract.json"
+    record.write_text(json.dumps({"source_language": "fr",
+        "source": {"path": "/sample/french.mkv", "duration_s": 5.0},
+        "utterances": _utts()[:1]}), encoding="utf-8")
+    def fake_riva(*args, **kwargs):
+        return SimpleNamespace(returncode=0, stderr="", stdout=json.dumps({
+            "status": "ok", "device_used": "cuda:0",
+            "results": [{"utterance_id": "u0", "translated_text": "Hello, Estban."}]}))
+    monkeypatch.setattr(translation.subprocess, "run", fake_riva)
+    job = tmp_path / "job"
+    job.mkdir()
+    metadata_path = job / "subtitles.metadata.json"
+    metadata_path.write_text('{"subtitles":{"renderable_cues":99}}')
+    cfg = SubtitlePipelineConfig(source_language="fr",
+        translation=TranslationConfig(backend="riva", riva_device="cuda:0"),
+        translation_review=_cfg(), formats=("srt", "ass"))
+    with pytest.raises(RuntimeError, match="Required contextual English review did not complete"):
+        generate_subtitles(recording_contract_path=record, output_dir=job,
+            config=cfg, text_client=FakeClient(RuntimeError("transport failed")))
+    contract = job / "translated.contract.json"
+    original = contract.read_bytes()
+    retained = json.loads(original)
+    assert retained["translation_review"]["status"] == "completed_with_errors"
+    assert not metadata_path.exists() and not list(job.glob("*.srt"))
+    assert current_render_metadata(job, retained) is None
+
+    def no_inference(*args, **kwargs):
+        raise AssertionError("Offline salvage must not invoke inference or service commands")
+    monkeypatch.setattr(translation.subprocess, "run", no_inference)
+    resources = tmp_path / "resources.json"
+    resources.write_text(json.dumps({"version": 1, "resources": {"riva_local": {
+        "checkpoint_path": str(tmp_path / "missing-checkpoint"),
+        "worker_python": str(tmp_path / "missing-worker")}}}))
+    args = ["generate-subtitles", "--output-dir", str(job), "--re-render",
+            "--model-resources", str(resources), "--formats", "srt,ass"]
+    assert cli.main(args) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "OK"  # command succeeded; required review did not
+    assert result["render_status"] == "rendered_with_review_errors"
+    assert result["translation_review"]["status"] == "reused_translated_contract"
+    assert result["translation_review"]["retained_review_status"] == "completed_with_errors"
+    assert result["translation_review"]["errors"] == retained["translation_review"]["errors"]
+    assert contract.read_bytes() == original
+    assert current_render_metadata(job, retained)["render_status"] == "rendered_with_review_errors"
+    files = {fmt: Path(result["files"][fmt]) for fmt in ("srt", "ass")}
+    before = {fmt: path.read_bytes() for fmt, path in files.items()}
+    assert b"Hello, Estban." in before["srt"]
+    assert cli.main(args) == 0
+    second = json.loads(capsys.readouterr().out)
+    assert second["salvage_render_receipt"] == result["salvage_render_receipt"]
+    assert contract.read_bytes() == original
+    assert {fmt: path.read_bytes() for fmt, path in files.items()} == before
+    files["srt"].write_bytes(before["srt"] + b"modified")
+    assert current_render_metadata(job, retained) is None
+    files["srt"].write_bytes(before["srt"])
+    changed = dict(retained, source_language="es")
+    contract.write_text(json.dumps(changed))
+    assert current_render_metadata(job, changed) is None
+    contract.write_bytes(original)
+    assert current_render_metadata(job, retained) is not None
+    # The failed contract must stay unchanged even on a rejected overlay.
+    with pytest.raises(ValueError, match="overlay not allowed"):
+        generate_subtitles(output_dir=job, config=SubtitlePipelineConfig(
+            re_render_only=True, validation_overlay_path=tmp_path / "overlay.json"))
+    assert contract.read_bytes() == original
+
+
+def test_terminal_comparison_non_output_stop_is_not_a_recoverable_exhaustion(tmp_path):
+    class ContextStopClient(_LoopReviewClient):
+        def complete(self, *, messages, **kwargs):
+            if self.responses and self.responses[0] == "context_stop":
+                self.calls.append({"messages": messages, **kwargs})
+                self.responses.pop(0)
+                return {"choices": [{"finish_reason": "length", "message": {"content": "partial"}}],
+                        "_client_request_diagnostics": {
+                            "native_stop_reason": "model_context_window_exceeded"}}
+            return super().complete(messages=messages, **kwargs)
+    client = ContextStopClient({"reviews": [_loop_proposals()["reviews"][0]]}, "context_stop")
+    path = tmp_path / "review.json"
+    out, report = review_translated_utterances(_utts()[:1], source_language="fr",
+        config=_loop_cfg(), text_client=client, checkpoint_path=path)
+    assert report["status"] == "completed_with_errors"
+    assert report["errors"] and not report["comparison_recoveries"]
+    assert not report["deferred_comparison_ids"] and not path.exists()
+    assert out[0]["translated_text"] == "Hello, Estban."
+    assert len(client.calls) == 2

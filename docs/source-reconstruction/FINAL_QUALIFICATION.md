@@ -134,3 +134,30 @@ A cache miss is a hard stop, never a live model invocation. Review all changed
 dispositions and joined passages, including genuine names and numbers.
 The offline derived contract is not a fresh live inference receipt. Preserve
 the original execution identities and qualify current rendering separately.
+
+
+## Required-review failure boundaries
+
+Ordinary native comparative output exhaustion subdivides multi-row batches.
+At a single target, after the native client's bounded attempts, use the same
+compact comparison recovery as malformed decisions, with unchanged proposal,
+source, context and decision IDs. Successful compact decisions enter ordinary
+validation; a second malformed or exhausted reply may defer changed proposals
+only with complete primary MT. Transport, lifecycle and non-output stop
+failures remain errors. Prompt and validated proposal/cache identities do not
+change.
+
+Normal required-review failure persists the translated contract and fails the
+job; it invalidates prior render metadata but leaves existing subtitle files
+alone. Explicit `generate-subtitles --re-render` can salvage retained
+translations without model calls. CLI exit zero means rendering succeeded,
+not that review succeeded: metadata carries
+`render_status=rendered_with_review_errors`,
+`translation_review.status=reused_translated_contract`,
+`retained_review_status=completed_with_errors`, errors and blocked reason.
+The contract is unchanged; overlays are not allowed in failed-review salvage.
+A new salvage receipt binds its exact bytes and actual local SRT/ASS outputs,
+and old metadata is invalidated before the attempt. The evaluator counts only
+a matching salvage receipt with all referenced output bytes present, and
+reports the distinct salvage status, never a completed required review.
+Ordinary successful and deferred rerender behavior is unchanged.

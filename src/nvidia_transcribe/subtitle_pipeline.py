@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import time
@@ -218,6 +219,7 @@ def generate_subtitles(
 
     refined_path = out_dir / "refined.contract.json"
     quality_resume="not_requested"
+    salvage_review_error = False
 
     if cfg.re_render_only:
         _log("Stage 1-3: Reusing existing translated.contract.json (--re-render)")
@@ -232,6 +234,20 @@ def generate_subtitles(
         if retained_review.get("status") == "completed_with_deferred_comparisons":
             review_summary["retained_review_status"] = retained_review["status"]
             review_summary["deferred_comparison_ids"] = retained_review["deferred_comparison_ids"]
+        elif retained_review.get("status") == "completed_with_errors":
+            salvage_review_error = True
+            if cfg.validation_overlay_path is not None:
+                raise ValueError("Failed-review salvage must preserve the translated contract; overlay not allowed")
+            review_summary.update(
+                retained_review_status="completed_with_errors",
+                errors=retained_review.get("errors", []),
+                resource_blocked_reason=retained_review.get("resource_blocked_reason"),
+            )
+            # A failed or interrupted new render must not inherit an earlier
+            # successful salvage receipt. Existing subtitle files are retained.
+            (out_dir / "subtitles.metadata.json").unlink(missing_ok=True)
+            _log("Offline salvage: required English review remains failed; rendering retained translations")
+            _event("review", "failed", "Retained required review failed; offline salvage only")
     else:
         # Stage 1: Load existing recording contract or run chunked ASR.
         if recording_contract_path is not None:
@@ -448,8 +464,14 @@ def generate_subtitles(
             "translation_review": review_summary,
             "condensation": condense_summary,
         }
+        review_failed = (cfg.translation_review.profile != "off"
+                         and review_summary.get("status") == "completed_with_errors")
+        if review_failed:
+            # Invalidate an older successful render receipt before publishing
+            # the failed contract, even if the new failure repeats its bytes.
+            (out_dir / "subtitles.metadata.json").unlink(missing_ok=True)
         _atomic_write(translated_path, json.dumps(translated_contract, ensure_ascii=False, indent=2))
-        if cfg.translation_review.profile != "off" and review_summary.get("status") == "completed_with_errors":
+        if review_failed:
             if review_summary.get("resource_blocked_reason"):
                 raise ResourceLifecycleError(
                     review_summary["resource_blocked_reason"],
@@ -515,6 +537,25 @@ def generate_subtitles(
         "subtitle_conflicts": render_res["conflicts"][:200],
         "total_wall_time_s": elapsed_s,
     }
+    if salvage_review_error:
+        # Successful rendering is not successful required review. Bind this
+        # receipt to actual retained contract bytes and local subtitle outputs.
+        # Basenames make the receipt verifiable after moving a whole job.
+        outputs = {}
+        for fmt, filename in render_res["outputs"].items():
+            path = Path(filename)
+            if path.resolve().parent != out_dir.resolve():
+                raise ValueError("Salvage render output must be inside the job directory")
+            outputs[fmt] = {"name": path.name,
+                            "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+        if not outputs:
+            raise ValueError("Salvage render requires at least one subtitle output")
+        metadata["render_status"] = "rendered_with_review_errors"
+        metadata["salvage_render_receipt"] = {
+            "schema": "nemovox-failed-review-render/v1",
+            "translated_contract_sha256": hashlib.sha256(translated_path.read_bytes()).hexdigest(),
+            "outputs": outputs,
+        }
     _atomic_write(out_dir / "subtitles.metadata.json", json.dumps(metadata, ensure_ascii=False, indent=2))
-    _event("render", "complete")
+    _event("render", "complete", "Offline salvage; review remains failed" if salvage_review_error else "")
     return metadata

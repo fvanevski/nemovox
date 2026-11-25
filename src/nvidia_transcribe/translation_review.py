@@ -622,6 +622,11 @@ def review_translated_utterances(
                         elif _native_output_exhausted(verdict) and end-start>1:
                             subdivide(start,end,range_index,"comparison")
                             continue
+                        elif _native_output_exhausted(verdict):
+                            # A single target cannot be subdivided further.
+                            # Preserve its proposal and evidence for the same
+                            # bounded compact comparison used for malformed replies.
+                            recovery_reason="terminal_comparative_output_exhausted"
                         elif result.get("finish_reason")!="stop":
                             raise ValueError("Incomplete comparative review: "+
                                 json.dumps(verdict.get("_client_request_diagnostics",{}),ensure_ascii=False))
