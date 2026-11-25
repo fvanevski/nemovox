@@ -152,8 +152,11 @@ def metrics(recording,ledger,translated,quality,metadata):
         "translation":translated["translation"],
         "review":{k:review.get(k) for k in ("status","batch_size","api_calls","comparative_calls","reviewed",
                     "changed","rejected_polarity","comparative_rejections","joined_passage_rejections",
-                    "dependent_passage_rejections","cache_hits","elapsed_s","deferred_comparison_ids","errors")},
-        "render":metadata["subtitles"],"total_wall_time_s":metadata["total_wall_time_s"],
+                    "dependent_passage_rejections","unresolved_source_rejections","direction_grammar_rejections",
+                    "cache_hits","elapsed_s","deferred_comparison_ids","errors")},
+        "render":metadata["subtitles"] if metadata is not None else None,
+        "render_status":"rendered" if metadata is not None else "not_rendered_review_error",
+        "total_wall_time_s":metadata["total_wall_time_s"] if metadata is not None else None,
         "human_ground_truth_established":False,
     }
 
@@ -233,7 +236,13 @@ def main():
     quality=read(job/"source-quality.json")
     canonical=read(job/"canonical-source.contract.json")
     translated=read(job/"translated.contract.json")
-    metadata=read(job/"subtitles.metadata.json")
+    metadata_path=job/"subtitles.metadata.json"
+    if metadata_path.is_file():
+        metadata=read(metadata_path)
+    elif translated.get("translation_review",{}).get("status")=="completed_with_errors":
+        metadata=None
+    else:
+        raise ValueError("Missing render metadata without explicit failed review")
     media=probe_media(args.media,audio_stream_index=rec["source"]["selected_audio_stream"])
     if (media.fingerprint_sha256!=rec["source"]["fingerprint_sha256"]
             or abs(media.duration_s-rec["source"]["duration_s"])>.01

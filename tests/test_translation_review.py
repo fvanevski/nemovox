@@ -615,15 +615,23 @@ def test_comparison_loop_terminal_exhaustion_preserves_primary_and_remains_defer
     assert not checkpoint.exists()
 
 
-def test_compact_invalid_ids_and_transport_failure_remain_errors():
+def test_compact_invalid_ids_defer_but_transport_failure_remains_error(tmp_path):
     for failed in ({"reason": "Invalid ID.", "verdicts": ["other=proposal"]},
                    RuntimeError("transport failed")):
         client = _LoopReviewClient(_loop_proposals(), "loop", failed)
+        path=tmp_path/"review.json"
         out, report = review_translated_utterances(_utts(), source_language="fr",
-            config=_loop_cfg(), text_client=client)
-        assert report["status"] == "completed_with_errors"
-        assert report["errors"] and not report["deferred_comparison_ids"]
+            config=_loop_cfg(), text_client=client,checkpoint_path=path)
+        if isinstance(failed,Exception):
+            assert report["status"] == "completed_with_errors"
+            assert report["errors"] and not report["deferred_comparison_ids"]
+        else:
+            assert report["status"]=="completed_with_deferred_comparisons"
+            assert report["deferred_comparison_ids"]==["u0"] and not report["errors"]
+            assert "compact_rejected_response" in report["comparison_recoveries"][0]
         assert out[0]["translated_text"] == "Hello, Estban."
+        assert "translation_comparative_review" not in out[0]
+        assert not path.exists()
 
 
 
@@ -863,7 +871,9 @@ def test_missing_joined_passage_verdict_preserves_primary_and_not_cached(tmp_pat
     path=tmp_path/"review.json"
     result,report=review_translated_utterances(rows,source_language="fr",
         config=_cfg(wire_protocol="ninfer_messages",thinking_budget=2048,reasoning_effort="xhigh"),
-        text_client=Native(prop,incomplete),checkpoint_path=path)
-    assert report["status"]=="completed_with_errors" and report["changed"]==0
+        text_client=Native(prop,incomplete,{"reason":"Incomplete","verdicts":["a=proposal","b=proposal"]}),checkpoint_path=path)
+    assert report["status"]=="completed_with_deferred_comparisons" and report["changed"]==0
+    assert report["deferred_comparison_ids"]==["a","b"]
+    assert report["comparison_recoveries"][0]["reason"]=="missing_comparative_decision_ids"
     assert [r["translated_text"] for r in result]==[r["translated_text"] for r in rows]
     assert not path.exists()

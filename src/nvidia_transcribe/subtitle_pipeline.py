@@ -394,6 +394,8 @@ def generate_subtitles(
             if cfg.translation_review.profile != "off":
                 _event("review", "running")
             _log(f"Stage 3b/4: Contextual English post-edit (profile={cfg.translation_review.profile})")
+            from nvidia_transcribe.review_uncertainty import bind_review_uncertainty
+            translated_utts=bind_review_uncertainty(translated_utts,contract.get("source_quality"))
             with _text_stage("translation_review") as stage_client:
                 translated_utts, review_summary = review_translated_utterances(
                     translated_utts, source_language=src_lang, config=cfg.translation_review,
