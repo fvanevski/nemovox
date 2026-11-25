@@ -299,8 +299,10 @@ def reconcile_displaced_sequences(
                             not right_more_complete and right_core > left_core
                         )
                         kept, discarded = (ru, lu) if keep_right else (lu, ru)
-                        for u in discarded:
+                        for u, alternative in zip(discarded, kept):
                             u["_drop"] = True
+                            u["_selection_reason"] = "provisional_sequence_correspondence"
+                            u["_related_source_unit_ids"] = [alternative["source_unit_id"]] if alternative.get("source_unit_id") else []
                             deduped += 1
                         promoted_indices: list[int] = []
                         to_promote = (*kept, *(suffix if right_more_complete else ()))

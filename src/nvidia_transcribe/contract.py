@@ -325,6 +325,7 @@ def build_recording_contract(
                 "id": utt["id"],
                 "source_unit_ids": utt.get("source_unit_ids", []),
                 "recognized_turn_ids": utt.get("recognized_turn_ids", []),
+                "occurrence_span_ids": utt.get("occurrence_span_ids", []),
                 "source_text": utt["source_text"],
                 "source_language": utt.get("source_language") or source_language,
                 "speaker_id": utt.get("global_speaker_id") or utt.get("speaker_id"),

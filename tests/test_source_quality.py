@@ -406,7 +406,9 @@ def test_explicit_canonical_resume_preserves_order_evidence_and_messages_review(
         assert kw["config"].wire_protocol == "ninfer_messages"
         assert kw["config"].max_tokens == 8192
         return [{**r, "machine_translated_text": "Hello."} for r in rows], {"status": "completed"}
-    for name in ("process_media", "review_current_source", "audit_and_reconstruct_contract"):
+    # The obsolete pre-quality rewrite is no longer part of the pipeline.
+    assert not hasattr(pipeline, "audit_and_reconstruct_contract")
+    for name in ("process_media", "review_current_source"):
         monkeypatch.setattr(pipeline, name, forbidden)
     monkeypatch.setattr(pipeline, "managed_text_client", text_scope)
     monkeypatch.setattr(pipeline, "translate_utterances", translate)
@@ -420,4 +422,40 @@ def test_explicit_canonical_resume_preserves_order_evidence_and_messages_review(
             translation_review=TranslationReviewConfig(profile="balanced")),
         lifecycle=object(), lifecycle_resources=resources)
     assert result["source_quality"] == record["source_quality"]
+    assert json.loads(path.read_text()) == record
+
+
+def test_retained_noncanonical_source_preserves_immutable_ids_order_and_lineage(tmp_path, monkeypatch):
+    import json
+    from nvidia_transcribe import subtitle_pipeline as pipeline
+    from nvidia_transcribe.translation import TranslationConfig
+    from nvidia_transcribe.translation_review import TranslationReviewConfig
+
+    rows = [
+        {**_row("stable-first", "Encore.", None, None),
+         "source_unit_ids": ["unit-a"], "recognized_turn_ids": ["turn-a"]},
+        {**_row("stable-second", "Encore.", 4.2, 5.8),
+         "source_unit_ids": ["unit-b"], "recognized_turn_ids": ["turn-b"]},
+    ]
+    record = _recording(rows)
+    path = tmp_path / "recording.contract.json"
+    path.write_text(json.dumps(record))
+    def forbidden(*a, **k):
+        pytest.fail("Retained recording must not regenerate source")
+    def translate(actual, **kw):
+        assert [r["id"] for r in actual] == [r["id"] for r in rows]
+        for actual_row, expected in zip(actual, rows):
+            assert all(actual_row[k] == v for k, v in expected.items())
+            assert "untimed_classification" not in actual_row
+            assert "probable_duplicate_of" not in actual_row
+        return [{**r, "translated_text": "Again."} for r in actual], {"backend": "riva"}
+    monkeypatch.setattr(pipeline, "process_media", forbidden)
+    monkeypatch.setattr(pipeline, "review_current_source", forbidden)
+    monkeypatch.setattr(pipeline, "translate_utterances", translate)
+    monkeypatch.setattr(pipeline, "render_subtitles", lambda *a, **k: {
+        "outputs": {}, "stats": {}, "conflicts": [], "sidecars": {}})
+    pipeline.generate_subtitles(recording_contract_path=path, output_dir=tmp_path / "output",
+        config=pipeline.SubtitlePipelineConfig(source_quality="off",
+            translation=TranslationConfig(backend="riva"),
+            translation_review=TranslationReviewConfig(profile="off")))
     assert json.loads(path.read_text()) == record

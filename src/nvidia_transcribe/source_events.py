@@ -208,6 +208,8 @@ def build_source_evidence_ledger(
                 "raw_recognized_token_ids": unit.get("raw_recognized_token_ids", []),
                 "ctc_association_status": unit.get("ctc_association_status"),
                 "ctc_word_index": unit.get("ctc_word_index"),
+                "occurrence_span_id": unit.get("occurrence_span_id"),
+                "locality_status": unit.get("locality_status"),
                 "asr_observation_id": observation_id,
                 "chunk_index": cidx,
                 "source_ordinal": ordinal,

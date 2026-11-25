@@ -35,7 +35,7 @@ from nvidia_transcribe.speakers import (
     reconcile_speakers,
 )
 from nvidia_transcribe.utterances import reconstruct_speaker_utterances
-from nvidia_transcribe.timing_evidence import audit_ctc_timing_units
+from nvidia_transcribe.occurrence_locality import assess_occurrence_locality
 from nvidia_transcribe.speech_chunks import detect_silence_intervals, plan_pause_aware_chunks
 from nvidia_transcribe.source_events import build_source_evidence_ledger
 
@@ -653,6 +653,16 @@ def process_media(
             raw_text=original_raw_texts[idx], projected_text=raw_text, units=rec["units"],
             native_observations=rec["diagnostic"].pop("native_ctc_observations"),
         ))
+        audited, locality = assess_occurrence_locality(
+            rec["units"], infer_start_s=spec.infer_start_s, infer_end_s=spec.infer_end_s,
+        )
+        rec["units"] = audited
+        rec["diagnostic"]["timing_evidence"] = locality["timing_audit"]
+        if any(u["requires_acoustic_recovery"] for u in audited):
+            rec["diagnostic"]["status_before_timing_audit"] = rec["diagnostic"].get("status")
+            rec["diagnostic"]["status"] = "partial_timing_suspect"
+            rec["alignment_status"] = "partial_timing_suspect"
+        occurrence_inventories[-1]["locality"] = locality
         native_records.append(rec)
         raw_events.extend(
             extract_events_from_raw_text(
@@ -778,22 +788,6 @@ def process_media(
                     "localized_spans": plan[1],
                 }
 
-    # Phase 2: audit CTC timing against actual inference excerpt bounds and
-    # local lexical sequence before trusting any words for global chronology.
-    # The raw responses, checkpoints and original wording are immutable.
-    for idx, rec in enumerate(native_records):
-        audited, timing_diag = audit_ctc_timing_units(
-            rec["units"],
-            infer_start_s=chunks[idx].infer_start_s,
-            infer_end_s=chunks[idx].infer_end_s,
-        )
-        rec["units"] = audited
-        rec["diagnostic"]["timing_evidence"] = timing_diag
-        if timing_diag["quarantined_units"]:
-            rec["diagnostic"]["status_before_timing_audit"] = rec["diagnostic"].get("status")
-            rec["diagnostic"]["status"] = "partial_timing_suspect"
-            rec["alignment_status"] = "partial_timing_suspect"
-
     # Phase 3: normalize speakers and build final utterances only after the
     # Qwen session has been torn down and ASR restoration verified.
     for idx, rec in enumerate(native_records):
@@ -875,12 +869,16 @@ def process_media(
         semantic_review_activity_by_chunk=semantic_activity_by_chunk,
     )
 
-    # Keep an explicit selection disposition for every projected source unit.
-    # A1 does not certify the existing boundary policy; A2 will replace it.
-    retained_ids = {u["source_unit_id"] for u in merged_units}
+    # Every original observation remains addressable even when an alternative
+    # is selected for rendering. Context-only evidence is a recovery input,
+    # not discarded text or a fabricated second spoken occurrence.
+    dispositions = {d["source_unit_id"]: d for d in boundary_diag["source_dispositions"]}
     for row in source_evidence["lexical_observations"]:
-        row["boundary_disposition"] = ("selected_by_current_policy" if row["id"] in retained_ids
-                                       else "not_selected_by_current_policy_unadjudicated")
+        row["boundary_disposition"] = dispositions[row["id"]]["status"]
+        row["boundary_decision"] = dispositions[row["id"]]
+    for inv in occurrence_inventories:
+        for span in inv["locality"]["spans"]:
+            span["selection_dispositions"] = [dispositions[uid] for uid in span["source_unit_ids"]]
 
     # Independent per-speaker utterance reconstruction anchored to true chunk bounds.
     chunk_windows = {c.chunk_index: (c.infer_start_s, c.infer_end_s) for c in chunks}

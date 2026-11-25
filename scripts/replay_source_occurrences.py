@@ -12,6 +12,7 @@ from collections import Counter
 from nvidia_transcribe.alignment import recover_chunk_alignment
 from nvidia_transcribe.prompts import cleanup_generation_loops
 from nvidia_transcribe.source_occurrences import bind_occurrence_inventory, source_observation_id
+from nvidia_transcribe.occurrence_locality import assess_occurrence_locality
 
 
 def sha(data):
@@ -82,6 +83,10 @@ def main():
             assert set(token_refs) == raw_tokens and len(token_refs) == len(raw_tokens)
         else:
             assert not token_refs
+        audited, locality = assess_occurrence_locality(
+            units, infer_start_s=spec.infer_start_s, infer_end_s=spec.infer_end_s)
+        assert {u["source_unit_id"] for u in audited} == ids
+        assert sorted(uid for span in locality["spans"] for uid in span["source_unit_ids"]) == sorted(ids)
         summary.append({
             "chunk_index": spec.chunk_index,
             "raw_response_sha256": row["raw_response_sha256"],
@@ -92,10 +97,15 @@ def main():
             "provisional_associations": len(linked),
             "untimed_working_units": sum(not u["valid_timing"] for u in units),
             "association_statuses": dict(Counter(o["association_status"] for o in inv["native_ctc_observations"])),
+            "locality_spans": len(locality["spans"]),
+            "locality_span_statuses": dict(Counter(s["locality_status"] for s in locality["spans"])),
+            "locality_findings": dict(Counter(f["reason"] for f in locality["findings"])),
+            "post_locality_untimed_units": sum(not u["valid_timing"] for u in audited),
             "projection_status": inv["projection_status"],
             "acoustic_locality_certified": False,
         })
-        details.append({"inventory": inv, "working_units": units})
+        details.append({"inventory": inv, "working_units": units,
+                        "locality": locality, "audited_units": audited})
     if len({r["chunk_index"] for r in summary}) != 16:
         raise ValueError("Repeated or incomplete accepted chunk identity")
     args.output_dir.mkdir(parents=True, exist_ok=False)

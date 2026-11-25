@@ -25,11 +25,11 @@ def bind(rec, raw, projected=None):
 
 def test_noncontiguous_same_tag_has_distinct_turns_and_provisional_times():
     raw = "<spk:0> first <spk:1> answer <spk:0> again"
-    rec = recover(raw, [word("first", 1), word("again", 2), word("answer", 5, "1")])
+    rec = recover(raw, [word("first", 1), word("again", 2.5), word("answer", 5, "1")])
     inv = bind(rec, raw)
     units = rec["units"]
     assert [u["text"] for u in units] == ["first", "answer", "again"]
-    assert [u["start"] for u in units] == [1, 5, 2]
+    assert [u["start"] for u in units] == [1, 5, 2.5]
     assert len({u["recognized_turn_id"] for u in units}) == 3
     assert all(u["ctc_association_status"].endswith("provisional") for u in units)
     assert not inv["acoustic_locality_certified"]
@@ -71,8 +71,78 @@ def test_single_request_contract_uses_recognized_text_and_preserves_extras():
 
     raw = "<spk:0> first <spk:1> answer <spk:0> again"
     contract = build_transcript_contract(raw_text=raw, source_language="fr",
-        ctc_payload={"words": [word("first", 1), word("again", 2),
+        ctc_payload={"words": [word("first", 1), word("again", 2.5),
                                 word("extra", 3), word("answer", 5, "1")]})
     assert {u["source_text"] for u in contract["utterances"]} == {"first", "answer", "again"}
     assert len(contract["native_ctc_observations"]) == 4
     assert contract["native_ctc_observations"][2]["association_status"] == "unmatched"
+
+
+def test_overlapping_sot_fragments_coalesce_without_losing_turn_identity():
+    raw = "<spk:0> hello <spk:1> good <spk:0> there <spk:1> morning"
+    rec = recover(raw, [word("hello", 1), word("good", 1.1, "1"),
+                        word("there", 1.3), word("morning", 1.4, "1")])
+    bind(rec, raw)
+    rows = reconstruct_speaker_utterances(rec["units"])
+    assert {r["source_text"] for r in rows} == {"hello there", "good morning"}
+    assert all(len(r["recognized_turn_ids"]) == 2 for r in rows)
+    assert {uid for r in rows for uid in r["source_unit_ids"]} == {
+        u["source_unit_id"] for u in rec["units"]}
+    assert max(r["source_start"] for r in rows) < min(r["source_end"] for r in rows)
+
+
+def test_locality_long_pause_is_review_only_and_never_drops_text():
+    from nvidia_transcribe.occurrence_locality import assess_occurrence_locality
+    raw = "<spk:0> hello there goodbye friend"
+    rec = recover(raw, [word("hello", 1), word("there", 1.3),
+                        word("goodbye", 14), word("friend", 14.3)])
+    bind(rec, raw)
+    audited, report = assess_occurrence_locality(rec["units"], infer_start_s=0, infer_end_s=20)
+    assert all(u["valid_timing"] for u in audited)
+    assert len(report["spans"]) == 2
+    assert [f["reason"] for f in report["findings"]] == ["large_intra_turn_gap_review_only"]
+    assert {uid for span in report["spans"] for uid in span["source_unit_ids"]} == {
+        u["source_unit_id"] for u in rec["units"]}
+
+
+def test_locality_quarantines_compressed_phrase_before_optional_alignment():
+    from nvidia_transcribe.occurrence_locality import assess_occurrence_locality
+    from nvidia_transcribe.selective_alignment import AdmissionPolicy, plan_selective_recovery
+    words = ["marvellous", "mountains", "ancient", "gardens", "extraordinary",
+             "journeys", "familiar", "travelers", "captivating", "beautiful", "children"]
+    raw = "<spk:0> " + " ".join(words)
+    rec = recover(raw, [word(t, 5+i*.105) for i,t in enumerate(words)])
+    bind(rec, raw)
+    audited, report = assess_occurrence_locality(rec["units"], infer_start_s=0, infer_end_s=20)
+    assert [u["text"] for u in audited] == words
+    assert all(not u["valid_timing"] and u["requires_acoustic_recovery"] for u in audited)
+    assert all(u["ctc_hypothesis_start_s"] is not None for u in audited)
+    assert report["spans"][0]["locality_status"] == "disputed"
+    plans, decisions = plan_selective_recovery(
+        native={**rec, "units": audited}, raw_text=raw, chunk_start_s=0, chunk_end_s=20,
+        policy=AdmissionPolicy())
+    assert not plans
+    assert decisions[0]["status"] == "skipped_disputed_occurrence_requires_acoustic_evidence"
+
+
+def test_coherent_boundary_span_not_truncated_and_context_alternative_retained():
+    from nvidia_transcribe.occurrence_locality import assess_occurrence_locality
+    from nvidia_transcribe.chunking import ChunkSpec, reconcile_chunk_boundaries
+    left = ChunkSpec(0, 0, 10, 0, 14)
+    right = ChunkSpec(1, 10, 20, 6, 20)
+    raw = "<spk:0> the city remains safe"
+    rec = recover(raw, [word("the", 9), word("city", 9.3),
+                        word("remains", 9.6), word("safe", 10.1)])
+    bind(rec, raw)
+    units, report = assess_occurrence_locality(rec["units"], infer_start_s=0, infer_end_s=14)
+    merged, diag = reconcile_chunk_boundaries([units, []], [left, right])
+    assert [u["text"] for u in merged] == ["the", "city", "remains", "safe"]
+    assert len(diag["source_dispositions"]) == 4
+    assert all(d["status"] == "selected_provisional" for d in diag["source_dispositions"])
+    rec2 = recover("<spk:0> uncorroborated", [word("uncorroborated", 13.5)])
+    bind(rec2, "<spk:0> uncorroborated")
+    context, _ = assess_occurrence_locality(rec2["units"], infer_start_s=0, infer_end_s=14)
+    merged, diag = reconcile_chunk_boundaries([context, []], [left, right])
+    assert not merged
+    assert diag["source_dispositions"][0]["status"] == "context_candidate_unresolved"
+    assert diag["source_dispositions"][0]["source_unit_id"] == context[0]["source_unit_id"]

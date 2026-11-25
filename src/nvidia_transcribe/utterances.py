@@ -351,13 +351,21 @@ def reconstruct_speaker_utterances(
                 elif u.get("chunk_index") is not None and prev.get("chunk_index") is not None and u["chunk_index"] != prev["chunk_index"]:
                     should_split = True
 
-            if (u.get("recognized_turn_id") and prev.get("recognized_turn_id")
-                    and u["recognized_turn_id"] != prev["recognized_turn_id"]):
+            # SOT can alternate tags while voices overlap. Preserve distinct raw
+            # turn references, but let coherent timed same-voice speech coalesce.
+            # Never join unlocalized text across different raw turns by fiat.
+            turn_changed = (
+                u.get("recognized_turn_index") is not None
+                and prev.get("recognized_turn_index") is not None
+                and u.get("chunk_index") == prev.get("chunk_index")
+                and u["recognized_turn_index"] != prev["recognized_turn_index"]
+            )
+            if turn_changed and not (u_timed and p_timed):
                 should_split = True
-            elif (u.get("recognized_turn_index") is not None
-                    and prev.get("recognized_turn_index") is not None
-                    and u.get("chunk_index") == prev.get("chunk_index")
-                    and u["recognized_turn_index"] != prev["recognized_turn_index"]):
+            if (u.get("occurrence_span_id") and prev.get("occurrence_span_id")
+                    and u["occurrence_span_id"] != prev["occurrence_span_id"]
+                    and (u.get("locality_status") == "disputed"
+                         or prev.get("locality_status") == "disputed")):
                 should_split = True
 
             if should_split:
@@ -471,6 +479,8 @@ def reconstruct_speaker_utterances(
             utt["id"] = stable_id("utt", refs)
             utt["source_unit_ids"] = refs
             utt["recognized_turn_ids"] = sorted({u["recognized_turn_id"] for u in units})
+            utt["occurrence_span_ids"] = sorted({u["occurrence_span_id"] for u in units
+                                                  if u.get("occurrence_span_id")})
         else:
             utt["id"] = f"utt-{idx:04d}"
     return reconstructed

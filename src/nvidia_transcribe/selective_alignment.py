@@ -108,6 +108,10 @@ def plan_selective_recovery(
             continue
         decision: dict[str, Any] = {"span_range": [lo, hi], "untimed_units": len(untimed)}
         decisions.append(decision)
+        if any(u.get("requires_acoustic_recovery") for u in span):
+            decision["status"] = "skipped_disputed_occurrence_requires_acoustic_evidence"
+            decision["source_unit_ids"] = [u["source_unit_id"] for u in span if u.get("source_unit_id")]
+            continue
         text = _join_units_for_aligner(span)
         chars = len("".join(c for c in text if c.isalnum()))
         if not text or chars == 0:
