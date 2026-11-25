@@ -158,7 +158,7 @@ def resolution_receipts(recording,ledger,rows,decisions,policy):
             # Context-only source can be linked only by exact positive
             # lexical and temporal correspondence to a unique selected row,
             # not merely by a coalesced task or shared recognized turn.
-            elif context and all(uid in units for uid in span["source_unit_ids"]):
+            elif context and refs and all(uid in units for uid in span["source_unit_ids"]):
                 # Source ledger retains normalized lexical text/order; use
                 # the same lexical sequence rather than reconstruct timing.
                 tokens=tuple(t for uid in span["source_unit_ids"] for t in _lex(units[uid]["text"]))

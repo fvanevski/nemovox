@@ -159,7 +159,15 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
             continue
         chunks = [c for uid in ids for c in row_map[uid].get("chunk_indices", [])]
         bounds = interval(case.get("context_window_s"),duration)
-        add(case["case_id"],"semantic_occurrence_request",2,bounds,chunks,source_ids=ids)
+        reference_bounds=[v for uid in ids if (v:=interval((
+            row_map[uid].get("source_start"),row_map[uid].get("source_end")),duration))]
+        if not reference_bounds:
+            reference_bounds=[v for c in chunks if c in by_chunk
+                              if (v:=interval(parent_window(by_chunk[c]),duration))]
+        if not bounds or not any(overlap(bounds,b)>0 for b in reference_bounds):
+            add(case["case_id"],"invalid_semantic_window",3,None,chunks,source_ids=ids)
+        else:
+            add(case["case_id"],"semantic_occurrence_request",2,bounds,chunks,source_ids=ids)
 
     def row_bounds(r):
         return interval((r.get("source_start"),r.get("source_end")),duration)

@@ -483,6 +483,31 @@ def select_source_events(recording, events, policy):
                             and not crossed_turn_ids(row, _bounds(other))
                             for other in events))
 
+    def uniquely_disputed_origin(event,bounds,words):
+        # Numeric timing inside a disputed span is not an accepted event
+        # location. Relocation requires affirmative rejected-locality
+        # evidence, explicit origin references and cross-model support.
+        # A long pause, a missing observation or lexical similarity alone
+        # never authorizes movement of a timed occurrence.
+        if len(set(event.get("independent_observation_ids",[])))<2:
+            return None
+        exact=[u for u in rows if _lex(u["source_text"])==words]
+        if len(exact)!=1:
+            return None
+        row=exact[0]
+        old=_bounds(row)
+        units=list(row.get("source_words",[]))+list(row.get("source_characters",[]))
+        if (not old or _same_event_bounds(old,bounds,policy.timing_tolerance_s)
+                or not units or not any(not u.get("valid_timing") for u in units)
+                or not all(u.get("locality_status")=="disputed" for u in units)
+                or not set(row.get("occurrence_span_ids",[])).intersection(event.get("trigger_evidence_ids",[]))
+                or any(u is not row and _bounds(u) and _overlap(_bounds(u),bounds)>0 for u in rows)
+                or any(other is not event and _lex(other["source_text"])==words
+                       and not _same_event_bounds(_bounds(other),bounds,policy.timing_tolerance_s)
+                       for other in events)):
+            return None
+        return row
+
     for event in sorted(events, key=lambda e: (e["source_start"], e["source_end"])):
         bounds = _bounds(event)
         words = _lex(event["source_text"])
@@ -500,7 +525,11 @@ def select_source_events(recording, events, policy):
         competing_hypotheses = []
         crossed_ids = []
         exact_overlaps = [u for u in overlaps if _lex(u["source_text"]) == words]
-        if exact_overlaps:
+        disputed_origin = uniquely_disputed_origin(event,bounds,words)
+        if disputed_origin is not None:
+            replace=disputed_origin
+            status="relocated_disputed_occurrence"
+        elif exact_overlaps:
             # Lexical agreement and minimal overlap do not identify an
             # occurrence. This branch is exclusive: an equal-text timing
             # conflict must not fall through to source-turn extension.
@@ -557,7 +586,8 @@ def select_source_events(recording, events, policy):
                 and len(set(event["audio_sha256"])) < 3):
             status = "unresolved_short_insertion_needs_support"
         if status in {"extended_corroborated_turn", "timed_corroborated_turn",
-                      "recovered_corroborated_turn", "replaced_corroborated_source_hypothesis"}:
+                      "recovered_corroborated_turn", "replaced_corroborated_source_hypothesis",
+                      "relocated_disputed_occurrence"}:
             uid = replace["id"] if replace else "src-" + _digest(
                 [media_id, event["supporting_observation_ids"], bounds])[:24]
             row = {
@@ -612,7 +642,8 @@ def select_source_events(recording, events, policy):
         if status == "already_represented":
             decision["source_id"] = exact_overlaps[0]["id"]
         elif status in {"extended_corroborated_turn","timed_corroborated_turn",
-                        "recovered_corroborated_turn","replaced_corroborated_source_hypothesis"}:
+                        "recovered_corroborated_turn","replaced_corroborated_source_hypothesis",
+                        "relocated_disputed_occurrence"}:
             decision["source_id"] = uid
         if competing_hypotheses:
             decision["competing_source_hypotheses"] = competing_hypotheses
