@@ -7,6 +7,8 @@ import json
 import re
 import subprocess
 from contextlib import nullcontext
+
+from nvidia_transcribe.semantic_context import literal_examples, current_row_context
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -531,17 +533,23 @@ def translate_utterances(
         for i, u in enumerate(out_utts):
             uid = str(u.get("utterance_id") or u.get("id") or f"utt-{i:04d}")
             src_txt = _src_text(u)
+            nearby=out_utts[max(0,i-2):i]+out_utts[i+1:i+3]
+            examples = literal_examples(u, gl, nearby) if src_txt else []
+            accepted = current_row_context(u)
             rkey = hashlib.sha256(
-                json.dumps({"backend": "riva", "resource": cfg.resource_fingerprint, "checkpoint": cfg.riva_model_path, "worker": cfg.riva_python, "device": cfg.riva_device, "lang_pair": lang_pair, "uid": uid, "text": src_txt}, ensure_ascii=False, sort_keys=True).encode("utf-8")
+                json.dumps({"backend": "riva", "resource": cfg.resource_fingerprint, "checkpoint": cfg.riva_model_path, "worker": cfg.riva_python, "device": cfg.riva_device, "lang_pair": lang_pair, "uid": uid, "text": src_txt,
+                            "context_examples": examples, "accepted_source_context": accepted}, ensure_ascii=False, sort_keys=True).encode("utf-8")
             ).hexdigest()[:24]
             ekey = f"{uid}:{rkey}"
             riva_keys[uid] = ekey
             if ekey in cached:
                 u["translated_text"] = cached[ekey]["translated_text"]
                 u["translation_status"] = "translated_cached"
+                u["riva_context_example_ids"] = cached[ekey].get("context_example_ids", [])
                 cache_hits += 1
             else:
-                pending_items.append({"utterance_id": uid, "text": src_txt, "lang_pair": lang_pair})
+                pending_items.append({"utterance_id": uid, "text": src_txt, "lang_pair": lang_pair,
+                                      "context_examples":examples})
 
         riva_meta: dict[str, Any] = {}
         if pending_items:
@@ -573,12 +581,20 @@ def translate_utterances(
             if not isinstance(rows, list):
                 raise RuntimeError("Riva worker response is missing translation results")
             by_uid: dict[str, str] = {}
+            example_ids = {}
+            requested_examples={item["utterance_id"]:[x["id"] for x in item["context_examples"]]
+                                for item in pending_items}
             for row in rows:
                 if (not isinstance(row, dict) or row.get("utterance_id") not in expected_uids
                         or row["utterance_id"] in by_uid
                         or not isinstance(row.get("translated_text"), str)):
                     raise RuntimeError("Riva worker returned invalid or duplicate utterance IDs")
-                by_uid[row["utterance_id"]] = row["translated_text"]
+                uid=row["utterance_id"]
+                used=row.get("context_example_ids", [])
+                if not isinstance(used,list) or used!=requested_examples[uid]:
+                    raise RuntimeError("Riva worker context-example receipt mismatch")
+                example_ids[uid]=used
+                by_uid[uid] = row["translated_text"]
             if set(by_uid) != expected_uids or any(
                 not by_uid[item["utterance_id"]].strip() and item["text"].strip()
                 for item in pending_items
@@ -589,7 +605,9 @@ def translate_utterances(
                 if uid in by_uid:
                     u["translated_text"] = by_uid[uid]
                     u["translation_status"] = "translated"
-                    cached[riva_keys[uid]] = {"translated_text": by_uid[uid], "grouped_with_prev": False}
+                    u["riva_context_example_ids"]=example_ids[uid]
+                    cached[riva_keys[uid]] = {"translated_text": by_uid[uid], "grouped_with_prev": False,
+                                              "context_example_ids":example_ids[uid]}
             if ckpt_file:
                 ckpt_file.parent.mkdir(parents=True, exist_ok=True)
                 ckpt_file.write_text(json.dumps({"schema": "translation_cache/v2", "signature": gl_sig, "items": cached}, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -600,6 +618,7 @@ def translate_utterances(
             "lang_pair": lang_pair,
             "total_utterances": len(out_utts),
             "cache_hits": cache_hits,
+            "context_example_rows":sum(bool(u.get("riva_context_example_ids")) for u in out_utts),
             "elapsed_s": round(time.perf_counter() - t0, 3),
             **riva_meta,
         }

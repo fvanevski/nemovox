@@ -13,6 +13,15 @@ os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
 
 
+def translation_messages(item):
+    messages = [{"role": "system", "content": item["lang_pair"]}]
+    for example in item.get("context_examples", []):
+        messages.extend([{"role":"user","content":example["source"]},
+                         {"role":"assistant","content":example["target"]}])
+    messages.append({"role":"user","content":item["text"]})
+    return messages
+
+
 def main() -> int:
     payload = json.loads(sys.stdin.read())
     model_path = payload["model_path"]
@@ -57,16 +66,16 @@ def main() -> int:
             results.append({"utterance_id": uid, "translated_text": "", "latency_s": 0.0})
             continue
         t0 = time.perf_counter()
-        messages = [
-            {"role": "system", "content": lang_pair},
-            {"role": "user", "content": text},
-        ]
+        examples=item.get("context_examples", [])
+        messages=translation_messages({**item,"lang_pair":lang_pair,"text":text})
         tokenized = tokenizer.apply_chat_template(
             messages,
             tokenize=True,
             add_generation_prompt=True,
             return_tensors="pt",
         ).to(model.device)
+        if tokenized.shape[1]+max_new_tokens>8192:
+            raise ValueError("Riva native context capacity exceeded")
         with torch.inference_mode():
             out_ids = model.generate(
                 tokenized,
@@ -81,6 +90,8 @@ def main() -> int:
                 "utterance_id": uid,
                 "translated_text": decoded,
                 "latency_s": round(time.perf_counter() - t0, 4),
+                "context_example_ids":[example["id"] for example in examples],
+                "input_tokens":int(tokenized.shape[1]),
             }
         )
     infer_s = round(time.perf_counter() - t_inf, 4)

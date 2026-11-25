@@ -86,3 +86,26 @@ def current_row_context(row):
     return {k: deepcopy(value[k]) for k in (
         "schema", "source_id", "source_text_sha256", "acoustic_support",
         "visual_literals", "entity_identity_accepted", "human_verified") if k in value}
+
+
+
+def literal_examples(row, glossary, context_rows=()):
+    """Select explicit operator bilingual pairs for a literal target or a
+    neighboring independently supported source row. Never synthesize the
+    target spelling from a source-only observation.
+    """
+    import json
+    text = row.get("source_text", "")
+    related = [r["source_text"] for r in context_rows
+               if (current_row_context(r) or {}).get("acoustic_support")]
+    result = []
+    for source, target in glossary.translation_examples:
+        if not source or not target:
+            continue
+        if any(source == passage or (len(source) >= 2 and re.search(
+                r"(?<!\w)" + re.escape(source) + r"(?!\w)", passage))
+               for passage in [text,*related]):
+            item = {"source":source,"target":target}
+            item["id"] = text_digest(json.dumps(item,ensure_ascii=False,sort_keys=True))
+            result.append(item)
+    return result[:4]
