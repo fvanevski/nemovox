@@ -354,6 +354,11 @@ def reconstruct_speaker_utterances(
             if (u.get("recognized_turn_id") and prev.get("recognized_turn_id")
                     and u["recognized_turn_id"] != prev["recognized_turn_id"]):
                 should_split = True
+            elif (u.get("recognized_turn_index") is not None
+                    and prev.get("recognized_turn_index") is not None
+                    and u.get("chunk_index") == prev.get("chunk_index")
+                    and u["recognized_turn_index"] != prev["recognized_turn_index"]):
+                should_split = True
 
             if should_split:
                 groups.append(cur_group)

@@ -64,3 +64,15 @@ def test_ctc_error_and_loop_projection_keep_raw_inventory():
     assert inv2["projection_status"] == "loop_cleaned_unmapped"
     assert len(inv2["recognized_turns"]) == 2
     assert all(not u["raw_recognized_token_ids"] for u in changed["units"])
+
+
+def test_single_request_contract_uses_recognized_text_and_preserves_extras():
+    from nvidia_transcribe.contract import build_transcript_contract
+
+    raw = "<spk:0> first <spk:1> answer <spk:0> again"
+    contract = build_transcript_contract(raw_text=raw, source_language="fr",
+        ctc_payload={"words": [word("first", 1), word("again", 2),
+                                word("extra", 3), word("answer", 5, "1")]})
+    assert {u["source_text"] for u in contract["utterances"]} == {"first", "answer", "again"}
+    assert len(contract["native_ctc_observations"]) == 4
+    assert contract["native_ctc_observations"][2]["association_status"] == "unmatched"

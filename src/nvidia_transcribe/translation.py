@@ -368,8 +368,10 @@ def _apply_safe_adjacent_regrouping(out_utts: list[dict[str, Any]]) -> int:
         # Accepted/provisional v2 source-event identities are never merged
         # merely because English text is similar. A translator is not an
         # authority to erase a separately observed acoustic source event.
-        anc_source_ids = anchor.get("source_turn_ids") or ([anchor["source_turn_id"]] if anchor.get("source_turn_id") else [])
-        cur_source_ids = u.get("source_turn_ids") or ([u["source_turn_id"]] if u.get("source_turn_id") else [])
+        anc_source_ids = (anchor.get("source_turn_ids") or anchor.get("recognized_turn_ids")
+                          or ([anchor["source_turn_id"]] if anchor.get("source_turn_id") else []))
+        cur_source_ids = (u.get("source_turn_ids") or u.get("recognized_turn_ids")
+                          or ([u["source_turn_id"]] if u.get("source_turn_id") else []))
         if (anc_source_ids or cur_source_ids) and set(anc_source_ids) != set(cur_source_ids):
             anchor_idx = i
             continue
