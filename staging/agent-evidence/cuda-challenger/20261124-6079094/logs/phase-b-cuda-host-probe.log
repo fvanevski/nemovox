@@ -1,0 +1,92 @@
+=== CHALLENGER PYTHON & PACKAGES ===
+Python 3.12.14
+faster-whisper==1.2.1
+ctranslate2==4.9.1
+av==18.0.0
+nvidia-cublas-cu12: NOT_INSTALLED
+nvidia-cudnn-cu12: NOT_INSTALLED
+onnxruntime==1.32.0
+tokenizers==0.23.3
+=== UV PIP CHECK ===
+Using Python 3.12.14 environment at: .venv-challenger
+Checked 23 packages in 37ms
+All installed packages are compatible
+=== CTRANSLATE2 CUDA CAPABILITIES ===
+ctranslate2.__version__: 4.9.1
+cuda_device_count: 1
+supported_compute_types(cuda, 0): ['bfloat16', 'float16', 'float32', 'int8', 'int8_bfloat16', 'int8_float16', 'int8_float32']
+=== CUDA RUNTIME LIBRARIES PROBE (IN CHALLENGER) ===
+LD_LIBRARY_PATH: /opt/cuda/lib64
+CDLL(libcublas.so.12): FAIL -> libcublas.so.12: cannot open shared object file: No such file or directory
+CDLL(libcublasLt.so.12): FAIL -> libcublasLt.so.12: cannot open shared object file: No such file or directory
+CDLL(libcudnn.so.9): OK
+CDLL(libcudnn_ops.so.9): OK
+CDLL(libcudnn_cnn.so.9): OK
+CDLL(libcudart.so.12): FAIL -> libcudart.so.12: cannot open shared object file: No such file or directory
+=== CHECK SYSTEM & VENV CUDA LIBRARIES ===
+	libcudnn_ops.so.9 (libc6,x86-64) => /usr/lib/libcudnn_ops.so.9
+	libcudnn_ops.so (libc6,x86-64) => /usr/lib/libcudnn_ops.so
+	libcudnn_heuristic.so.9 (libc6,x86-64) => /usr/lib/libcudnn_heuristic.so.9
+	libcudnn_heuristic.so (libc6,x86-64) => /usr/lib/libcudnn_heuristic.so
+	libcudnn_graph.so.9 (libc6,x86-64) => /usr/lib/libcudnn_graph.so.9
+	libcudnn_graph.so (libc6,x86-64) => /usr/lib/libcudnn_graph.so
+	libcudnn_ext.so.9 (libc6,x86-64) => /usr/lib/libcudnn_ext.so.9
+	libcudnn_ext.so (libc6,x86-64) => /usr/lib/libcudnn_ext.so
+	libcudnn_engines_tensor_ir.so.9 (libc6,x86-64) => /usr/lib/libcudnn_engines_tensor_ir.so.9
+	libcudnn_engines_tensor_ir.so (libc6,x86-64) => /usr/lib/libcudnn_engines_tensor_ir.so
+	libcudnn_engines_runtime_compiled.so.9 (libc6,x86-64) => /usr/lib/libcudnn_engines_runtime_compiled.so.9
+	libcudnn_engines_runtime_compiled.so (libc6,x86-64) => /usr/lib/libcudnn_engines_runtime_compiled.so
+	libcudnn_engines_precompiled.so.9 (libc6,x86-64) => /usr/lib/libcudnn_engines_precompiled.so.9
+	libcudnn_engines_precompiled.so (libc6,x86-64) => /usr/lib/libcudnn_engines_precompiled.so
+	libcudnn_cnn.so.9 (libc6,x86-64) => /usr/lib/libcudnn_cnn.so.9
+	libcudnn_cnn.so (libc6,x86-64) => /usr/lib/libcudnn_cnn.so
+	libcudnn_adv.so.9 (libc6,x86-64) => /usr/lib/libcudnn_adv.so.9
+	libcudnn_adv.so (libc6,x86-64) => /usr/lib/libcudnn_adv.so
+	libcudnn.so.9 (libc6,x86-64) => /usr/lib/libcudnn.so.9
+	libcudnn.so (libc6,x86-64) => /usr/lib/libcudnn.so
+	libcudart.so.13 (libc6,x86-64) => /opt/cuda/lib64/libcudart.so.13
+	libcudart.so (libc6,x86-64) => /opt/cuda/lib64/libcudart.so
+	libcublasLt.so.13 (libc6,x86-64) => /opt/cuda/lib64/libcublasLt.so.13
+	libcublasLt.so (libc6,x86-64) => /opt/cuda/lib64/libcublasLt.so
+	libcublas.so.13 (libc6,x86-64) => /opt/cuda/lib64/libcublas.so.13
+	libcublas.so (libc6,x86-64) => /opt/cuda/lib64/libcublas.so
+/workspace/nvidia-transcribe/.venv/lib/python3.13/site-packages/nvidia/cu13/lib/libcublas.so.13
+/workspace/nvidia-transcribe/.venv/lib/python3.13/site-packages/nvidia/cu13/lib/libcublasLt.so.13
+/workspace/nvidia-transcribe/.venv/lib/python3.13/site-packages/nvidia/cudnn/lib/libcudnn.so.9
+/workspace/nvidia-transcribe/.venv/lib/python3.13/site-packages/nvidia/cudnn/lib/libcudnn_adv.so.9
+/workspace/nvidia-transcribe/.venv/lib/python3.13/site-packages/nvidia/cudnn/lib/libcudnn_cnn.so.9
+/workspace/nvidia-transcribe/.venv/lib/python3.13/site-packages/nvidia/cudnn/lib/libcudnn_engines_precompiled.so.9
+/workspace/nvidia-transcribe/.venv/lib/python3.13/site-packages/nvidia/cudnn/lib/libcudnn_engines_runtime_compiled.so.9
+/workspace/nvidia-transcribe/.venv/lib/python3.13/site-packages/nvidia/cudnn/lib/libcudnn_graph.so.9
+/workspace/nvidia-transcribe/.venv/lib/python3.13/site-packages/nvidia/cudnn/lib/libcudnn_heuristic.so.9
+/workspace/nvidia-transcribe/.venv/lib/python3.13/site-packages/nvidia/cudnn/lib/libcudnn_ops.so.9
+=== CHECK LIFECYCLE DEFAULTS & LOCK ===
+{
+  "version": 1,
+  "services": {
+    "asr_local": {
+      "unit": "nemovox-asr.service",
+      "startup_timeout_s": 300,
+      "stop_after_stage": true,
+      "min_free_vram_mb": 26000
+    },
+    "text_local": {
+      "unit": "nemovox-text-review.service",
+      "startup_timeout_s": 300,
+      "stop_after_stage": true,
+      "min_free_vram_mb": 16000
+    }
+  }
+}
+total 0
+drwx------ 1 filip filip  164 Nov 24 12:01 .
+drwx------ 1 filip filip 9380 Nov 24 23:33 ..
+-rw------- 1 filip filip    0 Nov 21 19:58 model-lifecycle.lock
+drwx------ 1 filip filip  180 Nov 22 09:33 rollback-issue10-20261122T1728Z
+drwx------ 1 filip filip  138 Nov 24 12:01 rollback-issue14-20261124T2001Z
+Traceback (most recent call last):
+  File "<string>", line 5, in <module>
+    for k, v in ml.config.services.items():
+                ^^^^^^^^^
+AttributeError: 'ModelLifecycle' object has no attribute 'config'
+lock_path: /home/filip/.local/state/nemovox/model-lifecycle.lock

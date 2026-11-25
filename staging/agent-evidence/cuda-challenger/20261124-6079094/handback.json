@@ -44,6 +44,13 @@
         "requested_shape": "Baseline CUDA WhisperModel.transcribe probe in .venv-challenger before cuBLAS remediation",
         "effect": "RuntimeError: Library libcublas.so.12 is not found or cannot be loaded (host default loader path is CUDA 13 /opt/cuda/lib64)",
         "correction": "Symlinked host CUDA 12.8 libcublas.so.12.8.3.14 and libcublasLt.so.12.8.3.14 into .venv-challenger/lib/python3.12/site-packages/ctranslate2.libs/ and verified inference with both unset and CUDA 13 LD_LIBRARY_PATH"
+      },
+      {
+        "id": "friction-3",
+        "outcome": "recovered_after_retry",
+        "requested_shape": "git add staging/agent-evidence/cuda-challenger/20261124-6079094",
+        "effect": "Repository .gitignore excluded logs/ files from initial evidence commit 3f2ef25",
+        "correction": "Added sanitized logs/ with git add -f and published fast-forward completion commit"
       }
     ],
     "omitted_sensitive_values": "none"
