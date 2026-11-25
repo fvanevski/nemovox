@@ -1,0 +1,98 @@
+{
+  "status": "completed",
+  "new_model_inference": false,
+  "archive_sha256": "4d46e32e6f2459cb348389aa4362b6a3fdfd2dddba56391160cc8ef2773d6755",
+  "supplement_sha256": "a512f262035860a9f3aaa9ac78b523b517c1cc673573af05eacc9eee2b4ffc4d",
+  "regions": {
+    "compression": {
+      "original_rows": 30,
+      "canonical_rows": 30,
+      "missing_original_row_ids": [],
+      "new_row_ids": [],
+      "untimed_before": 0,
+      "untimed_after": 0,
+      "decisions": {},
+      "receipts": {
+        "unresolved": 4
+      },
+      "frozen_acoustic_requests": 10,
+      "frozen_independent_requests": 4,
+      "legacy_subinterval_attempted": false
+    },
+    "boundary": {
+      "original_rows": 16,
+      "canonical_rows": 16,
+      "missing_original_row_ids": [],
+      "new_row_ids": [],
+      "untimed_before": 1,
+      "untimed_after": 1,
+      "decisions": {
+        "unresolved_competing_source": 1,
+        "already_represented": 1
+      },
+      "receipts": {
+        "unresolved": 7,
+        "event_supported_word_timing_unresolved": 1
+      },
+      "frozen_acoustic_requests": 10,
+      "frozen_independent_requests": 4,
+      "legacy_subinterval_attempted": false
+    },
+    "targeted_boundary": {
+      "original_rows": 16,
+      "canonical_rows": 16,
+      "missing_original_row_ids": [],
+      "new_row_ids": [],
+      "untimed_before": 1,
+      "untimed_after": 1,
+      "decisions": {},
+      "receipts": {
+        "unresolved": 8
+      },
+      "frozen_independent_requests": 2
+    },
+    "late_gap": {
+      "original_rows": 14,
+      "canonical_rows": 14,
+      "missing_original_row_ids": [],
+      "new_row_ids": [],
+      "untimed_before": 0,
+      "untimed_after": 0,
+      "decisions": {},
+      "receipts": {
+        "unresolved": 1
+      },
+      "frozen_acoustic_requests": 10,
+      "frozen_independent_requests": 4,
+      "legacy_subinterval_attempted": false
+    },
+    "low_flag_control": {
+      "original_rows": 14,
+      "canonical_rows": 14,
+      "missing_original_row_ids": [],
+      "new_row_ids": [],
+      "untimed_before": 0,
+      "untimed_after": 0,
+      "decisions": {},
+      "receipts": {
+        "unresolved": 1
+      },
+      "frozen_acoustic_requests": 10,
+      "frozen_independent_requests": 4,
+      "legacy_subinterval_attempted": false
+    },
+    "multilingual_control": {
+      "original_rows": 2,
+      "canonical_rows": 2,
+      "missing_original_row_ids": [],
+      "new_row_ids": [],
+      "untimed_before": 0,
+      "untimed_after": 0,
+      "decisions": {},
+      "receipts": {},
+      "frozen_acoustic_requests": 0,
+      "frozen_independent_requests": 0,
+      "legacy_subinterval_attempted": false
+    }
+  }
+}
