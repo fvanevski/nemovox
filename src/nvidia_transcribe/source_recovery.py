@@ -95,10 +95,11 @@ def schedule_independent(recording,observations,*,windows,policy):
     """
     duration = recording["source"]["duration_s"]
     observed = [w for w in windows if w.get("state")=="observed"]
-    specialized = _independent_candidates(recording,observations)
     proposals = []
     for task in observed:
         bounds = task["window"]
+        task_observations = [o for o in observations if task["task_id"] in o.get("task_ids",[])]
+        specialized = _independent_candidates(recording,task_observations)
         relevant = [t for t in specialized if _overlap(t["bounds"],bounds)>0
                     and t["bounds"][1]-t["bounds"][0]>=.65
                     and bounds[0]-.01<=t["bounds"][0]<t["bounds"][1]<=bounds[1]+.01]
@@ -238,7 +239,12 @@ def _associate_originals(original, candidate, language):
         if (not matches or sum(m.size for m in matches)/len(observed_words)<.55
                 or not _anchor(original_words,observed_words,language)):
             return None
-    return [g for _,g in grouped]
+    associations=[]
+    for index,group in grouped:
+        lo,hi,_=unique[index]
+        origins=[row for a,b,row in spans if lo<=a and b<=hi]
+        associations.append((group,origins))
+    return associations
 
 
 def _associate_recoverable_run(original,candidate,language):
@@ -363,16 +369,20 @@ def apply_independent(recording, targets, observations, independent):
             resolved=originals[lo:hi]
             residual=[*originals[:lo],*originals[hi:]]
             chunks.update(c for r in resolved for c in r.get("chunk_indices",[]))
-            replacement=[_make_row(recording,g,resolved,pair,support,chunks) for g in groups]
-            if len(resolved)==len(replacement)==1:
-                # Preserve the original stable row ID for a uniquely
-                # associated recovery, while separately retaining new evidence.
-                original,new = resolved[0],replacement[0]
-                uid = original["id"]
-                new.update(id=uid,utterance_id=uid,source_turn_id=uid,
-                           source_turn_ids=[uid],source_occurrence_ids=[uid])
-                for key in ("source_unit_ids","recognized_turn_ids","occurrence_span_ids"):
-                    new[key] = list(original.get(key,[]))
+            replacement=[]
+            for group,associated in groups:
+                new=_make_row(recording,group,resolved,pair,support,chunks)
+                new["source_lineage"]["associated_prior_source_ids"]=[r["id"] for r in associated]
+                if len(associated)==1:
+                    original=associated[0]
+                    uid=original["id"]
+                    new.update(id=uid,utterance_id=uid,source_turn_id=uid,
+                               source_turn_ids=[uid],source_occurrence_ids=[uid])
+                    for key in ("source_unit_ids","recognized_turn_ids","occurrence_span_ids"):
+                        new[key]=list(original.get(key,[]))
+                replacement.append(new)
+            if len({r["id"] for r in replacement})!=len(replacement):
+                continue
             # Preserve unresolved original fragments in their original
             # relative order, with no fabricated duration or deletion.
             rows[positions[0]:positions[-1]+1]=[
@@ -466,7 +476,9 @@ def acquire_independent_evidence(recording,targets,media,*,challenger_resource,o
                         raise ValueError("Invalid independent observation identity or bounds")
                     seen.add(row["observation_id"])
             report["observations"]=result["observations"]
-            report["resource"]={k:v for k,v in result.items() if k!="observations"}
+            report["resource"]={**{k:v for k,v in result.items() if k!="observations"},
+                "resource_name":challenger_resource.name,
+                "resource_fingerprint":challenger_resource.fingerprint()}
             report["receipt_sha256"]=_digest(result)
             report["status"]="observed"
     except (OSError,ValueError,KeyError,TypeError,RuntimeError,subprocess.TimeoutExpired) as exc:

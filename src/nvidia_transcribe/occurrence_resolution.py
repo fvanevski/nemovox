@@ -81,8 +81,22 @@ def cross_model_events(observations,targets,recovery,policy):
 
 def consolidate_events(events,policy):
     """Reuse repeated observations without multiplying an event or crossing voices."""
+    conflicts=[]
+    blocked=set()
+    for i,event in enumerate(events):
+        for j,other in enumerate(events[:i]):
+            shared=set(event["supporting_observation_ids"]) & set(other["supporting_observation_ids"])
+            if shared and not (_lex(event["source_text"])==_lex(other["source_text"])
+                    and _same_event_bounds(_bounds(event),_bounds(other),policy.timing_tolerance_s)):
+                blocked.update((i,j))
+                conflicts.append({"status":"unresolved_conflicting_observation_correspondence",
+                    "observations":sorted(set(event["supporting_observation_ids"]+other["supporting_observation_ids"])),
+                    "trigger_evidence_ids":sorted(set(event.get("trigger_evidence_ids",[])+other.get("trigger_evidence_ids",[]))),
+                    "windows":[_bounds(event),_bounds(other)]})
     result=[]
-    for event in events:
+    for i,event in enumerate(events):
+        if i in blocked:
+            continue
         hits=[e for e in result if _lex(e["source_text"])==_lex(event["source_text"])
               and _same_event_bounds(_bounds(e),_bounds(event),policy.timing_tolerance_s)
               and set(e["supporting_observation_ids"]).intersection(event["supporting_observation_ids"])]
@@ -95,12 +109,12 @@ def consolidate_events(events,policy):
                 e["independent_receipt_sha256"]=event["independent_receipt_sha256"]
         else:
             result.append({**event})
-    return result
+    return result,conflicts
 
 
 def resolve_occurrences(recording,events,observations,targets,recovery,policy):
     cross=cross_model_events(observations,targets,recovery,policy)
-    combined=consolidate_events([*events,*cross],policy)
+    combined,conflicts=consolidate_events([*events,*cross],policy)
     timed,timing_decisions=_recover_untimed(recording,observations,policy)
     rows,decisions=select_source_events(timed,combined,policy)
     rows,independent_decisions=apply_independent(
@@ -109,7 +123,7 @@ def resolve_occurrences(recording,events,observations,targets,recovery,policy):
     recovery["cross_model_events"]=cross
     if recovery["status"]=="observed":
         recovery["status"]="partial" if independent_decisions or cross else "unresolved"
-    return rows,[*timing_decisions,*decisions,*independent_decisions]
+    return rows,[*conflicts,*timing_decisions,*decisions,*independent_decisions]
 
 
 def resolution_receipts(recording,ledger,rows,decisions,policy):
@@ -134,11 +148,12 @@ def resolution_receipts(recording,ledger,rows,decisions,policy):
             associated=[r for r in rows if refs<=set(r.get("source_unit_ids",[])) and _bounds(r)
                         and r.get("timestamp_provenance",{}).get("backend") in (
                             "separate_acoustic_contexts","independent_asr_segment_estimates")]
-            if len(associated)==1 and not context:
+            if refs and len(associated)==1 and not context:
                 row=associated[0]
                 receipt["canonical_source_ids"]=[row["id"]]
                 receipt["status"]=("timing_supported_wording_unresolved" if
                     str(row.get("source_quality_status","")).startswith("unresolved")
+                    or row.get("source_semantic_resolution")=="partial"
                     else "represented_provisional")
             # Context-only source can be linked only by exact positive
             # lexical and temporal correspondence to a unique selected row,
@@ -147,7 +162,8 @@ def resolution_receipts(recording,ledger,rows,decisions,policy):
                 # Source ledger retains normalized lexical text/order; use
                 # the same lexical sequence rather than reconstruct timing.
                 tokens=tuple(t for uid in span["source_unit_ids"] for t in _lex(units[uid]["text"]))
-                candidate=span.get("candidate_bounds_s")
+                from nvidia_transcribe.recovery_planner import interval
+                candidate=interval(span.get("candidate_bounds_s"),recording["source"]["duration_s"])
                 supported={d["source_id"] for d in decisions
                            if d.get("source_id") and sid in d.get("trigger_evidence_ids",[])
                            and d["status"] in ("already_represented","recovered_corroborated_turn",

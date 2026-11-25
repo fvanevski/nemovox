@@ -692,8 +692,12 @@ def process_media(
             )
             for idx, (rec, spec) in enumerate(zip(native_records, chunks))
         ]
+        from nvidia_transcribe.recovery_planner import schedule_local_alignment
+        plans,alignment_budget = schedule_local_alignment(plans,
+            max_candidates=policy.max_recording_candidates,max_audio_s=policy.max_recording_audio_s)
         admitted = sum(len(cands) for cands, _ in plans)
         qwen_metrics = {
+            "recording_alignment_budget":alignment_budget,
             "status": "no_eligible_spans", "policy": cfg.qwen_policy,
             "eligible_candidates": admitted,
             "skipped_candidates": sum(
@@ -737,7 +741,7 @@ def process_media(
                                     chunk_start_s=spec.infer_start_s,
                                     chunk_end_s=spec.infer_end_s,
                                     chunk_index=idx, source_language=resolved_lang,
-                                    aligner=adapter, policy=policy,
+                                    aligner=adapter, policy=policy, planned=plans[idx],
                                     extract_wav=lambda start, end, _idx=idx: _extract_sub_wav(_idx, start, end),
                                 )
                             qwen_metrics.update(adapter.metrics)

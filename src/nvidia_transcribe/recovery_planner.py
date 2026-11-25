@@ -239,3 +239,34 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
     # De-duplicate unlocalized receipts by stable task identity.
     unlocalized = list({w["task_id"]:w for w in unavailable}.values())
     return ordered[:limit],ordered[limit:]+unlocalized
+
+
+def schedule_local_alignment(plans, *, max_candidates, max_audio_s):
+    """Recording-wide cap for already localized, ordered native alignment work.
+
+    Consume the admitted plans, not a second per-chunk discovery pass.
+    Round-robin across chunks prevents early dense failures monopolizing
+    optional timing work. Disputed speech never enters these candidates.
+    """
+    from collections import deque
+    queues=[deque(sorted(candidates,key=lambda c:(-c.untimed_units,c.start_s)))
+            for candidates,_ in plans]
+    admitted=[[] for _ in plans]
+    count=0
+    audio_s=0.
+    while any(queues):
+        for i,queue in enumerate(queues):
+            if not queue:
+                continue
+            c=queue.popleft()
+            cost=c.end_s-c.start_s
+            if count>=max_candidates or audio_s+cost>max_audio_s+1e-6:
+                decision=next(d for d in plans[i][1] if d["span_range"]==[c.lo,c.hi])
+                decision["status"]="skipped_recording_alignment_budget"
+                continue
+            admitted[i].append(c)
+            count+=1
+            audio_s+=cost
+    return [(c,decisions) for c,(_,decisions) in zip(admitted,plans)], {
+        "admitted_candidates":count,"admitted_audio_seconds":round(audio_s,6),
+        "max_candidates":max_candidates,"max_audio_seconds":max_audio_s}

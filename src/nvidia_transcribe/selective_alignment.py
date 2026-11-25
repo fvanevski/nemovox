@@ -26,6 +26,8 @@ class AdmissionPolicy:
     mode: str = "subtitle"   # subtitle (default) | fine
     max_window_s: float = 20.0
     max_candidates_per_chunk: int = 16
+    max_recording_candidates: int = 24
+    max_recording_audio_s: float = 240.
     min_subtitle_chars: int = 3
     min_untimed_fraction: float = 0.5
 
@@ -36,6 +38,9 @@ class AdmissionPolicy:
             raise ValueError("Invalid max_window_s")
         if not 1 <= self.max_candidates_per_chunk <= 100:
             raise ValueError("Invalid max_candidates_per_chunk")
+        if not 1 <= self.max_recording_candidates <= 1000 or not (
+                math.isfinite(self.max_recording_audio_s) and self.max_recording_audio_s>0):
+            raise ValueError("Invalid recording alignment budget")
 
 
 @dataclass(frozen=True)
@@ -92,7 +97,15 @@ def plan_selective_recovery(
         if interval is not None:
             diar_valid.append((*interval, _speaker_key(d.get("speaker"))))
 
-    spans = _contiguous_speaker_spans(units)
+    spans = []
+    for lo,hi in _contiguous_speaker_spans(units):
+        start=lo
+        for i in range(lo+1,hi):
+            prev,cur=units[i-1].get("recognized_turn_id"),units[i].get("recognized_turn_id")
+            if prev and cur and prev!=cur:
+                spans.append((start,i))
+                start=i
+        spans.append((start,hi))
     untimed_spans_by_speaker: dict[str, int] = {}
     for s_lo, s_hi in spans:
         s_span = units[s_lo:s_hi]
@@ -109,6 +122,7 @@ def plan_selective_recovery(
             continue
         decision: dict[str, Any] = {"span_range": [lo, hi], "untimed_units": len(untimed)}
         decisions.append(decision)
+        decision["source_unit_ids"]=[u["source_unit_id"] for u in span if u.get("source_unit_id")]
         if any(u.get("requires_acoustic_recovery") for u in span):
             decision["status"] = "skipped_disputed_occurrence_requires_acoustic_evidence"
             decision["source_unit_ids"] = [u["source_unit_id"] for u in span if u.get("source_unit_id")]
@@ -280,9 +294,10 @@ def apply_selective_recovery(
     aligner: Any,
     extract_wav: Callable[[float, float], Path],
     policy: AdmissionPolicy,
+    planned=None,
 ) -> dict[str, Any]:
     """Attach verified external timestamps in place, retaining native provenance."""
-    candidates, decisions = plan_selective_recovery(
+    candidates, decisions = planned if planned is not None else plan_selective_recovery(
         native=native, raw_text=raw_text,
         chunk_start_s=chunk_start_s, chunk_end_s=chunk_end_s, policy=policy,
     )
@@ -312,6 +327,10 @@ def apply_selective_recovery(
             # missing lexical material before attaching any candidate time.
             expected = "".join(_norm_align_tok(u.get("text","")) for u in units[c.lo:c.hi])
             actual = "".join(_norm_align_tok(u.get("text","")) for u in external_units)
+            external_units = [{**u,"valid_timing":bool(u.get("valid_timing")
+                and _finite_interval(u.get("start"),u.get("end")) is not None)}
+                for u in external_units]
+            decision["invalid_external_timing_units"]=sum(not u["valid_timing"] for u in external_units)
             valid = [v for u in external_units if u.get("valid_timing")
                      if (v := _finite_interval(u.get("start"),u.get("end"))) is not None]
             if not expected or expected != actual:

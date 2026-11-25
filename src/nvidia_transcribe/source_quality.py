@@ -237,7 +237,8 @@ def _observe(client, media, crop, root, index):
                              "timed_lexical_units": timed})
             else:
                 rejected.append(u)
-    return {"crop": crop, "audio_sha256": wav_sha, "raw_response_sha256": _digest(raw),
+    return {"crop": crop, "audio_sha256": wav_sha, "actual_audio_s": actual,
+            "raw_response_sha256": _digest(raw),
             "model": result["contract"].get("model_provenance", {}).get("served_model"),
             "integrity": audit, "utterances": rows, "rejected_utterances": rejected,
             "occurrence_inventory": inventory, "raw_response": raw}
@@ -427,6 +428,10 @@ def _recover_untimed(recording, observations, policy):
         rows[i] = {**row, "source_start": bounds[0], "source_end": bounds[1],
                    "alignment_status": "anchored_event_bounds",
                    "source_quality_status": "unresolved_wording_anchored_timing",
+                   "source_occurrence_ids": row.get("source_occurrence_ids") or [row["id"]],
+                   "source_lineage": {**row.get("source_lineage",{}),
+                       "prior_source_ids":[row["id"]],"acoustic_observation_ids":obs_ids,
+                       "source_word_timing_accepted":False},
                    "timestamp_provenance": {
                        "backend": "separate_acoustic_contexts",
                        "timing_status": "approximate",
@@ -531,9 +536,18 @@ def select_source_events(recording, events, policy):
             replace = overlaps[0]
             status = "replaced_corroborated_source_hypothesis"
         elif not overlaps and len(nearby_matches) == 1 and _bounds(nearby_matches[0]) is None:
-            if _lex(nearby_matches[0]["source_text"]) == words:
-                replace = nearby_matches[0]
+            candidate = nearby_matches[0]
+            # One untimed original and two separately supported equal-text
+            # occurrences do not identify which occurrence the original is.
+            competing_events = [other for other in events
+                if other is not event and _lex(other["source_text"]) == words
+                and not _same_event_bounds(_bounds(other),bounds,policy.timing_tolerance_s)]
+            if _lex(candidate["source_text"]) == words and not competing_events:
+                replace = candidate
                 status = "timed_corroborated_turn"
+            elif competing_events:
+                status = "unresolved_possible_displaced_or_repeated_turn"
+                competing_hypotheses = [{"source_id":candidate["id"],"window":None}]
         elif not overlaps and all(corroborated_at_own_time(u, event) for u in nearby_matches):
             status = "recovered_corroborated_turn"
         elif not overlaps:
@@ -620,7 +634,7 @@ def acquire_acoustic_evidence(recording, media, windows, *, asr_scope, output_di
     started = time.monotonic()
     def within_budget(crops):
         new = {tuple(c) for c in crops if tuple(c) not in cache}
-        return (audio_s+sum(b-a for a,b in new) <= policy.max_acoustic_audio_s+1e-6
+        return (audio_s+sum(b-a+.1 for a,b in new) <= policy.max_acoustic_audio_s+1e-6
                 and time.monotonic()-started < policy.max_acoustic_wall_s)
     if not windows:
         return observations, events, unresolved, {"audio_seconds":0.,"extra_contexts":0,
@@ -636,7 +650,7 @@ def acquire_acoustic_evidence(recording, media, windows, *, asr_scope, output_di
                     item["task_ids"] = []
                     cache[key] = item
                     observations.append(item)
-                    audio_s += key[1]-key[0]
+                    audio_s += item.get("actual_audio_s",key[1]-key[0])
                 else:
                     item = cache[key]
                     reused += 1
@@ -779,6 +793,7 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
                  or any(d["status"].startswith("unresolved") for d in decisions)
                  or bool(recovery["decisions"] or recovery["errors"] or recovery["deferred_targets"])
                  or (recovery["status"] == "not_configured" and bool(targets))
+                 or not semantic_review
                  or bool(scene["errors"] or scene["deferred_source_ids"])
                  or any(x.get("outcome") not in ("context_supported","supported") for x in scene["decisions"])
                  or recovery["status"] in ("unresolved","unsupported_language")
@@ -804,6 +819,7 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
         "independent_model_agreement": any(
             d.get("independent_observation_ids") or d.get("kind")=="omission"
             for d in decisions),
+        "semantic_review_requested": semantic_review,
         "independent_recovery": recovery,
         "scene_evidence": scene,
         "source_word_timing_verified": False,

@@ -472,6 +472,7 @@ def translate_utterances(
     gl = glossary or GlossaryConfig()
     trans_cfg_sig = {
         "prompt_version": _TRANSLATION_PROMPT_VERSION,
+        "occurrence_regrouping_contract": "bound-occurrence/v1",
         "backend": cfg.backend,
         "model": cfg.model,
         "endpoint": cfg.base_url,
@@ -624,6 +625,11 @@ def translate_utterances(
             return
         allow_grp = cfg.allow_adjacent_regrouping if allow_regrouping_override is None else allow_regrouping_override
         targets = [out_utts[i] for i in indices]
+        if any(u.get("source_unit_ids") or u.get("source_occurrence_ids")
+               or u.get("occurrence_span_ids") for u in targets):
+            # Bound observations have individual translation ownership.
+            # Avoid requesting merged/empty translations that must be repaired.
+            allow_grp = False
         lo, hi = indices[0], indices[-1] + 1
         ctx_before = out_utts[max(0, lo - cfg.context_utterances_before) : lo]
         ctx_after = out_utts[hi : min(n, hi + cfg.context_utterances_after)]
@@ -670,7 +676,7 @@ def translate_utterances(
             seen.add(uid)
             idx = expected[uid]
             trans = " ".join(str(item.get("translated_text") or "").split()).strip()
-            grp = bool(item.get("grouped_with_prev")) and (allow_regrouping_override is not False)
+            grp = bool(item.get("grouped_with_prev")) and allow_grp
             if not trans and not grp and _src_text(out_utts[idx]):
                 trans = _src_text(out_utts[idx])
                 status_str = "fallback_empty_translation"
