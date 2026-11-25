@@ -1,0 +1,109 @@
+{
+  "media_sha256": "fd85324e938be0d4827b86df048e2acc9482b9cbc6f9ff27f1063160bf818ae0",
+  "recording_sha256": "5fee378925091a8351ceae2f78a084560cb20805f7fac1795abc2f2535de7fba",
+  "translated_sha256": "55732f393231672bacf40ae88e284f0cd18b949e4bef501064df6f2c3c0bff24",
+  "current": {
+    "duration_s": 10.38,
+    "original_rows": 2,
+    "final_rows": 2,
+    "original_wholly_untimed": 0,
+    "final_wholly_untimed": 0,
+    "original_untimed_units": 0,
+    "final_untimed_units": 0,
+    "primary_chunks": 1,
+    "primary_effective_audio_s": 10.38,
+    "original_inventory_units": 49,
+    "occurrence_dispositions": {},
+    "source_resolution_decisions": {},
+    "source_quality_status": "partial",
+    "pending_occurrence_spans": 0,
+    "context": {
+      "status": "complete",
+      "calls": 1,
+      "eligible": 2,
+      "covered": 2,
+      "proposals": 1,
+      "rejected": 0,
+      "usage": {
+        "input_tokens": 561,
+        "output_tokens": 2313,
+        "reasoning_tokens": 2073,
+        "final_answer_tokens": 240
+      },
+      "all_attempt_token_usage_reported": true
+    },
+    "context_dispositions": {
+      "hypothesis_unresolved": 1
+    },
+    "acoustic": {
+      "audio_seconds": 37.775875,
+      "requests": 5,
+      "extra_contexts": 3,
+      "reused_requests": 0,
+      "wall_s": 88.1125
+    },
+    "recovery_task_states": {
+      "observed": 1
+    },
+    "independent": {
+      "status": "unresolved",
+      "requests": 2,
+      "audio_seconds": 18.8444,
+      "wall_s": 9.6076,
+      "errors": []
+    },
+    "scene": {
+      "cases": 1,
+      "deferred": 0,
+      "outcomes": {
+        "unresolved": 1
+      },
+      "errors": [],
+      "native_logical_calls": 2,
+      "native_attempts": 2,
+      "accepted_context_rows": 0
+    },
+    "translation": {
+      "backend": "riva",
+      "resource_fingerprint": "51e174c84e775b5a5628be1117811fc126df47af95526fa9645492bda3096210",
+      "lang_pair": "zh-en",
+      "total_utterances": 2,
+      "cache_hits": 0,
+      "context_example_rows": 0,
+      "native_input_tokens": 90,
+      "elapsed_s": 12.092,
+      "device_used": "cuda:0",
+      "dtype": "torch.bfloat16",
+      "load_s": 3.4989,
+      "infer_s": 2.3861,
+      "peak_vram_mib": 8014.22
+    },
+    "review": {
+      "status": "completed",
+      "batch_size": 12,
+      "api_calls": 2,
+      "comparative_calls": 1,
+      "reviewed": 2,
+      "changed": 2,
+      "rejected_polarity": 0,
+      "comparative_rejections": 0,
+      "joined_passage_rejections": 0,
+      "dependent_passage_rejections": 0,
+      "cache_hits": 0,
+      "elapsed_s": 17.845,
+      "deferred_comparison_ids": [],
+      "errors": []
+    },
+    "render": {
+      "total_input_utterances": 2,
+      "renderable_cues": 2,
+      "ass_displayed_cues": 2,
+      "ass_lane_1_top_cues": 1,
+      "ass_overflow_cues": 0,
+      "unrenderable_cues": 0,
+      "conflict_cues": 0
+    },
+    "total_wall_time_s": 266.446,
+    "human_ground_truth_established": false
+  }
+}

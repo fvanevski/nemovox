@@ -299,6 +299,7 @@ class GlossaryConfig:
     characters: tuple[str, ...] = ()
     terms: tuple[str, ...] = ()
     notes: str | None = None
+    translation_examples: tuple[tuple[str, str], ...] = ()
 
     def all_terms(self) -> list[str]:
         seen: set[str] = set()
@@ -314,7 +315,8 @@ class GlossaryConfig:
         import hashlib
 
         payload = json.dumps(
-            {"characters": list(self.characters), "terms": list(self.terms), "notes": self.notes or ""},
+            {"characters": list(self.characters), "terms": list(self.terms), "notes": self.notes or "",
+             "translation_examples": list(self.translation_examples)},
             ensure_ascii=False,
             sort_keys=True,
         )
@@ -347,7 +349,16 @@ def load_glossary(path_or_terms: str | Path | Sequence[str] | None) -> GlossaryC
         chars = tuple(str(x).strip() for x in chars_raw if str(x).strip())
         terms = tuple(str(x).strip() for x in terms_raw if str(x).strip())
         notes = str(data.get("notes")).strip() if data.get("notes") else None
-        return GlossaryConfig(characters=chars, terms=terms, notes=notes)
+        examples = data.get("translation_examples", [])
+        if (not isinstance(examples, list) or len(examples)>128
+                or any(not isinstance(x, dict) or set(x)!={"source","target"}
+                       or any(not isinstance(x[k],str) or not x[k].strip() or len(x[k])>512
+                              for k in ("source","target")) for x in examples)):
+            raise ValueError("translation_examples must be bounded explicit source/target pairs")
+        pairs = tuple((x["source"].strip(),x["target"].strip()) for x in examples)
+        if len({a for a,b in pairs})!=len(pairs):
+            raise ValueError("Duplicate source translation example")
+        return GlossaryConfig(characters=chars, terms=terms, notes=notes, translation_examples=pairs)
     terms = tuple(x.strip() for x in str(path_or_terms).split(",") if x.strip())
     return GlossaryConfig(terms=terms)
 

@@ -1,0 +1,769 @@
+diff --git a/docs/model-resources/CONFIGURATION.md b/docs/model-resources/CONFIGURATION.md
+index b99056e..0f46b8e 100644
+--- a/docs/model-resources/CONFIGURATION.md
++++ b/docs/model-resources/CONFIGURATION.md
+@@ -39,7 +39,7 @@ environment) before running the CLI or Studio.
+ | `translation_review` | `openai_chat` | `text_local` | Independent English post-edit of dedicated MT using source context |
+ | `subtitle_condensation` | `openai_chat` | `text_local` | Shorten dense subtitle cues |
+ | `riva_translation` | `riva_worker` | `riva_local` | Dedicated Riva translation worker |
+-| `source_challenger` | `whisper_cpu` | none (optional explicit binding) | Independent, selectively admitted CPU acoustic evidence |
++| `source_challenger` | `whisper_ct2` | none (optional explicit binding) | Independent, selectively admitted CUDA acoustic evidence |
+ | `forced_alignment` | `qwen_forced_aligner` | `qwen_local` | Optional selective Qwen forced alignment |
+ | `speaker_embedding` | `titanet` | `titanet_cpu` | NeMo speaker embeddings on CPU |
+ 
+@@ -259,10 +259,10 @@ The shared source-quality scheduler can request bounded independent faster-whisp
+ {
+   "resources": {
+     "whisper_local": {
+-      "adapter": "whisper_cpu",
++      "adapter": "whisper_ct2",
+       "checkpoint_path": "/absolute/path/to/cached/large-v3-ct2",
+       "worker_python": "/workspace/nvidia-transcribe/.venv-challenger/bin/python",
+-      "device": "cpu"
++      "device": "cuda:0"
+     }
+   },
+   "roles": {"source_challenger": "whisper_local"}
+@@ -271,6 +271,6 @@ The shared source-quality scheduler can request bounded independent faster-whisp
+ 
+ Install the dedicated worker dependencies using the checked-in `requirements-challenger.txt` with a supported Python (the qualified host used 3.12.14). For example, after creating or selecting the dedicated environment, run `uv pip install --python /workspace/nvidia-transcribe/.venv-challenger/bin/python -r requirements-challenger.txt` and `uv pip check --python /workspace/nvidia-transcribe/.venv-challenger/bin/python`. Do not install these into another project's environment. The PyAV pin is intentional: the observed faster-whisper 1.2.1 invocation failed with av 19.0.2 because its audio decoder passed the removed `metadata_errors` argument; av 18.0.0 passed the actual CPU control. This is a tested dependency combination, not a claim about all future releases.
+ 
+-Merge these entries into the existing version-1 configuration; do not replace unrelated roles. Worker execution uses CPU int8 and local-files-only admission. Missing or unusable resources are explicit unresolved/error outcomes, not silent model substitution. The source-quality report distinguishes admitted tasks, acquisition receipts, resource deferral, occurrence resolutions and unresolved candidates. Qwen remains optional timing-only work; it cannot supply independent recognition of submitted wording.
++Merge these entries into the existing version-1 configuration; do not replace unrelated roles. Worker execution uses CUDA int8_float16 and local-files-only admission. The previous whisper_cpu adapter is superseded; change only the configured challenger adapter and device, preserving its local checkpoint and worker paths. The worker uses the shared ModelLifecycle CUDA lease after owned Nemotron and text stages have released their scopes. No CPU fallback, CUDA visibility override, unrelated service eviction or alternate checkpoint is allowed. A blocked lease, unsupported CUDA compute type, loader failure, or mismatched actual device receipt leaves explicit unresolved evidence. Qualify CUDA library availability and the real worker on the installed host before promotion; prior CPU evidence is not CUDA qualification. Missing or unusable resources are explicit unresolved/error outcomes, not silent model substitution. The source-quality report distinguishes admitted tasks, acquisition receipts, resource deferral, occurrence resolutions and unresolved candidates. Qwen remains optional timing-only work; it cannot supply independent recognition of submitted wording.
+ 
+ Primary recording no longer launches the former automatic per-chunk CTC subinterval recovery. CTC errors preserve recognized text, explicit unresolved timing and native observations for the shared scheduler; optional Qwen uses the audited admission path. The former `process-media --no-subinterval-recovery` switch is therefore removed. Direct low-level alignment experiments can still use the explicit helper independently of the normal recording workflow. Current-media source quality requires the original recording contract and its occurrence ledger to match their completed-run manifest digests; regenerate incompatible retained recordings before acoustic review. Offline re-rendering of a translated contract is unaffected.
+diff --git a/docs/model-resources/LIFECYCLE.md b/docs/model-resources/LIFECYCLE.md
+index 52a55ba..311a47c 100644
+--- a/docs/model-resources/LIFECYCLE.md
++++ b/docs/model-resources/LIFECYCLE.md
+@@ -143,3 +143,7 @@ an abandoned idle unit. Do not claim immediate standalone SIGKILL recovery.
+ Verify the supervised SIGKILL path on the host with a short synthetic
+ model job, and verify recovery is skipped while another CLI owns the lease,
+ while external clients are connected or when unit markers change.
++
++### Independent Whisper CUDA phase
++
++The explicitly configured `whisper_ct2` challenger acquires the same CUDA worker lease as Riva/Qwen, only after the managed acoustic endpoint scope exits. Owned ASR and text units must retain `stop_after_stage: true` for sequential resource release. The worker uses one subprocess for the bounded batch; its exit releases its CUDA context before the later scene/text phase. Capacity denial remains explicit rather than falling back to CPU or stopping an external process. The initial admission threshold is the existing 8500 MiB worker minimum, subject to measured host qualification.
+diff --git a/requirements-challenger.txt b/requirements-challenger.txt
+index 6741d54..b4348bf 100644
+--- a/requirements-challenger.txt
++++ b/requirements-challenger.txt
+@@ -1,4 +1,4 @@
+-# Qualified dedicated CPU challenger dependency combination.
++# Dedicated challenger Python dependency combination (CPU qualified previously; CUDA runtime requires host qualification).
+ # Keep PyAV pinned: 19.0.2 removed metadata_errors used by faster-whisper 1.2.1.
+ faster-whisper==1.2.1
+ ctranslate2==4.9.1
+diff --git a/scripts/evaluate_cuda_challenger.py b/scripts/evaluate_cuda_challenger.py
+new file mode 100644
+index 0000000..e66b0a9
+--- /dev/null
++++ b/scripts/evaluate_cuda_challenger.py
+@@ -0,0 +1,116 @@
++"""Matched CUDA challenger qualification on the sealed #19 CPU input/crops.
++
++Uses the production worker and lifecycle, not a second recognition pathway.
++No text or primary-ASR calls. The frozen CPU outputs are observations, not
++gold transcription or a mandatory identical-output target.
++"""
++from __future__ import annotations
++
++import argparse
++import hashlib
++import json
++from pathlib import Path, PurePosixPath
++import tarfile
++from copy import deepcopy
++
++from nvidia_transcribe.media import probe_media, validate_wav_file
++from nvidia_transcribe.model_resources import load_model_resources
++from nvidia_transcribe.resource_lifecycle import ModelLifecycle
++from nvidia_transcribe.source_quality import SourceQualityPolicy, _digest
++from nvidia_transcribe.source_recovery import acquire_independent_evidence
++from nvidia_transcribe.occurrence_resolution import resolve_occurrences
++
++ARCHIVE_SHA="206ada956e77b9db1263de090fbbeac139c78e1fa26670bc24963cbadcad3498"
++MEDIA_SHA="30234a1c67ae9ed310ed6c76e4b97d4d0c9d54a7220129ac0a05c61eb368f314"
++POLICY=SourceQualityPolicy(max_windows=4,max_extra_contexts=2,
++    max_acoustic_audio_s=240.,max_acoustic_wall_s=420.,
++    max_independent_targets=2,max_independent_audio_s=100.,max_independent_wall_s=420.,
++    max_text_cases=2,scene_max_cases=1)
++
++
++def read_archive(path):
++    with path.open("rb") as stream:
++        if hashlib.file_digest(stream,"sha256").hexdigest()!=ARCHIVE_SHA:
++            raise ValueError("Prior CPU qualification archive digest mismatch")
++    members={}
++    with tarfile.open(path,"r:gz") as archive:
++        for member in archive:
++            parts=PurePosixPath(member.name).parts
++            if not parts or parts[0]!="packet" or ".." in parts:
++                raise ValueError("Unexpected archive path")
++            if member.isdir():
++                continue
++            if not member.isfile() or member.size>16*1024*1024:
++                raise ValueError("Invalid archive member")
++            name="/".join(parts[1:])
++            if name in members:
++                raise ValueError("Duplicate archive member")
++            members[name]=archive.extractfile(member).read()
++    manifest=json.loads(members["manifest.json"])
++    if set(manifest)!=set(members)-{"manifest.json"}:
++        raise ValueError("Archive inventory mismatch")
++    for name,entry in manifest.items():
++        payload=members[name]
++        if len(payload)!=entry["bytes"] or hashlib.sha256(payload).hexdigest()!=entry["sha256"]:
++            raise ValueError("Archive member digest mismatch")
++    return members
++
++
++def main():
++    parser=argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--archive",required=True,type=Path)
++    parser.add_argument("--media",required=True,type=Path)
++    parser.add_argument("--model-resources",required=True,type=Path)
++    parser.add_argument("--lifecycle-config",type=Path)
++    parser.add_argument("--output-dir",required=True,type=Path)
++    args=parser.parse_args()
++    members=read_archive(args.archive)
++    base="live-acoustic-recording/"
++    rec=json.loads(members[base+"recording.contract.json"])
++    manifest=json.loads(members[base+"manifest.json"])
++    report=json.loads(members["live-acoustic-eval/source-quality.json"])
++    ledger_bytes=members[base+"source-evidence.v1.json"]
++    if (manifest["recording_contract_sha256"]!=hashlib.sha256(members[base+"recording.contract.json"]).hexdigest()
++        or manifest["source_evidence"]["sha256"]!=hashlib.sha256(ledger_bytes).hexdigest()
++        or report["recording_sha256"]!=_digest(rec)):
++        raise ValueError("Recording/ledger authority mismatch")
++    duration,media_sha=validate_wav_file(args.media)
++    media=probe_media(args.media,audio_stream_index=rec["source"]["selected_audio_stream"])
++    if (media_sha!=MEDIA_SHA or abs(duration-rec["source"]["duration_s"])>.01
++        or media.fingerprint_sha256!=rec["source"]["fingerprint_sha256"]):
++        raise ValueError("Exact matched original WAV required")
++    prior=report["independent_recovery"]
++    targets=prior["targets"]
++    if len(targets)!=2 or len(prior["observations"])!=4 or prior["resource"]["device"]!="cpu":
++        raise ValueError("Unexpected CPU baseline")
++    resource=load_model_resources(args.model_resources).resolve("source_challenger",require_local_paths=True)
++    manager=ModelLifecycle(config_path=args.lifecycle_config)
++    root=args.output_dir
++    root.mkdir(parents=True,exist_ok=False)
++    before=_digest(rec)
++    candidate=acquire_independent_evidence(rec,deepcopy(targets),media,
++        challenger_resource=resource,output_dir=root,policy=POLICY,lifecycle=manager)
++    (root/"cuda-worker.json").write_text(json.dumps(candidate,ensure_ascii=False,indent=2))
++    if candidate["status"]!="observed":
++        raise RuntimeError("CUDA worker did not produce validated observations; inspect cuda-worker.json")
++    def keys(result):
++        return {o["id"]:(o["audio_sha256"],o["crop"]) for o in result["observations"]}
++    if keys(candidate)!=keys(prior) or candidate["resource"]["checkpoint_sha256"]!=prior["resource"]["checkpoint_sha256"]:
++        raise ValueError("Matched crop or checkpoint identity mismatch")
++    # Resolver control uses frozen native observations and only the fresh
++    # independent evidence; no invented newly acquired native events.
++    rows,decisions=resolve_occurrences(rec,[],report["acoustic_observations"],targets,deepcopy(candidate),POLICY)
++    if _digest(rec)!=before:
++        raise ValueError("Original recording mutated")
++    (root/"private-resolution.json").write_text(json.dumps({"rows":rows,"decisions":decisions},ensure_ascii=False,indent=2))
++    (root/"summary.json").write_text(json.dumps({"status":"observed",
++        "archive_sha256":ARCHIVE_SHA,"media_sha256":MEDIA_SHA,"matched_crops":4,
++        "checkpoint_equivalence":True,"cpu_wall_s":prior["wall_s"],
++        "cuda_wall_s":candidate["wall_s"],"audio_seconds":candidate["audio_seconds"],
++        "cuda_resource":candidate["resource"],"cpu_receipt":prior["receipt_sha256"],
++        "cuda_receipt":candidate["receipt_sha256"],"resolution_decisions":len(decisions),
++        "source_truth_accepted":False},indent=2))
++
++
++if __name__=="__main__":
++    main()
+diff --git a/scripts/evaluate_occurrence_recovery.py b/scripts/evaluate_occurrence_recovery.py
+index cacd69c..f60e0d4 100644
+--- a/scripts/evaluate_occurrence_recovery.py
++++ b/scripts/evaluate_occurrence_recovery.py
+@@ -1,7 +1,7 @@
+ """Bounded host qualification of the shared occurrence recovery path.
+ 
+ Run with python -m scripts.evaluate_occurrence_recovery from the checkout.
+-Replay does not acquire models. Worker uses only cached CPU Whisper. Live
++Replay does not acquire models. Worker uses only cached CUDA Whisper. Live
+ uses the actual recording/current-source pipeline, with semantic review
+ explicitly excluded from this acoustic experiment (not a new CLI default).
+ """
+@@ -143,21 +143,21 @@ def original_media(args):
+ 
+ def challenger(registry):
+     resource=registry.resolve("source_challenger",require_local_paths=True)
+-    if resource.adapter!="whisper_cpu" or resource.device!="cpu":
+-        raise ValueError("Explicit cached CPU challenger required")
++    if resource.adapter!="whisper_ct2" or resource.device!="cuda:0":
++        raise ValueError("Explicit cached CUDA challenger required")
+     return resource
+ 
+ 
+ def worker(args,root,registry):
+     media=original_media(args)
+-    # Registered CPU worker control, not a claim of missing speech.
++    # Registered CUDA worker control, not a claim of missing speech.
+     bounds=(1212.,1224.)
+     target={"kind":"occurrence","target_id":"registered-worker-control",
+             "bounds":bounds,"crops":independent_crops(bounds,media.duration_s),
+             "ids":[],"task_ids":["worker-control"],"evidence_ids":["registered-input"],"chunks":[]}
+     report=acquire_independent_evidence(
+         {"source_language":"fr"},[target],media,challenger_resource=challenger(registry),
+-        output_dir=root,policy=POLICY)
++        output_dir=root,policy=POLICY,lifecycle=ModelLifecycle())
+     write_json(root/"private-worker.json",report)
+     write_json(root/"summary.json",{"status":report["status"],"requests":report["requests"],
+         "audio_seconds":report["audio_seconds"],"resource":report.get("resource"),
+@@ -165,7 +165,7 @@ def worker(args,root,registry):
+         "observations":len(report["observations"]),"acoustic_truth_accepted":False,
+         "errors":[e["error"] for e in report["errors"]]})
+     if report["status"]!="observed":
+-        raise RuntimeError("CPU challenger control did not produce validated observations")
++        raise RuntimeError("CUDA challenger control did not produce validated observations")
+ 
+ 
+ def trace_ids(row):
+@@ -181,7 +181,7 @@ def trace_ids(row):
+ def live(args,root,registry):
+     media=original_media(args)
+     resource=registry.resolve("asr",require_local_paths=True)
+-    cpu=challenger(registry)
++    independent_resource=challenger(registry)
+     if (resource.adapter!="nemotron_ctc" or not resource.checkpoint_path
+             or Path(resource.checkpoint_path).resolve()!=Path(CHECKPOINT).resolve()):
+         raise ValueError("Expected exact cached Nemotron checkpoint")
+@@ -228,11 +228,12 @@ def live(args,root,registry):
+                     yield bounded
+                 finally:
+                     # One owned ASR acquisition per region; release before
+-                    # the actual review_current_source CPU worker phase.
++                    # the actual review_current_source CUDA worker phase.
+                     stack.close()
+             canonical,report=review_current_source(out["contract"],recording_path=out["contract_path"],
+                 media_path=wav,output_dir=case,text_scope=lambda:None,
+-                asr_scope=acoustic_scope,challenger_resource=cpu,policy=POLICY,
++                asr_scope=acoustic_scope,challenger_resource=independent_resource,policy=POLICY,
++                lifecycle=manager,
+                 semantic_review=False)
+         write_json(case/"canonical-source.contract.json",canonical)
+         write_json(case/"source-quality.json",report)
+diff --git a/scripts/evaluate_recording_context.py b/scripts/evaluate_recording_context.py
+index 2fed6f3..fb78516 100644
+--- a/scripts/evaluate_recording_context.py
++++ b/scripts/evaluate_recording_context.py
+@@ -111,7 +111,7 @@ def main():
+                                    api_key=asr.credential(),timeout_s=900.)
+         canonical, report = review_current_source(rec,recording_path=path,media_path=args.live_media,
+             output_dir=root,text_scope=text_scope,asr_scope=lambda:managed_asr_client(lifecycle,asr,client),
+-            policy=policy,challenger_resource=challenger)
++            policy=policy,challenger_resource=challenger,lifecycle=lifecycle)
+         write(root/"source-quality.json",report)
+         write(root/"canonical-source.contract.json",canonical)
+         write(root/"summary.json",{"status":report["status"],"context":report["recording_context"]["status"],
+diff --git a/scripts/replay_recovery_schedule.py b/scripts/replay_recovery_schedule.py
+index 77f2486..6ace639 100644
+--- a/scripts/replay_recovery_schedule.py
++++ b/scripts/replay_recovery_schedule.py
+@@ -1,7 +1,7 @@
+ """Replay the qualified acoustic recovery evidence, then optionally challenge
+-the one deferred, explicitly bracketed original occurrence with CPU Whisper.
++the one deferred, explicitly bracketed original occurrence with CUDA Whisper.
+ 
+-No GPU client or model is acquired. A changed primary plan is a counterfactual
++Replay alone acquires no GPU client or model. A changed primary plan is a counterfactual
+ plan, not a fresh acoustic run. Independent admission is compared on the
+ exact prior observed tasks and unchanged acoustic receipts.
+ """
+@@ -16,6 +16,7 @@ from pathlib import Path
+ 
+ from nvidia_transcribe.media import probe_media, validate_wav_file
+ from nvidia_transcribe.model_resources import load_model_resources
++from nvidia_transcribe.resource_lifecycle import ModelLifecycle
+ from nvidia_transcribe.occurrence_resolution import resolution_receipts, resolve_occurrences
+ from nvidia_transcribe.recovery_planner import plan_recovery_windows
+ from nvidia_transcribe.source_recovery import schedule_independent, acquire_independent_evidence
+@@ -116,7 +117,7 @@ def main():
+     parser.add_argument("--archive",required=True,type=Path)
+     parser.add_argument("--output-dir",required=True,type=Path)
+     parser.add_argument("--boundary-wav",type=Path,
+-                        help="Optional exact retained boundary input WAV; enables one CPU crop pair")
++                        help="Optional exact retained boundary input WAV; enables one CUDA crop pair")
+     parser.add_argument("--model-resources",type=Path)
+     args=parser.parse_args()
+     args.output_dir.mkdir(parents=True,exist_ok=False)
+@@ -135,12 +136,12 @@ def main():
+     media=probe_media(args.boundary_wav,audio_stream_index=0)
+     resource=load_model_resources(args.model_resources).resolve("source_challenger",require_local_paths=True)
+     report=acquire_independent_evidence(rec,[target],media,challenger_resource=resource,
+-            output_dir=args.output_dir,policy=POLICY)
++            output_dir=args.output_dir,policy=POLICY,lifecycle=ModelLifecycle())
+     write_json(args.output_dir/"private-targeted-worker.json",report)
+     if report["status"]!="observed":
+         result["new_worker"]="blocked_or_failed"
+         write_json(args.output_dir/"summary.json",result)
+-        raise RuntimeError("Targeted CPU worker failed")
++        raise RuntimeError("Targeted CUDA worker failed")
+     rows,decisions=resolve_occurrences(rec,[],quality["acoustic_observations"],
+                                      [target],report,POLICY)
+     write_json(args.output_dir/"private-targeted-resolution.json",{
+diff --git a/src/nvidia_transcribe/_whisper_challenge_worker.py b/src/nvidia_transcribe/_whisper_challenge_worker.py
+index 396b93f..110aecd 100644
+--- a/src/nvidia_transcribe/_whisper_challenge_worker.py
++++ b/src/nvidia_transcribe/_whisper_challenge_worker.py
+@@ -1,4 +1,4 @@
+-"""One explicit local CPU Whisper worker for a bounded batch of evidence crops."""
++"""One explicit local CUDA Whisper worker for a bounded batch of evidence crops."""
+ import hashlib
+ import json
+ import math
+@@ -12,10 +12,25 @@ def main():
+     required = ("model.bin", "config.json", "tokenizer.json", "preprocessor_config.json")
+     if not checkpoint.is_dir() or not all((checkpoint / p).is_file() for p in required):
+         raise ValueError("Complete local multilingual CTranslate2 assets required")
++    if request.get("device")!="cuda:0" or request.get("compute_type")!="int8_float16":
++        raise ValueError("Explicit CUDA challenger device and compute type required")
++    import ctranslate2
+     from faster_whisper import WhisperModel
+     from importlib.metadata import version
+-    model = WhisperModel(str(checkpoint.resolve()), device="cpu", compute_type="int8",
+-                         local_files_only=True)
++    if (ctranslate2.get_cuda_device_count()<1
++            or "int8_float16" not in ctranslate2.get_supported_compute_types("cuda",0)):
++        raise RuntimeError("CUDA int8_float16 unavailable for the challenger")
++    model = WhisperModel(str(checkpoint.resolve()), device="cuda", device_index=0,
++                         compute_type="int8_float16", local_files_only=True)
++    native = model.model
++    def runtime_identity():
++        return {"device":native.device,"device_index":list(native.device_index),
++                "compute_type":native.compute_type,"model_is_loaded":native.model_is_loaded,
++                "is_multilingual":native.is_multilingual}
++    identity = runtime_identity()
++    if identity != {"device":"cuda","device_index":[0],"compute_type":"int8_float16",
++                    "model_is_loaded":True,"is_multilingual":True}:
++        raise RuntimeError("Loaded challenger does not match requested CUDA model identity")
+     output = []
+     for crop in request["crops"]:
+         path = Path(crop["path"])
+@@ -40,9 +55,11 @@ def main():
+     for name in required:
+         with (checkpoint/name).open("rb") as stream:
+             hashes[name] = hashlib.file_digest(stream,"sha256").hexdigest()
++    if runtime_identity()!=identity:
++        raise RuntimeError("Challenger runtime identity changed during inference")
+     json.dump({"backend":"faster-whisper","version":version("faster-whisper"),
+-               "checkpoint_sha256":hashes,"device":"cpu","compute_type":"int8",
+-               "observations":output},sys.stdout,ensure_ascii=False,allow_nan=False)
++               "ctranslate2_version":version("ctranslate2"),"checkpoint_sha256":hashes,
++               **identity,"observations":output},sys.stdout,ensure_ascii=False,allow_nan=False)
+ 
+ 
+ if __name__ == "__main__":
+diff --git a/src/nvidia_transcribe/model_resources.py b/src/nvidia_transcribe/model_resources.py
+index f787864..d7ad8a9 100644
+--- a/src/nvidia_transcribe/model_resources.py
++++ b/src/nvidia_transcribe/model_resources.py
+@@ -23,7 +23,7 @@ class ResourceConfigError(ValueError):
+ # Stage requirements, not model names. Specialized adapters remain distinct.
+ ROLE_ADAPTERS: dict[str, frozenset[str]] = {
+     "asr": frozenset({"nemotron_ctc"}),
+-    "source_challenger": frozenset({"whisper_cpu"}),
++    "source_challenger": frozenset({"whisper_ct2"}),
+     "source_refinement": frozenset({"openai_chat"}),
+     "text_translation": frozenset({"openai_chat"}),
+     "translation_review": frozenset({"openai_chat"}),
+@@ -37,7 +37,7 @@ RESOURCE_FIELDS = frozenset({"adapter", "model", "endpoint", "checkpoint_path",
+ # suggesting it controls inference (particularly device and credential settings).
+ _ADAPTER_FIELDS = {
+     "nemotron_ctc": frozenset({"adapter", "endpoint", "model", "checkpoint_path", "api_key_env"}),
+-    "whisper_cpu": frozenset({"adapter", "checkpoint_path", "worker_python", "device"}),
++    "whisper_ct2": frozenset({"adapter", "checkpoint_path", "worker_python", "device"}),
+     "openai_chat": frozenset({"adapter", "endpoint", "model", "api_key_env"}),
+     "riva_worker": frozenset({"adapter", "checkpoint_path", "worker_python", "device"}),
+     "qwen_forced_aligner": frozenset({"adapter", "checkpoint_path", "worker_python", "device"}),
+@@ -138,7 +138,7 @@ def _validate_resource(name: str, spec: Mapping[str, Any]) -> ModelResource:
+             raise ResourceConfigError(f"Resource {name!r} has invalid endpoint port") from exc
+     if adapter in ("openai_chat", "nemotron_ctc") and not (endpoint and spec.get("model")):
+         raise ResourceConfigError(f"Resource {name!r} requires endpoint and served model")
+-    if adapter in ("riva_worker", "qwen_forced_aligner", "whisper_cpu") and not (spec.get("checkpoint_path") and spec.get("worker_python")):
++    if adapter in ("riva_worker", "qwen_forced_aligner", "whisper_ct2") and not (spec.get("checkpoint_path") and spec.get("worker_python")):
+         raise ResourceConfigError(f"Resource {name!r} requires checkpoint_path and worker_python")
+     if adapter == "titanet" and not spec.get("model"):
+         raise ResourceConfigError(f"Resource {name!r} requires a model identifier")
+@@ -147,8 +147,8 @@ def _validate_resource(name: str, spec: Mapping[str, Any]) -> ModelResource:
+         raise ResourceConfigError(f"Resource {name!r} api_key_env must name an environment variable")
+     if adapter == "qwen_forced_aligner" and spec.get("device", "cuda:0") not in ("cuda:0", "cpu"):
+         raise ResourceConfigError("Qwen aligner device must be cuda:0 or explicitly cpu")
+-    if adapter == "whisper_cpu" and spec.get("device") != "cpu":
+-        raise ResourceConfigError("Whisper challenger requires explicitly configured CPU device")
++    if adapter == "whisper_ct2" and spec.get("device") != "cuda:0":
++        raise ResourceConfigError("Whisper challenger requires explicitly configured cuda:0 device")
+     if adapter == "titanet" and spec.get("device", "cpu") != "cpu":
+         raise ResourceConfigError("NeMo TitaNet speaker embedding runs on CPU only")
+     if adapter == "riva_worker":
+diff --git a/src/nvidia_transcribe/resource_lifecycle.py b/src/nvidia_transcribe/resource_lifecycle.py
+index add2977..8eb939c 100644
+--- a/src/nvidia_transcribe/resource_lifecycle.py
++++ b/src/nvidia_transcribe/resource_lifecycle.py
+@@ -8,6 +8,7 @@ from __future__ import annotations
+ 
+ import fcntl
+ import json
++import math
+ import os
+ import re
+ import signal
+@@ -247,9 +248,12 @@ class ModelLifecycle:
+             if not 0.1 <= timeout <= 7200:
+                 raise ResourceLifecycleError("invalid_lifecycle_lock_timeout")
+             if timeout_override_s is not None:
+-                if timeout_override_s != 0.0:
++                # Zero preserves nonblocking orphan recovery. A worker can
++                # shorten, but never extend, the configured shared lease wait.
++                if (type(timeout_override_s) not in (int, float)
++                        or not math.isfinite(timeout_override_s) or timeout_override_s < 0):
+                     raise ResourceLifecycleError("invalid_lifecycle_lock_timeout")
+-                timeout = 0.0  # Never wait behind a live CLI during recovery.
++                timeout = min(timeout, timeout_override_s)
+             deadline = time.monotonic() + timeout
+             while True:
+                 try:
+@@ -258,7 +262,7 @@ class ModelLifecycle:
+                 except BlockingIOError as exc:
+                     if time.monotonic() >= deadline:
+                         raise ResourceLifecycleError("resource_lease_timeout") from exc
+-                    time.sleep(0.25)
++                    time.sleep(min(0.25, max(0., deadline - time.monotonic())))
+             prior_sigterm = None
+             restore_signal = threading.current_thread() is threading.main_thread()
+             if restore_signal:
+@@ -431,9 +435,10 @@ class ModelLifecycle:
+                             raise ResourceLifecycleError("managed_stop_unverified", resource.name)
+ 
+     @contextmanager
+-    def worker(self, *, resource_name: str, min_free_vram_mb: int = 8500) -> Iterator[None]:
+-        """One on-demand Riva/Qwen worker, never a persistent service takeover."""
+-        with self._lock():
++    def worker(self, *, resource_name: str, min_free_vram_mb: int = 8500,
++               lock_timeout_s: float | None = None) -> Iterator[None]:
++        """One on-demand CUDA worker, never a persistent service takeover."""
++        with self._lock(timeout_override_s=lock_timeout_s):
+             free = _free_vram_mb()
+             if free is None:
+                 raise ResourceLifecycleError("gpu_telemetry_unavailable", resource_name)
+diff --git a/src/nvidia_transcribe/source_quality.py b/src/nvidia_transcribe/source_quality.py
+index 233781c..130ee3d 100644
+--- a/src/nvidia_transcribe/source_quality.py
++++ b/src/nvidia_transcribe/source_quality.py
+@@ -802,7 +802,7 @@ def acquire_acoustic_evidence(recording, media, windows, *, asr_scope, output_di
+ 
+ def review_current_source(recording, *, recording_path, media_path, output_dir,
+                           text_scope, asr_scope, policy=None, challenger_resource=None,
+-                          semantic_review=True):
++                          semantic_review=True, lifecycle=None):
+     """Review one current job, with explicitly sequential managed model scopes."""
+     policy = policy or SourceQualityPolicy()
+     ledger = load_current_ledger(recording, recording_path)
+@@ -853,7 +853,7 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
+         recording,observations,windows=windows,policy=policy)
+     recovery = acquire_independent_evidence(
+         recording,targets,observed_media,challenger_resource=challenger_resource,
+-        output_dir=output_dir,policy=policy)
++        output_dir=output_dir,policy=policy,lifecycle=lifecycle)
+     recovery["deferred_targets"] = independent_deferred
+     from nvidia_transcribe.occurrence_resolution import resolve_occurrences, resolution_receipts
+     rows,decisions = resolve_occurrences(recording,events,observations,targets,recovery,policy)
+diff --git a/src/nvidia_transcribe/source_recovery.py b/src/nvidia_transcribe/source_recovery.py
+index 21fdcda..49f41a3 100644
+--- a/src/nvidia_transcribe/source_recovery.py
++++ b/src/nvidia_transcribe/source_recovery.py
+@@ -425,7 +425,8 @@ def apply_independent(recording, targets, observations, independent):
+     return rows,decisions
+ 
+ 
+-def acquire_independent_evidence(recording,targets,media,*,challenger_resource,output_dir,policy):
++def acquire_independent_evidence(recording,targets,media,*,challenger_resource,output_dir,policy,
++                                 lifecycle=None):
+     report={"status":"not_configured","targets":targets,"decisions":[],"errors":[],
+             "observations":[],"audio_seconds":0.,"requests":0}
+     if not targets:
+@@ -439,10 +440,13 @@ def acquire_independent_evidence(recording,targets,media,*,challenger_resource,o
+         return report
+     started = time.monotonic()
+     try:
+-        if (challenger_resource.adapter!="whisper_cpu" or challenger_resource.device!="cpu"
++        if (challenger_resource.adapter!="whisper_ct2" or challenger_resource.device!="cuda:0"
++                or not challenger_resource.worker_python or not challenger_resource.checkpoint_path
+                 or not Path(challenger_resource.worker_python).is_file()
+                 or not Path(challenger_resource.checkpoint_path).is_dir()):
+-            raise ValueError("Explicit cached CPU challenger resource unavailable")
++            raise ValueError("Explicit cached CUDA challenger resource unavailable")
++        if lifecycle is None:
++            raise ValueError("CUDA challenger requires the shared model lifecycle")
+         with tempfile.TemporaryDirectory(prefix="independent-source-",dir=output_dir) as tmp:
+             root=Path(tmp)
+             crops=[]
+@@ -459,23 +463,33 @@ def acquire_independent_evidence(recording,targets,media,*,challenger_resource,o
+             if report["audio_seconds"]>policy.max_independent_audio_s+1e-6:
+                 raise ValueError("Independent audio budget exceeded")
+             request={"checkpoint":challenger_resource.checkpoint_path,
++                     "device":challenger_resource.device,"compute_type":"int8_float16",
+                      "language":language.split("-")[0],"crops":crops}
+             remaining=policy.max_independent_wall_s-(time.monotonic()-started)
+             if remaining<=0:
+                 raise TimeoutError("Independent preparation exhausted wall budget")
+-            report["requests"]=len(crops)
+-            proc=subprocess.run([challenger_resource.worker_python,
+-                str(Path(__file__).with_name("_whisper_challenge_worker.py"))],
+-                input=json.dumps(request),text=True,capture_output=True,timeout=remaining,
+-                env={**os.environ,"HF_HUB_OFFLINE":"1","TRANSFORMERS_OFFLINE":"1","CUDA_VISIBLE_DEVICES":""})
++            # ASR and text scopes have released their owned services. Use the
++            # same cross-process lease as the other CUDA stages; never hide
++            # the GPU or evict an unrelated process to satisfy admission.
++            with lifecycle.worker(resource_name=challenger_resource.name,
++                                  lock_timeout_s=remaining):
++                remaining=policy.max_independent_wall_s-(time.monotonic()-started)
++                if remaining<=0:
++                    raise TimeoutError("Independent CUDA lease exhausted wall budget")
++                report["requests"]=len(crops)
++                proc=subprocess.run([challenger_resource.worker_python,
++                    str(Path(__file__).with_name("_whisper_challenge_worker.py"))],
++                    input=json.dumps(request),text=True,capture_output=True,timeout=remaining,
++                    env={**os.environ,"HF_HUB_OFFLINE":"1","TRANSFORMERS_OFFLINE":"1"})
+             if proc.returncode:
+                 raise RuntimeError(f"Independent worker exited {proc.returncode}: {proc.stderr[-2000:]}")
+             result=json.loads(proc.stdout)
+             expected={c["id"]:(c["audio_sha256"],[c["start"],c["end"]]) for c in crops}
+             actual={o["id"]:(o["audio_sha256"],o["crop"]) for o in result["observations"]}
+             if (expected!=actual or len(actual)!=len(result["observations"])
+-                    or result["device"]!="cpu" or result["backend"]!="faster-whisper"
+-                    or result["compute_type"]!="int8"):
++                    or result["device"]!="cuda" or result["backend"]!="faster-whisper"
++                    or result["device_index"]!=[0] or result["compute_type"]!="int8_float16"
++                    or result["model_is_loaded"] is not True or result["is_multilingual"] is not True):
+                 raise ValueError("Independent worker receipt mismatch")
+             seen=set()
+             for obs in result["observations"]:
+@@ -493,6 +507,7 @@ def acquire_independent_evidence(recording,targets,media,*,challenger_resource,o
+             report["status"]="observed"
+     except (OSError,ValueError,KeyError,TypeError,RuntimeError,subprocess.TimeoutExpired) as exc:
+         report["status"]="error"
+-        report["errors"].append({"stage":"independent_asr","error":type(exc).__name__,"detail":str(exc)})
++        report["errors"].append({"stage":"independent_asr","error":type(exc).__name__,"detail":str(exc),
++                                 **({"reason":exc.status} if hasattr(exc,"status") else {})})
+     report["wall_s"]=round(time.monotonic()-started,4)
+     return report
+diff --git a/src/nvidia_transcribe/subtitle_pipeline.py b/src/nvidia_transcribe/subtitle_pipeline.py
+index e1a1370..29f595a 100644
+--- a/src/nvidia_transcribe/subtitle_pipeline.py
++++ b/src/nvidia_transcribe/subtitle_pipeline.py
+@@ -296,7 +296,8 @@ def generate_subtitles(
+                 asr_scope=lambda: managed_asr_client(lifecycle,
+                     lifecycle_resources["asr"], challenge_client),
+                 policy=cfg.source_quality_policy,
+-                challenger_resource=lifecycle_resources.get("source_challenger"))
++                challenger_resource=lifecycle_resources.get("source_challenger"),
++                lifecycle=lifecycle)
+             _atomic_write(out_dir / "source-quality.json", json.dumps(quality_report, ensure_ascii=False, indent=2))
+             _atomic_write(out_dir / "canonical-source.contract.json", json.dumps(contract, ensure_ascii=False, indent=2))
+             _event("source_quality", "complete", quality_report["status"])
+diff --git a/tests/test_model_resources.py b/tests/test_model_resources.py
+index 66dc986..cc41318 100644
+--- a/tests/test_model_resources.py
++++ b/tests/test_model_resources.py
+@@ -177,13 +177,13 @@ def test_translation_review_role_defaults_to_text_and_rejects_specialized_adapte
+ 
+ 
+ 
+-def test_optional_independent_challenger_requires_explicit_local_cpu_binding(tmp_path):
++def test_optional_independent_challenger_requires_explicit_local_cuda_binding(tmp_path):
+     assert "source_challenger" not in load_model_resources(environ={}).roles
+-    spec={"adapter":"whisper_cpu","checkpoint_path":"/local/model",
+-          "worker_python":"/local/python","device":"cpu"}
++    spec={"adapter":"whisper_ct2","checkpoint_path":"/local/model",
++          "worker_python":"/local/python","device":"cuda:0"}
+     path=_file(tmp_path,{"version":1,"resources":{"whisper":spec},
+                          "roles":{"source_challenger":"whisper"}})
+-    assert load_model_resources(path,environ={}).resolve("source_challenger").device=="cpu"
+-    with pytest.raises(ResourceConfigError,match="explicitly configured CPU"):
+-        load_model_resources(_file(tmp_path,{"version":1,"resources":{"whisper":{**spec,"device":"cuda:0"}},
++    assert load_model_resources(path,environ={}).resolve("source_challenger").device=="cuda:0"
++    with pytest.raises(ResourceConfigError,match="explicitly configured cuda:0"):
++        load_model_resources(_file(tmp_path,{"version":1,"resources":{"whisper":{**spec,"device":"cpu"}},
+                                              "roles":{"source_challenger":"whisper"}}),environ={})
+diff --git a/tests/test_occurrence_recovery.py b/tests/test_occurrence_recovery.py
+index 3ff3bd8..7cdeab0 100644
+--- a/tests/test_occurrence_recovery.py
++++ b/tests/test_occurrence_recovery.py
+@@ -257,7 +257,7 @@ def test_global_alignment_budget_retains_late_candidate_and_defers_others():
+     assert sum(d["status"]=="skipped_recording_alignment_budget" for _,ds in admitted for d in ds)==4
+ 
+ 
+-def test_independent_worker_admission_binds_receipts_and_cpu_device(tmp_path,monkeypatch):
++def test_independent_worker_admission_binds_receipts_and_cuda_device(tmp_path,monkeypatch):
+     import json
+     from types import SimpleNamespace
+     from nvidia_transcribe.model_resources import ModelResource
+@@ -266,29 +266,66 @@ def test_independent_worker_admission_binds_receipts_and_cpu_device(tmp_path,mon
+     python.touch()
+     checkpoint=tmp_path/"checkpoint"
+     checkpoint.mkdir()
+-    resource=ModelResource("test","whisper_cpu",checkpoint_path=str(checkpoint),
+-                           worker_python=str(python),device="cpu")
++    from contextlib import contextmanager
++    from nvidia_transcribe.resource_lifecycle import ResourceLifecycleError
++    resource=ModelResource("test","whisper_ct2",checkpoint_path=str(checkpoint),
++                           worker_python=str(python),device="cuda:0")
++    events=[]
++    class Lifecycle:
++        blocked=False
++        @contextmanager
++        def worker(self, **kw):
++            assert kw["resource_name"]=="test" and 0<kw["lock_timeout_s"]<=900
++            if self.blocked:
++                raise ResourceLifecycleError("gpu_capacity_blocked")
++            events.append("acquire")
++            try:
++                yield
++            finally:
++                events.append("release")
++    lifecycle=Lifecycle()
++    monkeypatch.setenv("CUDA_VISIBLE_DEVICES","0")
+     monkeypatch.setattr(recovery,"extract_wav_segment",lambda *a,**kw:None)
+     monkeypatch.setattr(recovery,"validate_wav_file",lambda p:(10.,p.stem))
+     target={"target_id":"target","crops":[(0.,10.),(2.,12.)]}
+     bad=False
++    wrong_device=False
+     def run(cmd,**kw):
+         req=json.loads(kw["input"])
+-        assert kw["env"]["CUDA_VISIBLE_DEVICES"]=="" and kw["env"]["HF_HUB_OFFLINE"]=="1"
++        assert events[-1]=="acquire"
++        events.append("inference")
++        assert kw["env"]["CUDA_VISIBLE_DEVICES"]=="0" and kw["env"]["HF_HUB_OFFLINE"]=="1"
++        assert req["device"]=="cuda:0" and req["compute_type"]=="int8_float16"
+         assert 0<kw["timeout"]<=900
+-        result={"device":"cpu","backend":"faster-whisper","compute_type":"int8",
++        result={"device":"cpu" if wrong_device else "cuda","backend":"faster-whisper",
++                "device_index":[0],"compute_type":"int8_float16","model_is_loaded":True,
++                "is_multilingual":True,
+                 "observations":[{"id":c["id"],"audio_sha256":c["audio_sha256"] if not bad else "wrong",
+                 "crop":[c["start"],c["end"]],"rows":[]} for c in req["crops"]]}
+         return SimpleNamespace(returncode=0,stdout=json.dumps(result),stderr="")
+     monkeypatch.setattr(recovery.subprocess,"run",run)
+     media=SimpleNamespace(path="media",selected_audio_stream=0,duration_s=100.)
+-    kwargs=dict(challenger_resource=resource,output_dir=tmp_path,policy=SourceQualityPolicy())
++    kwargs=dict(challenger_resource=resource,output_dir=tmp_path,policy=SourceQualityPolicy(),
++                lifecycle=lifecycle)
+     report=recovery.acquire_independent_evidence(recording(),[target],media,**kwargs)
+     assert report["status"]=="observed" and report["requests"]==2
+     assert report["resource"]["resource_fingerprint"]==resource.fingerprint()
+     bad=True
+     report=recovery.acquire_independent_evidence(recording(),[target],media,**kwargs)
+     assert report["status"]=="error" and not report["observations"]
++    bad=False
++    wrong_device=True
++    report=recovery.acquire_independent_evidence(recording(),[target],media,**kwargs)
++    assert report["status"]=="error" and not report["observations"]
++    assert events==["acquire","inference","release"]*3
++    lifecycle.blocked=True
++    report=recovery.acquire_independent_evidence(recording(),[target],media,**kwargs)
++    assert report["status"]=="error" and report["requests"]==0 and not report["observations"]
++    assert report["errors"][0]["reason"]=="gpu_capacity_blocked"
++    assert events==["acquire","inference","release"]*3
++    kwargs["lifecycle"]=None
++    report=recovery.acquire_independent_evidence(recording(),[target],media,**kwargs)
++    assert report["status"]=="error" and report["requests"]==0
+ 
+ 
+ def test_bound_untimed_target_is_prioritized_over_earlier_parent_scans():
+diff --git a/tests/test_resource_lifecycle.py b/tests/test_resource_lifecycle.py
+index f7e96f7..dff5acd 100644
+--- a/tests/test_resource_lifecycle.py
++++ b/tests/test_resource_lifecycle.py
+@@ -515,3 +515,25 @@ def test_reconcile_requires_verified_unit_invocation_identity(manager, asr, monk
+                         lambda _: {"asr_local": lifecycle.OwnedService("nemovox-asr.service")})
+     assert manager.reconcile_idle_owned(resources={"asr_local": asr})["asr_local"] == "unit_identity_unavailable"
+     assert events == []
++
++
++
++def test_cuda_worker_shortens_shared_lease_wait_without_preemption(manager, monkeypatch):
++    monkeypatch.setattr(lifecycle, "_free_vram_mb", lambda: 20000)
++    monkeypatch.setenv("NEMOVOX_LIFECYCLE_LOCK_TIMEOUT_S", "1")
++    contender = lifecycle.ModelLifecycle(lock_path=manager.lock_path)
++    with manager.worker(resource_name="whisper_local", lock_timeout_s=.1):
++        with pytest.raises(lifecycle.ResourceLifecycleError) as error:
++            with contender.worker(resource_name="riva_local", lock_timeout_s=.01):
++                pytest.fail("Worker preempted active shared lease")
++        assert error.value.status == "resource_lease_timeout"
++    with contender.worker(resource_name="whisper_local", lock_timeout_s=.1):
++        pass
++
++
++@pytest.mark.parametrize("override", [-1., float("nan"), float("inf"), True])
++def test_invalid_lease_wait_override_rejected(manager, override):
++    with pytest.raises(lifecycle.ResourceLifecycleError) as error:
++        with manager.worker(resource_name="whisper_local", lock_timeout_s=override):
++            pytest.fail("Invalid override admitted")
++    assert error.value.status == "invalid_lifecycle_lock_timeout"
+diff --git a/tests/test_whisper_challenge_worker.py b/tests/test_whisper_challenge_worker.py
+new file mode 100644
+index 0000000..d5f50da
+--- /dev/null
++++ b/tests/test_whisper_challenge_worker.py
+@@ -0,0 +1,55 @@
++"""Worker runtime-identity checks, with no installed model or CUDA dependency."""
++import hashlib
++import io
++import json
++import sys
++from types import SimpleNamespace
++
++import pytest
++
++from nvidia_transcribe import _whisper_challenge_worker as worker
++
++
++@pytest.mark.parametrize("mode", ["cuda", "cpu", "unsupported", "wrong_compute"])
++def test_worker_validates_actual_runtime_before_observations(tmp_path, monkeypatch, capsys, mode):
++    import importlib.metadata
++    for name in ("model.bin","config.json","tokenizer.json","preprocessor_config.json"):
++        (tmp_path/name).write_bytes(b"cached fixture")
++    wav=tmp_path/"crop.wav"
++    wav.write_bytes(b"fixture audio")
++    request={"checkpoint":str(tmp_path),"device":"cuda:0","compute_type":"int8_float16",
++        "language":"fr","crops":[{"id":"crop","path":str(wav),"start":10.,"end":12.,
++        "audio_sha256":hashlib.sha256(wav.read_bytes()).hexdigest()}]}
++    monkeypatch.setattr(sys,"stdin",io.StringIO(json.dumps(request)))
++    monkeypatch.setattr(importlib.metadata,"version",lambda name:"fixture")
++    calls=[]
++    monkeypatch.setitem(sys.modules,"ctranslate2",SimpleNamespace(
++        get_cuda_device_count=lambda:1,
++        get_supported_compute_types=lambda device,index: (
++            {"float16"} if mode=="unsupported" else {"int8_float16"})))
++    class Model:
++        def __init__(self,path,**kwargs):
++            assert kwargs=={"device":"cuda","device_index":0,
++                            "compute_type":"int8_float16","local_files_only":True}
++            calls.append("load")
++            self.model=SimpleNamespace(device="cpu" if mode=="cpu" else "cuda",
++                device_index=[0],compute_type="float16" if mode=="wrong_compute" else "int8_float16",
++                model_is_loaded=True,is_multilingual=True)
++        def transcribe(self,path,**kwargs):
++            calls.append("transcribe")
++            assert kwargs=={"language":"fr","beam_size":5,"word_timestamps":True,"vad_filter":False}
++            return iter([SimpleNamespace(start=.2,end=1.8,text="Bonjour",words=[])]),SimpleNamespace(language="fr")
++    monkeypatch.setitem(sys.modules,"faster_whisper",SimpleNamespace(WhisperModel=Model))
++    if mode!="cuda":
++        with pytest.raises(RuntimeError):
++            worker.main()
++        assert "transcribe" not in calls
++        assert not capsys.readouterr().out
++        return
++    worker.main()
++    result=json.loads(capsys.readouterr().out)
++    assert calls==["load","transcribe"]
++    assert result["device"]=="cuda" and result["device_index"]==[0]
++    assert result["compute_type"]=="int8_float16" and result["model_is_loaded"]
++    assert result["observations"][0]["rows"][0]["source_start"]==10.2
++    assert result["observations"][0]["audio_sha256"]==request["crops"][0]["audio_sha256"]

@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from nvidia_transcribe.translation_review import TranslationReviewConfig, review_translated_utterances
 from nvidia_transcribe.refinement import GlossaryConfig
 
@@ -486,16 +488,25 @@ def test_messages_incomplete_comparative_review_does_not_accept_candidate():
     out, report = review_translated_utterances(
         rows, source_language="fr", config=_cfg(wire_protocol="ninfer_messages",
                                                thinking_budget=0, reasoning_effort="none"),
-        text_client=Client(proposed, {"decisions": []}))
+        text_client=Client(proposed, {"decisions": []}, RuntimeError("comparison transport failed")))
     assert out[0]["translated_text"] == rows[0]["translated_text"]
     assert report["status"] == "completed_with_errors"
+    assert not report["deferred_comparison_ids"]
 
 
 
 def test_messages_source_first_and_comparator_receive_coherent_cross_turn_passage():
     class Client(FakeClient):
         def complete(self, **kwargs):
+            request=json.loads(kwargs["messages"][1]["content"])
             response=super().complete(**kwargs)
+            if "passage_checks" in request:
+                payload=json.loads(response["choices"][0]["message"]["content"])
+                payload["decisions"].extend(
+                    {"utterance_id":item["utterance_id"],"choice":"proposal","reason":"Coherent complete passage"}
+                    for item in request["passage_checks"]
+                )
+                response["choices"][0]["message"]["content"]=json.dumps(payload)
             response["choices"][0]["finish_reason"]="stop"
             return response
     rows=[{"id":"u0","source_text":"Il a fermé la","translated_text":"He closed it",
@@ -607,19 +618,32 @@ def test_comparison_loop_terminal_exhaustion_preserves_primary_and_remains_defer
     assert not checkpoint.exists()
 
 
-def test_compact_invalid_ids_and_transport_failure_remain_errors():
+def test_compact_invalid_ids_defer_but_transport_failure_remains_error(tmp_path):
     for failed in ({"reason": "Invalid ID.", "verdicts": ["other=proposal"]},
                    RuntimeError("transport failed")):
         client = _LoopReviewClient(_loop_proposals(), "loop", failed)
+        path=tmp_path/"review.json"
         out, report = review_translated_utterances(_utts(), source_language="fr",
-            config=_loop_cfg(), text_client=client)
-        assert report["status"] == "completed_with_errors"
-        assert report["errors"] and not report["deferred_comparison_ids"]
+            config=_loop_cfg(), text_client=client,checkpoint_path=path)
+        if isinstance(failed,Exception):
+            assert report["status"] == "completed_with_errors"
+            assert report["errors"] and not report["deferred_comparison_ids"]
+        else:
+            assert report["status"]=="completed_with_deferred_comparisons"
+            assert report["deferred_comparison_ids"]==["u0"] and not report["errors"]
+            assert "compact_rejected_response" in report["comparison_recoveries"][0]
         assert out[0]["translated_text"] == "Hello, Estban."
+        assert "translation_comparative_review" not in out[0]
+        assert not path.exists()
 
 
 
-def test_deferred_comparator_renders_without_claiming_complete_review(tmp_path, monkeypatch):
+@pytest.mark.parametrize("responses",[
+    ("loop","loop"),
+    ({"decisions":[{"utterance_id":"unknown","choice":"proposal","reason":"Bad ID"}]},
+     {"reason":"Bad ID","verdicts":["unknown=proposal"]}),
+])
+def test_deferred_comparator_renders_without_claiming_complete_review(tmp_path, monkeypatch,responses):
     from pathlib import Path
     from types import SimpleNamespace
     from nvidia_transcribe import translation
@@ -640,7 +664,7 @@ def test_deferred_comparator_renders_without_claiming_complete_review(tmp_path, 
                          "translated_text": original[item["utterance_id"]]} for item in items],
         }))
     monkeypatch.setattr(translation.subprocess, "run", fake_riva)
-    client = _LoopReviewClient(_loop_proposals(), "loop", "loop")
+    client = _LoopReviewClient(_loop_proposals(), *responses)
     root = tmp_path / "rendered"
     cfg = SubtitlePipelineConfig(
         source_language="fr", translation=TranslationConfig(backend="riva", riva_device="cuda:0"),
@@ -665,3 +689,574 @@ def test_deferred_comparator_renders_without_claiming_complete_review(tmp_path, 
     assert replay["translation_review"]["deferred_comparison_ids"] == ["u0"]
     assert contract_path.read_bytes() == contract_bytes
     assert {name: path.read_bytes() for name, path in files.items()} == before
+
+
+
+def test_mixed_comparative_verdict_does_not_break_one_source_sentence():
+    class Native(FakeClient):
+        def complete(self, **kwargs):
+            reply=super().complete(**kwargs)
+            reply["choices"][0]["finish_reason"]="stop"
+            return reply
+    rows=[{"id":"a","speaker_id":"A","source_text":"Il a fermé la","translated_text":"He closed it"},
+          {"id":"b","speaker_id":"A","source_text":"porte avant de partir.","translated_text":"Door before leaving."}]
+    proposals={"reviews":[{"utterance_id":"a","corrected_text":"He closed the","reason":"Continuation"},
+                          {"utterance_id":"b","corrected_text":"door before leaving.","reason":"Continuation"}]}
+    from nvidia_transcribe.translation_review import text_digest
+    comparison={"decisions":[{"utterance_id":"a","choice":"proposal","reason":"Better"},
+                            {"utterance_id":"b","choice":"original","reason":"Keep"},
+                            {"utterance_id":"passage:"+text_digest(json.dumps(["a","b"])),
+                             "choice":"proposal","reason":"Joined candidate is coherent"}]}
+    out, report=review_translated_utterances(rows,source_language="fr",
+        config=_cfg(wire_protocol="ninfer_messages",thinking_budget=2048,reasoning_effort="xhigh"),
+        text_client=Native(proposals,comparison))
+    assert [r["translated_text"] for r in out]==[r["translated_text"] for r in rows]
+    assert report["dependent_passage_rejections"]==1 and report["comparative_rejections"]==1
+
+
+def test_rereview_preserves_original_mt_and_bound_context():
+    from nvidia_transcribe.semantic_context import accepted_row_context
+    row={"id":"u","source_text":"Nadia revient.","machine_translated_text":"Nadia returns.",
+         "translated_text":"Nadia comes back.","source_start":1.,"source_end":2.}
+    frame={"id":"f","inside_event":True,"visible_text":"Nadia","text_kind":"entity_label",
+           "literal_observation_status":"model_observed",
+           "uncertainty":"","sha256":"a"*64,"requested_seek_s":1.5}
+    row["semantic_context"]=accepted_row_context(row,[],[frame])
+    client=FakeClient({"reviews":[{"utterance_id":"u","corrected_text":"Nadia returns.",
+                                   "changed":False,"reason":"Keep"}]})
+    out,report=review_translated_utterances([row],source_language="fr",config=_cfg(),text_client=client)
+    payload=json.loads(client.calls[0]["messages"][1]["content"])
+    assert payload["target_utterances"][0]["accepted_source_context"]==row["semantic_context"]
+    assert out[0]["translated_text"]==out[0]["machine_translated_text"]=="Nadia returns."
+    assert row["translated_text"]=="Nadia comes back."
+
+
+def test_riva_operator_examples_are_literal_bound_and_alternating(tmp_path):
+    from nvidia_transcribe.refinement import load_glossary
+    from nvidia_transcribe.semantic_context import literal_examples
+    from nvidia_transcribe._riva_translate_worker import translation_messages
+    path=tmp_path/"glossary.json"
+    path.write_text(json.dumps({"translation_examples":[{"source":"porte","target":"door"},
+                                                        {"source":"port","target":"harbor"}]}))
+    gl=load_glossary(path)
+    item={"lang_pair":"fr-en","text":"Ferme la porte.",
+          "context_examples":literal_examples({"source_text":"Ferme la porte."},gl)}
+    assert len(item["context_examples"])==1
+    assert translation_messages(item)==[{"role":"system","content":"fr-en"},
+        {"role":"user","content":"porte"},{"role":"assistant","content":"door"},
+        {"role":"user","content":"Ferme la porte."}]
+    assert not literal_examples({"source_text":"portefeuille"},gl)
+
+
+
+def test_native_length_subdivision_preserves_all_primary_rows_and_counts_attempts():
+    class Native:
+        def complete(self, **kwargs):
+            request=json.loads(kwargs["messages"][1]["content"])
+            targets=request["target_utterances"]
+            if len(targets)>1:
+                return {"choices":[{"finish_reason":"length","message":{"content":"partial"}}],
+                        "_client_request_diagnostics":{"native_stop_reason":"max_tokens",
+                        "completion_attempts":[{"stop_reason":"max_tokens","usage":{"input_tokens":50,"output_tokens":8192}}]}}
+            target=targets[0]
+            text={"u0":"Hello, Estban.","u1":"Hi!"}[target["utterance_id"]]
+            return {"choices":[{"finish_reason":"stop","message":{"content":json.dumps(
+                {"reviews":[{"utterance_id":target["utterance_id"],"corrected_text":text,"reason":"Keep"}]})}}],
+                "_client_request_diagnostics":{"native_stop_reason":"end_turn",
+                "completion_attempts":[{"stop_reason":"end_turn","usage":{"input_tokens":25,"output_tokens":10}}]}}
+    out,report=review_translated_utterances(_utts(),source_language="fr",config=_loop_cfg(),text_client=Native())
+    assert report["status"]=="completed" and report["api_calls"]==3
+    assert report["reviewed"]==2 and report["changed"]==0
+    assert len(report["native_attempts"])==3 and len(report["subdivisions"])==1
+    assert [x["translated_text"] for x in out]==[x["translated_text"] for x in _utts()]
+
+
+def test_riva_example_receipt_and_cache_bind_actual_primary_input(tmp_path,monkeypatch):
+    from types import SimpleNamespace
+    from nvidia_transcribe import translation
+    from nvidia_transcribe.translation import TranslationConfig, translate_utterances
+    calls=[]
+    def run(command,**kwargs):
+        payload=json.loads(kwargs["input"])
+        calls.append(payload)
+        return SimpleNamespace(returncode=0,stderr="",stdout=json.dumps(
+            {"status":"ok","device_used":"cuda:0","results":[
+                {"utterance_id":item["utterance_id"],"translated_text":"Close the door.",
+                 "input_tokens":33,"context_example_ids":[ex["id"] for ex in item["context_examples"]]}
+                for item in payload["items"]]}))
+    monkeypatch.setattr(translation.subprocess,"run",run)
+    rows=[{"id":"a","source_text":"Ferme la porte.","machine_translated_text":"stale"}]
+    cfg=TranslationConfig(backend="riva",riva_device="cuda:0")
+    cache=tmp_path/"mt.json"
+    for target in ("door","door","gate"):
+        gl=GlossaryConfig(translation_examples=(("porte",target),))
+        out,report=translate_utterances(rows,source_language="fr",config=cfg,glossary=gl,checkpoint_path=cache)
+        assert report["context_example_rows"]==1 and report["native_input_tokens"]==33
+        assert out[0]["machine_translated_text"]=="Close the door."
+    assert len(calls)==2 and calls[-1]["items"][0]["context_examples"][0]["target"]=="gate"
+
+
+
+def test_joint_source_and_mt_negation_veto_even_if_native_comparator_approves():
+    class Native(FakeClient):
+        def complete(self,**kwargs):
+            response=super().complete(**kwargs)
+            response["choices"][0]["finish_reason"]="stop"
+            return response
+    rows=[{"id":"negative","source_text":"Il ne ferme pas la porte.",
+           "translated_text":"He does not close the door."}]
+    prop={"reviews":[{"utterance_id":"negative","corrected_text":"He closes the door.","reason":"Bad proposal"}]}
+    verdict={"decisions":[{"utterance_id":"negative","choice":"proposal","reason":"Bad approval"}]}
+    result,report=review_translated_utterances(rows,source_language="fr",
+        config=_loop_cfg(),text_client=Native(prop,verdict))
+    assert result[0]["translated_text"]==rows[0]["translated_text"]
+    assert report["rejected_polarity"]==1
+    assert result[0]["translation_review_status"]=="review_rejected_polarity_preserved_machine_translation"
+
+
+
+def test_dependent_edits_from_separate_native_comparisons_are_not_spliced():
+    class Native(FakeClient):
+        def complete(self,**kwargs):
+            result=super().complete(**kwargs)
+            result["choices"][0]["finish_reason"]="stop"
+            return result
+    rows=[{"id":"a","speaker_id":"A","source_text":"Il a fermé la","translated_text":"He closed it"},
+          {"id":"b","speaker_id":"A","source_text":"porte.","translated_text":"Door."}]
+    client=Native(
+        {"reviews":[{"utterance_id":"a","corrected_text":"He closed the","reason":"Object follows"}]},
+        {"decisions":[{"utterance_id":"a","choice":"proposal","reason":"Approve"}]},
+        {"reviews":[{"utterance_id":"b","corrected_text":"door.","reason":"Continuation"}]},
+        {"decisions":[{"utterance_id":"b","choice":"proposal","reason":"Approve"}]})
+    cfg=_cfg(wire_protocol="ninfer_messages",thinking_budget=2048,reasoning_effort="xhigh",batch_size=1)
+    out,report=review_translated_utterances(rows,source_language="fr",config=cfg,text_client=client)
+    assert [r["translated_text"] for r in out]==[r["translated_text"] for r in rows]
+    assert report["dependent_passage_rejections"]==2 and report["changed"]==0
+
+
+
+def test_joined_passage_verdict_vetoes_individually_approved_fragments(tmp_path):
+    class Native:
+        def complete(self, **kwargs):
+            request=json.loads(kwargs["messages"][1]["content"])
+            if "target_utterances" in request:
+                response={"reviews":[
+                    {"utterance_id":"a","corrected_text":"He headed straight for","reason":"Direction"},
+                    {"utterance_id":"b","corrected_text":"the course west.","reason":"Direction"}]}
+            else:
+                passage,=request["passage_checks"]
+                assert passage["joined_proposal"]=="He headed straight for the course west."
+                assert passage["joined_source"]=="Il a mis directement le cap à l'ouest."
+                response={"decisions":[{"utterance_id":uid,"choice":"proposal","reason":"Cue only"}
+                    for uid in ("a","b")]+[{"utterance_id":passage["utterance_id"],
+                    "choice":"original","reason":"Joined phrase is ungrammatical"}]}
+            return {"choices":[{"finish_reason":"stop","message":{"content":json.dumps(response)}}]}
+    rows=[{"id":"a","speaker_id":"A","source_text":"Il a mis directement","translated_text":"He headed"},
+          {"id":"b","speaker_id":"A","source_text":"le cap à l'ouest.","translated_text":"west."}]
+    cfg=_cfg(wire_protocol="ninfer_messages",thinking_budget=2048,reasoning_effort="xhigh")
+    path=tmp_path/"review.json"
+    for client in (Native(),FakeClient()):
+        out,report=review_translated_utterances(rows,source_language="fr",config=cfg,text_client=client,
+                                                checkpoint_path=path)
+        assert report["joined_passage_rejections"]==2 and report["changed"]==0
+        assert [r["translated_text"] for r in out]==["He headed","west."]
+        assert all(r["translation_review_passage"]["verdict"]["choice"]=="original" for r in out)
+
+
+
+def test_missing_joined_passage_verdict_preserves_primary_and_not_cached(tmp_path):
+    class Native(FakeClient):
+        def complete(self,**kwargs):
+            result=super().complete(**kwargs)
+            result["choices"][0]["finish_reason"]="stop"
+            return result
+    rows=[{"id":"a","speaker_id":"A","source_text":"Il ferme la","translated_text":"He closes it"},
+          {"id":"b","speaker_id":"A","source_text":"porte.","translated_text":"Door."}]
+    prop={"reviews":[{"utterance_id":"a","corrected_text":"He closes the","reason":"Object follows"},
+                     {"utterance_id":"b","corrected_text":"door.","reason":"Object"}]}
+    incomplete={"decisions":[{"utterance_id":"a","choice":"proposal","reason":"Approve"},
+                             {"utterance_id":"b","choice":"proposal","reason":"Approve"}]}
+    path=tmp_path/"review.json"
+    result,report=review_translated_utterances(rows,source_language="fr",
+        config=_cfg(wire_protocol="ninfer_messages",thinking_budget=2048,reasoning_effort="xhigh"),
+        text_client=Native(prop,incomplete,{"reason":"Incomplete","verdicts":["a=proposal","b=proposal"]}),checkpoint_path=path)
+    assert report["status"]=="completed_with_deferred_comparisons" and report["changed"]==0
+    assert report["deferred_comparison_ids"]==["a","b"]
+    assert report["comparison_recoveries"][0]["reason"]=="missing_comparative_decision_ids"
+    assert [r["translated_text"] for r in result]==[r["translated_text"] for r in rows]
+    assert not path.exists()
+
+
+
+def test_completed_malformed_comparison_recovers_on_identical_evidence(tmp_path):
+    invalid=[
+        ({"decisions":[{"utterance_id":"unknown","choice":"proposal","reason":"x"}]},"unexpected_decision_id:0"),
+        ({"decisions":[{"utterance_id":"u0","choice":"proposal","reason":"x"}]*2},"duplicate_decision_id:1"),
+        ({"decisions":[{"utterance_id":"u0","choice":"maybe","reason":"x"}]},"invalid_decision_choice:0"),
+        ({"decisions":[{"utterance_id":"u0","choice":"proposal","reason":" "}]},"invalid_decision_reason:0"),
+        ({"decisions":[]},"missing_comparative_decision_ids"),
+        ({"decisions":[{"utterance_id":"u0","choice":"proposal"}]},"invalid_decision_shape:0"),
+    ]
+    for i,(bad,code) in enumerate(invalid):
+        client=_LoopReviewClient(_loop_proposals(),bad,
+                                {"reason":"Source spelling","verdicts":["u0=proposal"]})
+        path=tmp_path/f"review-{i}.json"
+        result,report=review_translated_utterances(_utts(),source_language="fr",
+            config=_loop_cfg(),text_client=client,checkpoint_path=path)
+        assert report["status"]=="completed" and report["changed"]==1
+        assert result[0]["translated_text"]=="Hello, Esteban."
+        receipt,=report["comparison_recoveries"]
+        assert receipt["reason"]==code and receipt["outcome"]=="complete"
+        assert json.loads(receipt["initial_rejected_response"]["answer_text"])==bad
+        assert client.calls[1]["messages"][1]==client.calls[2]["messages"][1]
+        assert report["api_calls"]==3 and path.is_file()
+
+
+def test_uncertain_source_hallucinated_locations_veto_even_after_comparator_approval():
+    from nvidia_transcribe.review_uncertainty import bind_review_uncertainty, current_uncertainty
+    from copy import deepcopy
+    row={"id":"bus","source_text":"巴士开往北港，在岩角停靠。","source_unit_ids":["u1"],
+         "translated_text":"The bus goes to Northport, stopping at Rock Point."}
+    prop={"proposal_id":"p","kind":"hallucination","target_source_id":"bus",
+          "status":"advisory_only","source_truth_accepted":False,"citations":[
+          {"source_id":"bus","quote":"巴士","character_span":[0,2],"source_row_unit_ids":["u1"]}]}
+    quality={"schema":"nemovox-current-source-quality/v1","recording_sha256":"record",
+        "recording_context":{"recording_sha256":"record","proposals":[prop]},
+        "context_proposal_dispositions":[{"proposal_id":"p","kind":"hallucination",
+            "source_ids":["bus"],"status":"hypothesis_unresolved"}],
+        "scene_evidence":{"decisions":[{"source_id":"bus","outcome":"unresolved"}]}}
+    bound=bind_review_uncertainty([row],quality)
+    assert "review_source_uncertainty" not in row
+    assert current_uncertainty(bound[0])["nominations"][0]["kind"]=="hallucination"
+    guessed="The bus goes to Singapore, stopping at Rochor."
+    client=_LoopReviewClient({"reviews":[{"utterance_id":"bus","corrected_text":guessed,"reason":"Likely geography"}]},
+        {"decisions":[{"utterance_id":"bus","choice":"proposal","reason":"Plausible setting"}]})
+    result,report=review_translated_utterances(bound,source_language="zh",config=_loop_cfg(),text_client=client)
+    assert result[0]["translated_text"]==row["translated_text"]
+    assert result[0]["translation_comparative_review"]["choice"]=="proposal"
+    assert report["unresolved_source_rejections"]==1
+    assert "unresolved_source_evidence" in json.loads(client.calls[0]["messages"][1]["content"])["target_utterances"][0]
+    assert json.loads(client.calls[1]["messages"][1]["content"])["comparisons"][0]["source_and_original"]["unresolved_source_evidence"]
+    # A stale reference cannot acquire a new row or altered source text.
+    stale=deepcopy(bound[0]);stale["source_text"]="不同的话。"
+    assert current_uncertainty(stale) is None
+    stale_rows=bind_review_uncertainty([{**row,"source_unit_ids":["other"]}],quality)
+    assert not current_uncertainty(stale_rows[0])["nominations"]
+    # Uncertain rows are not frozen: a complete explicit operator mapping
+    # or a lexical-preserving grammatical improvement remains admissible.
+    from nvidia_transcribe.review_uncertainty import uncertainty_veto
+    assert uncertainty_veto(bound[0],row["translated_text"],
+        "A bus goes to Northport, stopping at Rock Point!",GlossaryConfig()) is None
+    assert uncertainty_veto(bound[0],row["translated_text"],guessed,
+        GlossaryConfig(translation_examples=((row["source_text"],guessed),))) is None
+
+
+def test_direction_construction_veto_on_joined_exact_candidate():
+    from nvidia_transcribe.translation_review import _bad_joined_direction
+    assert _bad_joined_direction("He headed straight for west.")
+    assert _bad_joined_direction("He headed straight for the course west.")
+    assert not _bad_joined_direction("He headed straight west.")
+    assert not _bad_joined_direction("He headed for the west coast.")
+    class Native:
+        def complete(self,**kwargs):
+            payload=json.loads(kwargs["messages"][1]["content"])
+            if "target_utterances" in payload:
+                body={"reviews":[{"utterance_id":"a","corrected_text":"He headed straight","reason":"Direction"},
+                                 {"utterance_id":"b","corrected_text":"for west.","reason":"Continuation"}]}
+            else:
+                ids=["a","b"]+[p["utterance_id"] for p in payload["passage_checks"]]
+                body={"decisions":[{"utterance_id":uid,"choice":"proposal","reason":"Approve"} for uid in ids]}
+            return {"choices":[{"finish_reason":"stop","message":{"content":json.dumps(body)}}]}
+    rows=[{"id":"a","source_text":"Il a mis directement","translated_text":"He headed"},
+          {"id":"b","source_text":"le cap à l'ouest.","translated_text":"west."}]
+    out,report=review_translated_utterances(rows,source_language="fr",config=_loop_cfg(),text_client=Native())
+    assert report["direction_grammar_rejections"]==2 and report["changed"]==0
+    assert [r["translated_text"] for r in out]==["He headed","west."]
+
+
+def test_uncertain_entity_anchors_compare_lexical_occurrences_not_capitalization():
+    from nvidia_transcribe.review_uncertainty import _anchors_preserved
+    assert _anchors_preserved("Change course twice!", "change course twice!")
+    assert _anchors_preserved("It's us the crew!", "We're the crew!")
+    assert _anchors_preserved("You're brilliant! That's our Nakaal.", "You're brilliant! Our Nakaal.")
+    assert _anchors_preserved("in China, Japan and Arabia.", "In China, in Japan and in Arabia.")
+    assert _anchors_preserved("Nadia returns.", "nadia returns.")
+    assert not _anchors_preserved("Nadia returns.", "Isabella returns.")
+    assert not _anchors_preserved("Nadia returns.", "nadia and Nadia return.")
+    assert not _anchors_preserved("Nadia meets Tao.", "Tao meets Nadia.")
+    assert not _anchors_preserved("Route 403 to Rock Point.", "Route 404 to Rock Point.")
+    assert not _anchors_preserved("Nadia's boat.", "Tao's boat.")
+    assert not _anchors_preserved("the bus stops.", "the bus stops at Rochor.")
+
+
+def test_scene_uncertainty_allows_case_only_anchor_change_in_joined_passage():
+    from nvidia_transcribe.review_uncertainty import bind_review_uncertainty
+    rows = [
+        {"id":"a","speaker_id":"A","source_text":"Il a mis directement le cap à",
+         "translated_text":"He went straight to the"},
+        {"id":"b","speaker_id":"A","source_text":"l'ouest.","translated_text":"West."},
+    ]
+    quality = {"schema":"nemovox-current-source-quality/v1",
+               "scene_evidence":{"decisions":[{"source_id":"b","outcome":"unresolved"}]}}
+    bound = bind_review_uncertainty(rows, quality)
+    class Client:
+        def complete(self, **kwargs):
+            payload = json.loads(kwargs["messages"][1]["content"])
+            if "target_utterances" in payload:
+                body = {"reviews":[
+                    {"utterance_id":"a","corrected_text":"He headed straight","reason":"Direction"},
+                    {"utterance_id":"b","corrected_text":"west.","reason":"Continuation"}]}
+            else:
+                ids = ["a","b"] + [p["utterance_id"] for p in payload["passage_checks"]]
+                body = {"decisions":[{"utterance_id":uid,"choice":"proposal","reason":"Faithful passage"} for uid in ids]}
+            return {"choices":[{"finish_reason":"stop","message":{"content":json.dumps(body)}}]}
+    out, report = review_translated_utterances(bound, source_language="fr",
+        config=_loop_cfg(), text_client=Client())
+    assert [r["translated_text"] for r in out] == ["He headed straight","west."]
+    assert report["unresolved_source_rejections"] == report["dependent_passage_rejections"] == 0
+    assert report["changed"] == 2
+
+
+def test_scene_uncertainty_retains_names_numbers_and_material_wording():
+    from nvidia_transcribe.review_uncertainty import bind_review_uncertainty, uncertainty_veto
+    row = {"id":"u","source_text":"Nadia revient.","translated_text":"Nadia returns on bus 403."}
+    quality = {"schema":"nemovox-current-source-quality/v1",
+               "scene_evidence":{"decisions":[{"source_id":"u","outcome":"unresolved"}]}}
+    bound, = bind_review_uncertainty([row], quality)
+    original = row["translated_text"]
+    assert uncertainty_veto(bound, original, "nadia returns on bus 403.", GlossaryConfig()) is None
+    for candidate in ("Isabella returns on bus 403.", "Nadia returns on bus 404."):
+        assert uncertainty_veto(bound, original, candidate, GlossaryConfig()) == "unresolved_source_name_or_number_change"
+    bound["review_source_uncertainty"]["source_quality_status"] = "unresolved_wording"
+    assert uncertainty_veto(bound, original, "Nadia leaves on bus 403.", GlossaryConfig()) == "unresolved_source_material_lexical_change"
+
+
+@pytest.mark.parametrize("compact_reply,expected_status,expected_text,cache_written", [
+    ({"reason": "Source name.", "verdicts": ["u0=proposal"]},
+     "completed", "Hello, Esteban.", True),
+    ("exhausted", "completed_with_deferred_comparisons", "Hello, Estban.", False),
+    (RuntimeError("transport failed"), "completed_with_errors", "Hello, Estban.", False),
+])
+def test_terminal_native_comparison_exhaustion_recovers_without_weakening_review(
+        tmp_path, compact_reply, expected_status, expected_text, cache_written):
+    class ExhaustionClient(_LoopReviewClient):
+        def complete(self, *, messages, **kwargs):
+            if self.responses and self.responses[0] == "exhausted":
+                self.calls.append({"messages": messages, **kwargs})
+                self.responses.pop(0)
+                return {"choices": [{"finish_reason": "length",
+                                     "message": {"content": '{"decisions":[{"utterance_id":"u0"'}}],
+                        "_client_request_diagnostics": {"native_stop_reason": "max_tokens",
+                            "completion_attempts": [{"stop_reason": "max_tokens"}]}}
+            return super().complete(messages=messages, **kwargs)
+
+    proposal = {"reviews": [_loop_proposals()["reviews"][0]]}
+    client = ExhaustionClient(proposal, "exhausted", compact_reply)
+    checkpoint = tmp_path / "review.json"
+    out, report = review_translated_utterances(_utts()[:1], source_language="fr",
+        config=_loop_cfg(), text_client=client, checkpoint_path=checkpoint)
+    assert report["status"] == expected_status
+    assert out[0]["translated_text"] == expected_text
+    assert out[0]["machine_translated_text"] == "Hello, Estban."
+    assert report["api_calls"] == 3 and len(client.calls) == 3
+    assert report["subdivisions"] == []
+    receipt, = report["comparison_recoveries"]
+    assert receipt["reason"] == "terminal_comparative_output_exhausted"
+    assert client.calls[1]["messages"][1] == client.calls[2]["messages"][1]
+    assert checkpoint.exists() is cache_written
+    if expected_status == "completed":
+        assert receipt["outcome"] == "complete"
+        assert out[0]["translation_comparative_review"]["choice"] == "proposal"
+        assert report["reviewed"] == 1 and report["changed"] == 1
+    elif expected_status == "completed_with_deferred_comparisons":
+        assert receipt["outcome"] == "deferred_preserved_primary"
+        assert report["deferred_comparison_ids"] == ["u0"] and not report["errors"]
+        assert "translation_comparative_review" not in out[0]
+    else:
+        assert report["errors"] and not report["deferred_comparison_ids"]
+        assert "translation_comparative_review" not in out[0]
+
+
+@pytest.mark.parametrize("blocked", [False, True])
+def test_failed_review_public_offline_salvage_preserves_failure_and_exact_contract(
+        tmp_path, monkeypatch, capsys, blocked):
+    from pathlib import Path
+    from types import SimpleNamespace
+    from nvidia_transcribe import cli, translation
+    from nvidia_transcribe.translation import TranslationConfig
+    from nvidia_transcribe.subtitle_pipeline import SubtitlePipelineConfig, generate_subtitles
+    from scripts.evaluate_final_integration import current_render_metadata
+
+    record = tmp_path / "recording.contract.json"
+    record.write_text(json.dumps({"source_language": "fr",
+        "source": {"path": "/sample/french.mkv", "duration_s": 5.0},
+        "utterances": _utts()[:1]}), encoding="utf-8")
+    def fake_riva(*args, **kwargs):
+        return SimpleNamespace(returncode=0, stderr="", stdout=json.dumps({
+            "status": "ok", "device_used": "cuda:0",
+            "results": [{"utterance_id": "u0", "translated_text": "Hello, Estban."}]}))
+    monkeypatch.setattr(translation.subprocess, "run", fake_riva)
+    job = tmp_path / "job"
+    job.mkdir()
+    metadata_path = job / "subtitles.metadata.json"
+    metadata_path.write_text('{"subtitles":{"renderable_cues":99}}')
+    cfg = SubtitlePipelineConfig(source_language="fr",
+        translation=TranslationConfig(backend="riva", riva_device="cuda:0"),
+        translation_review=_cfg(), formats=("srt", "ass"))
+    from nvidia_transcribe.resource_lifecycle import ResourceLifecycleError
+    error = (ResourceLifecycleError("managed_unit_not_configured") if blocked
+             else RuntimeError("transport failed"))
+    expected = ("Required English review model unavailable" if blocked
+                else "Required contextual English review did not complete")
+    with pytest.raises(RuntimeError, match=expected):
+        generate_subtitles(recording_contract_path=record, output_dir=job,
+            config=cfg, text_client=FakeClient(error))
+    contract = job / "translated.contract.json"
+    original = contract.read_bytes()
+    retained = json.loads(original)
+    assert retained["translation_review"]["status"] == "completed_with_errors"
+    assert not metadata_path.exists() and not list(job.glob("*.srt"))
+    assert current_render_metadata(job, retained) is None
+
+    def no_inference(*args, **kwargs):
+        raise AssertionError("Offline salvage must not invoke inference or service commands")
+    monkeypatch.setattr(translation.subprocess, "run", no_inference)
+    resources = tmp_path / "resources.json"
+    resources.write_text(json.dumps({"version": 1, "resources": {"riva_local": {
+        "checkpoint_path": str(tmp_path / "missing-checkpoint"),
+        "worker_python": str(tmp_path / "missing-worker")}}}))
+    args = ["generate-subtitles", "--output-dir", str(job), "--re-render",
+            "--model-resources", str(resources), "--formats", "srt,ass"]
+    assert cli.main(args) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "OK"  # command succeeded; required review did not
+    assert result["render_status"] == "rendered_with_review_errors"
+    assert result["translation_review"]["status"] == "reused_translated_contract"
+    assert result["translation_review"]["retained_review_status"] == "completed_with_errors"
+    assert result["translation_review"]["errors"] == retained["translation_review"]["errors"]
+    assert result["translation_review"]["resource_blocked_reason"] == (
+        "managed_unit_not_configured" if blocked else None)
+    assert contract.read_bytes() == original
+    assert current_render_metadata(job, retained)["render_status"] == "rendered_with_review_errors"
+    files = {fmt: Path(result["files"][fmt]) for fmt in ("srt", "ass")}
+    before = {fmt: path.read_bytes() for fmt, path in files.items()}
+    assert b"Hello, Estban." in before["srt"]
+    assert cli.main(args) == 0
+    second = json.loads(capsys.readouterr().out)
+    assert second["salvage_render_receipt"] == result["salvage_render_receipt"]
+    assert contract.read_bytes() == original
+    assert {fmt: path.read_bytes() for fmt, path in files.items()} == before
+    files["srt"].write_bytes(before["srt"] + b"modified")
+    assert current_render_metadata(job, retained) is None
+    files["srt"].write_bytes(before["srt"])
+    changed = dict(retained, source_language="es")
+    contract.write_text(json.dumps(changed))
+    assert current_render_metadata(job, changed) is None
+    contract.write_bytes(original)
+    assert current_render_metadata(job, retained) is not None
+    # The failed contract must stay unchanged even on a rejected overlay.
+    with pytest.raises(ValueError, match="overlay not allowed"):
+        generate_subtitles(output_dir=job, config=SubtitlePipelineConfig(
+            re_render_only=True, validation_overlay_path=tmp_path / "overlay.json"))
+    assert contract.read_bytes() == original
+
+
+def test_terminal_comparison_non_output_stop_is_not_a_recoverable_exhaustion(tmp_path):
+    class ContextStopClient(_LoopReviewClient):
+        def complete(self, *, messages, **kwargs):
+            if self.responses and self.responses[0] == "context_stop":
+                self.calls.append({"messages": messages, **kwargs})
+                self.responses.pop(0)
+                return {"choices": [{"finish_reason": "length", "message": {"content": "partial"}}],
+                        "_client_request_diagnostics": {
+                            "native_stop_reason": "model_context_window_exceeded"}}
+            return super().complete(messages=messages, **kwargs)
+    client = ContextStopClient({"reviews": [_loop_proposals()["reviews"][0]]}, "context_stop")
+    path = tmp_path / "review.json"
+    out, report = review_translated_utterances(_utts()[:1], source_language="fr",
+        config=_loop_cfg(), text_client=client, checkpoint_path=path)
+    assert report["status"] == "completed_with_errors"
+    assert report["errors"] and not report["comparison_recoveries"]
+    assert not report["deferred_comparison_ids"] and not path.exists()
+    assert out[0]["translated_text"] == "Hello, Estban."
+    assert len(client.calls) == 2
+
+
+def test_salvage_never_binds_render_to_contract_modified_during_render(tmp_path, monkeypatch):
+    from nvidia_transcribe import subtitle_pipeline as pipeline
+    contract = tmp_path / "translated.contract.json"
+    row = dict(_utts()[0], machine_translated_text="Hello, Estban.")
+    data = {"source_language": "fr", "source": {"path": "/sample/french.mkv",
+            "duration_s": 5.0}, "utterances": [row],
+            "translation_review": {"status": "completed_with_errors", "errors": ["transport"]}}
+    contract.write_text(json.dumps(data))
+    metadata = tmp_path / "subtitles.metadata.json"
+    metadata.write_text('{"subtitles":{"renderable_cues":99}}')
+    real_render = pipeline.render_subtitles
+    def competing_write(*args, **kwargs):
+        result = real_render(*args, **kwargs)
+        contract.write_text(json.dumps({**data, "source_language": "es"}))
+        return result
+    monkeypatch.setattr(pipeline, "render_subtitles", competing_write)
+    with pytest.raises(RuntimeError, match="changed during offline salvage"):
+        pipeline.generate_subtitles(output_dir=tmp_path, config=pipeline.SubtitlePipelineConfig(
+            re_render_only=True, formats=("srt",)))
+    assert not metadata.exists()
+
+
+@pytest.mark.parametrize("candidate,rejected", [
+    ("Paul arrives on bus 403.", True),
+    ("John arrives on bus 404.", True),
+    ("john arrives on bus 403.", False),
+    ("John is arriving on bus 403.", False),
+])
+def test_deferred_scene_uncertainty_preserves_anchors_after_comparator_approval(
+        candidate, rejected):
+    from nvidia_transcribe.review_uncertainty import bind_review_uncertainty, current_uncertainty
+    row = {"id": "u", "speaker_id": "A", "source_text": "Jean arrive dans le bus 403.",
+           "source_start": 1.0, "source_end": 2.0,
+           "translated_text": "John arrives on bus 403.", "source_unit_ids": ["unit"]}
+    quality = {"schema": "nemovox-current-source-quality/v1",
+               "scene_evidence": {"decisions": [], "deferred_source_ids": ["u"]}}
+    bound, = bind_review_uncertainty([row], quality)
+    uncertainty = current_uncertainty(bound)
+    assert uncertainty["scene_outcome"] == "deferred"
+    assert uncertainty["nominations"] == []
+    assert uncertainty["source_quality_status"] == ""
+    client = _LoopReviewClient(
+        {"reviews": [{"utterance_id": "u", "corrected_text": candidate,
+                      "reason": "Candidate interpretation"}]},
+        {"decisions": [{"utterance_id": "u", "choice": "proposal",
+                        "reason": "Approve candidate"}]})
+    out, report = review_translated_utterances(
+        [bound], source_language="fr", config=_loop_cfg(), text_client=client)
+    assert len(client.calls) == 2
+    assert report["status"] == "completed"
+    assert out[0]["machine_translated_text"] == row["translated_text"]
+    assert out[0]["translation_comparative_review"]["choice"] == "proposal"
+    assert report["unresolved_source_rejections"] == int(rejected)
+    assert report["changed"] == int(not rejected)
+    if rejected:
+        assert out[0]["translation_review_rejection_reason"] == "unresolved_source_name_or_number_change"
+        assert out[0]["translated_text"] == row["translated_text"]
+    else:
+        assert out[0]["translation_review_status"] == "corrected"
+        assert out[0]["translated_text"] == candidate
+
+
+def test_deferred_scene_guard_is_not_material_veto_or_operator_override():
+    from nvidia_transcribe.review_uncertainty import bind_review_uncertainty, uncertainty_veto
+    row = {"id": "u", "source_text": "Jean arrive.", "translated_text": "John arrives."}
+    quality = {"schema": "nemovox-current-source-quality/v1",
+               "scene_evidence": {"decisions": [], "deferred_source_ids": ["u"]}}
+    bound, = bind_review_uncertainty([row], quality)
+    assert uncertainty_veto(bound, "John arrives.", "Paul arrives.", GlossaryConfig()) == (
+        "unresolved_source_name_or_number_change")
+    assert uncertainty_veto(bound, "John arrives.", "John is arriving.", GlossaryConfig()) is None
+    assert uncertainty_veto(bound, "John arrives.", "Paul arrives.",
+        GlossaryConfig(translation_examples=((row["source_text"], "Paul arrives."),))) is None
+    # An actually resolved, non-deferred case has no scene uncertainty.
+    resolved, = bind_review_uncertainty([row], {
+        **quality, "scene_evidence": {"decisions": [{"source_id": "u",
+            "outcome": "context_supported"}], "deferred_source_ids": []}})
+    assert uncertainty_veto(resolved, "John arrives.", "Paul arrives.", GlossaryConfig()) is None

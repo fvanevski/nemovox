@@ -23,7 +23,7 @@ class ResourceConfigError(ValueError):
 # Stage requirements, not model names. Specialized adapters remain distinct.
 ROLE_ADAPTERS: dict[str, frozenset[str]] = {
     "asr": frozenset({"nemotron_ctc"}),
-    "source_challenger": frozenset({"whisper_cpu"}),
+    "source_challenger": frozenset({"whisper_ct2"}),
     "source_refinement": frozenset({"openai_chat"}),
     "text_translation": frozenset({"openai_chat"}),
     "translation_review": frozenset({"openai_chat"}),
@@ -37,7 +37,7 @@ RESOURCE_FIELDS = frozenset({"adapter", "model", "endpoint", "checkpoint_path", 
 # suggesting it controls inference (particularly device and credential settings).
 _ADAPTER_FIELDS = {
     "nemotron_ctc": frozenset({"adapter", "endpoint", "model", "checkpoint_path", "api_key_env"}),
-    "whisper_cpu": frozenset({"adapter", "checkpoint_path", "worker_python", "device"}),
+    "whisper_ct2": frozenset({"adapter", "checkpoint_path", "worker_python", "device"}),
     "openai_chat": frozenset({"adapter", "endpoint", "model", "api_key_env"}),
     "riva_worker": frozenset({"adapter", "checkpoint_path", "worker_python", "device"}),
     "qwen_forced_aligner": frozenset({"adapter", "checkpoint_path", "worker_python", "device"}),
@@ -138,7 +138,7 @@ def _validate_resource(name: str, spec: Mapping[str, Any]) -> ModelResource:
             raise ResourceConfigError(f"Resource {name!r} has invalid endpoint port") from exc
     if adapter in ("openai_chat", "nemotron_ctc") and not (endpoint and spec.get("model")):
         raise ResourceConfigError(f"Resource {name!r} requires endpoint and served model")
-    if adapter in ("riva_worker", "qwen_forced_aligner", "whisper_cpu") and not (spec.get("checkpoint_path") and spec.get("worker_python")):
+    if adapter in ("riva_worker", "qwen_forced_aligner", "whisper_ct2") and not (spec.get("checkpoint_path") and spec.get("worker_python")):
         raise ResourceConfigError(f"Resource {name!r} requires checkpoint_path and worker_python")
     if adapter == "titanet" and not spec.get("model"):
         raise ResourceConfigError(f"Resource {name!r} requires a model identifier")
@@ -147,8 +147,8 @@ def _validate_resource(name: str, spec: Mapping[str, Any]) -> ModelResource:
         raise ResourceConfigError(f"Resource {name!r} api_key_env must name an environment variable")
     if adapter == "qwen_forced_aligner" and spec.get("device", "cuda:0") not in ("cuda:0", "cpu"):
         raise ResourceConfigError("Qwen aligner device must be cuda:0 or explicitly cpu")
-    if adapter == "whisper_cpu" and spec.get("device") != "cpu":
-        raise ResourceConfigError("Whisper challenger requires explicitly configured CPU device")
+    if adapter == "whisper_ct2" and spec.get("device") != "cuda:0":
+        raise ResourceConfigError("Whisper challenger requires explicitly configured cuda:0 device")
     if adapter == "titanet" and spec.get("device", "cpu") != "cpu":
         raise ResourceConfigError("NeMo TitaNet speaker embedding runs on CPU only")
     if adapter == "riva_worker":

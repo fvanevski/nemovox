@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import time
 from contextlib import nullcontext
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
@@ -15,6 +16,7 @@ from nvidia_transcribe.model_resources import ModelResource
 from nvidia_transcribe.resource_lifecycle import ModelLifecycle, ResourceLifecycleError, managed_asr_client, managed_text_client
 from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
 from nvidia_transcribe.source_quality import SourceQualityPolicy, review_current_source
+from nvidia_transcribe.source_quality_checkpoint import identity as quality_checkpoint_identity, run_checkpoint
 from nvidia_transcribe.refinement import (
     GlossaryConfig,
     RefinementConfig,
@@ -216,12 +218,15 @@ def generate_subtitles(
         )
 
     refined_path = out_dir / "refined.contract.json"
+    quality_resume="not_requested"
+    salvage_review_error = False
 
     if cfg.re_render_only:
         _log("Stage 1-3: Reusing existing translated.contract.json (--re-render)")
         for skipped in ("source_quality", "translation", "review", "condensation"):
             _event(skipped, "skipped", "Offline re-render uses retained contract")
-        translated_contract = json.loads(translated_path.read_text(encoding="utf-8"))
+        retained_contract_bytes = translated_path.read_bytes()
+        translated_contract = json.loads(retained_contract_bytes)
         ref_summary: dict[str, Any] = {"status": "reused_translated_contract"}
         trans_summary: dict[str, Any] = {"status": "reused_translated_contract"}
         condense_summary: dict[str, Any] = {"status": "reused_translated_contract"}
@@ -230,6 +235,20 @@ def generate_subtitles(
         if retained_review.get("status") == "completed_with_deferred_comparisons":
             review_summary["retained_review_status"] = retained_review["status"]
             review_summary["deferred_comparison_ids"] = retained_review["deferred_comparison_ids"]
+        elif retained_review.get("status") == "completed_with_errors":
+            salvage_review_error = True
+            if cfg.validation_overlay_path is not None:
+                raise ValueError("Failed-review salvage must preserve the translated contract; overlay not allowed")
+            review_summary.update(
+                retained_review_status="completed_with_errors",
+                errors=retained_review.get("errors", []),
+                resource_blocked_reason=retained_review.get("resource_blocked_reason"),
+            )
+            # A failed or interrupted new render must not inherit an earlier
+            # successful salvage receipt. Existing subtitle files are retained.
+            (out_dir / "subtitles.metadata.json").unlink(missing_ok=True)
+            _log("Offline salvage: required English review remains failed; rendering retained translations")
+            _event("review", "failed", "Retained required review failed; offline salvage only")
     else:
         # Stage 1: Load existing recording contract or run chunked ASR.
         if recording_contract_path is not None:
@@ -288,7 +307,8 @@ def generate_subtitles(
             challenge_client = asr_client or NemotronVLLMClient(
                 base_url=cfg.asr_base_url, model=cfg.asr_model,
                 api_key=lifecycle_resources["asr"].credential(), timeout_s=900.0)
-            contract, quality_report = review_current_source(
+            def compute_quality():
+                return review_current_source(
                 contract, recording_path=rc_path, media_path=media_path, output_dir=out_dir,
                 text_scope=lambda: managed_text_client(lifecycle,
                     lifecycle_resources["translation_review"], wire_protocol="ninfer_messages",
@@ -296,7 +316,21 @@ def generate_subtitles(
                 asr_scope=lambda: managed_asr_client(lifecycle,
                     lifecycle_resources["asr"], challenge_client),
                 policy=cfg.source_quality_policy,
-                challenger_resource=lifecycle_resources.get("source_challenger"))
+                challenger_resource=lifecycle_resources.get("source_challenger"),
+                lifecycle=lifecycle)
+            if asr_client is None and text_client is None:
+                fingerprints={role:{"name":lifecycle_resources[role].name,
+                                    "fingerprint":lifecycle_resources[role].fingerprint()}
+                    for role in ("asr","translation_review","source_challenger")
+                    if lifecycle_resources.get(role) is not None}
+                fingerprints["owned_services"]={name:asdict(service)
+                    for name,service in lifecycle.services.items()}
+                key=quality_checkpoint_identity(contract,rc_path,media_path,cfg.source_quality_policy,fingerprints)
+                contract,quality_report,quality_resume=run_checkpoint(
+                    out_dir/"source-quality.checkpoint.json",key,contract,resume=cfg.resume,run=compute_quality)
+            else:
+                contract,quality_report=compute_quality()
+                quality_resume="computed_injected_client"
             _atomic_write(out_dir / "source-quality.json", json.dumps(quality_report, ensure_ascii=False, indent=2))
             _atomic_write(out_dir / "canonical-source.contract.json", json.dumps(contract, ensure_ascii=False, indent=2))
             _event("source_quality", "complete", quality_report["status"])
@@ -377,6 +411,8 @@ def generate_subtitles(
             if cfg.translation_review.profile != "off":
                 _event("review", "running")
             _log(f"Stage 3b/4: Contextual English post-edit (profile={cfg.translation_review.profile})")
+            from nvidia_transcribe.review_uncertainty import bind_review_uncertainty
+            translated_utts=bind_review_uncertainty(translated_utts,contract.get("source_quality"))
             with _text_stage("translation_review") as stage_client:
                 translated_utts, review_summary = review_translated_utterances(
                     translated_utts, source_language=src_lang, config=cfg.translation_review,
@@ -429,8 +465,14 @@ def generate_subtitles(
             "translation_review": review_summary,
             "condensation": condense_summary,
         }
+        review_failed = (cfg.translation_review.profile != "off"
+                         and review_summary.get("status") == "completed_with_errors")
+        if review_failed:
+            # Invalidate an older successful render receipt before publishing
+            # the failed contract, even if the new failure repeats its bytes.
+            (out_dir / "subtitles.metadata.json").unlink(missing_ok=True)
         _atomic_write(translated_path, json.dumps(translated_contract, ensure_ascii=False, indent=2))
-        if cfg.translation_review.profile != "off" and review_summary.get("status") == "completed_with_errors":
+        if review_failed:
             if review_summary.get("resource_blocked_reason"):
                 raise ResourceLifecycleError(
                     review_summary["resource_blocked_reason"],
@@ -486,6 +528,7 @@ def generate_subtitles(
         },
         "sidecars": render_res["sidecars"],
         "source_quality": translated_contract.get("source_quality", {"status": "not_run"}),
+        "source_quality_resume":quality_resume,
         "refinement": ref_summary,
         "translation": trans_summary,
         "translation_review": review_summary,
@@ -495,6 +538,27 @@ def generate_subtitles(
         "subtitle_conflicts": render_res["conflicts"][:200],
         "total_wall_time_s": elapsed_s,
     }
+    if salvage_review_error:
+        # Successful rendering is not successful required review. Bind this
+        # receipt to actual retained contract bytes and local subtitle outputs.
+        # Basenames make the receipt verifiable after moving a whole job.
+        if translated_path.read_bytes() != retained_contract_bytes:
+            raise RuntimeError("Retained translated contract changed during offline salvage")
+        outputs = {}
+        for fmt, filename in render_res["outputs"].items():
+            path = Path(filename)
+            if path.resolve().parent != out_dir.resolve():
+                raise ValueError("Salvage render output must be inside the job directory")
+            outputs[fmt] = {"name": path.name,
+                            "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+        if not outputs:
+            raise ValueError("Salvage render requires at least one subtitle output")
+        metadata["render_status"] = "rendered_with_review_errors"
+        metadata["salvage_render_receipt"] = {
+            "schema": "nemovox-failed-review-render/v1",
+            "translated_contract_sha256": hashlib.sha256(retained_contract_bytes).hexdigest(),
+            "outputs": outputs,
+        }
     _atomic_write(out_dir / "subtitles.metadata.json", json.dumps(metadata, ensure_ascii=False, indent=2))
-    _event("render", "complete")
+    _event("render", "complete", "Offline salvage; review remains failed" if salvage_review_error else "")
     return metadata

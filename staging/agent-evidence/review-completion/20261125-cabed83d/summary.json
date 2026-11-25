@@ -1,0 +1,203 @@
+{
+  "schema": "nemovox-review-completion-evidence/v1",
+  "run_id": "20261125-cabed83d",
+  "repository": "fvanevski/nemovox",
+  "issue": 19,
+  "pr": 21,
+  "branch": "issue/19",
+  "base_commit_sha": "4dd4599e51775ca510002783ea650ecd25fd7393",
+  "base_tree_sha": "dfbc53906300996373c34631fe33029b87bbf313",
+  "prior_qualified_source_sha": "3e6f8d8244f818c304bf5d692e4db864a6ae9a1e",
+  "prior_evidence_carrier_sha": "42e5180066a40109774e65adc5b66a441868e34d",
+  "tested_source_sha": "cabed83dc5685d18acccc354d1519b4e6505cf8e",
+  "tested_source_tree": "99afccd2bc11e1b2036137f1d79aeb94be11535e",
+  "source_changes_made": false,
+  "phase_a": {
+    "import_binding": "pass",
+    "compileall_exit": 0,
+    "diff_check_exit": 0,
+    "focused_regressions": {
+      "passed": 91,
+      "exit": 0,
+      "duration_s": 0.35
+    },
+    "full_cpu": {
+      "passed": 551,
+      "exit": 0,
+      "duration_s": 12.1
+    },
+    "studio": {
+      "passed": 51,
+      "exit": 0,
+      "duration_s": 3.64
+    },
+    "frontend_equivalence": "unchanged_web_tree_reused_prior_14_tests_and_build"
+  },
+  "retained_inputs": {
+    "prior_c3_archive_sha256": "49e31f742cae801672de81ea604144769d1e7e8f3114b6b4f5f83d07bcb2e1df",
+    "prior_c3_archive_bytes": 21867540,
+    "riva_resource_fingerprint": "51e174c84e775b5a5628be1117811fc126df47af95526fa9645492bda3096210",
+    "review_resource_fingerprint": "7c4ddcaf9e48cbcb1e675f1484eef3d9e08aadc9fc6b4a921c8f3f6c0a03cb2a",
+    "glossary_digest": "0b845b4dad8d",
+    "mandarin_overlap_manifest_sha256": "d0d977411063ddf1cc457750c674df25cc4598a842dd93ce478ed054a07cc2cc"
+  },
+  "jobs": {
+    "bounded": {
+      "rows": 26,
+      "translation_backend": "riva",
+      "translation_cache_hits": 26,
+      "translation_api_calls": null,
+      "review_status": "completed",
+      "review_api_calls": 6,
+      "review_comparative_calls": 3,
+      "review_changed": 13,
+      "review_comparative_rejections": 4,
+      "review_dependent_passage_rejections": 3,
+      "review_joined_passage_rejections": 0,
+      "review_unresolved_source_rejections": 3,
+      "review_direction_grammar_rejections": 0,
+      "review_rejected_polarity": 0,
+      "review_deferred_comparison_ids": [],
+      "review_elapsed_s": 66.129,
+      "comparison_recoveries_count": 0,
+      "tokens": {
+        "native_attempt_count": 6,
+        "attempts_by_stage": {
+          "proposal": 3,
+          "comparison": 3
+        },
+        "input_tokens": 34505,
+        "output_tokens": 14385,
+        "thinking_tokens": 9366,
+        "missing_usage_count": 0
+      },
+      "gpu_peak": {
+        "samples": 33,
+        "min_mib": 3047,
+        "max_mib": 30625
+      },
+      "comparison_recovery_events": []
+    },
+    "mandarin": {
+      "rows": 2,
+      "translation_backend": "riva",
+      "translation_cache_hits": 2,
+      "translation_api_calls": null,
+      "review_status": "completed",
+      "review_api_calls": 2,
+      "review_comparative_calls": 1,
+      "review_changed": 1,
+      "review_comparative_rejections": 1,
+      "review_dependent_passage_rejections": 0,
+      "review_joined_passage_rejections": 0,
+      "review_unresolved_source_rejections": 0,
+      "review_direction_grammar_rejections": 0,
+      "review_rejected_polarity": 0,
+      "review_deferred_comparison_ids": [],
+      "review_elapsed_s": 23.93,
+      "comparison_recoveries_count": 0,
+      "tokens": {
+        "native_attempt_count": 2,
+        "attempts_by_stage": {
+          "proposal": 1,
+          "comparison": 1
+        },
+        "input_tokens": 4666,
+        "output_tokens": 3565,
+        "thinking_tokens": 3122,
+        "missing_usage_count": 0
+      },
+      "gpu_peak": {
+        "samples": 13,
+        "min_mib": 3049,
+        "max_mib": 30624
+      },
+      "comparison_recovery_events": []
+    },
+    "french": {
+      "rows": 221,
+      "translation_backend": "riva",
+      "translation_cache_hits": 221,
+      "translation_api_calls": null,
+      "review_status": "completed",
+      "review_api_calls": 39,
+      "review_comparative_calls": 20,
+      "review_changed": 119,
+      "review_comparative_rejections": 27,
+      "review_dependent_passage_rejections": 2,
+      "review_joined_passage_rejections": 0,
+      "review_unresolved_source_rejections": 10,
+      "review_direction_grammar_rejections": 0,
+      "review_rejected_polarity": 1,
+      "review_deferred_comparison_ids": [],
+      "review_elapsed_s": 396.323,
+      "comparison_recoveries_count": 1,
+      "tokens": {
+        "native_attempt_count": 39,
+        "attempts_by_stage": {
+          "proposal": 19,
+          "comparison": 19,
+          "comparison_recovery": 1
+        },
+        "input_tokens": 233258,
+        "output_tokens": 96570,
+        "thinking_tokens": 60367,
+        "missing_usage_count": 0
+      },
+      "gpu_peak": {
+        "samples": 79,
+        "min_mib": 3049,
+        "max_mib": 30625
+      },
+      "comparison_recovery_events": [
+        {
+          "reason": "duplicate_decision_id:9",
+          "outcome": "complete",
+          "target_count": 10,
+          "required_verdict_count": 10,
+          "initial_finish_reason": "stop",
+          "initial_response_id": "msg_3603cb76ab1533b7",
+          "compact_response_id": "msg_7556234fe2b06420"
+        }
+      ]
+    }
+  },
+  "upstream_model_invocations": {
+    "primary_asr_requests": 0,
+    "recording_context_requests": 0,
+    "localized_asr_requests": 0,
+    "whisper_requests": 0,
+    "riva_inference_requests": 0,
+    "vision_requests": 0
+  },
+  "offline_rerender": {
+    "exit": 0,
+    "model_invocations": 0,
+    "translated_contract_unchanged": true,
+    "srt_byte_identical": true,
+    "ass_byte_identical": true,
+    "srt_sha256": "2f4f09a123280682408315a11abfa2087df1ac2a124ba989cf8e298703ece402",
+    "ass_sha256": "73e11676c150b8f9e7ea98f8496120eec20481c50ef4f5ba94a3d5125ba2bbe7"
+  },
+  "resource_restoration": {
+    "baseline_gpu_mib": 3049,
+    "peak_gpu_mib": 30625,
+    "final_gpu_mib": 3049,
+    "nemovox_text_review_final_state": "inactive/dead",
+    "nemovox_asr_final_state": "inactive/dead",
+    "nemovox_studio_preserved": true,
+    "owner_checkout_changed": false,
+    "deployment_config_changed": false
+  },
+  "private_archive": {
+    "filename": "review-completion-cabed83d.tar.gz",
+    "bytes": 3764304,
+    "sha256": "6f3f0e308b227e69248e4121f9064c5e7e3e9bb543a6fe554d7e6426866a592a",
+    "manifest_entries": 96
+  },
+  "semantic_residuals": [
+    "Upstream ASR/source artifacts remain preserved verbatim where acoustically unresolved; downstream review does not fabricate resolution.",
+    "Conservative _anchors() heuristic on unresolved-scene rows can reject sentence-initial capitalized non-common words or contractions (observed in bounded French cascading into dependent-passage reversion).",
+    "Exact prior C3 malformed subtype on batch[204:216] remains unestablished because batch[204:216] succeeded on first attempt here; live malformed recovery was observed and resolved on batch[84:96] (duplicate_decision_id:9)."
+  ]
+}

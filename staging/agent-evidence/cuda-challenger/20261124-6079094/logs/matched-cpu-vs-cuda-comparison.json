@@ -1,0 +1,94 @@
+{
+  "crops": [
+    {
+      "id": "independent_15ffe55554efbf31f1e34098-0",
+      "crop": [
+        77.57600000000001,
+        84.56899999999999
+      ],
+      "audio_sha256": "5ad849540c0945a9267f6864a670825ac2fb69e506c8fa9ae8c9d6e9387d87f3",
+      "cpu_segments": 2,
+      "cuda_segments": 2,
+      "exact_text_match": true,
+      "text_similarity": 1.0,
+      "cpu_span": [
+        80.256,
+        84.496
+      ],
+      "cuda_span": [
+        80.256,
+        84.536
+      ],
+      "start_delta_s": 0.0,
+      "end_delta_s": 0.04
+    },
+    {
+      "id": "independent_15ffe55554efbf31f1e34098-1",
+      "crop": [
+        75.578,
+        86.567
+      ],
+      "audio_sha256": "90d8f362fc4ad42983daf51af94b75d63ad297a554222f1b683f3c3841a16c05",
+      "cpu_segments": 4,
+      "cuda_segments": 4,
+      "exact_text_match": false,
+      "text_similarity": 0.9919,
+      "cpu_span": [
+        75.578,
+        86.538
+      ],
+      "cuda_span": [
+        75.578,
+        86.538
+      ],
+      "start_delta_s": 0.0,
+      "end_delta_s": 0.0
+    },
+    {
+      "id": "independent_637e29a68e22770f1b0f66c0-0",
+      "crop": [
+        80.659,
+        92.216
+      ],
+      "audio_sha256": "6d18e2df05108970f74d1d68499276e42e8369836a46685f5e7ce856c89b9d8e",
+      "cpu_segments": 5,
+      "cuda_segments": 5,
+      "exact_text_match": true,
+      "text_similarity": 1.0,
+      "cpu_span": [
+        80.659,
+        92.179
+      ],
+      "cuda_span": [
+        80.659,
+        92.179
+      ],
+      "start_delta_s": 0.0,
+      "end_delta_s": 0.0
+    },
+    {
+      "id": "independent_637e29a68e22770f1b0f66c0-1",
+      "crop": [
+        77.357,
+        95.518
+      ],
+      "audio_sha256": "c84519646512fff734e1ee8e0d2a861932958078f9e82af54c5722ce15d6d50f",
+      "cpu_segments": 7,
+      "cuda_segments": 7,
+      "exact_text_match": false,
+      "text_similarity": 0.9878,
+      "cpu_span": [
+        80.117,
+        95.417
+      ],
+      "cuda_span": [
+        80.097,
+        95.417
+      ],
+      "start_delta_s": -0.02,
+      "end_delta_s": 0.0
+    }
+  ],
+  "prior_decisions": 0,
+  "cuda_decisions": 1
+}

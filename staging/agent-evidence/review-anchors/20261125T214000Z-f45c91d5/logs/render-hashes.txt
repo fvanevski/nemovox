@@ -1,0 +1,18 @@
+=== PRE-RENDER TRANSLATED CONTRACT HASHES ===
+8423060b97b7c828b0fa235d7d01934cb78d27573a4a78ce3f6aab4393b6d9b0  /workspace/nvidia-transcribe/outputs/handbacks/review-anchors-20261125T214000Z-f45c91d5/candidate/bounded/translated.contract.json
+88e9b5fa6271201d947ae83971fc5bf1f6bb29a6c65ba7b0e023aa6a25faeb78  /workspace/nvidia-transcribe/outputs/handbacks/review-anchors-20261125T214000Z-f45c91d5/candidate/mandarin/translated.contract.json
+a60fe3b6048f36361dad626ef6a9ba3c4cefaaf8d512f2c2b97b3a08bdc69ef1  /workspace/nvidia-transcribe/outputs/handbacks/review-anchors-20261125T214000Z-f45c91d5/candidate/french/translated.contract.json
+=== POST-RENDER PASS 1 HASHES ===
+8423060b97b7c828b0fa235d7d01934cb78d27573a4a78ce3f6aab4393b6d9b0  /workspace/nvidia-transcribe/outputs/handbacks/review-anchors-20261125T214000Z-f45c91d5/candidate/bounded/translated.contract.json
+13d2c7ec65371bfad9b2919a6de3345a10c00a3373d3a8af2f06d98f58da52f4  /workspace/nvidia-transcribe/outputs/handbacks/review-anchors-20261125T214000Z-f45c91d5/candidate/bounded/mcog_s04e01_260_370.en.srt
+6d62099c4700de68386203a471427b984465261ee2185735e3bed17e1085e92f  /workspace/nvidia-transcribe/outputs/handbacks/review-anchors-20261125T214000Z-f45c91d5/candidate/bounded/mcog_s04e01_260_370.en.ass
+88e9b5fa6271201d947ae83971fc5bf1f6bb29a6c65ba7b0e023aa6a25faeb78  /workspace/nvidia-transcribe/outputs/handbacks/review-anchors-20261125T214000Z-f45c91d5/candidate/mandarin/translated.contract.json
+c2145a8f8094c0d04f82f871b92407d724e06cd759088976352b7213606fcd36  /workspace/nvidia-transcribe/outputs/handbacks/review-anchors-20261125T214000Z-f45c91d5/candidate/mandarin/synthetic_zh_2spk_overlap.en.srt
+b111d2524a5d5990717aee88f8a418e1b437ebbb4da0e26237380da6b822d8c4  /workspace/nvidia-transcribe/outputs/handbacks/review-anchors-20261125T214000Z-f45c91d5/candidate/mandarin/synthetic_zh_2spk_overlap.en.ass
+a60fe3b6048f36361dad626ef6a9ba3c4cefaaf8d512f2c2b97b3a08bdc69ef1  /workspace/nvidia-transcribe/outputs/handbacks/review-anchors-20261125T214000Z-f45c91d5/candidate/french/translated.contract.json
+2e1586c7cb70b3cc591c18b04d69c610217f9f6d37df635cb4050ec076b6b31c  /workspace/nvidia-transcribe/outputs/handbacks/review-anchors-20261125T214000Z-f45c91d5/candidate/french/Les mystérieuses cités d'or Saison 4 Episode 1 [YlVGUDNbyXk].en.srt
+b60648795d2d9b97a59f7a70216d46f4dd5ee1ad0b4687d2460ae9d4df769f6f  /workspace/nvidia-transcribe/outputs/handbacks/review-anchors-20261125T214000Z-f45c91d5/candidate/french/Les mystérieuses cités d'or Saison 4 Episode 1 [YlVGUDNbyXk].en.ass
+=== POST-RENDER BOUNDED PASS 2 HASHES ===
+8423060b97b7c828b0fa235d7d01934cb78d27573a4a78ce3f6aab4393b6d9b0  /workspace/nvidia-transcribe/outputs/handbacks/review-anchors-20261125T214000Z-f45c91d5/candidate/bounded/translated.contract.json
+13d2c7ec65371bfad9b2919a6de3345a10c00a3373d3a8af2f06d98f58da52f4  /workspace/nvidia-transcribe/outputs/handbacks/review-anchors-20261125T214000Z-f45c91d5/candidate/bounded/mcog_s04e01_260_370.en.srt
+6d62099c4700de68386203a471427b984465261ee2185735e3bed17e1085e92f  /workspace/nvidia-transcribe/outputs/handbacks/review-anchors-20261125T214000Z-f45c91d5/candidate/bounded/mcog_s04e01_260_370.en.ass

@@ -1,0 +1,184 @@
+{
+  "controls_exit_code": 0,
+  "total_wall_s": 40,
+  "french_control": {
+    "primary": {
+      "backend": "riva",
+      "resource_fingerprint": "51e174c84e775b5a5628be1117811fc126df47af95526fa9645492bda3096210",
+      "lang_pair": "fr-en",
+      "total_utterances": 4,
+      "cache_hits": 0,
+      "context_example_rows": 3,
+      "native_input_tokens": 173,
+      "elapsed_s": 9.193,
+      "device_used": "cuda:0",
+      "dtype": "torch.bfloat16",
+      "load_s": 2.0493,
+      "infer_s": 1.8474,
+      "peak_vram_mib": 8016.3
+    },
+    "review": {
+      "status": "completed",
+      "batch_size": 12,
+      "reviewed": 4,
+      "changed": 3,
+      "rejected_polarity": 0,
+      "comparative_rejections": 0,
+      "dependent_passage_rejections": 0,
+      "comparative_calls": 1,
+      "completion_retries": 0,
+      "api_calls": 2,
+      "elapsed_s": 18.075,
+      "deferred_comparison_ids": [],
+      "errors": [],
+      "native_usage_totals_reported_attempts": {
+        "input_tokens": 1958,
+        "output_tokens": 2464,
+        "reasoning_tokens": 1953,
+        "final_answer_tokens": 511
+      },
+      "native_attempt_count": 2,
+      "native_usage_complete": true,
+      "subdivision_count": 0
+    },
+    "row_outcomes": [
+      {
+        "id": "fr-negative",
+        "riva_context_example_count": 2,
+        "riva_context_example_ids": [
+          "82e0681b91de82aede6e46d37536050c88fd506beb6e929dfcde3be7a774b83f",
+          "0592a882d848b2fbfe088aa83a2fd4ec30013bf0100b2a549b5d70b9590c3147"
+        ],
+        "riva_input_tokens": 64,
+        "review_status": "unchanged",
+        "comparative_choice": null
+      },
+      {
+        "id": "fr-idiom",
+        "riva_context_example_count": 0,
+        "riva_context_example_ids": [],
+        "riva_input_tokens": 26,
+        "review_status": "corrected",
+        "comparative_choice": "proposal"
+      },
+      {
+        "id": "fr-restriction",
+        "riva_context_example_count": 1,
+        "riva_context_example_ids": [
+          "0592a882d848b2fbfe088aa83a2fd4ec30013bf0100b2a549b5d70b9590c3147"
+        ],
+        "riva_input_tokens": 42,
+        "review_status": "corrected",
+        "comparative_choice": "proposal"
+      },
+      {
+        "id": "fr-name",
+        "riva_context_example_count": 1,
+        "riva_context_example_ids": [
+          "0592a882d848b2fbfe088aa83a2fd4ec30013bf0100b2a549b5d70b9590c3147"
+        ],
+        "riva_input_tokens": 41,
+        "review_status": "corrected",
+        "comparative_choice": "proposal"
+      }
+    ]
+  },
+  "mandarin_control": {
+    "primary": {
+      "backend": "riva",
+      "resource_fingerprint": "51e174c84e775b5a5628be1117811fc126df47af95526fa9645492bda3096210",
+      "lang_pair": "zh-en",
+      "total_utterances": 3,
+      "cache_hits": 0,
+      "context_example_rows": 2,
+      "native_input_tokens": 116,
+      "elapsed_s": 7.796,
+      "device_used": "cuda:0",
+      "dtype": "torch.bfloat16",
+      "load_s": 2.013,
+      "infer_s": 1.4957,
+      "peak_vram_mib": 8013.08
+    },
+    "review": {
+      "status": "completed",
+      "batch_size": 12,
+      "reviewed": 3,
+      "changed": 0,
+      "rejected_polarity": 0,
+      "comparative_rejections": 0,
+      "dependent_passage_rejections": 0,
+      "comparative_calls": 0,
+      "completion_retries": 0,
+      "api_calls": 1,
+      "elapsed_s": 1.361,
+      "deferred_comparison_ids": [],
+      "errors": [],
+      "native_usage_totals_reported_attempts": {
+        "input_tokens": 576,
+        "output_tokens": 390,
+        "reasoning_tokens": 218,
+        "final_answer_tokens": 172
+      },
+      "native_attempt_count": 1,
+      "native_usage_complete": true,
+      "subdivision_count": 0
+    },
+    "row_outcomes": [
+      {
+        "id": "zh-negative",
+        "riva_context_example_count": 1,
+        "riva_context_example_ids": [
+          "750b2e77fac584f3f564d69cbd096e95af00370835cd0f4b7e42bc63c1e57840"
+        ],
+        "riva_input_tokens": 46,
+        "review_status": "unchanged",
+        "comparative_choice": null
+      },
+      {
+        "id": "zh-positive",
+        "riva_context_example_count": 1,
+        "riva_context_example_ids": [
+          "750b2e77fac584f3f564d69cbd096e95af00370835cd0f4b7e42bc63c1e57840"
+        ],
+        "riva_input_tokens": 47,
+        "review_status": "unchanged",
+        "comparative_choice": null
+      },
+      {
+        "id": "zh-repeat",
+        "riva_context_example_count": 0,
+        "riva_context_example_ids": [],
+        "riva_input_tokens": 23,
+        "review_status": "unchanged",
+        "comparative_choice": null
+      }
+    ]
+  },
+  "known_pixel_vision_control": {
+    "protocol": "ninfer_anthropic_messages",
+    "native_stop_reason": "end_turn",
+    "input_image_count": 2,
+    "frame_sha256s": [
+      "ab0a48f175ed9305a723d073bf0f608536acc5af2fdf5f94ac2f4b334a164747",
+      "c7ee2bd49ee773f167d162b24395e178434956bd3c71b69a3fc9c002b275b956"
+    ],
+    "requested_seeks_s": [
+      0.0,
+      2.0
+    ],
+    "usage": {
+      "prompt_tokens": 632,
+      "completion_tokens": 589,
+      "completion_tokens_details": {
+        "reasoning_tokens": 318
+      }
+    },
+    "known_literal_observed": true,
+    "matching_source_context_accepted": true,
+    "matching_source_entity_identity_accepted": false,
+    "matching_source_human_verified": false,
+    "mismatched_source_context_accepted": false,
+    "source_mutated": false,
+    "synthetic_pixels_not_asr": true
+  }
+}

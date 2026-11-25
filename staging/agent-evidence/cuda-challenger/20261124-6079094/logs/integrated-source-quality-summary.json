@@ -1,0 +1,41 @@
+{
+  "status": "partial",
+  "recording_sha256": "6330f9c2a9a76db3eaa9c90c9a32630aabf42205dd036f18b3570d62b08786f1",
+  "acoustic_observations_count": 10,
+  "windows_count": 4,
+  "independent_recovery": {
+    "status": "partial",
+    "requests": 4,
+    "audio_seconds": 43.164,
+    "wall_s": 9.7592,
+    "observations_count": 4,
+    "targets_count": 2,
+    "errors": [],
+    "resource": {
+      "backend": "faster-whisper",
+      "version": "1.2.1",
+      "ctranslate2_version": "4.9.1",
+      "checkpoint_sha256": {
+        "model.bin": "69f74147e3334731bc3a76048724833325d2ec74642fb52620eda87352e3d4f1",
+        "config.json": "a9306624f5ec14270a014b647e5c316b6e03a662c369758d1b90697a7b0655b9",
+        "tokenizer.json": "6d8cbd7cd0d8d5815e478dac67b85a26bbe77c1f5e0c6d76d1ce2abc0e5f21ca",
+        "preprocessor_config.json": "7ccc62c6f2765af1f3b46c00c9b5894426835a05021c8b9c01eecb6dfb542711"
+      },
+      "device": "cuda",
+      "device_index": [
+        0
+      ],
+      "compute_type": "int8_float16",
+      "model_is_loaded": true,
+      "is_multilingual": true,
+      "resource_name": "whisper_local",
+      "resource_fingerprint": "0eecacde5258cc3700c49afbd82acd39c20c2ccd6b3040692f776eaf58f7580e"
+    },
+    "receipt_sha256": "4c2ff295a9441bf1b62a59bf2fb417adc4cd60d8856159e8ea90f2706c7df34e"
+  },
+  "occurrence_decisions_count": 0,
+  "scene_reasoning": {},
+  "context_plan": {
+    "status": "partial"
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "executed": true,
+  "media_duration_s": 100.0,
+  "source_language": "fr",
+  "media_fingerprint_sha256": "92b6e8e571cb90dc0a3abc9d56c63b000ac7b8b812f32700e503d7c8c111af03",
+  "recording_sha256": "6330f9c2a9a76db3eaa9c90c9a32630aabf42205dd036f18b3570d62b08786f1",
+  "utterance_count": 31,
+  "asr_quantization_verified": "modelopt_mixed (FP8 audio encoder: 128 Linears)",
+  "asr_ctc_middleware_verified": "nemo.collections.speechlm2.vllm.salm.ctc_serving.ctc_timestamp_middleware",
+  "source_quality_status": "partial",
+  "recording_context": {
+    "status": "partial",
+    "calls": 1,
+    "eligible_rows": 31,
+    "covered_rows": 31,
+    "excluded_unbound_rows": 0,
+    "deferred_batches": 0,
+    "native_stop_reason": "end_turn",
+    "max_tokens": 8192,
+    "thinking_budget_sent": 2048,
+    "reasoning_effort_sent": "xhigh",
+    "token_accounting_complete": true,
+    "native_token_totals": {
+      "input_tokens": 2804,
+      "output_tokens": 3173,
+      "reasoning_tokens": 2073,
+      "final_answer_tokens": 1100
+    },
+    "wall_s": 20.380067,
+    "request_sha256": "40a39de2e5fe1fc9f4b966f8d4ffed0f48ff048bc7c36b9875610cd05b867d40",
+    "response_id": "msg_1491d9227b9c21d7",
+    "response_sha256": "6e1f2771f8d59a9fe1066687bc8e31775dad241800309b472d92f33bede6fdda",
+    "validated_proposals": 4,
+    "rejected_proposals": 2,
+    "rejection_reasons": [
+      "insufficient_relational_evidence",
+      "insufficient_relational_evidence"
+    ],
+    "occurrence_requests": 2,
+    "compact_contract_strips_answer_text": true,
+    "private_report_retains_answer_text": true
+  },
+  "scheduler_and_acquisition": {
+    "audio_requests": 10,
+    "recovery_tasks_total": 5,
+    "semantic_task_count": 2,
+    "semantic_tasks_observed": 2,
+    "independent_recovery_status": "partial",
+    "independent_observations": 4,
+    "independent_decisions": 0,
+    "independent_errors": 0,
+    "independent_deferred_count": 1,
+    "independent_deferred_reasons": [
+      "independent_target_budget"
+    ],
+    "occurrence_resolutions_count": 2,
+    "occurrence_resolutions_unresolved": 2,
+    "acoustic_truth_accepted_any": false,
+    "canonical_text_mutations_by_id": 0
+  }
+}

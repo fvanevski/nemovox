@@ -1,0 +1,58 @@
+{
+  "result": "PASS",
+  "tested_source_sha": "60790947180385cfce5f32501374f621edb19c26",
+  "tested_source_tree": "6794424e10c6c804f458b5bccc26d1eb36fd7452",
+  "prior_evidence_carrier": "47c67b1a9bf44849fbccd687b7f2a864e9a4e0fc",
+  "base_commit_identity": "4dd4599e51775ca510002783ea650ecd25fd7393",
+  "focused_regression_result": "PASS (168 passed, 1 warning, 0.50s, exit 0)",
+  "full_cpu_result": "PASS (526 passed, 1 warning, 11.75s, exit 0)",
+  "studio_result": "PASS (50 passed, 3.57s, exit 0)",
+  "cuda_capability_result": "PASS (ctranslate2 4.9.1, 1 CUDA device, int8_float16 supported)",
+  "cuda_runtime_library_result": "PASS_AFTER_REMEDIATION (symlinked host CUDA 12.8 libcublas.so.12.8.3.14 & libcublasLt.so.12.8.3.14 into .venv-challenger ctranslate2.libs; system libcudnn.so.9 OK)",
+  "actual_worker_device": "cuda ([0])",
+  "actual_worker_compute_type": "int8_float16",
+  "checkpoint_equivalence": true,
+  "matched_crop_result": "PASS (4/4 matched crops, status=observed, resolution_decisions=1, source_truth_accepted=false)",
+  "cpu_baseline_wall_s": 44.8923,
+  "cuda_matched_wall_s": 9.6007,
+  "gpu_peak_memory_observed": "2750 MiB (matched worker PID 419476); 2686 MiB (integrated worker PID 442166)",
+  "integrated_lifecycle_result": "PASS (exit 0, 4 sequential stages, 0 overlap violations, 4 CUDA crops in 9.7592s)",
+  "asr_release_before_whisper": "PASS",
+  "text_release_before_whisper": "PASS",
+  "whisper_process_release": "PASS",
+  "resource_restoration": "PASS",
+  "dependency_changes": "None in Python packages (faster-whisper==1.2.1, ctranslate2==4.9.1, av==18.0.0 unchanged); added 2 symlinks in .venv-challenger/lib/python3.12/site-packages/ctranslate2.libs/ to /usr/local/cuda-12.8/targets/x86_64-linux/lib/libcublas{,Lt}.so.12.8.3.14",
+  "deployment_config_changed": "no",
+  "owner_checkout_changed": "no",
+  "source_changes_made": "no",
+  "private_archive_path": "/workspace/nvidia-transcribe/outputs/handbacks/cuda-challenger-20261124-6079094/cuda-challenger-review-6079094.tar.gz",
+  "private_archive_bytes": 235320,
+  "private_archive_sha256": "edcc33008e294d0d334fdbfb423c53df500f7b3f2e03469162e455fa42fffdd8",
+  "command_shape_friction": {
+    "encountered": "yes",
+    "events": [
+      {
+        "id": "friction-1",
+        "outcome": "recovered_after_retry",
+        "requested_shape": "ModelLifecycle().config.services inspection probe",
+        "effect": "AttributeError: 'ModelLifecycle' object has no attribute 'config'",
+        "correction": "Inspected ModelLifecycle().services directly in follow-up probe"
+      },
+      {
+        "id": "friction-2",
+        "outcome": "recovered_after_retry",
+        "requested_shape": "Baseline CUDA WhisperModel.transcribe probe in .venv-challenger before cuBLAS remediation",
+        "effect": "RuntimeError: Library libcublas.so.12 is not found or cannot be loaded (host default loader path is CUDA 13 /opt/cuda/lib64)",
+        "correction": "Symlinked host CUDA 12.8 libcublas.so.12.8.3.14 and libcublasLt.so.12.8.3.14 into .venv-challenger/lib/python3.12/site-packages/ctranslate2.libs/ and verified inference with both unset and CUDA 13 LD_LIBRARY_PATH"
+      },
+      {
+        "id": "friction-3",
+        "outcome": "recovered_after_retry",
+        "requested_shape": "git add staging/agent-evidence/cuda-challenger/20261124-6079094",
+        "effect": "Repository .gitignore excluded logs/ files from initial evidence commit 3f2ef25",
+        "correction": "Added sanitized logs/ with git add -f and published fast-forward completion commit"
+      }
+    ],
+    "omitted_sensitive_values": "none"
+  }
+}

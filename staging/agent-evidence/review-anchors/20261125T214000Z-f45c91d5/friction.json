@@ -1,0 +1,20 @@
+{
+  "encountered": "yes",
+  "events": [
+    {
+      "scenario": "cli_subcommand_name_discovery",
+      "requested_shape": "PYTHONPATH=$WT/src $OWNER/.venv/bin/python -m nvidia_transcribe.cli subtitles --help",
+      "effective_shape": "same-as-requested",
+      "rewrite_provenance": "none",
+      "event_kind": "interface_discovery",
+      "execution_effect": "recovered_after_retry",
+      "correction_or_annotation": "Subcommand name is generate-subtitles (not subtitles).",
+      "replacement_shape": "PYTHONPATH=$WT/src $OWNER/.venv/bin/python -m nvidia_transcribe.cli generate-subtitles --help",
+      "recipe_reference": "none",
+      "resource_reference": "none",
+      "contract_conflict": "no",
+      "durable_gap_candidate": "no"
+    }
+  ],
+  "omitted_sensitive_values": "no"
+}

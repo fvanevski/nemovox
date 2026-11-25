@@ -1,0 +1,53 @@
+........................................................F............... [ 60%]
+................................................                         [100%]
+=================================== FAILURES ===================================
+_ test_messages_source_first_and_comparator_receive_coherent_cross_turn_passage _
+
+    def test_messages_source_first_and_comparator_receive_coherent_cross_turn_passage():
+        class Client(FakeClient):
+            def complete(self, **kwargs):
+                response=super().complete(**kwargs)
+                response["choices"][0]["finish_reason"]="stop"
+                return response
+        rows=[{"id":"u0","source_text":"Il a fermé la","translated_text":"He closed it",
+               "source_start":1,"source_end":3,"speaker_id":"A"},
+              {"id":"u1","source_text":"porte avant de partir.","translated_text":"Door before leaving.",
+               "source_start":3,"source_end":5,"speaker_id":"A"}]
+        proposed={"reviews":[{"utterance_id":"u0","corrected_text":"He closed the","reason":"Object follows"},
+                             {"utterance_id":"u1","corrected_text":"door before leaving.","reason":"Continuation"}]}
+        decision={"decisions":[{"utterance_id":uid,"choice":"proposal","reason":"Coherent complete passage"}
+                                for uid in ("u0","u1")]}
+        client=Client(proposed,decision)
+        out,report=review_translated_utterances(rows,source_language="fr",
+            config=_cfg(wire_protocol="ninfer_messages",thinking_budget=2048,reasoning_effort="xhigh"),
+            text_client=client)
+        first=json.loads(client.calls[0]["messages"][1]["content"])
+        assert all("machine_translation" not in x for x in first["target_utterances"])
+        assert "He closed it" not in client.calls[0]["messages"][1]["content"]
+        assert client.calls[0]["thinking_budget"]==2048
+        assert "changed" not in client.calls[0]["response_format"]["schema"]["properties"]["reviews"]["items"]["required"]
+        compare=json.loads(client.calls[1]["messages"][1]["content"])
+        assert [x["utterance_id"] for x in compare["complete_target_passage"]]==["u0","u1"]
+        assert compare["joined_primary_passage"]=="He closed it Door before leaving."
+        assert compare["joined_candidate_passage"]=="He closed the door before leaving."
+        assert client.calls[0]["retry_max_tokens"]==16384
+        assert client.calls[1]["retry_max_tokens"]==16384
+>       assert [x["translated_text"] for x in out]==["He closed the","door before leaving."]
+E       AssertionError: assert ['He closed i...ore leaving.'] == ['He closed t...ore leaving.']
+E         
+E         At index 0 diff: 'He closed it' != 'He closed the'
+E         Use -v to get more diff
+
+tests/test_translation_review.py:524: AssertionError
+=============================== warnings summary ===============================
+../../../.venv/lib/python3.13/site-packages/anyio/pytest_plugin.py:14
+  /workspace/nvidia-transcribe/.venv/lib/python3.13/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+  The CallSpec2 alias will be removed in pytest 10.
+  Update imports to use CallSpec instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
+    from _pytest.python import CallSpec2
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_translation_review.py::test_messages_source_first_and_comparator_receive_coherent_cross_turn_passage
+1 failed, 119 passed, 1 warning in 0.59s

@@ -1,0 +1,71 @@
+{
+  "schema": "nemovox-deferred-scene-guard-qualification/v1",
+  "run_id": "20261125T222700Z-791ce1f1",
+  "result": "PASS",
+  "repository": "fvanevski/nemovox",
+  "issue": 19,
+  "pr": 21,
+  "branch": "issue/19",
+  "tested_source_sha": "791ce1f1e90b88c215df41cfe718067052c92ef6",
+  "tested_source_tree": "b4d7b0baab047ad1c8302c6485dca0270dbf541f",
+  "previous_reviewed_head_sha": "fba0a56ae582c45c9a49074b4109f50e069ec52c",
+  "previous_qualified_source_sha": "67c055d285779ad8f36206040c163d96f54122dc",
+  "source_changes_made": false,
+  "delta_files": [
+    "docs/source-reconstruction/FINAL_QUALIFICATION.md",
+    "src/nvidia_transcribe/review_uncertainty.py",
+    "tests/test_translation_review.py"
+  ],
+  "retained_archives": {
+    "original_completion": {
+      "path": "/workspace/nvidia-transcribe/outputs/handbacks/review-completion-20261125-cabed83d/review-completion-cabed83d.tar.gz",
+      "bytes": 3764304,
+      "sha256": "6f3f0e308b227e69248e4121f9064c5e7e3e9bb543a6fe554d7e6426866a592a",
+      "authenticated": true
+    },
+    "preceding_qualification": {
+      "path": "/workspace/nvidia-transcribe/outputs/handbacks/review-failure-boundaries-20261125T221400Z-67c055d2/review-failure-boundaries-67c055d2.tar.gz",
+      "bytes": 1319942,
+      "sha256": "380088d1b2a1c28c52bd21449a92ec9d3f69b3ff2553470dbbe53b0b58f6084f",
+      "manifest_members": 42,
+      "authenticated": true
+    }
+  },
+  "cpu_and_studio_gates": {
+    "import_binding": "pass",
+    "compileall_exit": 0,
+    "git_diff_check_exit": 0,
+    "pytest_focused": {"passed": 69, "delta_vs_67c055d2": "+5", "exit": 0, "duration_s": 0.26},
+    "pytest_full_cpu": {"passed": 580, "delta_vs_67c055d2": "+5", "exit": 0, "duration_s": 12.03},
+    "pytest_studio": {"passed": 51, "exit": 0, "duration_s": 3.68}
+  },
+  "current_replay": {
+    "status": "PASS",
+    "exit": 0,
+    "total_rows": 249,
+    "cache_hits": 249,
+    "api_calls": 0,
+    "accepted_edits": 137,
+    "text_changed": 4,
+    "status_only": 1,
+    "exact_row_match_with_67c055d2": true,
+    "deferred_rows_inspected": 21,
+    "deferred_without_nominations": 4,
+    "deferred_with_nominations": 17,
+    "deferred_by_case": {
+      "bounded": {"deferred": 1, "without_nominations": 1},
+      "mandarin": {"deferred": 0, "without_nominations": 0},
+      "french": {"deferred": 20, "without_nominations": 3}
+    }
+  },
+  "render_reuse_equivalence": {
+    "status": "REUSED_FROM_67c055d2_AND_f45c91d5",
+    "unchanged_renderer_pipeline_frontend_configs": true,
+    "exact_row_equivalence_verified": true
+  },
+  "resource_state": {
+    "gpu_inference_invoked": false,
+    "services_modified": false,
+    "owner_checkout_modified": false
+  }
+}

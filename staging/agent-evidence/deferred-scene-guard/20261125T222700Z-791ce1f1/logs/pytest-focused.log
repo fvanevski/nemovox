@@ -1,0 +1,88 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.15, pytest-9.2.0, pluggy-1.7.0 -- /workspace/nvidia-transcribe/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace/nvidia-transcribe/outputs/handbacks/deferred-scene-guard-20261125T222700Z-791ce1f1/scratch/wt-candidate
+configfile: pyproject.toml
+plugins: anyio-4.13.0, hydra-core-1.3.8
+collecting ... collected 69 items
+
+tests/test_translation_review.py::test_accepts_supported_correction_only_and_preserves_identity PASSED [  1%]
+tests/test_translation_review.py::test_missing_or_duplicate_review_ids_preserve_primary_translation PASSED [  2%]
+tests/test_translation_review.py::test_invalid_edits_and_flag_contradictions_fail_closed PASSED [  4%]
+tests/test_translation_review.py::test_review_cache_is_bound_to_model_style_glossary_and_machine_translation PASSED [  5%]
+tests/test_translation_review.py::test_off_does_not_contact_text_model PASSED [  7%]
+tests/test_translation_review.py::test_programmatic_postedit_rejects_legacy_primary_translator PASSED [  8%]
+tests/test_translation_review.py::test_riva_first_pipeline_runs_separate_postedit_and_preserves_raw_mt PASSED [ 10%]
+tests/test_translation_review.py::test_riva_rejects_missing_or_duplicate_worker_items PASSED [ 11%]
+tests/test_translation_review.py::test_reviewer_uses_original_asr_and_uncorrected_english_neighbors_not_legacy_refined_text PASSED [ 13%]
+tests/test_translation_review.py::test_english_source_skips_riva_worker_and_text_review PASSED [ 14%]
+tests/test_translation_review.py::test_cli_riva_english_contract_does_not_require_local_worker PASSED [ 15%]
+tests/test_translation_review.py::test_required_review_endpoint_failure_is_not_a_successful_studio_job PASSED [ 17%]
+tests/test_translation_review.py::test_blocked_review_resource_preserves_all_mt_and_propagates_typed_failure PASSED [ 18%]
+tests/test_translation_review.py::test_messages_comparative_review_rejects_worse_proposal_and_preserves_original PASSED [ 20%]
+tests/test_translation_review.py::test_messages_comparative_review_accepts_contextual_repair PASSED [ 21%]
+tests/test_translation_review.py::test_messages_incomplete_comparative_review_does_not_accept_candidate PASSED [ 23%]
+tests/test_translation_review.py::test_messages_source_first_and_comparator_receive_coherent_cross_turn_passage PASSED [ 24%]
+tests/test_translation_review.py::test_restrictive_construction_is_not_negative_action PASSED [ 26%]
+tests/test_translation_review.py::test_nonrestrictive_subordinate_clause_does_not_remove_negative_guard PASSED [ 27%]
+tests/test_translation_review.py::test_comparison_loop_uses_compact_response_same_evidence_and_caches_success PASSED [ 28%]
+tests/test_translation_review.py::test_comparison_loop_terminal_exhaustion_preserves_primary_and_remains_deferred PASSED [ 30%]
+tests/test_translation_review.py::test_compact_invalid_ids_defer_but_transport_failure_remains_error PASSED [ 31%]
+tests/test_translation_review.py::test_deferred_comparator_renders_without_claiming_complete_review[responses0] PASSED [ 33%]
+tests/test_translation_review.py::test_deferred_comparator_renders_without_claiming_complete_review[responses1] PASSED [ 34%]
+tests/test_translation_review.py::test_mixed_comparative_verdict_does_not_break_one_source_sentence PASSED [ 36%]
+tests/test_translation_review.py::test_rereview_preserves_original_mt_and_bound_context PASSED [ 37%]
+tests/test_translation_review.py::test_riva_operator_examples_are_literal_bound_and_alternating PASSED [ 39%]
+tests/test_translation_review.py::test_native_length_subdivision_preserves_all_primary_rows_and_counts_attempts PASSED [ 40%]
+tests/test_translation_review.py::test_riva_example_receipt_and_cache_bind_actual_primary_input PASSED [ 42%]
+tests/test_translation_review.py::test_joint_source_and_mt_negation_veto_even_if_native_comparator_approves PASSED [ 43%]
+tests/test_translation_review.py::test_dependent_edits_from_separate_native_comparisons_are_not_spliced PASSED [ 44%]
+tests/test_translation_review.py::test_joined_passage_verdict_vetoes_individually_approved_fragments PASSED [ 46%]
+tests/test_translation_review.py::test_missing_joined_passage_verdict_preserves_primary_and_not_cached PASSED [ 47%]
+tests/test_translation_review.py::test_completed_malformed_comparison_recovers_on_identical_evidence PASSED [ 49%]
+tests/test_translation_review.py::test_uncertain_source_hallucinated_locations_veto_even_after_comparator_approval PASSED [ 50%]
+tests/test_translation_review.py::test_direction_construction_veto_on_joined_exact_candidate PASSED [ 52%]
+tests/test_translation_review.py::test_uncertain_entity_anchors_compare_lexical_occurrences_not_capitalization PASSED [ 53%]
+tests/test_translation_review.py::test_scene_uncertainty_allows_case_only_anchor_change_in_joined_passage PASSED [ 55%]
+tests/test_translation_review.py::test_scene_uncertainty_retains_names_numbers_and_material_wording PASSED [ 56%]
+tests/test_translation_review.py::test_terminal_native_comparison_exhaustion_recovers_without_weakening_review[compact_reply0-completed-Hello, Esteban.-True] PASSED [ 57%]
+tests/test_translation_review.py::test_terminal_native_comparison_exhaustion_recovers_without_weakening_review[exhausted-completed_with_deferred_comparisons-Hello, Estban.-False] PASSED [ 59%]
+tests/test_translation_review.py::test_terminal_native_comparison_exhaustion_recovers_without_weakening_review[compact_reply2-completed_with_errors-Hello, Estban.-False] PASSED [ 60%]
+tests/test_translation_review.py::test_failed_review_public_offline_salvage_preserves_failure_and_exact_contract[False] PASSED [ 62%]
+tests/test_translation_review.py::test_failed_review_public_offline_salvage_preserves_failure_and_exact_contract[True] PASSED [ 63%]
+tests/test_translation_review.py::test_terminal_comparison_non_output_stop_is_not_a_recoverable_exhaustion PASSED [ 65%]
+tests/test_translation_review.py::test_salvage_never_binds_render_to_contract_modified_during_render PASSED [ 66%]
+tests/test_translation_review.py::test_deferred_scene_uncertainty_preserves_anchors_after_comparator_approval[Paul arrives on bus 403.-True] PASSED [ 68%]
+tests/test_translation_review.py::test_deferred_scene_uncertainty_preserves_anchors_after_comparator_approval[John arrives on bus 404.-True] PASSED [ 69%]
+tests/test_translation_review.py::test_deferred_scene_uncertainty_preserves_anchors_after_comparator_approval[john arrives on bus 403.-False] PASSED [ 71%]
+tests/test_translation_review.py::test_deferred_scene_uncertainty_preserves_anchors_after_comparator_approval[John is arriving on bus 403.-False] PASSED [ 72%]
+tests/test_translation_review.py::test_deferred_scene_guard_is_not_material_veto_or_operator_override PASSED [ 73%]
+tests/test_review_anchor_replay.py::test_status_only_reclassification_preserves_primary PASSED [ 75%]
+tests/test_review_anchor_replay.py::test_approved_anchor_or_dependent_release[review_rejected_unresolved_source_preserved_machine_translation-unresolved_source_name_or_number_change] PASSED [ 76%]
+tests/test_review_anchor_replay.py::test_approved_anchor_or_dependent_release[review_rejected_dependent_passage_preserved_machine_translation-None] PASSED [ 78%]
+tests/test_review_anchor_replay.py::test_reclassification_fails_closed[old_patch0-new_patch0] PASSED [ 79%]
+tests/test_review_anchor_replay.py::test_reclassification_fails_closed[old_patch1-new_patch1] PASSED [ 81%]
+tests/test_review_anchor_replay.py::test_reclassification_fails_closed[old_patch2-new_patch2] PASSED [ 82%]
+tests/test_review_anchor_replay.py::test_reclassification_fails_closed[old_patch3-new_patch3] PASSED [ 84%]
+tests/test_review_anchor_replay.py::test_reclassification_fails_closed[old_patch4-new_patch4] PASSED [ 85%]
+tests/test_review_anchor_replay.py::test_reclassification_fails_closed[old_patch5-new_patch5] PASSED [ 86%]
+tests/test_review_anchor_replay.py::test_reclassification_fails_closed[old_patch6-new_patch6] PASSED [ 88%]
+tests/test_review_anchor_replay.py::test_reclassification_fails_closed[old_patch7-new_patch7] PASSED [ 89%]
+tests/test_review_anchor_replay.py::test_reclassification_fails_closed[old_patch8-new_patch8] PASSED [ 91%]
+tests/test_review_anchor_replay.py::test_reclassification_fails_closed[old_patch9-new_patch9] PASSED [ 92%]
+tests/test_final_integration_evaluation.py::test_sealed_input_rejects_manifest_mismatch PASSED [ 94%]
+tests/test_final_integration_evaluation.py::test_reference_uses_actual_offset_and_distinguishes_word_locality PASSED [ 95%]
+tests/test_final_integration_evaluation.py::test_occurrence_comparison_never_pairs_new_row_by_position PASSED [ 97%]
+tests/test_final_integration_evaluation.py::test_failed_review_never_claims_stale_render_metadata PASSED [ 98%]
+tests/test_final_integration_evaluation.py::test_failed_review_salvage_receipt_rejects_stale_or_incomplete_outputs PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../../.venv/lib/python3.13/site-packages/anyio/pytest_plugin.py:14
+  /workspace/nvidia-transcribe/.venv/lib/python3.13/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+  The CallSpec2 alias will be removed in pytest 10.
+  Update imports to use CallSpec instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
+    from _pytest.python import CallSpec2
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 69 passed, 1 warning in 0.26s =========================

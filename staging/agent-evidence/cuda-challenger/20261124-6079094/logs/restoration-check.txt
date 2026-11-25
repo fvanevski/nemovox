@@ -1,0 +1,15 @@
+MAIN_HEAD=4dd4599e51775ca510002783ea650ecd25fd7393
+MAIN_TREE=dfbc53906300996373c34631fe33029b87bbf313
+MAIN_STATUS:
+## main...origin/main
+?? codex-session-01a20bcf-1c6a-7101-8b36-ca25f668bcd3.md
+SYSTEMD_STATES:
+  nemovox-asr.service=inactive
+  nemovox-text-review.service=inactive
+  nemovox-studio.service=active
+GPU_AFTER:
+2026/11/24 23:42:21.213, NVIDIA GeForce RTX 5090, 32607 MiB, 3046 MiB, 29081 MiB
+2026/11/24 23:42:21.227, 10626, /usr/bin/kwin_wayland, 328 MiB
+2026/11/24 23:42:21.227, 68959, /usr/local/bin/text-embeddings-router, 1726 MiB
+CHALLENGER_PROCS:
+NONE

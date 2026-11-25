@@ -207,10 +207,13 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
         if not reference_bounds:
             reference_bounds=[v for c in chunks if c in by_chunk
                               if (v:=interval(parent_window(by_chunk[c]),duration))]
-        if not bounds or not any(overlap(bounds,b)>0 for b in reference_bounds):
-            add(case["case_id"],"invalid_semantic_window",3,None,chunks,source_ids=ids)
+        refs = [ref for uid in ids for ref in row_map[uid].get("source_unit_ids", [])]
+        if case.get("context_window_s") is None:
+            add(case["case_id"],"semantic_occurrence_request",3,None,chunks,refs,ids)
+        elif not bounds or not any(overlap(bounds,b)>0 for b in reference_bounds):
+            add(case["case_id"],"invalid_semantic_window",3,None,chunks,refs,ids)
         else:
-            add(case["case_id"],"semantic_occurrence_request",2,bounds,chunks,source_ids=ids)
+            add(case["case_id"],"semantic_occurrence_request",2,bounds,chunks,refs,ids)
 
     i = 0
     while i < len(rows):

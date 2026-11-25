@@ -39,7 +39,7 @@ from nvidia_transcribe.resource_lifecycle import ModelLifecycle, ResourceLifecyc
 from nvidia_transcribe.refinement import load_glossary
 from nvidia_transcribe.studio_exports import (browse_destinations, export_roots,
                                              export_selected, validate_destination)
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 PROJECT = Path(__file__).resolve().parents[2]
 VIDEO_EXTENSIONS = {".webm", ".mp4", ".mkv", ".mov", ".avi", ".flv", ".m4v"}
@@ -155,8 +155,15 @@ class Options(BaseModel):
     speaker_embeddings: Literal["titanet", "none"] = "none"
     alignment_fallback: Literal["off", "qwen"] = "off"
     refinement: Literal["off", "conservative", "balanced", "expressive"] = "off"
-    translator: Literal["openai_chat", "swiftu", "riva", "none"] = "openai_chat"
-    translation_review: Literal["off", "conservative", "balanced", "expressive"] = "off"
+    translator: Literal["openai_chat", "swiftu", "riva", "none"] = "riva"
+    translation_review: Literal["off", "conservative", "balanced", "expressive"] = "balanced"
+
+    @model_validator(mode="before")
+    @classmethod
+    def default_review_for_backend(cls, values):
+        if isinstance(values,dict) and "translation_review" not in values:
+            return {**values,"translation_review":"balanced" if values.get("translator","riva")=="riva" else "off"}
+        return values
     style: Literal["natural", "literal", "expressive"] = "natural"
     glossary: str | None = Field(default=None, max_length=512)
     ass_layout: Literal["standard", "raised_main"] = "standard"

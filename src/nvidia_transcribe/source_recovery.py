@@ -425,7 +425,8 @@ def apply_independent(recording, targets, observations, independent):
     return rows,decisions
 
 
-def acquire_independent_evidence(recording,targets,media,*,challenger_resource,output_dir,policy):
+def acquire_independent_evidence(recording,targets,media,*,challenger_resource,output_dir,policy,
+                                 lifecycle=None):
     report={"status":"not_configured","targets":targets,"decisions":[],"errors":[],
             "observations":[],"audio_seconds":0.,"requests":0}
     if not targets:
@@ -439,10 +440,13 @@ def acquire_independent_evidence(recording,targets,media,*,challenger_resource,o
         return report
     started = time.monotonic()
     try:
-        if (challenger_resource.adapter!="whisper_cpu" or challenger_resource.device!="cpu"
+        if (challenger_resource.adapter!="whisper_ct2" or challenger_resource.device!="cuda:0"
+                or not challenger_resource.worker_python or not challenger_resource.checkpoint_path
                 or not Path(challenger_resource.worker_python).is_file()
                 or not Path(challenger_resource.checkpoint_path).is_dir()):
-            raise ValueError("Explicit cached CPU challenger resource unavailable")
+            raise ValueError("Explicit cached CUDA challenger resource unavailable")
+        if lifecycle is None:
+            raise ValueError("CUDA challenger requires the shared model lifecycle")
         with tempfile.TemporaryDirectory(prefix="independent-source-",dir=output_dir) as tmp:
             root=Path(tmp)
             crops=[]
@@ -459,23 +463,33 @@ def acquire_independent_evidence(recording,targets,media,*,challenger_resource,o
             if report["audio_seconds"]>policy.max_independent_audio_s+1e-6:
                 raise ValueError("Independent audio budget exceeded")
             request={"checkpoint":challenger_resource.checkpoint_path,
+                     "device":challenger_resource.device,"compute_type":"int8_float16",
                      "language":language.split("-")[0],"crops":crops}
             remaining=policy.max_independent_wall_s-(time.monotonic()-started)
             if remaining<=0:
                 raise TimeoutError("Independent preparation exhausted wall budget")
-            report["requests"]=len(crops)
-            proc=subprocess.run([challenger_resource.worker_python,
-                str(Path(__file__).with_name("_whisper_challenge_worker.py"))],
-                input=json.dumps(request),text=True,capture_output=True,timeout=remaining,
-                env={**os.environ,"HF_HUB_OFFLINE":"1","TRANSFORMERS_OFFLINE":"1","CUDA_VISIBLE_DEVICES":""})
+            # ASR and text scopes have released their owned services. Use the
+            # same cross-process lease as the other CUDA stages; never hide
+            # the GPU or evict an unrelated process to satisfy admission.
+            with lifecycle.worker(resource_name=challenger_resource.name,
+                                  lock_timeout_s=remaining):
+                remaining=policy.max_independent_wall_s-(time.monotonic()-started)
+                if remaining<=0:
+                    raise TimeoutError("Independent CUDA lease exhausted wall budget")
+                report["requests"]=len(crops)
+                proc=subprocess.run([challenger_resource.worker_python,
+                    str(Path(__file__).with_name("_whisper_challenge_worker.py"))],
+                    input=json.dumps(request),text=True,capture_output=True,timeout=remaining,
+                    env={**os.environ,"HF_HUB_OFFLINE":"1","TRANSFORMERS_OFFLINE":"1"})
             if proc.returncode:
                 raise RuntimeError(f"Independent worker exited {proc.returncode}: {proc.stderr[-2000:]}")
             result=json.loads(proc.stdout)
             expected={c["id"]:(c["audio_sha256"],[c["start"],c["end"]]) for c in crops}
             actual={o["id"]:(o["audio_sha256"],o["crop"]) for o in result["observations"]}
             if (expected!=actual or len(actual)!=len(result["observations"])
-                    or result["device"]!="cpu" or result["backend"]!="faster-whisper"
-                    or result["compute_type"]!="int8"):
+                    or result["device"]!="cuda" or result["backend"]!="faster-whisper"
+                    or result["device_index"]!=[0] or result["compute_type"]!="int8_float16"
+                    or result["model_is_loaded"] is not True or result["is_multilingual"] is not True):
                 raise ValueError("Independent worker receipt mismatch")
             seen=set()
             for obs in result["observations"]:
@@ -493,6 +507,7 @@ def acquire_independent_evidence(recording,targets,media,*,challenger_resource,o
             report["status"]="observed"
     except (OSError,ValueError,KeyError,TypeError,RuntimeError,subprocess.TimeoutExpired) as exc:
         report["status"]="error"
-        report["errors"].append({"stage":"independent_asr","error":type(exc).__name__,"detail":str(exc)})
+        report["errors"].append({"stage":"independent_asr","error":type(exc).__name__,"detail":str(exc),
+                                 **({"reason":exc.status} if hasattr(exc,"status") else {})})
     report["wall_s"]=round(time.monotonic()-started,4)
     return report

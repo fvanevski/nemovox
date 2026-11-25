@@ -515,3 +515,25 @@ def test_reconcile_requires_verified_unit_invocation_identity(manager, asr, monk
                         lambda _: {"asr_local": lifecycle.OwnedService("nemovox-asr.service")})
     assert manager.reconcile_idle_owned(resources={"asr_local": asr})["asr_local"] == "unit_identity_unavailable"
     assert events == []
+
+
+
+def test_cuda_worker_shortens_shared_lease_wait_without_preemption(manager, monkeypatch):
+    monkeypatch.setattr(lifecycle, "_free_vram_mb", lambda: 20000)
+    monkeypatch.setenv("NEMOVOX_LIFECYCLE_LOCK_TIMEOUT_S", "1")
+    contender = lifecycle.ModelLifecycle(lock_path=manager.lock_path)
+    with manager.worker(resource_name="whisper_local", lock_timeout_s=.1):
+        with pytest.raises(lifecycle.ResourceLifecycleError) as error:
+            with contender.worker(resource_name="riva_local", lock_timeout_s=.01):
+                pytest.fail("Worker preempted active shared lease")
+        assert error.value.status == "resource_lease_timeout"
+    with contender.worker(resource_name="whisper_local", lock_timeout_s=.1):
+        pass
+
+
+@pytest.mark.parametrize("override", [-1., float("nan"), float("inf"), True])
+def test_invalid_lease_wait_override_rejected(manager, override):
+    with pytest.raises(lifecycle.ResourceLifecycleError) as error:
+        with manager.worker(resource_name="whisper_local", lock_timeout_s=override):
+            pytest.fail("Invalid override admitted")
+    assert error.value.status == "invalid_lifecycle_lock_timeout"

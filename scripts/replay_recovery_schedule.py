@@ -1,7 +1,7 @@
 """Replay the qualified acoustic recovery evidence, then optionally challenge
-the one deferred, explicitly bracketed original occurrence with CPU Whisper.
+the one deferred, explicitly bracketed original occurrence with CUDA Whisper.
 
-No GPU client or model is acquired. A changed primary plan is a counterfactual
+Replay alone acquires no GPU client or model. A changed primary plan is a counterfactual
 plan, not a fresh acoustic run. Independent admission is compared on the
 exact prior observed tasks and unchanged acoustic receipts.
 """
@@ -16,6 +16,7 @@ from pathlib import Path
 
 from nvidia_transcribe.media import probe_media, validate_wav_file
 from nvidia_transcribe.model_resources import load_model_resources
+from nvidia_transcribe.resource_lifecycle import ModelLifecycle
 from nvidia_transcribe.occurrence_resolution import resolution_receipts, resolve_occurrences
 from nvidia_transcribe.recovery_planner import plan_recovery_windows
 from nvidia_transcribe.source_recovery import schedule_independent, acquire_independent_evidence
@@ -116,7 +117,7 @@ def main():
     parser.add_argument("--archive",required=True,type=Path)
     parser.add_argument("--output-dir",required=True,type=Path)
     parser.add_argument("--boundary-wav",type=Path,
-                        help="Optional exact retained boundary input WAV; enables one CPU crop pair")
+                        help="Optional exact retained boundary input WAV; enables one CUDA crop pair")
     parser.add_argument("--model-resources",type=Path)
     args=parser.parse_args()
     args.output_dir.mkdir(parents=True,exist_ok=False)
@@ -135,12 +136,12 @@ def main():
     media=probe_media(args.boundary_wav,audio_stream_index=0)
     resource=load_model_resources(args.model_resources).resolve("source_challenger",require_local_paths=True)
     report=acquire_independent_evidence(rec,[target],media,challenger_resource=resource,
-            output_dir=args.output_dir,policy=POLICY)
+            output_dir=args.output_dir,policy=POLICY,lifecycle=ModelLifecycle())
     write_json(args.output_dir/"private-targeted-worker.json",report)
     if report["status"]!="observed":
         result["new_worker"]="blocked_or_failed"
         write_json(args.output_dir/"summary.json",result)
-        raise RuntimeError("Targeted CPU worker failed")
+        raise RuntimeError("Targeted CUDA worker failed")
     rows,decisions=resolve_occurrences(rec,[],quality["acoustic_observations"],
                                      [target],report,POLICY)
     write_json(args.output_dir/"private-targeted-resolution.json",{

@@ -1,0 +1,334 @@
+{
+  "prior_archive_manifest_members": 42,
+  "total_cache_hits": 249,
+  "total_api_calls": 0,
+  "total_accepted_edits": 137,
+  "cases": {
+    "bounded": {
+      "rows": 26,
+      "cache_hits": 26,
+      "api_calls": 0,
+      "accepted_edits": 16,
+      "text_changed": 3,
+      "status_only": 1,
+      "summary_exact_match": true,
+      "delta_exact_match": true,
+      "all_rows_exact_match": true,
+      "checkpoint_sha256": "5884e06feda15e7299b25900158e8590eb9b851e3f76d0c50da2e75ba163c678"
+    },
+    "mandarin": {
+      "rows": 2,
+      "cache_hits": 2,
+      "api_calls": 0,
+      "accepted_edits": 1,
+      "text_changed": 0,
+      "status_only": 0,
+      "summary_exact_match": true,
+      "delta_exact_match": true,
+      "all_rows_exact_match": true,
+      "checkpoint_sha256": "6ac5b51df3661d222c126833bd2414db0d965e31ca3a0d67faa0566760bc9b48"
+    },
+    "french": {
+      "rows": 221,
+      "cache_hits": 221,
+      "api_calls": 0,
+      "accepted_edits": 120,
+      "text_changed": 1,
+      "status_only": 0,
+      "summary_exact_match": true,
+      "delta_exact_match": true,
+      "all_rows_exact_match": true,
+      "checkpoint_sha256": "3fc1a07f4da9efbb6c984bbffba93b95a556812f5c3dfa0a067283c6e0cde038"
+    }
+  },
+  "deferred_scene_inspection": {
+    "total_deferred_rows": 21,
+    "deferred_without_nominations": 4,
+    "deferred_with_nominations": 17,
+    "by_case": {
+      "bounded": {
+        "deferred": 1,
+        "without_nominations": 1,
+        "with_nominations": 0
+      },
+      "mandarin": {
+        "deferred": 0,
+        "without_nominations": 0,
+        "with_nominations": 0
+      },
+      "french": {
+        "deferred": 20,
+        "without_nominations": 3,
+        "with_nominations": 17
+      }
+    },
+    "rows": [
+      {
+        "case": "bounded",
+        "index": 23,
+        "id": "utt_d74ee44171f4dcec5c986c2d",
+        "scene_outcome": "deferred",
+        "nomination_count": 0,
+        "nomination_kinds": [],
+        "translation_review_status": "review_rejected_comparative_preserved_machine_translation",
+        "translation_review_rejection_reason": null,
+        "text_changed_vs_primary": false
+      },
+      {
+        "case": "french",
+        "index": 2,
+        "id": "utt_562b8b93bc8d9327ce743957",
+        "scene_outcome": "deferred",
+        "nomination_count": 1,
+        "nomination_kinds": [
+          "entity_variant"
+        ],
+        "translation_review_status": "unchanged",
+        "translation_review_rejection_reason": null,
+        "text_changed_vs_primary": false
+      },
+      {
+        "case": "french",
+        "index": 4,
+        "id": "utt_775d6cf00571313795c9a88c",
+        "scene_outcome": "deferred",
+        "nomination_count": 1,
+        "nomination_kinds": [
+          "entity_variant"
+        ],
+        "translation_review_status": "review_rejected_unresolved_source_preserved_machine_translation",
+        "translation_review_rejection_reason": "unresolved_source_name_or_number_change",
+        "text_changed_vs_primary": false
+      },
+      {
+        "case": "french",
+        "index": 5,
+        "id": "utt_8ac2abb9ceb4685136735125",
+        "scene_outcome": "deferred",
+        "nomination_count": 3,
+        "nomination_kinds": [
+          "entity_variant",
+          "relationship"
+        ],
+        "translation_review_status": "corrected",
+        "translation_review_rejection_reason": null,
+        "text_changed_vs_primary": true
+      },
+      {
+        "case": "french",
+        "index": 8,
+        "id": "utt_055fdcebcd62abd915d44f4f",
+        "scene_outcome": "deferred",
+        "nomination_count": 1,
+        "nomination_kinds": [
+          "entity_variant"
+        ],
+        "translation_review_status": "corrected",
+        "translation_review_rejection_reason": null,
+        "text_changed_vs_primary": true
+      },
+      {
+        "case": "french",
+        "index": 35,
+        "id": "utt_5ce3539d43f628af5e9c0a69",
+        "scene_outcome": "deferred",
+        "nomination_count": 1,
+        "nomination_kinds": [
+          "entity_variant"
+        ],
+        "translation_review_status": "review_rejected_unresolved_source_preserved_machine_translation",
+        "translation_review_rejection_reason": "unresolved_source_name_or_number_change",
+        "text_changed_vs_primary": false
+      },
+      {
+        "case": "french",
+        "index": 54,
+        "id": "utt_1ab6c016387f1b63f0f5a86d",
+        "scene_outcome": "deferred",
+        "nomination_count": 0,
+        "nomination_kinds": [],
+        "translation_review_status": "unchanged",
+        "translation_review_rejection_reason": null,
+        "text_changed_vs_primary": false
+      },
+      {
+        "case": "french",
+        "index": 70,
+        "id": "utt_f313fca9f770021f385559c6",
+        "scene_outcome": "deferred",
+        "nomination_count": 1,
+        "nomination_kinds": [
+          "entity_variant"
+        ],
+        "translation_review_status": "review_rejected_comparative_preserved_machine_translation",
+        "translation_review_rejection_reason": null,
+        "text_changed_vs_primary": false
+      },
+      {
+        "case": "french",
+        "index": 71,
+        "id": "utt_16cf30227e42baa93d345fc5",
+        "scene_outcome": "deferred",
+        "nomination_count": 1,
+        "nomination_kinds": [
+          "entity_variant"
+        ],
+        "translation_review_status": "review_rejected_comparative_preserved_machine_translation",
+        "translation_review_rejection_reason": null,
+        "text_changed_vs_primary": false
+      },
+      {
+        "case": "french",
+        "index": 79,
+        "id": "utt_a3cdf5541f8bd91bc4be26dd",
+        "scene_outcome": "deferred",
+        "nomination_count": 1,
+        "nomination_kinds": [
+          "relationship"
+        ],
+        "translation_review_status": "corrected",
+        "translation_review_rejection_reason": null,
+        "text_changed_vs_primary": true
+      },
+      {
+        "case": "french",
+        "index": 80,
+        "id": "utt_946108e67539b51cd8883330",
+        "scene_outcome": "deferred",
+        "nomination_count": 1,
+        "nomination_kinds": [
+          "entity_variant"
+        ],
+        "translation_review_status": "corrected",
+        "translation_review_rejection_reason": null,
+        "text_changed_vs_primary": true
+      },
+      {
+        "case": "french",
+        "index": 82,
+        "id": "utt_02e6010b85fe0f077a4ae395",
+        "scene_outcome": "deferred",
+        "nomination_count": 0,
+        "nomination_kinds": [],
+        "translation_review_status": "unchanged",
+        "translation_review_rejection_reason": null,
+        "text_changed_vs_primary": false
+      },
+      {
+        "case": "french",
+        "index": 83,
+        "id": "utt_b15639479ba12c7d78e13bdd",
+        "scene_outcome": "deferred",
+        "nomination_count": 0,
+        "nomination_kinds": [],
+        "translation_review_status": "unchanged",
+        "translation_review_rejection_reason": null,
+        "text_changed_vs_primary": false
+      },
+      {
+        "case": "french",
+        "index": 92,
+        "id": "utt_57ba7b0aa6b06de236794709",
+        "scene_outcome": "deferred",
+        "nomination_count": 1,
+        "nomination_kinds": [
+          "entity_variant"
+        ],
+        "translation_review_status": "corrected",
+        "translation_review_rejection_reason": null,
+        "text_changed_vs_primary": true
+      },
+      {
+        "case": "french",
+        "index": 120,
+        "id": "utt_d574f510759197eadba6de28",
+        "scene_outcome": "deferred",
+        "nomination_count": 1,
+        "nomination_kinds": [
+          "entity_variant"
+        ],
+        "translation_review_status": "review_rejected_unresolved_source_preserved_machine_translation",
+        "translation_review_rejection_reason": "unresolved_source_name_or_number_change",
+        "text_changed_vs_primary": false
+      },
+      {
+        "case": "french",
+        "index": 132,
+        "id": "utt_ba53af30c75dc04f75ead521",
+        "scene_outcome": "deferred",
+        "nomination_count": 1,
+        "nomination_kinds": [
+          "entity_variant"
+        ],
+        "translation_review_status": "corrected",
+        "translation_review_rejection_reason": null,
+        "text_changed_vs_primary": true
+      },
+      {
+        "case": "french",
+        "index": 154,
+        "id": "utt_cb436c621efef0c132873b67",
+        "scene_outcome": "deferred",
+        "nomination_count": 1,
+        "nomination_kinds": [
+          "entity_variant"
+        ],
+        "translation_review_status": "review_rejected_unresolved_source_preserved_machine_translation",
+        "translation_review_rejection_reason": "unresolved_source_name_or_number_change",
+        "text_changed_vs_primary": false
+      },
+      {
+        "case": "french",
+        "index": 167,
+        "id": "utt_b6ea2d595a86f4532f913371",
+        "scene_outcome": "deferred",
+        "nomination_count": 1,
+        "nomination_kinds": [
+          "entity_variant"
+        ],
+        "translation_review_status": "unchanged",
+        "translation_review_rejection_reason": null,
+        "text_changed_vs_primary": false
+      },
+      {
+        "case": "french",
+        "index": 191,
+        "id": "utt_0219f3700888b7becfa06ca7",
+        "scene_outcome": "deferred",
+        "nomination_count": 1,
+        "nomination_kinds": [
+          "entity_variant"
+        ],
+        "translation_review_status": "review_rejected_unresolved_source_preserved_machine_translation",
+        "translation_review_rejection_reason": "unresolved_source_name_or_number_change",
+        "text_changed_vs_primary": false
+      },
+      {
+        "case": "french",
+        "index": 210,
+        "id": "utt_e464227b908a106c0b154164",
+        "scene_outcome": "deferred",
+        "nomination_count": 1,
+        "nomination_kinds": [
+          "entity_variant"
+        ],
+        "translation_review_status": "review_rejected_unresolved_source_preserved_machine_translation",
+        "translation_review_rejection_reason": "unresolved_source_name_or_number_change",
+        "text_changed_vs_primary": false
+      },
+      {
+        "case": "french",
+        "index": 219,
+        "id": "utt_fc0c99db8403267f31ef3f86",
+        "scene_outcome": "deferred",
+        "nomination_count": 1,
+        "nomination_kinds": [
+          "entity_variant"
+        ],
+        "translation_review_status": "review_rejected_comparative_preserved_machine_translation",
+        "translation_review_rejection_reason": null,
+        "text_changed_vs_primary": false
+      }
+    ]
+  }
+}

@@ -38,7 +38,7 @@ export const TRANSLATION_REVIEW: readonly ExplainedOption[] = [
   {value: "conservative", label: "Conservative",
    description: "Correct clear translation errors, misrendered names and obvious inconsistencies against source dialogue."},
   {value: "balanced", label: "Balanced (recommended)",
-   description: "Compare each original machine-translated cue against neighboring English cues and untouched source transcript; change only supported errors, otherwise retain it."},
+   description: "Review coherent source passages against primary machine translation, with comparative checks of changed cues and joined sentences. Retain primary translation when support is insufficient."},
   {value: "expressive", label: "Expressive",
    description: "Where an actual translation problem is identified, consider tone and naturalness without rewriting otherwise acceptable cues or inventing details."},
 ];

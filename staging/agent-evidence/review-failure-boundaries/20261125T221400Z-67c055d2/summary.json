@@ -1,0 +1,122 @@
+{
+  "schema": "nemovox-review-failure-boundaries-qualification/v1",
+  "run_id": "20261125T221400Z-67c055d2",
+  "result": "PASS",
+  "repository": "fvanevski/nemovox",
+  "issue": 19,
+  "pr": 21,
+  "branch": "issue/19",
+  "tested_source_sha": "67c055d285779ad8f36206040c163d96f54122dc",
+  "tested_source_tree": "8670b9aa167cb82e7e39d4d2fe437415e2bf8653",
+  "intermediate_commit_sha": "a614e5f0d8c3c1ad815dac3df12615ace77c2273",
+  "previous_reviewed_head_sha": "e9e9aeab6d6e554f258c46ead8ca1b0c76e7c459",
+  "previous_reviewed_head_tree": "494f18f3818bcd6d33ed5070b6ac4b9fbc62a6b5",
+  "previous_qualified_source_sha": "f45c91d5c92297fe8b93d279a27dadd5ba54c391",
+  "previous_qualified_source_tree": "a263fdc96fe3a495d88a9f1961a92d88100a0ab6",
+  "source_changes_made": false,
+  "retained_archives": {
+    "previous_anchor_qualification": {
+      "path": "/workspace/nvidia-transcribe/outputs/handbacks/review-anchors-20261125T214000Z-f45c91d5/review-anchors-f45c91d5.tar.gz",
+      "bytes": 1381884,
+      "sha256": "6936aa0de1f80e1ade485e80245998195cb1bc168072871b19977180375e2d6f",
+      "manifest_members": 53,
+      "authenticated": true
+    },
+    "original_completion": {
+      "path": "/workspace/nvidia-transcribe/outputs/handbacks/review-completion-20261125-cabed83d/review-completion-cabed83d.tar.gz",
+      "bytes": 3764304,
+      "sha256": "6f3f0e308b227e69248e4121f9064c5e7e3e9bb543a6fe554d7e6426866a592a",
+      "authenticated": true
+    }
+  },
+  "cpu_and_studio_gates": {
+    "import_binding": "pass",
+    "compileall_exit": 0,
+    "git_diff_check_exit": 0,
+    "pytest_focused": {
+      "passed": 64, "exit": 0, "duration_s": 0.28,
+      "targets": ["tests/test_translation_review.py", "tests/test_final_integration_evaluation.py", "tests/test_review_anchor_replay.py"]
+    },
+    "pytest_full_cpu": {"passed": 575, "exit": 0, "duration_s": 12.11, "target": "-m 'not gpu' tests"},
+    "pytest_studio": {"passed": 51, "exit": 0, "duration_s": 3.73, "target": "tests/test_studio_api.py tests/test_studio_export_api.py tests/test_studio_exports.py"},
+    "frontend_and_config_equivalence": {
+      "web_tree_sha": "1011e5c23e77821de13e8a1043735f792d9d92c7",
+      "configs_tree_sha": "c10b6aaa015ef8f442bff87dd850189631a83aa3",
+      "unchanged_from_f45c91d5": true,
+      "reused_prior_frontend_14_tests_and_build_from": "3e6f8d8244f818c304bf5d692e4db864a6ae9a1e"
+    }
+  },
+  "failure_boundaries": {
+    "B1_terminal_comparative_exhaustion": {
+      "status": "PASS",
+      "verified_tests": [
+        "tests/test_translation_review.py::test_terminal_native_comparison_exhaustion_recovers_without_weakening_review[compact_reply0-completed-Hello, Esteban.-True]",
+        "tests/test_translation_review.py::test_terminal_native_comparison_exhaustion_recovers_without_weakening_review[exhausted-completed_with_deferred_comparisons-Hello, Estban.-False]",
+        "tests/test_translation_review.py::test_terminal_native_comparison_exhaustion_recovers_without_weakening_review[compact_reply2-completed_with_errors-Hello, Estban.-False]",
+        "tests/test_translation_review.py::test_terminal_comparison_non_output_stop_is_not_a_recoverable_exhaustion",
+        "tests/test_translation_review.py::test_comparison_loop_terminal_exhaustion_preserves_primary_and_remains_deferred",
+        "tests/test_translation_review.py::test_compact_invalid_ids_defer_but_transport_failure_remains_error",
+        "tests/test_translation_review.py::test_blocked_review_resource_preserves_all_mt_and_propagates_typed_failure"
+      ]
+    },
+    "B2_failed_required_review_salvage": {
+      "status": "PASS",
+      "verified_tests": [
+        "tests/test_translation_review.py::test_failed_review_public_offline_salvage_preserves_failure_and_exact_contract[False]",
+        "tests/test_translation_review.py::test_failed_review_public_offline_salvage_preserves_failure_and_exact_contract[True]",
+        "tests/test_translation_review.py::test_salvage_never_binds_render_to_contract_modified_during_render",
+        "tests/test_final_integration_evaluation.py::test_failed_review_never_claims_stale_render_metadata",
+        "tests/test_final_integration_evaluation.py::test_failed_review_salvage_receipt_rejects_stale_or_incomplete_outputs"
+      ]
+    }
+  },
+  "current_replay": {
+    "status": "PASS",
+    "exit": 0,
+    "total_rows": 249,
+    "cache_hits": 249,
+    "api_calls": 0,
+    "accepted_edits": 137,
+    "text_changed": 4,
+    "status_only": 1,
+    "exact_row_match_with_f45c91d5": true,
+    "cases": {
+      "bounded": {"rows": 26, "cache_hits": 26, "api_calls": 0, "accepted_edits": 16, "text_changed": 3, "status_only": 1, "checkpoint_sha256": "5884e06feda15e7299b25900158e8590eb9b851e3f76d0c50da2e75ba163c678"},
+      "mandarin": {"rows": 2, "cache_hits": 2, "api_calls": 0, "accepted_edits": 1, "text_changed": 0, "status_only": 0, "checkpoint_sha256": "6ac5b51df3661d222c126833bd2414db0d965e31ca3a0d67faa0566760bc9b48"},
+      "french": {"rows": 221, "cache_hits": 221, "api_calls": 0, "accepted_edits": 120, "text_changed": 1, "status_only": 0, "checkpoint_sha256": "3fc1a07f4da9efbb6c984bbffba93b95a556812f5c3dfa0a067283c6e0cde038"}
+    }
+  },
+  "normal_offline_rerender": {
+    "status": "PASS",
+    "zero_model_calls": true,
+    "all_hashes_identical_to_f45c91d5": true,
+    "cases": {
+      "bounded": {
+        "exit": 0,
+        "translated_contract_sha256": "8423060b97b7c828b0fa235d7d01934cb78d27573a4a78ce3f6aab4393b6d9b0",
+        "srt_sha256": "13d2c7ec65371bfad9b2919a6de3345a10c00a3373d3a8af2f06d98f58da52f4",
+        "ass_sha256": "6d62099c4700de68386203a471427b984465261ee2185735e3bed17e1085e92f",
+        "subtitles": {"total_input_utterances": 26, "renderable_cues": 35, "ass_displayed_cues": 35, "ass_lane_1_top_cues": 5, "ass_overflow_cues": 0, "unrenderable_cues": 0, "conflict_cues": 1}
+      },
+      "mandarin": {
+        "exit": 0,
+        "translated_contract_sha256": "88e9b5fa6271201d947ae83971fc5bf1f6bb29a6c65ba7b0e023aa6a25faeb78",
+        "srt_sha256": "c2145a8f8094c0d04f82f871b92407d724e06cd759088976352b7213606fcd36",
+        "ass_sha256": "b111d2524a5d5990717aee88f8a418e1b437ebbb4da0e26237380da6b822d8c4",
+        "subtitles": {"total_input_utterances": 2, "renderable_cues": 2, "ass_displayed_cues": 2, "ass_lane_1_top_cues": 1, "ass_overflow_cues": 0, "unrenderable_cues": 0, "conflict_cues": 0}
+      },
+      "french": {
+        "exit": 0,
+        "translated_contract_sha256": "a60fe3b6048f36361dad626ef6a9ba3c4cefaaf8d512f2c2b97b3a08bdc69ef1",
+        "srt_sha256": "2e1586c7cb70b3cc591c18b04d69c610217f9f6d37df635cb4050ec076b6b31c",
+        "ass_sha256": "b60648795d2d9b97a59f7a70216d46f4dd5ee1ad0b4687d2460ae9d4df769f6f",
+        "subtitles": {"total_input_utterances": 221, "renderable_cues": 295, "ass_displayed_cues": 295, "ass_lane_1_top_cues": 48, "ass_overflow_cues": 0, "unrenderable_cues": 0, "conflict_cues": 6}
+      }
+    }
+  },
+  "resource_state": {
+    "gpu_inference_invoked": false,
+    "services_modified": false,
+    "owner_checkout_modified": false
+  }
+}

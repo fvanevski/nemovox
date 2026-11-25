@@ -1,7 +1,7 @@
 """Bounded host qualification of the shared occurrence recovery path.
 
 Run with python -m scripts.evaluate_occurrence_recovery from the checkout.
-Replay does not acquire models. Worker uses only cached CPU Whisper. Live
+Replay does not acquire models. Worker uses only cached CUDA Whisper. Live
 uses the actual recording/current-source pipeline, with semantic review
 explicitly excluded from this acoustic experiment (not a new CLI default).
 """
@@ -143,21 +143,21 @@ def original_media(args):
 
 def challenger(registry):
     resource=registry.resolve("source_challenger",require_local_paths=True)
-    if resource.adapter!="whisper_cpu" or resource.device!="cpu":
-        raise ValueError("Explicit cached CPU challenger required")
+    if resource.adapter!="whisper_ct2" or resource.device!="cuda:0":
+        raise ValueError("Explicit cached CUDA challenger required")
     return resource
 
 
 def worker(args,root,registry):
     media=original_media(args)
-    # Registered CPU worker control, not a claim of missing speech.
+    # Registered CUDA worker control, not a claim of missing speech.
     bounds=(1212.,1224.)
     target={"kind":"occurrence","target_id":"registered-worker-control",
             "bounds":bounds,"crops":independent_crops(bounds,media.duration_s),
             "ids":[],"task_ids":["worker-control"],"evidence_ids":["registered-input"],"chunks":[]}
     report=acquire_independent_evidence(
         {"source_language":"fr"},[target],media,challenger_resource=challenger(registry),
-        output_dir=root,policy=POLICY)
+        output_dir=root,policy=POLICY,lifecycle=ModelLifecycle())
     write_json(root/"private-worker.json",report)
     write_json(root/"summary.json",{"status":report["status"],"requests":report["requests"],
         "audio_seconds":report["audio_seconds"],"resource":report.get("resource"),
@@ -165,7 +165,7 @@ def worker(args,root,registry):
         "observations":len(report["observations"]),"acoustic_truth_accepted":False,
         "errors":[e["error"] for e in report["errors"]]})
     if report["status"]!="observed":
-        raise RuntimeError("CPU challenger control did not produce validated observations")
+        raise RuntimeError("CUDA challenger control did not produce validated observations")
 
 
 def trace_ids(row):
@@ -181,7 +181,7 @@ def trace_ids(row):
 def live(args,root,registry):
     media=original_media(args)
     resource=registry.resolve("asr",require_local_paths=True)
-    cpu=challenger(registry)
+    independent_resource=challenger(registry)
     if (resource.adapter!="nemotron_ctc" or not resource.checkpoint_path
             or Path(resource.checkpoint_path).resolve()!=Path(CHECKPOINT).resolve()):
         raise ValueError("Expected exact cached Nemotron checkpoint")
@@ -228,11 +228,12 @@ def live(args,root,registry):
                     yield bounded
                 finally:
                     # One owned ASR acquisition per region; release before
-                    # the actual review_current_source CPU worker phase.
+                    # the actual review_current_source CUDA worker phase.
                     stack.close()
             canonical,report=review_current_source(out["contract"],recording_path=out["contract_path"],
                 media_path=wav,output_dir=case,text_scope=lambda:None,
-                asr_scope=acoustic_scope,challenger_resource=cpu,policy=POLICY,
+                asr_scope=acoustic_scope,challenger_resource=independent_resource,policy=POLICY,
+                lifecycle=manager,
                 semantic_review=False)
         write_json(case/"canonical-source.contract.json",canonical)
         write_json(case/"source-quality.json",report)

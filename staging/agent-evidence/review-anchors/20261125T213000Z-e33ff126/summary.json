@@ -1,0 +1,125 @@
+{
+  "schema": "nemovox-review-anchor-qualification/v1",
+  "run_id": "20261125T213000Z-e33ff126",
+  "result": "FAIL",
+  "failure_classification": "replay_runner_assertion_defect",
+  "repository": "fvanevski/nemovox",
+  "issue": 19,
+  "pr": 21,
+  "branch": "issue/19",
+  "tested_source_sha": "e33ff126f93bb61cb000d7e5335d5ed379616ef9",
+  "tested_source_tree": "bcb501bc418cd4048d7937546729cb5e9c60946b",
+  "baseline_source_sha": "cabed83dc5685d18acccc354d1519b4e6505cf8e",
+  "baseline_source_tree": "99afccd2bc11e1b2036137f1d79aeb94be11535e",
+  "prior_evidence_carrier_sha": "20cf0e34ebe0bf19086a83eeaaa16f7cb9e3395b",
+  "prior_evidence_carrier_tree": "ed3967d42223841fd1d27116b61dba9314757c47",
+  "source_changes_made": false,
+  "retained_archive": {
+    "path": "/workspace/nvidia-transcribe/outputs/handbacks/review-completion-20261125-cabed83d/review-completion-cabed83d.tar.gz",
+    "bytes": 3764304,
+    "sha256": "6f3f0e308b227e69248e4121f9064c5e7e3e9bb543a6fe554d7e6426866a592a",
+    "authenticated": true
+  },
+  "cpu_qualification": {
+    "import_binding": "pass",
+    "compileall_exit": 0,
+    "git_diff_check_exit": 0,
+    "pytest_focused": {"passed": 39, "exit": 0, "target": "tests/test_translation_review.py"},
+    "pytest_full_cpu": {"passed": 554, "exit": 0, "target": "-m 'not gpu' tests"},
+    "pytest_studio": {"passed": 51, "exit": 0, "target": "tests/test_studio_api.py tests/test_studio_export_api.py tests/test_studio_exports.py"},
+    "frontend_equivalence": {
+      "status": "unchanged_web_tree_reused_prior_14_tests_and_build",
+      "web_tree_sha": "1011e5c23e77821de13e8a1043735f792d9d92c7",
+      "matched_commits": [
+        "3e6f8d8244f818c304bf5d692e4db864a6ae9a1e",
+        "cabed83dc5685d18acccc354d1519b4e6505cf8e",
+        "20cf0e34ebe0bf19086a83eeaaa16f7cb9e3395b",
+        "e33ff126f93bb61cb000d7e5335d5ed379616ef9"
+      ]
+    }
+  },
+  "baseline_replay": {
+    "status": "PASS",
+    "exit": 0,
+    "total_rows": 249,
+    "cache_hits": 249,
+    "api_calls": 0,
+    "changed_dispositions": 0,
+    "cases": {
+      "bounded": {"rows": 26, "cache_hits": 26, "api_calls": 0, "changed_dispositions": 0, "changed": 13, "comparative_rejections": 4, "dependent_passage_rejections": 3, "unresolved_source_rejections": 3, "rejected_polarity": 0, "checkpoint_sha256": "5884e06feda15e7299b25900158e8590eb9b851e3f76d0c50da2e75ba163c678"},
+      "mandarin": {"rows": 2, "cache_hits": 2, "api_calls": 0, "changed_dispositions": 0, "changed": 1, "comparative_rejections": 1, "dependent_passage_rejections": 0, "unresolved_source_rejections": 0, "rejected_polarity": 0, "checkpoint_sha256": "6ac5b51df3661d222c126833bd2414db0d965e31ca3a0d67faa0566760bc9b48"},
+      "french": {"rows": 221, "cache_hits": 221, "api_calls": 0, "changed_dispositions": 0, "changed": 119, "comparative_rejections": 27, "dependent_passage_rejections": 2, "unresolved_source_rejections": 10, "rejected_polarity": 1, "checkpoint_sha256": "3fc1a07f4da9efbb6c984bbffba93b95a556812f5c3dfa0a067283c6e0cde038"}
+    }
+  },
+  "candidate_replay": {
+    "status": "FAIL",
+    "exit": 1,
+    "error": "ValueError: Unexpected changed disposition: utt_d8d3cc10e050e405afbfb564",
+    "failing_script": "scripts/replay_review_anchors.py",
+    "failing_line": 116,
+    "root_cause": "Row utt_d8d3cc10e050e405afbfb564 (bounded[24]) had its false-positive unresolved_source_name_or_number_change veto on contraction 'That\\'s' lifted by _anchors_preserved, and then legitimately transitioned to review_rejected_dependent_passage_preserved_machine_translation (with identical translated_text) because its continuation group [23, 24, 25] includes comparatively-rejected row utt_d74ee44171f4dcec5c986c2d (bounded[23]). scripts/replay_review_anchors.py requires new == 'corrected' for any status change and aborted before emitting candidate derived contracts."
+  },
+  "diagnostic_candidate_inspection": {
+    "note": "Read-only diagnostic run invoking review_translated_utterances directly with CacheOnly() across all 249 rows; not a substitute for official replay runner PASS.",
+    "total_rows": 249,
+    "cache_hits": 249,
+    "api_calls": 0,
+    "checkpoints_unchanged": true,
+    "cases": {
+      "bounded": {
+        "rows": 26,
+        "cache_hits": 26,
+        "api_calls": 0,
+        "changed": 16,
+        "text_changed_ids": ["utt_b5c9fe667310e376ac22b390", "utt_8f0ec99ba969cf632904c913", "utt_3833b0a7ba1ec582b211dc3d"],
+        "status_only_changed_ids": ["utt_d8d3cc10e050e405afbfb564"],
+        "joined_westward_restored": true,
+        "comparative_rejections": 4,
+        "dependent_passage_rejections": 2,
+        "unresolved_source_rejections": 1,
+        "unresolved_source_material_lexical_rejections": 1,
+        "rejected_polarity": 0,
+        "joined_passage_rejections": 0,
+        "direction_grammar_rejections": 0
+      },
+      "mandarin": {
+        "rows": 2,
+        "cache_hits": 2,
+        "api_calls": 0,
+        "changed": 1,
+        "text_changed_ids": [],
+        "status_only_changed_ids": [],
+        "comparative_rejections": 1,
+        "dependent_passage_rejections": 0,
+        "unresolved_source_rejections": 0,
+        "rejected_polarity": 0,
+        "joined_passage_rejections": 0,
+        "direction_grammar_rejections": 0
+      },
+      "french": {
+        "rows": 221,
+        "cache_hits": 221,
+        "api_calls": 0,
+        "changed": 120,
+        "text_changed_ids": ["utt_8ac2abb9ceb4685136735125"],
+        "status_only_changed_ids": [],
+        "comparative_rejections": 27,
+        "dependent_passage_rejections": 2,
+        "unresolved_source_rejections": 9,
+        "unresolved_source_material_lexical_rejections": 3,
+        "rejected_polarity": 1,
+        "joined_passage_rejections": 0,
+        "direction_grammar_rejections": 0
+      }
+    }
+  },
+  "offline_render": {
+    "status": "BLOCKED",
+    "reason": "Official candidate replay runner aborted (exit=1) before emitting candidate derived contracts; per contract, replay assertions were not edited and candidate contracts were not fabricated."
+  },
+  "resource_state": {
+    "gpu_inference_invoked": false,
+    "services_modified": false,
+    "owner_checkout_modified": false
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "bounded": {
+    "rows": 26,
+    "cache_hits": 26,
+    "api_calls": 0,
+    "checkpoint_sha256": "5884e06feda15e7299b25900158e8590eb9b851e3f76d0c50da2e75ba163c678",
+    "checkpoint_unchanged": true,
+    "text_changed_count": 3,
+    "text_changed_ids": [
+      "utt_b5c9fe667310e376ac22b390",
+      "utt_8f0ec99ba969cf632904c913",
+      "utt_3833b0a7ba1ec582b211dc3d"
+    ],
+    "status_only_changed_count": 1,
+    "status_only_changed_ids": [
+      "utt_d8d3cc10e050e405afbfb564"
+    ],
+    "joined_westward_restored": true,
+    "review": {
+      "status": "completed",
+      "reviewed": 26,
+      "changed": 16,
+      "rejected_polarity": 0,
+      "comparative_rejections": 4,
+      "dependent_passage_rejections": 2,
+      "joined_passage_rejections": 0,
+      "unresolved_source_rejections": 1,
+      "direction_grammar_rejections": 0
+    },
+    "controls": {
+      "polarity_rejected_ids": 0,
+      "unresolved_source_rejected_ids": 1,
+      "unresolved_source_material_lexical_ids": 1,
+      "dependent_passage_rejected_ids": 2,
+      "comparative_rejected_ids": 4
+    }
+  },
+  "mandarin": {
+    "rows": 2,
+    "cache_hits": 2,
+    "api_calls": 0,
+    "checkpoint_sha256": "6ac5b51df3661d222c126833bd2414db0d965e31ca3a0d67faa0566760bc9b48",
+    "checkpoint_unchanged": true,
+    "text_changed_count": 0,
+    "text_changed_ids": [],
+    "status_only_changed_count": 0,
+    "status_only_changed_ids": [],
+    "joined_westward_restored": null,
+    "review": {
+      "status": "completed",
+      "reviewed": 2,
+      "changed": 1,
+      "rejected_polarity": 0,
+      "comparative_rejections": 1,
+      "dependent_passage_rejections": 0,
+      "joined_passage_rejections": 0,
+      "unresolved_source_rejections": 0,
+      "direction_grammar_rejections": 0
+    },
+    "controls": {
+      "polarity_rejected_ids": 0,
+      "unresolved_source_rejected_ids": 0,
+      "unresolved_source_material_lexical_ids": 0,
+      "dependent_passage_rejected_ids": 0,
+      "comparative_rejected_ids": 1
+    }
+  },
+  "french": {
+    "rows": 221,
+    "cache_hits": 221,
+    "api_calls": 0,
+    "checkpoint_sha256": "3fc1a07f4da9efbb6c984bbffba93b95a556812f5c3dfa0a067283c6e0cde038",
+    "checkpoint_unchanged": true,
+    "text_changed_count": 1,
+    "text_changed_ids": [
+      "utt_8ac2abb9ceb4685136735125"
+    ],
+    "status_only_changed_count": 0,
+    "status_only_changed_ids": [],
+    "joined_westward_restored": null,
+    "review": {
+      "status": "completed",
+      "reviewed": 221,
+      "changed": 120,
+      "rejected_polarity": 1,
+      "comparative_rejections": 27,
+      "dependent_passage_rejections": 2,
+      "joined_passage_rejections": 0,
+      "unresolved_source_rejections": 9,
+      "direction_grammar_rejections": 0
+    },
+    "controls": {
+      "polarity_rejected_ids": 1,
+      "unresolved_source_rejected_ids": 9,
+      "unresolved_source_material_lexical_ids": 3,
+      "dependent_passage_rejected_ids": 2,
+      "comparative_rejected_ids": 27
+    }
+  }
+}
