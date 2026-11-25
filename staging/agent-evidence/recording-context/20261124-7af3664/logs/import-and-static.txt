@@ -1,0 +1,25 @@
+=== SOURCE IDENTITIES ===
+BASE_COMMIT=4dd4599e51775ca510002783ea650ecd25fd7393
+BASE_TREE=dfbc53906300996373c34631fe33029b87bbf313
+CANDIDATE_COMMIT=7af366443b5f7adc6efee4eb67555cfb72db4ba5
+CANDIDATE_TREE=063ad71da80e29da7ea766e6b5e202486ee1b527
+=== INTERPRETERS ===
+CORE_PYTHON=Python 3.13.15
+STUDIO_PYTHON=Python 3.13.15
+CHALLENGER_PYTHON=Python 3.12.14
+=== IMPORT BINDING (CORE) ===
+nvidia_transcribe /workspace/nemovox-issue19-qual-7af3664/src/nvidia_transcribe/__init__.py
+nvidia_transcribe.recording_context /workspace/nemovox-issue19-qual-7af3664/src/nvidia_transcribe/recording_context.py
+nvidia_transcribe.source_quality /workspace/nemovox-issue19-qual-7af3664/src/nvidia_transcribe/source_quality.py
+nvidia_transcribe.recovery_planner /workspace/nemovox-issue19-qual-7af3664/src/nvidia_transcribe/recovery_planner.py
+httpx: 0.28.1 pytest: 9.2.0
+=== IMPORT BINDING (STUDIO) ===
+nvidia_transcribe /workspace/nemovox-issue19-qual-7af3664/src/nvidia_transcribe/__init__.py
+nvidia_transcribe.recording_context /workspace/nemovox-issue19-qual-7af3664/src/nvidia_transcribe/recording_context.py
+nvidia_transcribe.source_quality /workspace/nemovox-issue19-qual-7af3664/src/nvidia_transcribe/source_quality.py
+nvidia_transcribe.recovery_planner /workspace/nemovox-issue19-qual-7af3664/src/nvidia_transcribe/recovery_planner.py
+fastapi: 0.165.0 pytest: 9.2.0
+=== COMPILEALL ===
+compileall=OK (exit 0)
+=== GIT DIFF CHECK ===
+diff_check=OK (exit 0)
