@@ -168,6 +168,7 @@ def controls(root,registry,manager,resource):
             if identity(out)!=identity(rows):
                 raise ValueError("Control changed source/primary MT")
             results[lang]={"primary":mt,"review":review_metrics(report),"rows":out}
+        write(root/"private-language-controls.json",results)
         # Known actual pixels, not source dialogue or fake acoustic receipts.
         clip=root/"visual-control.mp4"
         proc=subprocess.run(["ffmpeg","-hide_banner","-nostdin","-loglevel","error",
@@ -193,7 +194,6 @@ def controls(root,registry,manager,resource):
             "response":reply,"accepted_literal_context":context,"mismatched_source_context":mismatch,
             "source_mutated":row!=original,"synthetic_pixels_not_asr":True,
             "known_literal_observed":any(f.get("visible_text")=="Nadia" or f.get("caption")=="Nadia" for f in frames)})
-    write(root/"private-language-controls.json",results)
 
 
 def main():

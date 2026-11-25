@@ -157,3 +157,5 @@ def test_competing_cross_model_wordings_remain_unresolved():
     assert not apply_decision(base,{"decision":{"action":"acoustic","candidate_id":chosen["id"],
         "materially_resolved":True}},candidates,[])
     assert base["source_text"]=="I told you not to leave."
+    from nvidia_transcribe.semantic_context import accepted_row_context
+    assert accepted_row_context(base,candidates,[]) is None

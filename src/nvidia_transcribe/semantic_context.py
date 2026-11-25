@@ -65,9 +65,9 @@ def row_nominations(rows, context):
 def accepted_row_context(row, alternatives, visual):
     text = row["source_text"]
     acoustic = []
-    for alt in alternatives:
-        if alt.get("text") == text and independent_support(alt):
-            acoustic.extend(deepcopy(alt["support"]))
+    supported = [alt for alt in alternatives if independent_support(alt)]
+    if len(supported) == 1 and supported[0].get("text") == text:
+        acoustic.extend(deepcopy(supported[0]["support"]))
     labels = []
     for frame in visual:
         literal = frame.get("visible_text")
@@ -92,7 +92,8 @@ def current_row_context(row):
     if (not isinstance(value, dict) or value.get("schema") != SCHEMA
             or value.get("source_id") != row.get("id") or not isinstance(text, str)
             or value.get("source_text_sha256") != text_digest(text)
-            or value.get("entity_identity_accepted") is not False):
+            or value.get("entity_identity_accepted") is not False
+            or value.get("human_verified") is not False):
         return None
     return {k: deepcopy(value[k]) for k in (
         "schema", "source_id", "source_text_sha256", "acoustic_support",
