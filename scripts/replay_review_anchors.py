@@ -58,6 +58,32 @@ class CacheOnly:
         raise NoInference("Review cache miss; no inference authorized")
 
 
+def disposition_change(a, b):
+    """Classify only the allowed consequences of the anchor correction."""
+    old, new = a["translation_review_status"], b["translation_review_status"]
+    old_reason = a.get("translation_review_rejection_reason")
+    new_reason = b.get("translation_review_rejection_reason")
+    primary = a["machine_translated_text"]
+    before, after = a["translated_text"], b["translated_text"]
+    if (old, old_reason, before) == (new, new_reason, after):
+        return None
+    anchor_rejection = (
+        old == "review_rejected_unresolved_source_preserved_machine_translation"
+        and old_reason == "unresolved_source_name_or_number_change")
+    dependent = "review_rejected_dependent_passage_preserved_machine_translation"
+    approved = (b.get("translation_comparative_review") or {}).get("choice") == "proposal"
+    proposal = b.get("translation_reviewed_text")
+    if (before == primary == b["machine_translated_text"]
+            and approved and isinstance(proposal, str) and proposal != primary
+            and new_reason is None):
+        if (anchor_rejection or (old == dependent and old_reason is None)
+                ) and new == "corrected" and after == proposal:
+            return "text_changed"
+        if anchor_rejection and new == dependent and after == primary:
+            return "status_only"
+    raise ValueError("Unexpected changed disposition: " + a["id"])
+
+
 def replay(entries, case, outdir, baseline):
     prefix = f"jobs/{case}/"
     original = json.loads(entries[prefix + "translated.contract.json"])
@@ -108,16 +134,15 @@ def replay(entries, case, outdir, baseline):
         if baseline and (old != new or a["translated_text"] != b["translated_text"]
                          or a.get("translation_review_rejection_reason") != b.get("translation_review_rejection_reason")):
             raise ValueError("Baseline replay differs: " + a["id"])
-        if old != new or a["translated_text"] != b["translated_text"]:
-            if (old not in ("review_rejected_unresolved_source_preserved_machine_translation",
-                            "review_rejected_dependent_passage_preserved_machine_translation")
-                    or new != "corrected"
-                    or a.get("translation_review_rejection_reason") == "unresolved_source_material_lexical_change"):
-                raise ValueError("Unexpected changed disposition: " + a["id"])
+        kind = disposition_change(a, b)
+        if kind is not None:
             decisions.append({"id": a["id"], "source": a["source_text"],
                               "primary": a["machine_translated_text"],
                               "prior": a["translated_text"], "candidate": b["translated_text"],
                               "prior_status": old, "candidate_status": new,
+                              "change_kind": kind,
+                              "prior_rejection_reason": a.get("translation_review_rejection_reason"),
+                              "candidate_rejection_reason": b.get("translation_review_rejection_reason"),
                               "uncertainty": a.get("review_source_uncertainty"),
                               "comparison": a.get("translation_comparative_review"),
                               "passage": a.get("translation_review_passage")})
@@ -130,7 +155,7 @@ def replay(entries, case, outdir, baseline):
     if case == "mandarin" and decisions:
         raise ValueError("Mandarin protection changed")
     if not baseline and case == "bounded":
-        changed_ids = {x["id"] for x in decisions}
+        changed_ids = {x["id"] for x in decisions if x["change_kind"] == "text_changed"}
         if original["utterances"][19]["id"] not in changed_ids:
             raise ValueError("Demonstrated anchor failure not repaired")
         joined = " ".join(r["translated_text"] for r in rows[17:20]).casefold()
@@ -142,7 +167,10 @@ def replay(entries, case, outdir, baseline):
     (outdir / "private-delta.json").write_text(json.dumps(decisions, ensure_ascii=False, indent=2))
     summary = {"case": case, "baseline": baseline, "rows": len(rows),
                "cache_hits": report["cache_hits"], "api_calls": report["api_calls"],
-               "changed_dispositions": len(decisions), "checkpoint_sha256": checkpoint_hash,
+               "changed_dispositions": len(decisions),
+               "text_changed": sum(x["change_kind"] == "text_changed" for x in decisions),
+               "status_only": sum(x["change_kind"] == "status_only" for x in decisions),
+               "checkpoint_sha256": checkpoint_hash,
                "review": {k: report[k] for k in ("status", "reviewed", "changed",
                   "rejected_polarity", "comparative_rejections", "dependent_passage_rejections",
                   "joined_passage_rejections", "unresolved_source_rejections",
