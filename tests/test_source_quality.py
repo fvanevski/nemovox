@@ -125,15 +125,28 @@ def test_current_recording_ledger_rejects_tampered_observation_sidecar(tmp_path)
     recording["processing"] = {"chunks": [{"chunk_index": 0, "raw_response_sha256": "raw"}]}
     ledger = {"schema_version": "nemovox-source-evidence/v1",
               "media_fingerprint_sha256": "f", "source_language": "fr",
-              "asr_observations": [{"chunk_index": 0, "raw_response_sha256": "raw"}]}
+              "asr_observations": [{"chunk_index": 0, "raw_response_sha256": "raw"}],
+              "recognized_occurrence_inventories": []}
+    recording_data = json.dumps(recording).encode()
+    (tmp_path / "recording.contract.json").write_bytes(recording_data)
     data = json.dumps(ledger).encode()
     sidecar = tmp_path / "source-evidence.v1.json"
     sidecar.write_bytes(data)
     (tmp_path / "manifest.json").write_text(json.dumps({
         "asr_run_status": "completed",
+        "recording_contract_sha256": hashlib.sha256(recording_data).hexdigest(),
         "source_evidence": {"sha256": hashlib.sha256(data).hexdigest()},
     }))
     assert load_current_ledger(recording, tmp_path / "recording.contract.json") == ledger
+    # Matching media and raw chunk identity do not authenticate edited
+    # source rows. Reject both in-memory substitution and changed disk bytes.
+    edited = {**recording, "utterances": [_row("invented", "Wrong", 2., 3.)]}
+    with pytest.raises(ValueError, match="recording contract"):
+        load_current_ledger(edited, tmp_path / "recording.contract.json")
+    (tmp_path / "recording.contract.json").write_text(json.dumps(edited))
+    with pytest.raises(ValueError, match="recording contract"):
+        load_current_ledger(edited, tmp_path / "recording.contract.json")
+    (tmp_path / "recording.contract.json").write_bytes(recording_data)
     sidecar.write_bytes(data + b" ")
     with pytest.raises(ValueError, match="stale"):
         load_current_ledger(recording, tmp_path / "recording.contract.json")

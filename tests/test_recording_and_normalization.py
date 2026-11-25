@@ -150,3 +150,47 @@ def test_partial_interrupted_run_resumes_remaining_chunk(tmp_path: Path, monkeyp
     assert call_log == ["chunk_001.wav"]
     assert res["contract"]["model_provenance"]["resumed_chunks"] == 1
     assert len(res["contract"]["utterances"]) >= 1
+
+
+def test_failed_ctc_is_recorded_before_any_optional_recovery(tmp_path, monkeypatch):
+    """Multiple diarization intervals must not trigger an unbudgeted ASR retry."""
+    from nvidia_transcribe.source_quality import load_current_ledger, SourceQualityPolicy
+    from nvidia_transcribe.recovery_planner import plan_recovery_windows
+
+    wav=tmp_path/"failed-ctc.wav"
+    with wave.open(str(wav),"wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(16000)
+        wf.writeframes(b"\x00\x00"*16000*12)
+    calls=[]
+    raw_text="<spk:0> Bonjour mon ami <spk:1> On rentre maintenant"
+    def transcribe(self,path,config=None):
+        calls.append(Path(path).name)
+        return {"contract":{"raw_text":raw_text},"latency_s":.01,
+                "raw_response":{"choices":[{"message":{"content":raw_text},"finish_reason":"stop"}],
+                    "ctc_timestamps":{"error":"alignment_failed","words":[],
+                        "diarization":[{"speaker":0,"start":1.,"end":2.},
+                                       {"speaker":1,"start":8.,"end":9.}]}}}
+    monkeypatch.setattr(NemotronVLLMClient,"transcribe",transcribe)
+    out=process_media(wav,output_dir=tmp_path/"out",client=NemotronVLLMClient(model="stub"),
+        config=RecordingPipelineConfig(source_language="fr",speaker_embeddings="none",alignment_fallback="off"))
+    assert calls==["chunk_000.wav"]
+    recording=out["contract"]
+    ledger=load_current_ledger(recording,out["contract_path"])
+    assert all(u["source_start"] is None and u["source_end"] is None for u in recording["utterances"])
+    inv=ledger["recognized_occurrence_inventories"][0]
+    assert len(inv["recognized_turns"])==2
+    refs={u for row in recording["utterances"] for u in row["source_unit_ids"]}
+    assert refs==set(inv["working_source_unit_ids"])
+    assert all(d["status"]=="selected_unlocalized" for span in inv["locality"]["spans"]
+               for d in span["selection_dispositions"])
+    request=recording["processing"]["boundary_reconciliation"]["semantic_review_candidates"]
+    windows,deferred=plan_recovery_windows(recording,ledger,request,None,SourceQualityPolicy())
+    assert any(refs.intersection(task["source_unit_ids"]) for task in windows+deferred)
+    calls.clear()
+    again=process_media(wav,output_dir=tmp_path/"out",client=NemotronVLLMClient(model="stub"),
+        config=RecordingPipelineConfig(source_language="fr",speaker_embeddings="none",alignment_fallback="off"))
+    assert not calls
+    assert again["contract"]["utterances"]==recording["utterances"]
+    assert load_current_ledger(again["contract"],again["contract_path"])

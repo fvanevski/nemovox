@@ -120,10 +120,20 @@ def load_current_ledger(recording, recording_path):
     manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
     data = (root / "source-evidence.v1.json").read_bytes()
     ledger = json.loads(data)
+    # Authenticate the precise original recording, not merely its media
+    # and raw chunk hashes. An edited row can retain both while changing
+    # occurrence ownership or words. Older unbound contracts must be
+    # regenerated before current-source quality; explicit offline rerender
+    # of an already translated contract is a separate downstream entry.
+    recording_data = Path(recording_path).read_bytes()
+    if (manifest.get("recording_contract_sha256") != hashlib.sha256(recording_data).hexdigest()
+            or _digest(json.loads(recording_data)) != _digest(recording)):
+        raise ValueError("Current recording contract is missing, stale or incompatible")
     if (manifest.get("asr_run_status") != "completed"
             or (manifest.get("source_evidence") or {}).get("sha256")
             != hashlib.sha256(data).hexdigest()
             or ledger.get("schema_version") != "nemovox-source-evidence/v1"
+            or not isinstance(ledger.get("recognized_occurrence_inventories"), list)
             or ledger.get("media_fingerprint_sha256")
             != recording["source"]["fingerprint_sha256"]
             or ledger.get("source_language") != recording.get("source_language")):

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from nvidia_transcribe.alignment import ExternalForcedAligner, recover_chunk_alignment
+from nvidia_transcribe.alignment import recover_chunk_alignment
 from nvidia_transcribe.chunking import ChunkConfig, ChunkSpec, plan_chunks, reconcile_chunk_boundaries
 from nvidia_transcribe.client import InferenceRequestConfig, NemotronVLLMClient
 from nvidia_transcribe.asr_integrity import IncompleteASRGeneration, audit_asr_generation
@@ -51,7 +51,6 @@ class RecordingPipelineConfig:
     audio_stream_index: int = 0
     speaker_embeddings: str = "none"  # "titanet" | "none"
     embedding_threshold: float = 0.65
-    enable_subinterval_recovery: bool = True
     alignment_fallback: str = "off"  # "off" | "qwen"
     qwen_policy: str = "subtitle"     # "subtitle" | "fine"
     qwen_device: str = "cuda:0"      # "cuda:0" | "cpu" (explicit only)
@@ -192,7 +191,7 @@ def _config_signature(
     }
     # Current source contracts bind the actual plan; invalidate pre-consolidation checkpoints.
     payload.update({
-        "source_pipeline_schema": "current-job-source/v5",
+        "source_pipeline_schema": "current-job-source/v6",
         "chunk_policy": cfg.chunk_policy,
         "chunk_plan": [s.to_dict() for s in chunks] if chunks is not None else None,
         "chunk_plan_metadata": plan_metadata,
@@ -275,7 +274,6 @@ def process_media(
     client: NemotronVLLMClient,
     config: RecordingPipelineConfig | None = None,
     embedder: SpeakerEmbedder | None = None,
-    external_aligner: ExternalForcedAligner | None = None,
 ) -> dict[str, Any]:
     """Process a complete audio or video recording through bounded Nemotron chunks."""
     t_start = time.perf_counter()
@@ -601,8 +599,9 @@ def process_media(
     if lang_prov == "ambiguous":
         warnings.append(f"Source language detection was ambiguous: {lang_details}")
 
-    # Phase 1: finish *every* ASR/LID and native CTC/subinterval request
-    # before considering CUDA Qwen or a managed ASR vLLM release.
+    # Phase 1: preserve every primary observation before optional timing
+    # recovery. Failed CTC contributes unresolved occurrence evidence to the
+    # shared recovery planner; it cannot launch an unbudgeted native retry.
     native_records: list[dict[str, Any]] = []
     occurrence_inventories: list[dict[str, Any]] = []
 
@@ -617,35 +616,14 @@ def process_media(
         )
         return path
 
-    for idx, (spec, raw_resp, raw_text, wav_path) in enumerate(zip(chunks, chunk_raws, raw_texts, chunk_wavs)):
-        def _sub_wav_extract(sub_start: float, sub_end: float, _idx: int = idx) -> Path:
-            return _extract_sub_wav(_idx, sub_start, sub_end)
-
-        def _subinterval_runner(sub_start: float, sub_end: float, _idx: int = idx) -> tuple[str, Any]:
-            sub_wav = _extract_sub_wav(_idx, sub_start, sub_end)
-            sub_res = client.transcribe(
-                sub_wav,
-                InferenceRequestConfig(
-                    mode=cfg.mode, source_language=lang_hint_for_prompt,
-                    capture_ctc_timestamps=True, require_ctc_timestamps=False,
-                    source_offset_s=sub_start,
-                ),
-            )
-            return sub_res["contract"]["raw_text"], sub_res["raw_response"].get("ctc_timestamps")
-
+    for idx, (spec, raw_resp, raw_text) in enumerate(zip(chunks, chunk_raws, raw_texts)):
         rec = recover_chunk_alignment(
             raw_text=raw_text,
             ctc_payload=raw_resp.get("ctc_timestamps"),
             source_offset_s=spec.infer_start_s,
             chunk_index=idx,
             model_path=cfg.model_path,
-            subinterval_runner=_subinterval_runner if cfg.enable_subinterval_recovery else None,
-            # Caller-injected test aligners retain their existing API. Production
-            # Qwen no longer runs in this native-ASR phase.
-            external_aligner=external_aligner,
-            chunk_wav_path=wav_path,
             source_language=resolved_lang,
-            subinterval_wav_extractor=_sub_wav_extract,
         )
         occurrence_inventories.append(bind_occurrence_inventory(
             observation_id=source_observation_id(media.fingerprint_sha256,
@@ -674,7 +652,7 @@ def process_media(
     # Keep an inspectable native timing checkpoint before any managed GPU
     # transition. A failed/blocked optional aligner never discards native work.
     qwen_metrics: dict[str, Any] = {"status": "disabled"}
-    if cfg.alignment_fallback == "qwen" and external_aligner is None:
+    if cfg.alignment_fallback == "qwen":
         _atomic_write_text(
             out_dir / "native-alignment.checkpoint.json",
             json.dumps({
@@ -799,7 +777,6 @@ def process_media(
         alignment_diagnostics.append(rec["diagnostic"])
         if rec["alignment_status"] not in (
             "ctc_aligned",
-            "subinterval_ctc_recovered",
             "external_recovered",
             "hybrid_ctc_and_external_recovered",
         ):
@@ -936,7 +913,8 @@ def process_media(
     source_evidence_path = out_dir / "source-evidence.v1.json"
     source_evidence_text = json.dumps(source_evidence, ensure_ascii=False, indent=2)
     _atomic_write_text(source_evidence_path, source_evidence_text)
-    _atomic_write_text(contract_path, json.dumps(contract, ensure_ascii=False, indent=2))
+    contract_text = json.dumps(contract, ensure_ascii=False, indent=2)
+    _atomic_write_text(contract_path, contract_text)
     _atomic_write_text(transcript_path, _format_transcript_txt(contract))
     # This manifest digest binds the extra sidecar to a completed ASR run;
     # a standalone/stale sidecar is never proof of a current transcript.
@@ -946,6 +924,7 @@ def process_media(
         "sha256": _sha256_text(source_evidence_text),
         "mode": "shadow_observation_only",
     }
+    manifest_state["recording_contract_sha256"] = _sha256_text(contract_text)
     manifest_state["asr_run_status"] = "completed"
     _atomic_write_text(manifest_path, json.dumps(manifest_state, ensure_ascii=False, indent=2))
 
