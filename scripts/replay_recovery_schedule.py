@@ -35,6 +35,13 @@ def _admission_metrics(tasks):
                 for t in tasks if t["state"] in ("admitted","observed") and t["window"]),6)}
 
 
+def _same_admitted_bracket(prior, now):
+    """Compare numeric endpoints across archived JSON and in-memory plans."""
+    return (len(prior) == len(now) == 1
+            and len(prior[0]["bounds"]) == len(now[0]["bounds"]) == 2
+            and tuple(prior[0]["bounds"]) == tuple(now[0]["bounds"]))
+
+
 def replay(archive):
     members=verified_archive(archive,expected_sha=ARCHIVE_SHA,expected_source=TESTED_SOURCE)
     public,private={},{}
@@ -90,7 +97,7 @@ def replay(archive):
             prior=[t for t in quality["independent_recovery"]["deferred_targets"]
                    if t["kind"]=="untimed" and t["ids"]==[uid]]
             now=[t for t in targets if t["kind"]=="untimed" and t["ids"]==[uid]]
-            if len(prior)!=1 or len(now)!=1 or now[0]["bounds"]!=prior[0]["bounds"]:
+            if not _same_admitted_bracket(prior, now):
                 raise ValueError("Explicit previously deferred target not admitted")
             planned=[w for w in windows if uid in w["source_ids"] and
                      w["window"][0]<=now[0]["bounds"][0]<now[0]["bounds"][1]<=w["window"][1]]
