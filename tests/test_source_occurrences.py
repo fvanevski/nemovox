@@ -195,3 +195,80 @@ def test_optional_alignment_refresh_preserves_span_identity():
     assert [u["occurrence_span_id"] for u in units] == before
     assert all(u["occurrence_bounds_s"] == [2, 2.5] for u in units)
     assert report["spans"][0]["locality_status"] == "unlocalized"
+
+
+def test_boundary_dispositions_do_not_assert_transitive_or_ownerless_coverage():
+    from nvidia_transcribe.occurrence_dispositions import finalize_boundary_dispositions
+
+    def row(uid, status, refs=()):
+        return {"source_unit_id": uid, "occurrence_span_id": "span-"+uid,
+                "status": status, "reason": "original_reason",
+                "related_source_unit_ids": list(refs),
+                "timing_truth_accepted": False, "occurrence_truth_accepted": False}
+    rows = [row("a", "alternate_not_selected", ["b"]),
+            row("b", "alternate_not_selected", ["c"]),
+            row("c", "selected_unlocalized"),
+            row("d", "alternate_not_selected", ["e"]),
+            row("e", "context_candidate_unresolved"),
+            row("f", "alternate_not_selected"),
+            row("g", "selected_provisional")]
+    result = finalize_boundary_dispositions(rows)
+    by_id = {d["source_unit_id"]: d for d in result}
+    assert {uid for uid,d in by_id.items() if d["status"] == "context_candidate_unresolved"} == {"a","d","e","f"}
+    assert by_id["b"] == rows[1]
+    assert by_id["c"] == rows[2] and by_id["g"] == rows[-1]
+    for i in (0,3,5):
+        actual = result[i]
+        assert actual["related_source_unit_ids"] == rows[i]["related_source_unit_ids"]
+        assert actual["prior_selection_reason"] == rows[i]["reason"]
+        assert actual["reason"] == "provisional_correspondence_without_selected_counterpart"
+        assert rows[i]["status"] == "alternate_not_selected"
+        assert not actual["occurrence_truth_accepted"] and not actual["timing_truth_accepted"]
+    assert finalize_boundary_dispositions(result) == result
+
+
+def test_boundary_matching_two_context_spans_exposes_unselected_counterpart():
+    from nvidia_transcribe.chunking import ChunkSpec, reconcile_chunk_boundaries
+    from nvidia_transcribe.occurrence_locality import assess_occurrence_locality
+
+    specs = [ChunkSpec(0,0,10,0,14), ChunkSpec(1,10,20,6,20)]
+    chunks = []
+    for spec, raw, native_words in (
+        (specs[0], "<spk:0> again now", [word("again",10.2),word("now",10.5)]),
+        (specs[1], "<spk:0> before again", [word("before",9.4),word("again",10.2)]),
+    ):
+        native = recover_chunk_alignment(raw_text=raw, ctc_payload={"words":native_words},
+            source_offset_s=0, chunk_index=spec.chunk_index, model_path=None)
+        bind_occurrence_inventory(observation_id=source_observation_id("media",
+            str(spec.chunk_index+1)*64,spec), raw_text=raw, projected_text=raw,
+            units=native["units"], native_observations=native["diagnostic"]["native_ctc_observations"])
+        units, _ = assess_occurrence_locality(native["units"],
+            infer_start_s=spec.infer_start_s,infer_end_s=spec.infer_end_s)
+        for u in units:
+            u["global_speaker_id"] = "SPK_A"
+        chunks.append(units)
+    left, right = chunks[0][0], chunks[1][-1]
+    assert left["occurrence_bounds_s"][0] > 10
+    assert sum(right["occurrence_bounds_s"])/2 < 10
+    merged, diag = reconcile_chunk_boundaries(chunks,specs)
+    selected = {u["source_unit_id"] for u in merged}
+    decisions = {d["source_unit_id"]: d for d in diag["source_dispositions"]}
+    assert left["source_unit_id"] not in selected and right["source_unit_id"] not in selected
+    assert decisions[left["source_unit_id"]]["status"] == "context_candidate_unresolved"
+    assert decisions[left["source_unit_id"]]["related_source_unit_ids"] == [right["source_unit_id"]]
+    assert decisions[right["source_unit_id"]]["status"] == "context_candidate_unresolved"
+    assert len(decisions) == 4
+    assert all(d["related_source_unit_ids"] and set(d["related_source_unit_ids"]) <= selected
+               for d in decisions.values() if d["status"] == "alternate_not_selected")
+
+
+def test_boundary_disposition_invalid_reference_fails_closed():
+    import pytest
+    from nvidia_transcribe.occurrence_dispositions import finalize_boundary_dispositions
+
+    row = {"source_unit_id":"a", "status":"alternate_not_selected",
+           "related_source_unit_ids":["missing"], "reason":"test"}
+    with pytest.raises(ValueError, match="Invalid boundary correspondence"):
+        finalize_boundary_dispositions([row])
+    with pytest.raises(ValueError, match="Duplicate source-unit"):
+        finalize_boundary_dispositions([row,row])

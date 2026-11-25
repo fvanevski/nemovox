@@ -192,7 +192,7 @@ def _config_signature(
     }
     # Current source contracts bind the actual plan; invalidate pre-consolidation checkpoints.
     payload.update({
-        "source_pipeline_schema": "current-job-source/v3",
+        "source_pipeline_schema": "current-job-source/v4",
         "chunk_policy": cfg.chunk_policy,
         "chunk_plan": [s.to_dict() for s in chunks] if chunks is not None else None,
         "chunk_plan_metadata": plan_metadata,
@@ -863,8 +863,8 @@ def process_media(
         if idx is not None:
             semantic_activity_by_chunk.setdefault(idx, []).append(activity)
 
-    # Legacy v1 boundary acceptance stays unchanged pending independently
-    # adjudicated source revision; review candidates are diagnostic only.
+    # Boundary selection remains provisional. Resolve final disposition
+    # status against actual selected observations, not intermediate winners.
     merged_units, boundary_diag = reconcile_chunk_boundaries(
         chunk_units_norm, chunks,
         semantic_review_activity_by_chunk=semantic_activity_by_chunk,

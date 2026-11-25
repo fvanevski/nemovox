@@ -201,6 +201,11 @@ def inspect_run(out, crop, wav_sha):
         if decision["source_unit_id"] != u["id"] or not set(decision["related_source_unit_ids"]) <= set(by_id):
             raise ValueError("Invalid source disposition references")
     selected = {u["id"] for u in units if u["boundary_disposition"].startswith("selected_")}
+    for u in units:
+        if u["boundary_disposition"] == "alternate_not_selected":
+            refs = set(u["boundary_decision"]["related_source_unit_ids"])
+            if not refs or not refs <= selected:
+                raise ValueError("Alternate has no final selected counterpart")
     rows = contract["utterances"]
     rendered_ids = [uid for row in rows for uid in row["source_unit_ids"]]
     if len(rendered_ids) != len(set(rendered_ids)) or set(rendered_ids) != selected:

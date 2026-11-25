@@ -11,6 +11,7 @@ from nvidia_transcribe.boundary_evidence import (
     recover_extended_right_context,
     recover_ownerless_straddled_overlap,
 )
+from nvidia_transcribe.occurrence_dispositions import finalize_boundary_dispositions
 from nvidia_transcribe.semantic_review import (
     DEFAULT_SEMANTIC_REVIEW_POLICY,
     plan_boundary_semantic_reviews,
@@ -496,7 +497,7 @@ def reconcile_chunk_boundaries(
                 "occurrence_truth_accepted": False,
             })
     return merged, {
-        "source_dispositions": dispositions,
+        "source_dispositions": finalize_boundary_dispositions(dispositions),
         "deduplicated_units": dedup_count,
         "recovered_boundary_units": recovered_count,
         "untimed_preserved_units": untimed_boundary_count,
