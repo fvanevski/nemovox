@@ -22,6 +22,36 @@ def _mid(unit: dict[str, Any]) -> float | None:
     return (float(s) + float(e)) / 2.0
 
 
+def _timing_sequence_key(unit: dict[str, Any]) -> tuple | None:
+    """Local sequence evidence, not an accepted speaker assignment.
+
+    Preserve the established recognized-speaker groups. For unattributed
+    recognized units, use their own turn and any native CTC label only as
+    observation-level grouping evidence. Never merge unknown turns or
+    combine distinct observed voices into a single density estimate.
+    """
+    speaker = unit.get("speaker")
+    if speaker is not None:
+        return ("recognized_speaker", str(speaker))
+    turn = unit.get("recognized_turn_id")
+    if turn is None:
+        turn = unit.get("recognized_turn_index")
+    if turn is None:
+        return None
+    native = unit.get("ctc_observed_speaker")
+    native = (str(native).strip().removeprefix("<spk:").removesuffix(">")
+              if native is not None else None)
+    return ("unattributed_turn", unit.get("chunk_index"), turn, native or None)
+
+
+def _sequence_receipt(key: tuple) -> dict[str, Any]:
+    if key[0] == "recognized_speaker":
+        return {"speaker": key[1]}
+    return {"speaker": None, "sequence_basis": "unattributed_recognized_turn",
+            "chunk_index": key[1], "recognized_turn_reference": key[2],
+            "ctc_observed_speaker": key[3]}
+
+
 def audit_ctc_timing_units(
     units: list[dict[str, Any]],
     *,
@@ -32,8 +62,10 @@ def audit_ctc_timing_units(
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Audit source-ordered CTC units against their actual inference excerpt.
 
-    A word whose midpoint is far from BOTH same-speaker lexical neighbors
-    while those neighbors agree is a local sequence outlier. A word outside
+    A word whose midpoint is far from BOTH local sequence neighbors
+    while those neighbors agree is a local sequence outlier. Untagged turns
+    also have lexical order, even when no speaker identity is established.
+    A word outside
     the audio excerpt cannot have a trustworthy CTC time. In either case,
     preserve its hypothesis in explicit fields but leave its time unknown.
 
@@ -45,7 +77,7 @@ def audit_ctc_timing_units(
         raise ValueError("Invalid source excerpt bounds for CTC timing audit")
     copied = [dict(u) for u in units]
     reasons: dict[int, str] = {}
-    by_speaker: dict[str, list[int]] = defaultdict(list)
+    by_sequence: dict[tuple, list[int]] = defaultdict(list)
     for i, unit in enumerate(copied):
         middle = _mid(unit)
         if middle is None or unit.get("alignment_status") not in ("ctc_aligned", None):
@@ -53,13 +85,13 @@ def audit_ctc_timing_units(
         start, end = float(unit["start"]), float(unit["end"])
         if start < infer_start_s - 0.15 or end > infer_end_s + 0.15:
             reasons[i] = "ctc_outside_inference_excerpt"
-        speaker = unit.get("speaker")
-        if speaker is not None:
-            by_speaker[str(speaker)].append(i)
+        sequence = _timing_sequence_key(unit)
+        if sequence is not None:
+            by_sequence[sequence].append(i)
 
     gaps: list[dict[str, Any]] = []
     dense_sequences: list[dict[str, Any]] = []
-    for speaker, indexes in by_speaker.items():
+    for sequence, indexes in by_sequence.items():
         for j in range(1, len(indexes)):
             before, current = indexes[j - 1], indexes[j]
             prior_mid, this_mid = _mid(copied[before]), _mid(copied[current])
@@ -70,11 +102,14 @@ def audit_ctc_timing_units(
             if abs(delta) >= outlier_displacement_s:
                 if len(gaps) < 80:
                     gaps.append({
-                        "speaker": speaker, "source_unit_before": before,
+                        **_sequence_receipt(sequence), "source_unit_before": before,
                         "source_unit_after": current,
                         "delta_s": round(delta, 3),
-                        "reason": ("same_speaker_backtrack" if delta < 0
-                                   else "large_same_speaker_gap_review_only"),
+                        "reason": (("same_speaker_backtrack" if delta < 0
+                                    else "large_same_speaker_gap_review_only")
+                                   if sequence[0] == "recognized_speaker"
+                                   else ("unattributed_sequence_backtrack" if delta < 0
+                                         else "large_unattributed_sequence_gap_review_only")),
                     })
                 copied[current]["ctc_sequence_gap_s"] = round(delta, 3)
 
@@ -96,7 +131,7 @@ def audit_ctc_timing_units(
     # ordinary pauses). A 35+ source-char/s, >=45-character, <=3s span is
     # a conservative REVIEW trigger, not a claim of acoustically false text.
     # Short exclamations and ordinary rapid dialogue remain untouched.
-    for speaker, indexes in by_speaker.items():
+    for sequence, indexes in by_sequence.items():
         runs: list[list[int]] = []
         run: list[int] = []
         for i in indexes:
@@ -141,7 +176,7 @@ def audit_ctc_timing_units(
                 # speaker run; per-unit flags retain full evidence.
                 window, chars, span = max(exemplars, key=lambda item: item[1]/item[2])
                 dense_sequences.append({
-                    "speaker": speaker, "first_source_unit": min(flagged),
+                    **_sequence_receipt(sequence), "first_source_unit": min(flagged),
                     "last_source_unit": max(flagged),
                     "units": len(flagged),
                     "representative_source_characters": chars,
@@ -173,7 +208,7 @@ def audit_ctc_timing_units(
         "multiword_density_suspects": dense_sequences,
         "multiword_density_suspect_count": len(dense_sequences),
         "large_gap_count": sum(
-            1 for indexes in by_speaker.values() for j in range(1, len(indexes))
+            1 for indexes in by_sequence.values() for j in range(1, len(indexes))
             if (_mid(copied[indexes[j]]) is not None
                 and _mid(copied[indexes[j - 1]]) is not None
                 and abs(_mid(copied[indexes[j]]) - _mid(copied[indexes[j - 1]]))

@@ -369,3 +369,102 @@ def test_untagged_cjk_localized_observation_keeps_order_and_unknown_voice():
     assert all(u["speaker"] is None for u in row["source_characters"])
     assert [u["text"] for u in row["source_characters"]] == list("你好世界")
     assert row["source_unit_ids"] == sorted(inv["working_source_unit_ids"])
+
+
+@pytest.mark.parametrize("labels", [("0",)*11, (None,)*11, ("0","<spk:0>")*5+("0",)])
+def test_untagged_compression_is_quarantined_without_voice_attribution(labels):
+    from nvidia_transcribe.acoustic_observations import reconstruct_acoustic_observation
+    from nvidia_transcribe.occurrence_locality import assess_occurrence_locality
+    from nvidia_transcribe.selective_alignment import AdmissionPolicy, plan_selective_recovery
+
+    words = ["marvellous", "mountains", "ancient", "gardens", "extraordinary",
+             "journeys", "familiar", "travelers", "captivating", "beautiful", "children"]
+    raw = " ".join(words)
+    native_words = [word(t,5+i*.105,label) for i,(t,label) in enumerate(zip(words,labels))]
+    rec = recover(raw,native_words)
+    inv = bind(rec,raw)
+    assert all(u["valid_timing"] for u in rec["units"])
+    audited, report = assess_occurrence_locality(rec["units"], infer_start_s=0, infer_end_s=20)
+    audit = report["timing_audit"]
+    assert audit["quarantined_source_indices"] == list(range(11))
+    assert audit["quarantine_reasons"] == {"ctc_multiword_temporal_compression":11}
+    assert [u["text"] for u in audited] == words
+    assert [u["source_unit_id"] for u in audited] == inv["working_source_unit_ids"]
+    assert all(u["speaker"] is None and u["raw_speaker_tag"] is None for u in audited)
+    assert [u["ctc_observed_speaker"] for u in audited] == list(labels)
+    assert all(not u["valid_timing"] and u["start"] is None and u["end"] is None
+               and u["requires_acoustic_recovery"] for u in audited)
+    assert [u["ctc_hypothesis_start_s"] for u in audited] == [
+        round(w["start"],6) for w in native_words]
+    span, = report["spans"]
+    assert span["locality_status"] == "disputed" and span["usable_bounds_s"] is None
+    density, = audit["multiword_density_suspects"]
+    assert density["speaker"] is None and density["sequence_basis"] == "unattributed_recognized_turn"
+    assert density["ctc_observed_speaker"] == (None if labels[0] is None else "0")
+    plans, decisions = plan_selective_recovery(
+        native={**rec,"units":audited},raw_text=raw,chunk_start_s=0,chunk_end_s=20,
+        policy=AdmissionPolicy())
+    assert not plans
+    assert decisions[0]["status"] == "skipped_disputed_occurrence_requires_acoustic_evidence"
+
+    response = {"choices":[{"message":{"content":raw},"finish_reason":"stop"}],
+                "ctc_timestamps":{"words":native_words}}
+    rows, inventory = reconstruct_acoustic_observation(
+        response,audio_sha256="a"*64,crop=(100.,120.),language="fr")
+    assert inventory["locality"]["timing_audit"]["quarantined_units"] == 11
+    assert all(r["speaker_id"] == "unknown" and r["source_start"] is None
+               and r["source_end"] is None for r in rows)
+    assert [u["text"] for r in rows for u in r["source_words"]] == words
+    assert {uid for r in rows for uid in r["source_unit_ids"]} == set(
+        inventory["working_source_unit_ids"])
+
+
+def test_untagged_audit_does_not_combine_overlapping_native_voice_hypotheses():
+    from nvidia_transcribe.occurrence_locality import assess_occurrence_locality
+
+    # Each native stream contains six ordinary words; concatenating the
+    # simultaneous streams would falsely cross the existing density threshold.
+    a = ["bright","silver","clouds","garden","little","stream"]
+    b = ["gentle","breeze","purple","flower","yellow","leaves"]
+    native_words = [word(text,1+i*.3,label) for i,pair in enumerate(zip(a,b))
+                    for label,text in zip(("0","1"),pair)]
+    raw = " ".join(w["word"] for w in native_words)
+    rec = recover(raw,native_words)
+    bind(rec,raw)
+    audited, report = assess_occurrence_locality(rec["units"],infer_start_s=0,infer_end_s=20)
+    assert report["timing_audit"]["quarantined_units"] == 0
+    assert all(u["valid_timing"] and u["speaker"] is None
+               and not u["requires_acoustic_recovery"] for u in audited)
+
+
+def test_untagged_sequence_audit_keeps_unknown_turns_separate_and_checks_outliers():
+    from nvidia_transcribe.timing_evidence import audit_ctc_timing_units
+
+    # A native label is only local evidence: the same label must not join
+    # unrelated unknown turns or chunks.
+    rec = recover("bright silver clouds garden little stream gentle breeze purple flower yellow leaves",
+                  [word(t,1+i*.105) for i,t in enumerate(
+                      "bright silver clouds garden little stream gentle breeze purple flower yellow leaves".split())])
+    bind(rec,"bright silver clouds garden little stream gentle breeze purple flower yellow leaves")
+    units = rec["units"]
+    for u in units[6:]:
+        u["recognized_turn_id"] = "other-turn"
+    separate, audit = audit_ctc_timing_units(units,infer_start_s=0,infer_end_s=20)
+    assert audit["quarantined_units"] == 0 and all(u["valid_timing"] for u in separate)
+    for u in units[6:]:
+        u["recognized_turn_id"] = units[0]["recognized_turn_id"]
+        u["chunk_index"] = 1
+    separate, audit = audit_ctc_timing_units(units,infer_start_s=0,infer_end_s=20)
+    assert audit["quarantined_units"] == 0 and all(u["valid_timing"] for u in separate)
+
+    rec = recover("bonjour cher ami",[word("bonjour",1,None),
+        word("cher",15,None),word("ami",2,None)])
+    bind(rec,"bonjour cher ami")
+    audited, audit = audit_ctc_timing_units(rec["units"],infer_start_s=0,infer_end_s=20)
+    assert audit["quarantined_source_indices"] == [1]
+    assert audit["quarantine_reasons"] == {"ctc_isolated_sequence_outlier":1}
+    assert [u["start"] for u in audited] == [1,None,2]
+    assert audited[1]["ctc_hypothesis_start_s"] == 15
+    assert all(u["speaker"] is None for u in audited)
+    assert all(g["speaker"] is None and g["sequence_basis"] == "unattributed_recognized_turn"
+               for g in audit["large_gaps_review_only"])
