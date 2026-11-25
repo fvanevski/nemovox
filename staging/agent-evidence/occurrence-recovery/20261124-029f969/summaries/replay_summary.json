@@ -1,0 +1,379 @@
+{
+  "status": "completed",
+  "archive_sha256": "805ab0e43275171b16c0beebbc6c938d15ed5b055d4a6e5b342180f46d61eefe",
+  "runs": {
+    "runs/boundary/fixed": {
+      "full": {
+        "admitted": 6,
+        "deferred_or_unlocalized": 1,
+        "evidence_ids": 34,
+        "admitted_evidence_ids": 33,
+        "reasons": {
+          "large_intra_turn_gap_review_only": 2,
+          "unassociated_native_observations": 3,
+          "unselected_context": 2,
+          "untimed_occurrence": 3,
+          "partial_source_dialogue": 2,
+          "untimed_source_dialogue": 1,
+          "nonchronological_turn_hypothesis": 2,
+          "activity_without_lexical_timing": 2
+        },
+        "admitted_target_seconds": 46.9175
+      },
+      "without_inventory": {
+        "admitted": 5,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 6,
+        "admitted_evidence_ids": 6,
+        "reasons": {
+          "partial_source_dialogue": 3,
+          "untimed_source_dialogue": 1,
+          "activity_without_lexical_timing": 2
+        },
+        "admitted_target_seconds": 17.9405
+      },
+      "corrected_dispositions": 0
+    },
+    "runs/boundary/local_a": {
+      "full": {
+        "admitted": 0,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 0,
+        "admitted_evidence_ids": 0,
+        "reasons": {},
+        "admitted_target_seconds": 0
+      },
+      "without_inventory": {
+        "admitted": 0,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 0,
+        "admitted_evidence_ids": 0,
+        "reasons": {},
+        "admitted_target_seconds": 0
+      },
+      "corrected_dispositions": 0
+    },
+    "runs/boundary/local_b": {
+      "full": {
+        "admitted": 0,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 0,
+        "admitted_evidence_ids": 0,
+        "reasons": {},
+        "admitted_target_seconds": 0
+      },
+      "without_inventory": {
+        "admitted": 0,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 0,
+        "admitted_evidence_ids": 0,
+        "reasons": {},
+        "admitted_target_seconds": 0
+      },
+      "corrected_dispositions": 0
+    },
+    "runs/boundary/pause_aware": {
+      "full": {
+        "admitted": 1,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 1,
+        "admitted_evidence_ids": 1,
+        "reasons": {
+          "unselected_context": 1
+        },
+        "admitted_target_seconds": 3.647
+      },
+      "without_inventory": {
+        "admitted": 0,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 0,
+        "admitted_evidence_ids": 0,
+        "reasons": {},
+        "admitted_target_seconds": 0
+      },
+      "corrected_dispositions": 0
+    },
+    "runs/compression/fixed": {
+      "full": {
+        "admitted": 6,
+        "deferred_or_unlocalized": 4,
+        "evidence_ids": 14,
+        "admitted_evidence_ids": 7,
+        "reasons": {
+          "nonchronological_turn_hypothesis": 4,
+          "large_intra_turn_gap_review_only": 2,
+          "unselected_context": 3,
+          "activity_without_lexical_timing": 4,
+          "partial_source_dialogue": 1
+        },
+        "admitted_target_seconds": 28.0605
+      },
+      "without_inventory": {
+        "admitted": 5,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 5,
+        "admitted_evidence_ids": 5,
+        "reasons": {
+          "partial_source_dialogue": 1,
+          "activity_without_lexical_timing": 4
+        },
+        "admitted_target_seconds": 18.678
+      },
+      "corrected_dispositions": 2
+    },
+    "runs/compression/local_a": {
+      "full": {
+        "admitted": 2,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 1,
+        "admitted_evidence_ids": 1,
+        "reasons": {
+          "large_intra_turn_gap_review_only": 2
+        },
+        "admitted_target_seconds": 6.0
+      },
+      "without_inventory": {
+        "admitted": 0,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 0,
+        "admitted_evidence_ids": 0,
+        "reasons": {},
+        "admitted_target_seconds": 0
+      },
+      "corrected_dispositions": 0
+    },
+    "runs/compression/local_b": {
+      "full": {
+        "admitted": 0,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 0,
+        "admitted_evidence_ids": 0,
+        "reasons": {},
+        "admitted_target_seconds": 0
+      },
+      "without_inventory": {
+        "admitted": 0,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 0,
+        "admitted_evidence_ids": 0,
+        "reasons": {},
+        "admitted_target_seconds": 0
+      },
+      "corrected_dispositions": 0
+    },
+    "runs/compression/pause_aware": {
+      "full": {
+        "admitted": 4,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 52,
+        "admitted_evidence_ids": 52,
+        "reasons": {
+          "large_intra_turn_gap_review_only": 2,
+          "partial_source_dialogue": 3,
+          "unassociated_native_observations": 3,
+          "unselected_context": 2,
+          "untimed_occurrence": 3,
+          "activity_without_lexical_timing": 1
+        },
+        "admitted_target_seconds": 43.4551
+      },
+      "without_inventory": {
+        "admitted": 6,
+        "deferred_or_unlocalized": 1,
+        "evidence_ids": 9,
+        "admitted_evidence_ids": 8,
+        "reasons": {
+          "partial_source_dialogue": 6,
+          "activity_without_lexical_timing": 1
+        },
+        "admitted_target_seconds": 25.2515
+      },
+      "corrected_dispositions": 2
+    },
+    "runs/late_gap/fixed": {
+      "full": {
+        "admitted": 4,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 3,
+        "admitted_evidence_ids": 3,
+        "reasons": {
+          "large_intra_turn_gap_review_only": 2,
+          "activity_without_lexical_timing": 2
+        },
+        "admitted_target_seconds": 14.26
+      },
+      "without_inventory": {
+        "admitted": 2,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 2,
+        "admitted_evidence_ids": 2,
+        "reasons": {
+          "activity_without_lexical_timing": 2
+        },
+        "admitted_target_seconds": 8.26
+      },
+      "corrected_dispositions": 0
+    },
+    "runs/late_gap/local_a": {
+      "full": {
+        "admitted": 4,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 3,
+        "admitted_evidence_ids": 3,
+        "reasons": {
+          "large_intra_turn_gap_review_only": 2,
+          "activity_without_lexical_timing": 2
+        },
+        "admitted_target_seconds": 12.85
+      },
+      "without_inventory": {
+        "admitted": 2,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 2,
+        "admitted_evidence_ids": 2,
+        "reasons": {
+          "activity_without_lexical_timing": 2
+        },
+        "admitted_target_seconds": 6.85
+      },
+      "corrected_dispositions": 0
+    },
+    "runs/late_gap/local_b": {
+      "full": {
+        "admitted": 0,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 0,
+        "admitted_evidence_ids": 0,
+        "reasons": {},
+        "admitted_target_seconds": 0
+      },
+      "without_inventory": {
+        "admitted": 0,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 0,
+        "admitted_evidence_ids": 0,
+        "reasons": {},
+        "admitted_target_seconds": 0
+      },
+      "corrected_dispositions": 0
+    },
+    "runs/late_gap/pause_aware": {
+      "full": {
+        "admitted": 3,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 4,
+        "admitted_evidence_ids": 4,
+        "reasons": {
+          "activity_without_lexical_timing": 3
+        },
+        "admitted_target_seconds": 12.62
+      },
+      "without_inventory": {
+        "admitted": 3,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 4,
+        "admitted_evidence_ids": 4,
+        "reasons": {
+          "activity_without_lexical_timing": 3
+        },
+        "admitted_target_seconds": 12.62
+      },
+      "corrected_dispositions": 0
+    },
+    "runs/low_flag_control/fixed": {
+      "full": {
+        "admitted": 4,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 3,
+        "admitted_evidence_ids": 3,
+        "reasons": {
+          "large_intra_turn_gap_review_only": 2,
+          "unselected_context": 1,
+          "activity_without_lexical_timing": 1
+        },
+        "admitted_target_seconds": 12.02
+      },
+      "without_inventory": {
+        "admitted": 1,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 1,
+        "admitted_evidence_ids": 1,
+        "reasons": {
+          "activity_without_lexical_timing": 1
+        },
+        "admitted_target_seconds": 3.0
+      },
+      "corrected_dispositions": 0
+    },
+    "runs/low_flag_control/local_a": {
+      "full": {
+        "admitted": 2,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 1,
+        "admitted_evidence_ids": 1,
+        "reasons": {
+          "large_intra_turn_gap_review_only": 2
+        },
+        "admitted_target_seconds": 6.0
+      },
+      "without_inventory": {
+        "admitted": 0,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 0,
+        "admitted_evidence_ids": 0,
+        "reasons": {},
+        "admitted_target_seconds": 0
+      },
+      "corrected_dispositions": 0
+    },
+    "runs/low_flag_control/local_b": {
+      "full": {
+        "admitted": 4,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 2,
+        "admitted_evidence_ids": 2,
+        "reasons": {
+          "large_intra_turn_gap_review_only": 4
+        },
+        "admitted_target_seconds": 12.0
+      },
+      "without_inventory": {
+        "admitted": 0,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 0,
+        "admitted_evidence_ids": 0,
+        "reasons": {},
+        "admitted_target_seconds": 0
+      },
+      "corrected_dispositions": 0
+    },
+    "runs/low_flag_control/pause_aware": {
+      "full": {
+        "admitted": 6,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 7,
+        "admitted_evidence_ids": 7,
+        "reasons": {
+          "large_intra_turn_gap_review_only": 4,
+          "unselected_context": 4,
+          "boundary_conflict": 1
+        },
+        "admitted_target_seconds": 23.595
+      },
+      "without_inventory": {
+        "admitted": 1,
+        "deferred_or_unlocalized": 0,
+        "evidence_ids": 1,
+        "admitted_evidence_ids": 1,
+        "reasons": {
+          "boundary_conflict": 1
+        },
+        "admitted_target_seconds": 5.5249
+      },
+      "corrected_dispositions": 0
+    }
+  },
+  "corrected_dispositions": 4,
+  "comparison": "same new scheduler with/without occurrence inventory; not prior executable",
+  "acoustic_truth_accepted": false
+}

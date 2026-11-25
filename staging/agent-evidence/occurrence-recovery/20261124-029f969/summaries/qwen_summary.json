@@ -1,0 +1,22 @@
+{
+  "status": "completed",
+  "positive_recovered_units": 5,
+  "negative_recovered_units": {
+    "wrong_order": 0,
+    "zero_duration": 0
+  },
+  "metrics": {
+    "model_load_count": 1,
+    "align_count": 1,
+    "startup_wall_s": 6.7546,
+    "inference_wall_s": 1.7969981499481946,
+    "peak_gpu_allocated_bytes": 1881800192,
+    "device_used": "cuda:0",
+    "dtype": "torch.bfloat16",
+    "observed_dtype": "torch.bfloat16",
+    "cuda_allocated_bytes": 1841616896,
+    "model_load_wall_s": 5.5264
+  },
+  "negative_controls": "synthetic perturbations of real worker response",
+  "word_timing_truth_accepted": false
+}

@@ -1,0 +1,24 @@
+{
+  "repo_id": "fvanevski/nemovox",
+  "working_branch": "issue/17",
+  "issue_numbers": [
+    17,
+    18
+  ],
+  "base_commit_identity": "9dd863841f72ab5f9aebf5bb4deb322bee99edf1",
+  "prior_qualified_source_identity": "24f05c71b533ea7eb830ca7215f1690abcf415fc",
+  "prior_evidence_carrier_identity": "f0d27639cf18a4c3e983c4b3b66d1be9d840541b",
+  "tested_source_identity": "029f969b43c58d53fd27975ff122c097ead04167",
+  "tested_source_tree": "b4b26b6b8986cd9e26e38418a0de8b2125f8fd7d",
+  "evidence_carrier_identity": "published_in_commit_carrying_this_packet",
+  "source_files_modified": false,
+  "a3_archive_sha256": "805ab0e43275171b16c0beebbc6c938d15ed5b055d4a6e5b342180f46d61eefe",
+  "diagnostic_archive_sha256": "307c0a32bd4ae32008be0141d5ac12e066f96a728bfcb179c0b343bf2031fd7b",
+  "private_review_archive": {
+    "path": "/workspace/nvidia-transcribe/outputs/handbacks/occurrence-recovery-20261124-029f969/occurrence-recovery-review-029f969.tar.gz",
+    "bytes": 678713,
+    "sha256": "4d46e32e6f2459cb348389aa4362b6a3fdfd2dddba56391160cc8ef2773d6755",
+    "artifact_count": 51
+  },
+  "result": "PASS"
+}

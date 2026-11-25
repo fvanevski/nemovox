@@ -1,0 +1,24 @@
+{
+  "status": "observed",
+  "requests": 2,
+  "audio_seconds": 43.2,
+  "resource": {
+    "backend": "faster-whisper",
+    "version": "1.2.1",
+    "checkpoint_sha256": {
+      "model.bin": "69f74147e3334731bc3a76048724833325d2ec74642fb52620eda87352e3d4f1",
+      "config.json": "a9306624f5ec14270a014b647e5c316b6e03a662c369758d1b90697a7b0655b9",
+      "tokenizer.json": "6d8cbd7cd0d8d5815e478dac67b85a26bbe77c1f5e0c6d76d1ce2abc0e5f21ca",
+      "preprocessor_config.json": "7ccc62c6f2765af1f3b46c00c9b5894426835a05021c8b9c01eecb6dfb542711"
+    },
+    "device": "cpu",
+    "compute_type": "int8",
+    "resource_name": "whisper_local",
+    "resource_fingerprint": "9a288fff9c509d3fd64e2e03ce33bb6f61efdaeda9979cf4b8a861d3f8c03566"
+  },
+  "receipt_sha256": "885a4afdfd211cbea16fb43736b040b73a50807f8a41cae5d84199e25f9d3c61",
+  "wall_s": 19.725,
+  "observations": 2,
+  "acoustic_truth_accepted": false,
+  "errors": []
+}

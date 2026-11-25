@@ -1,0 +1,379 @@
+{
+  "status": "completed",
+  "regions": {
+    "compression": {
+      "absolute_media_region_s": [
+        260.0,
+        370.0
+      ],
+      "input_audio_sha256": "d6dbc44c59c5b608e31314f949f7acfa719aa50938473d1e2465d08cffa0fe2a",
+      "source_media_fingerprint": "8d6e97fa0c3b0c674baa4e1864e72ada463dd4f448c7f9e3e6aacfb8249548e9",
+      "language": "fr",
+      "primary": {
+        "crop": [
+          260.0,
+          370.0
+        ],
+        "audio_sha256": "d6dbc44c59c5b608e31314f949f7acfa719aa50938473d1e2465d08cffa0fe2a",
+        "chunks": 2,
+        "max_infer_s": 100.0,
+        "chunk_plan": {
+          "schema": "fixed/v1",
+          "policy": "fixed"
+        },
+        "projection_statuses": {
+          "exact": 2
+        },
+        "recognized_turns": 25,
+        "native_observations": 354,
+        "source_units": 354,
+        "dispositions": {
+          "selected_provisional": 299,
+          "alternate_not_selected": 43,
+          "context_candidate_unresolved": 12
+        },
+        "locality_statuses": {
+          "provisional": 36
+        },
+        "partial_provisional_spans": 1,
+        "utterances": 30,
+        "strictly_timed_rows": 30,
+        "wholly_untimed_rows": 0,
+        "wall_s": 94.1353,
+        "raw_response_sha256": [
+          "309d43b1f3cea91f41ab021ae862502793db419efec8a6c45ba9e4a0032befbb",
+          "e118399e649072d8e5aa76b65b92f825179bdb3b4a3d93172e1daadd4c7bf187"
+        ]
+      },
+      "original_source_ids_accounted_for": 30,
+      "canonical_rows": 30,
+      "primary_untimed": 0,
+      "canonical_untimed": 0,
+      "decisions": {},
+      "task_states": {
+        "observed": 4,
+        "deferred": 8
+      },
+      "occurrence_resolutions": {
+        "unresolved": 4
+      },
+      "acoustic_acquisition": {
+        "audio_seconds": 84.814,
+        "requests": 10,
+        "extra_contexts": 2,
+        "reused_requests": 0,
+        "wall_s": 6.9253
+      },
+      "independent": {
+        "status": "unresolved",
+        "requests": 4,
+        "audio_seconds": 27.108,
+        "wall_s": 37.1516,
+        "errors": [],
+        "cross_model_events": 0,
+        "deferred_targets": 2
+      },
+      "semantic_review_requested": false,
+      "acoustic_truth_accepted": false
+    },
+    "boundary": {
+      "absolute_media_region_s": [
+        570.0,
+        680.0
+      ],
+      "input_audio_sha256": "d53c26af1f8dc1e0cfeb3b19735b69973cf9a5512bce0664e8445fe27139f066",
+      "source_media_fingerprint": "8d6e97fa0c3b0c674baa4e1864e72ada463dd4f448c7f9e3e6aacfb8249548e9",
+      "language": "fr",
+      "primary": {
+        "crop": [
+          570.0,
+          680.0
+        ],
+        "audio_sha256": "d53c26af1f8dc1e0cfeb3b19735b69973cf9a5512bce0664e8445fe27139f066",
+        "chunks": 2,
+        "max_infer_s": 100.0,
+        "chunk_plan": {
+          "schema": "fixed/v1",
+          "policy": "fixed"
+        },
+        "projection_statuses": {
+          "exact": 2
+        },
+        "recognized_turns": 15,
+        "native_observations": 197,
+        "source_units": 192,
+        "dispositions": {
+          "selected_provisional": 157,
+          "context_candidate_unresolved": 14,
+          "alternate_not_selected": 13,
+          "selected_unlocalized": 8
+        },
+        "locality_statuses": {
+          "provisional": 21,
+          "unlocalized": 4
+        },
+        "partial_provisional_spans": 0,
+        "utterances": 16,
+        "strictly_timed_rows": 13,
+        "wholly_untimed_rows": 1,
+        "wall_s": 86.8575,
+        "raw_response_sha256": [
+          "745b6186878d9faf1df4a5a9b9e5f2c28da4b25ca8ef576b8c7352a6af3ae0fb",
+          "433e2f4e81b67ab7b71540132e1a3bfba1815688d12c0e98cc41e5a2a77c51ea"
+        ]
+      },
+      "original_source_ids_accounted_for": 16,
+      "canonical_rows": 16,
+      "primary_untimed": 1,
+      "canonical_untimed": 1,
+      "decisions": {
+        "unresolved_competing_source": 1,
+        "already_represented": 1
+      },
+      "task_states": {
+        "observed": 4,
+        "deferred": 3
+      },
+      "occurrence_resolutions": {
+        "unresolved": 8
+      },
+      "acoustic_acquisition": {
+        "audio_seconds": 135.13575,
+        "requests": 10,
+        "extra_contexts": 2,
+        "reused_requests": 0,
+        "wall_s": 6.0958
+      },
+      "independent": {
+        "status": "partial",
+        "requests": 4,
+        "audio_seconds": 68.898,
+        "wall_s": 38.3907,
+        "errors": [],
+        "cross_model_events": 1,
+        "deferred_targets": 2
+      },
+      "semantic_review_requested": false,
+      "acoustic_truth_accepted": false
+    },
+    "late_gap": {
+      "absolute_media_region_s": [
+        1160.0,
+        1270.0
+      ],
+      "input_audio_sha256": "a6a0818bc34929a783416bfd89fba03ea6fd480e46fbf4d184f48799658ff631",
+      "source_media_fingerprint": "8d6e97fa0c3b0c674baa4e1864e72ada463dd4f448c7f9e3e6aacfb8249548e9",
+      "language": "fr",
+      "primary": {
+        "crop": [
+          1160.0,
+          1270.0
+        ],
+        "audio_sha256": "a6a0818bc34929a783416bfd89fba03ea6fd480e46fbf4d184f48799658ff631",
+        "chunks": 2,
+        "max_infer_s": 100.0,
+        "chunk_plan": {
+          "schema": "fixed/v1",
+          "policy": "fixed"
+        },
+        "projection_statuses": {
+          "exact": 2
+        },
+        "recognized_turns": 6,
+        "native_observations": 129,
+        "source_units": 129,
+        "dispositions": {
+          "selected_provisional": 120,
+          "context_candidate_unresolved": 9
+        },
+        "locality_statuses": {
+          "provisional": 14
+        },
+        "partial_provisional_spans": 0,
+        "utterances": 14,
+        "strictly_timed_rows": 14,
+        "wholly_untimed_rows": 0,
+        "wall_s": 87.9071,
+        "raw_response_sha256": [
+          "cc529181149bf3268694baa737b86d5560bd8f8526966c67b7d660bceedf4b8e",
+          "51c0f97dadc04ac2e2e1ed7ef0cfc7bf4eccb6b938d5a487c0f5135850025878"
+        ]
+      },
+      "original_source_ids_accounted_for": 14,
+      "canonical_rows": 14,
+      "primary_untimed": 0,
+      "canonical_untimed": 0,
+      "decisions": {},
+      "task_states": {
+        "observed": 4
+      },
+      "occurrence_resolutions": {
+        "unresolved": 1
+      },
+      "acoustic_acquisition": {
+        "audio_seconds": 91.71,
+        "requests": 10,
+        "extra_contexts": 2,
+        "reused_requests": 0,
+        "wall_s": 4.6655
+      },
+      "independent": {
+        "status": "unresolved",
+        "requests": 4,
+        "audio_seconds": 21.6,
+        "wall_s": 33.2169,
+        "errors": [],
+        "cross_model_events": 0,
+        "deferred_targets": 1
+      },
+      "semantic_review_requested": false,
+      "acoustic_truth_accepted": false
+    },
+    "low_flag_control": {
+      "absolute_media_region_s": [
+        440.0,
+        550.0
+      ],
+      "input_audio_sha256": "c06aa97fa4a55e095105eb7846fcbad39a48ecf7e0d89cad1dfc8451091301f0",
+      "source_media_fingerprint": "8d6e97fa0c3b0c674baa4e1864e72ada463dd4f448c7f9e3e6aacfb8249548e9",
+      "language": "fr",
+      "primary": {
+        "crop": [
+          440.0,
+          550.0
+        ],
+        "audio_sha256": "c06aa97fa4a55e095105eb7846fcbad39a48ecf7e0d89cad1dfc8451091301f0",
+        "chunks": 2,
+        "max_infer_s": 100.0,
+        "chunk_plan": {
+          "schema": "fixed/v1",
+          "policy": "fixed"
+        },
+        "projection_statuses": {
+          "exact": 2
+        },
+        "recognized_turns": 9,
+        "native_observations": 97,
+        "source_units": 97,
+        "dispositions": {
+          "selected_provisional": 96,
+          "context_candidate_unresolved": 1
+        },
+        "locality_statuses": {
+          "provisional": 14
+        },
+        "partial_provisional_spans": 0,
+        "utterances": 14,
+        "strictly_timed_rows": 14,
+        "wholly_untimed_rows": 0,
+        "wall_s": 92.2313,
+        "raw_response_sha256": [
+          "0b2af17a461d79994e660bc920f5545b87cbd1f49ec154189f05f92bb21e1351",
+          "a4df4b57b5ab784fb82db627a87c5119723f7dced1029f4d1565b4fbe1cca407"
+        ]
+      },
+      "original_source_ids_accounted_for": 14,
+      "canonical_rows": 14,
+      "primary_untimed": 0,
+      "canonical_untimed": 0,
+      "decisions": {},
+      "task_states": {
+        "observed": 4
+      },
+      "occurrence_resolutions": {
+        "unresolved": 1
+      },
+      "acoustic_acquisition": {
+        "audio_seconds": 88.043,
+        "requests": 10,
+        "extra_contexts": 2,
+        "reused_requests": 0,
+        "wall_s": 5.1355
+      },
+      "independent": {
+        "status": "unresolved",
+        "requests": 4,
+        "audio_seconds": 21.672,
+        "wall_s": 35.2894,
+        "errors": [],
+        "cross_model_events": 0,
+        "deferred_targets": 2
+      },
+      "semantic_review_requested": false,
+      "acoustic_truth_accepted": false
+    },
+    "multilingual_control": {
+      "absolute_media_region_s": [
+        0.0,
+        10.38
+      ],
+      "input_audio_sha256": "e93e34578598c4930bad6f4c4e77945c9077c597371caf15da2a04ccc82c917a",
+      "source_media_fingerprint": "1e7f1d59962dd0f2bde2bb9caf410292729d1f296f7696aca86f241757a3d64e",
+      "language": "zh",
+      "primary": {
+        "crop": [
+          0.0,
+          10.38
+        ],
+        "audio_sha256": "e93e34578598c4930bad6f4c4e77945c9077c597371caf15da2a04ccc82c917a",
+        "chunks": 1,
+        "max_infer_s": 10.38,
+        "chunk_plan": {
+          "schema": "fixed/v1",
+          "policy": "fixed"
+        },
+        "projection_statuses": {
+          "exact": 1
+        },
+        "recognized_turns": 6,
+        "native_observations": 51,
+        "source_units": 51,
+        "dispositions": {
+          "selected_provisional": 51
+        },
+        "locality_statuses": {
+          "provisional": 6
+        },
+        "partial_provisional_spans": 0,
+        "utterances": 2,
+        "strictly_timed_rows": 2,
+        "wholly_untimed_rows": 0,
+        "wall_s": 88.3219,
+        "raw_response_sha256": [
+          "57c9623dac7b2a5b50646fa76b560a49635e41040da890ef2ff01ed9e70b66ad"
+        ]
+      },
+      "original_source_ids_accounted_for": 2,
+      "canonical_rows": 2,
+      "primary_untimed": 0,
+      "canonical_untimed": 0,
+      "decisions": {},
+      "task_states": {},
+      "occurrence_resolutions": {},
+      "acoustic_acquisition": {
+        "audio_seconds": 0.0,
+        "extra_contexts": 0,
+        "reused_requests": 0,
+        "wall_s": 0.0,
+        "requests": 0
+      },
+      "independent": {
+        "status": "no_targets",
+        "requests": 0,
+        "audio_seconds": 0.0,
+        "wall_s": null,
+        "errors": [],
+        "cross_model_events": 0,
+        "deferred_targets": 0
+      },
+      "semantic_review_requested": false,
+      "acoustic_truth_accepted": false
+    }
+  },
+  "multilingual_control": "executed",
+  "total_asr_requests": 49,
+  "total_asr_audio_seconds": 930.0828,
+  "comparison": "same current primary recording before/after bounded acoustic recovery",
+  "semantic_review_requested": false,
+  "acoustic_truth_accepted": false
+}
