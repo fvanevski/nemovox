@@ -133,7 +133,8 @@ def replay(entries, case, outdir, baseline):
         changed_ids = {x["id"] for x in decisions}
         if original["utterances"][19]["id"] not in changed_ids:
             raise ValueError("Demonstrated anchor failure not repaired")
-        if not any("headed straight west" in x["candidate"].casefold() for x in decisions):
+        joined = " ".join(r["translated_text"] for r in rows[17:20]).casefold()
+        if "headed straight west" not in joined:
             raise ValueError("Joined westward meaning not restored")
     # A distinct offline derived contract, not a new live inference receipt.
     derived = dict(original, utterances=rows, translation_review=report)
