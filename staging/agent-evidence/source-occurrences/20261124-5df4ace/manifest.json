@@ -1,0 +1,105 @@
+{
+  "repo_id": "fvanevski/nemovox",
+  "issue_number": 17,
+  "working_branch": "issue/17",
+  "base_sha": "9dd863841f72ab5f9aebf5bb4deb322bee99edf1",
+  "prior_tested_sha": "a3b59a7898e6aa0509173d751a2c23409d5185a4",
+  "prior_evidence_sha": "b97c7f399c057deea4433dd5beb73719e4ae7b6f",
+  "tested_source_sha": "5df4ace871940cc71e651b04fbdeaa8f3bc1f69b",
+  "result": "PASS",
+  "execution_class": "CPU_ONLY",
+  "candidate_worktree": "/tmp/nemovox-issue17-a2.xa2g1o/candidate",
+  "core_python": "/workspace/nvidia-transcribe/.venv/bin/python",
+  "studio_python": "/workspace/nvidia-transcribe/.venv-studio/bin/python",
+  "private_diagnostic_archive_sha256": "307c0a32bd4ae32008be0141d5ac12e066f96a728bfcb179c0b343bf2031fd7b",
+  "exits": {
+    "compileall": 0,
+    "focused_tests": 0,
+    "cpu_tests": 0,
+    "studio_tests": 0,
+    "git_diff_check": 0,
+    "raw_replay": 0
+  },
+  "criteria_to_artifacts": {
+    "exact_candidate_and_source_runtime": [
+      "identity.txt"
+    ],
+    "a1_remediation_and_a2_locality_tests": [
+      "focused-tests.log",
+      "cpu-tests.log",
+      "studio-tests.log",
+      "compileall.log",
+      "git-diff-check.log"
+    ],
+    "extended_matched_raw_replay": [
+      "raw-replay/summary.json",
+      "raw-replay/private-details.json (private)",
+      "raw-replay/private-selection.json (private)"
+    ],
+    "lifecycle_resource_isolation": [
+      "resources.txt"
+    ],
+    "handback_and_friction": [
+      "HANDback.md",
+      "friction.json"
+    ]
+  },
+  "limitations_and_omissions": [
+    "No diff.patch produced because zero mechanical source edits were made.",
+    "raw-replay/private-details.json and raw-replay/private-selection.json are omitted from public GitHub evidence and delivered only in the private operator archive.",
+    "Matched offline replay is a policy ablation, not an exact historical executable or independent acoustic ground truth."
+  ],
+  "scope": "public_sanitized_github_evidence",
+  "artifacts": [
+    {
+      "path": "identity.txt",
+      "bytes": 1623,
+      "sha256": "b8dcbb8b6165a42b00446be28ff91182a2ac6801c333f0526738fb3adaf20344"
+    },
+    {
+      "path": "compileall.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "focused-tests.log",
+      "bytes": 908,
+      "sha256": "656f1fdf9a979d027d2d93ba3f202681e61667403ac369605bb7db9ed0b02442"
+    },
+    {
+      "path": "cpu-tests.log",
+      "bytes": 1229,
+      "sha256": "31793ebd37b1365312266d5ea69596fc6decfeea2d03cb5a815888d6a153d70b"
+    },
+    {
+      "path": "studio-tests.log",
+      "bytes": 99,
+      "sha256": "af5bc1aa31c6e2b7d8b7208215b6218e77748c11f14f994f359fb02bfa181c4f"
+    },
+    {
+      "path": "git-diff-check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "raw-replay/summary.json",
+      "bytes": 13616,
+      "sha256": "c921b651348c191c0b5a43dc36611c4933d47c74575cfc4f9e5058ac335c148d"
+    },
+    {
+      "path": "resources.txt",
+      "bytes": 769,
+      "sha256": "c51c24401a9117def39d1a341e31c67e82e1ef19b574ddc018752a067d100d73"
+    },
+    {
+      "path": "friction.json",
+      "bytes": 78,
+      "sha256": "6644850f48bdfab3541fc0ce179845dc300a422881ed615cddf4fbebe2ef220a"
+    },
+    {
+      "path": "HANDback.md",
+      "bytes": 7698,
+      "sha256": "093a120b10130137972ea9d992851c9f24ca8f512a36634bcd317801702233bc"
+    }
+  ]
+}

@@ -66,7 +66,6 @@ def build_parser() -> argparse.ArgumentParser:
     pm.add_argument("--audio-stream", type=int, default=0)
     pm.add_argument("--speaker-embeddings", default="none", choices=["titanet", "none"])
     pm.add_argument("--embedding-threshold", type=float, default=0.65)
-    pm.add_argument("--no-subinterval-recovery", action="store_true")
     pm.add_argument("--alignment-fallback", default="off", choices=["off", "qwen"])
     pm.add_argument("--fresh", action="store_true", help="Ignore previous manifest checkpoints and recompute all chunks.")
 
@@ -289,7 +288,6 @@ def main(argv: list[str] | None = None) -> int:
             audio_stream_index=args.audio_stream,
             speaker_embeddings=args.speaker_embeddings,
             embedding_threshold=args.embedding_threshold,
-            enable_subinterval_recovery=not args.no_subinterval_recovery,
             alignment_fallback=args.alignment_fallback,
             qwen_policy=args.qwen_policy,
             qwen_device=qwen_device,

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from nvidia_transcribe.alignment import ExternalForcedAligner, recover_chunk_alignment
+from nvidia_transcribe.alignment import recover_chunk_alignment
 from nvidia_transcribe.chunking import ChunkConfig, ChunkSpec, plan_chunks, reconcile_chunk_boundaries
 from nvidia_transcribe.client import InferenceRequestConfig, NemotronVLLMClient
 from nvidia_transcribe.asr_integrity import IncompleteASRGeneration, audit_asr_generation
@@ -24,6 +24,7 @@ from nvidia_transcribe.contract import (
 )
 from nvidia_transcribe.media import MediaInfo, compute_file_sha256, extract_wav_segment, probe_media, validate_wav_file
 from nvidia_transcribe.prompts import cleanup_generation_loops
+from nvidia_transcribe.source_occurrences import bind_occurrence_inventory, source_observation_id
 from nvidia_transcribe.qwen_aligner import (QwenAlignerConfig, QwenForcedAlignerAdapter, map_language_for_qwen_aligner)
 from nvidia_transcribe.selective_alignment import AdmissionPolicy, apply_selective_recovery, plan_selective_recovery
 from nvidia_transcribe.gpu_handoff import (ManagedASRBlocked, ManagedASRLifecycleError, ManagedASRConfig, managed_asr_handoff)
@@ -34,7 +35,7 @@ from nvidia_transcribe.speakers import (
     reconcile_speakers,
 )
 from nvidia_transcribe.utterances import reconstruct_speaker_utterances
-from nvidia_transcribe.timing_evidence import audit_ctc_timing_units
+from nvidia_transcribe.occurrence_locality import assess_occurrence_locality, refresh_span_ownership
 from nvidia_transcribe.speech_chunks import detect_silence_intervals, plan_pause_aware_chunks
 from nvidia_transcribe.source_events import build_source_evidence_ledger
 
@@ -50,7 +51,6 @@ class RecordingPipelineConfig:
     audio_stream_index: int = 0
     speaker_embeddings: str = "none"  # "titanet" | "none"
     embedding_threshold: float = 0.65
-    enable_subinterval_recovery: bool = True
     alignment_fallback: str = "off"  # "off" | "qwen"
     qwen_policy: str = "subtitle"     # "subtitle" | "fine"
     qwen_device: str = "cuda:0"      # "cuda:0" | "cpu" (explicit only)
@@ -191,7 +191,7 @@ def _config_signature(
     }
     # Current source contracts bind the actual plan; invalidate pre-consolidation checkpoints.
     payload.update({
-        "source_pipeline_schema": "current-job-source/v1",
+        "source_pipeline_schema": "current-job-source/v6",
         "chunk_policy": cfg.chunk_policy,
         "chunk_plan": [s.to_dict() for s in chunks] if chunks is not None else None,
         "chunk_plan_metadata": plan_metadata,
@@ -274,7 +274,6 @@ def process_media(
     client: NemotronVLLMClient,
     config: RecordingPipelineConfig | None = None,
     embedder: SpeakerEmbedder | None = None,
-    external_aligner: ExternalForcedAligner | None = None,
 ) -> dict[str, Any]:
     """Process a complete audio or video recording through bounded Nemotron chunks."""
     t_start = time.perf_counter()
@@ -579,10 +578,9 @@ def process_media(
             or any(a.core_end_s!=b.core_start_s for a,b in zip(effective_chunks,effective_chunks[1:]))):
         raise RuntimeError("Effective ASR cores do not cover the planned media")
     chunks=effective_chunks
-    raw_texts = [
-        cleanup_generation_loops((((r.get("choices") or [{}])[0]).get("message") or {}).get("content") or "")
-        for r in chunk_raws
-    ]
+    original_raw_texts = [(((r.get("choices") or [{}])[0]).get("message") or {}).get("content") or ""
+                          for r in chunk_raws]
+    raw_texts = [cleanup_generation_loops(text) for text in original_raw_texts]
 
     resolved_lang, lang_prov, lang_details = _resolve_recording_language(
         explicit_language=cfg.source_language,
@@ -601,9 +599,11 @@ def process_media(
     if lang_prov == "ambiguous":
         warnings.append(f"Source language detection was ambiguous: {lang_details}")
 
-    # Phase 1: finish *every* ASR/LID and native CTC/subinterval request
-    # before considering CUDA Qwen or a managed ASR vLLM release.
+    # Phase 1: preserve every primary observation before optional timing
+    # recovery. Failed CTC contributes unresolved occurrence evidence to the
+    # shared recovery planner; it cannot launch an unbudgeted native retry.
     native_records: list[dict[str, Any]] = []
+    occurrence_inventories: list[dict[str, Any]] = []
 
     def _extract_sub_wav(index: int, sub_start: float, sub_end: float) -> Path:
         duration = max(0.2, sub_end - sub_start)
@@ -616,36 +616,31 @@ def process_media(
         )
         return path
 
-    for idx, (spec, raw_resp, raw_text, wav_path) in enumerate(zip(chunks, chunk_raws, raw_texts, chunk_wavs)):
-        def _sub_wav_extract(sub_start: float, sub_end: float, _idx: int = idx) -> Path:
-            return _extract_sub_wav(_idx, sub_start, sub_end)
-
-        def _subinterval_runner(sub_start: float, sub_end: float, _idx: int = idx) -> tuple[str, Any]:
-            sub_wav = _extract_sub_wav(_idx, sub_start, sub_end)
-            sub_res = client.transcribe(
-                sub_wav,
-                InferenceRequestConfig(
-                    mode=cfg.mode, source_language=lang_hint_for_prompt,
-                    capture_ctc_timestamps=True, require_ctc_timestamps=False,
-                    source_offset_s=sub_start,
-                ),
-            )
-            return sub_res["contract"]["raw_text"], sub_res["raw_response"].get("ctc_timestamps")
-
+    for idx, (spec, raw_resp, raw_text) in enumerate(zip(chunks, chunk_raws, raw_texts)):
         rec = recover_chunk_alignment(
             raw_text=raw_text,
             ctc_payload=raw_resp.get("ctc_timestamps"),
             source_offset_s=spec.infer_start_s,
             chunk_index=idx,
             model_path=cfg.model_path,
-            subinterval_runner=_subinterval_runner if cfg.enable_subinterval_recovery else None,
-            # Caller-injected test aligners retain their existing API. Production
-            # Qwen no longer runs in this native-ASR phase.
-            external_aligner=external_aligner,
-            chunk_wav_path=wav_path,
             source_language=resolved_lang,
-            subinterval_wav_extractor=_sub_wav_extract,
         )
+        occurrence_inventories.append(bind_occurrence_inventory(
+            observation_id=source_observation_id(media.fingerprint_sha256,
+                chunk_manifest_entries[idx]["raw_response_sha256"], spec),
+            raw_text=original_raw_texts[idx], projected_text=raw_text, units=rec["units"],
+            native_observations=rec["diagnostic"].pop("native_ctc_observations"),
+        ))
+        audited, locality = assess_occurrence_locality(
+            rec["units"], infer_start_s=spec.infer_start_s, infer_end_s=spec.infer_end_s,
+        )
+        rec["units"] = audited
+        rec["diagnostic"]["timing_evidence"] = locality["timing_audit"]
+        if any(u["requires_acoustic_recovery"] for u in audited):
+            rec["diagnostic"]["status_before_timing_audit"] = rec["diagnostic"].get("status")
+            rec["diagnostic"]["status"] = "partial_timing_suspect"
+            rec["alignment_status"] = "partial_timing_suspect"
+        occurrence_inventories[-1]["locality"] = locality
         native_records.append(rec)
         raw_events.extend(
             extract_events_from_raw_text(
@@ -657,7 +652,7 @@ def process_media(
     # Keep an inspectable native timing checkpoint before any managed GPU
     # transition. A failed/blocked optional aligner never discards native work.
     qwen_metrics: dict[str, Any] = {"status": "disabled"}
-    if cfg.alignment_fallback == "qwen" and external_aligner is None:
+    if cfg.alignment_fallback == "qwen":
         _atomic_write_text(
             out_dir / "native-alignment.checkpoint.json",
             json.dumps({
@@ -675,8 +670,12 @@ def process_media(
             )
             for idx, (rec, spec) in enumerate(zip(native_records, chunks))
         ]
+        from nvidia_transcribe.recovery_planner import schedule_local_alignment
+        plans,alignment_budget = schedule_local_alignment(plans,
+            max_candidates=policy.max_recording_candidates,max_audio_s=policy.max_recording_audio_s)
         admitted = sum(len(cands) for cands, _ in plans)
         qwen_metrics = {
+            "recording_alignment_budget":alignment_budget,
             "status": "no_eligible_spans", "policy": cfg.qwen_policy,
             "eligible_candidates": admitted,
             "skipped_candidates": sum(
@@ -720,7 +719,7 @@ def process_media(
                                     chunk_start_s=spec.infer_start_s,
                                     chunk_end_s=spec.infer_end_s,
                                     chunk_index=idx, source_language=resolved_lang,
-                                    aligner=adapter, policy=policy,
+                                    aligner=adapter, policy=policy, planned=plans[idx],
                                     extract_wav=lambda start, end, _idx=idx: _extract_sub_wav(_idx, start, end),
                                 )
                             qwen_metrics.update(adapter.metrics)
@@ -771,29 +770,13 @@ def process_media(
                     "localized_spans": plan[1],
                 }
 
-    # Phase 2: audit CTC timing against actual inference excerpt bounds and
-    # local lexical sequence before trusting any words for global chronology.
-    # The raw responses, checkpoints and original wording are immutable.
-    for idx, rec in enumerate(native_records):
-        audited, timing_diag = audit_ctc_timing_units(
-            rec["units"],
-            infer_start_s=chunks[idx].infer_start_s,
-            infer_end_s=chunks[idx].infer_end_s,
-        )
-        rec["units"] = audited
-        rec["diagnostic"]["timing_evidence"] = timing_diag
-        if timing_diag["quarantined_units"]:
-            rec["diagnostic"]["status_before_timing_audit"] = rec["diagnostic"].get("status")
-            rec["diagnostic"]["status"] = "partial_timing_suspect"
-            rec["alignment_status"] = "partial_timing_suspect"
-
     # Phase 3: normalize speakers and build final utterances only after the
     # Qwen session has been torn down and ASR restoration verified.
     for idx, rec in enumerate(native_records):
+        refresh_span_ownership(rec["units"], occurrence_inventories[idx]["locality"])
         alignment_diagnostics.append(rec["diagnostic"])
         if rec["alignment_status"] not in (
             "ctc_aligned",
-            "subinterval_ctc_recovered",
             "external_recovered",
             "hybrid_ctc_and_external_recovered",
         ):
@@ -846,6 +829,8 @@ def process_media(
         diarization_by_chunk=[rec["diarization"] for rec in native_records],
     )
 
+    source_evidence["recognized_occurrence_inventories"] = occurrence_inventories
+
     # The immutable source ledger already contains model-derived activity
     # hypotheses. Use them ONLY to prioritize review of potentially missing
     # speech; this does not certify acoustic occurrence or alter source units.
@@ -859,12 +844,23 @@ def process_media(
         if idx is not None:
             semantic_activity_by_chunk.setdefault(idx, []).append(activity)
 
-    # Legacy v1 boundary acceptance stays unchanged pending independently
-    # adjudicated source revision; review candidates are diagnostic only.
+    # Boundary selection remains provisional. Resolve final disposition
+    # status against actual selected observations, not intermediate winners.
     merged_units, boundary_diag = reconcile_chunk_boundaries(
         chunk_units_norm, chunks,
         semantic_review_activity_by_chunk=semantic_activity_by_chunk,
     )
+
+    # Every original observation remains addressable even when an alternative
+    # is selected for rendering. Context-only evidence is a recovery input,
+    # not discarded text or a fabricated second spoken occurrence.
+    dispositions = {d["source_unit_id"]: d for d in boundary_diag["source_dispositions"]}
+    for row in source_evidence["lexical_observations"]:
+        row["boundary_disposition"] = dispositions[row["id"]]["status"]
+        row["boundary_decision"] = dispositions[row["id"]]
+    for inv in occurrence_inventories:
+        for span in inv["locality"]["spans"]:
+            span["selection_dispositions"] = [dispositions[uid] for uid in span["source_unit_ids"]]
 
     # Independent per-speaker utterance reconstruction anchored to true chunk bounds.
     chunk_windows = {c.chunk_index: (c.infer_start_s, c.infer_end_s) for c in chunks}
@@ -917,7 +913,8 @@ def process_media(
     source_evidence_path = out_dir / "source-evidence.v1.json"
     source_evidence_text = json.dumps(source_evidence, ensure_ascii=False, indent=2)
     _atomic_write_text(source_evidence_path, source_evidence_text)
-    _atomic_write_text(contract_path, json.dumps(contract, ensure_ascii=False, indent=2))
+    contract_text = json.dumps(contract, ensure_ascii=False, indent=2)
+    _atomic_write_text(contract_path, contract_text)
     _atomic_write_text(transcript_path, _format_transcript_txt(contract))
     # This manifest digest binds the extra sidecar to a completed ASR run;
     # a standalone/stale sidecar is never proof of a current transcript.
@@ -927,6 +924,7 @@ def process_media(
         "sha256": _sha256_text(source_evidence_text),
         "mode": "shadow_observation_only",
     }
+    manifest_state["recording_contract_sha256"] = _sha256_text(contract_text)
     manifest_state["asr_run_status"] = "completed"
     _atomic_write_text(manifest_path, json.dumps(manifest_state, ensure_ascii=False, indent=2))
 

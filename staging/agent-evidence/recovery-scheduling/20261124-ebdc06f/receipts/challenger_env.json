@@ -1,0 +1,23 @@
+{
+  "venv": "/workspace/nvidia-transcribe/.venv-challenger",
+  "reused_without_reinstall": true,
+  "python_version": "3.12.14",
+  "requirements_challenger_match": {
+    "faster-whisper": {
+      "installed": "1.2.1",
+      "expected": "1.2.1",
+      "match": true
+    },
+    "ctranslate2": {
+      "installed": "4.9.1",
+      "expected": "4.9.1",
+      "match": true
+    },
+    "av": {
+      "installed": "18.0.0",
+      "expected": "18.0.0",
+      "match": true
+    }
+  },
+  "uv_pip_check": "All installed packages are compatible (23 packages)"
+}

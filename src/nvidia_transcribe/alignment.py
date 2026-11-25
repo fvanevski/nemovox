@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Callable, Protocol
 
 from nvidia_transcribe.checkpoint import DEFAULT_MODEL_PATH
+from nvidia_transcribe.source_occurrences import associate_native_ctc
 from nvidia_transcribe.parser import ParsedCTCAlignment, parse_ctc_timestamps, parse_speaker_turns, split_lexical_units
 
 
@@ -116,7 +117,7 @@ def _build_original_unit_skeleton(
         clean_turn_text = turn.text or ""
         cursor = 0
         first_in_turn = True
-        for lex in split_lexical_units(clean_turn_text):
+        for token_position, lex in enumerate(split_lexical_units(clean_turn_text)):
             tok = lex["text"]
             found = clean_turn_text.find(tok, cursor)
             join_no_space = False
@@ -128,8 +129,9 @@ def _build_original_unit_skeleton(
             # Attach pure trailing punctuation directly onto preceding unit so CJK sentences like "好。"
             # stay unified with CTC word tokens and do not create spurious untimed punctuation gaps.
             if skeleton and _norm_align_tok(tok) == "" and all(ch in ".,!?;:、，。！？；：）］】》」』”’'\"" for ch in tok):
-                if skeleton[-1]["speaker"] == spk_val:
+                if skeleton[-1]["recognized_turn_index"] == turn.turn_index:
                     skeleton[-1]["text"] += tok
+                    skeleton[-1]["recognized_token_positions"].append(token_position)
                     continue
             skeleton.append(
                 {
@@ -145,6 +147,8 @@ def _build_original_unit_skeleton(
                     "raw_end": None,
                     "chunk_index": chunk_index,
                     "source_unit_index": len(skeleton),
+                    "recognized_turn_index": turn.turn_index,
+                    "recognized_token_positions": [token_position],
                     "join_no_space_prev": join_no_space,
                     "alignment_status": "diarization_bounded_only" if has_diarization else "untimed",
                 }
@@ -400,42 +404,36 @@ def recover_chunk_alignment(
                     ("loaded" if vocab_chars else "unavailable"))
     oov_chars = find_ctc_oov_characters(raw_text, vocab_chars)
 
+    # The original recognized text is the lexical spine for every CTC outcome.
+    diar_list = [d.to_dict() for d in parsed.diarization]
+    orig_units = _build_original_unit_skeleton(
+        raw_text, chunk_index=chunk_index, timing_error=parsed.error,
+        has_diarization=bool(diar_list),
+    )
+    native_observations = associate_native_ctc(orig_units, parsed, ctc_payload)
     if parsed.error is None and parsed.units:
-        raw_units = [
-            {
-                **u.to_dict(),
-                "chunk_index": chunk_index,
-                "alignment_status": "ctc_aligned" if u.valid_timing else "invalid_timing",
-            }
-            for u in parsed.units
-        ]
-        units_out = annotate_units_with_source_spacing(raw_units, raw_text)
+        untimed = sum(not u["valid_timing"] for u in orig_units)
+        unresolved = sum("source_unit_index" not in o for o in native_observations)
+        complete = not (untimed or unresolved or parsed.invalid_timing_count)
         return {
-            "units": units_out,
-            "diarization": [d.to_dict() for d in parsed.diarization],
+            "units": orig_units,
+            "diarization": diar_list,
             "speaker_mapping": dict(parsed.speaker_mapping),
-            "alignment_status": "ctc_aligned" if parsed.invalid_timing_count == 0 else "partial",
+            "alignment_status": "ctc_aligned" if complete else "partial",
             "diagnostic": {
                 "chunk_index": chunk_index,
-                "status": "ok" if parsed.invalid_timing_count == 0 else "partial_invalid_units",
+                "status": "ok" if complete else "partial_invalid_units",
                 "ctc_error": None,
                 "oov_characters": oov_chars,
                 "ctc_vocabulary_status": vocab_status,
                 "invalid_timing_count": parsed.invalid_timing_count,
                 "recovery_attempted": False,
                 "recovered_units": 0,
-                "untimed_units": parsed.invalid_timing_count,
+                "untimed_units": untimed,
+                "native_ctc_observations": native_observations,
+                "unassociated_ctc_observations": unresolved,
             },
         }
-
-    # Build immutable canonical sequence from original full-chunk transcript
-    diar_list = [d.to_dict() for d in parsed.diarization]
-    orig_units = _build_original_unit_skeleton(
-        raw_text,
-        chunk_index=chunk_index,
-        timing_error=parsed.error,
-        has_diarization=bool(diar_list),
-    )
 
     sub_windows = group_diarization_windows(diar_list)
     recovery_attempted = False
@@ -490,6 +488,7 @@ def recover_chunk_alignment(
                     "diagnostic": {
                         "chunk_index": chunk_index,
                         "status": status,
+                        "native_ctc_observations": native_observations,
                         "ctc_error": parsed.error,
                         "oov_characters": oov_chars,
                         "ctc_vocabulary_status": vocab_status,
@@ -709,6 +708,7 @@ def recover_chunk_alignment(
                     "diagnostic": {
                         "chunk_index": chunk_index,
                         "status": status,
+                        "native_ctc_observations": native_observations,
                         "ctc_error": parsed.error,
                         "oov_characters": oov_chars,
                         "ctc_vocabulary_status": vocab_status,
@@ -734,6 +734,7 @@ def recover_chunk_alignment(
         "diagnostic": {
             "chunk_index": chunk_index,
             "status": status,
+            "native_ctc_observations": native_observations,
             "ctc_error": parsed.error or "missing_ctc_metadata",
             "oov_characters": oov_chars,
             "ctc_vocabulary_status": vocab_status,

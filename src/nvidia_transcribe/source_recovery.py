@@ -9,11 +9,13 @@ import json
 import os
 import subprocess
 import tempfile
+import time
 from difflib import SequenceMatcher
 from pathlib import Path
 
 from nvidia_transcribe.media import extract_wav_segment, validate_wav_file
 from nvidia_transcribe.source_quality import _bounds, _digest, _lex, _overlap
+from nvidia_transcribe.source_occurrences import stable_id
 
 
 MAX_TARGETS = 6
@@ -46,7 +48,7 @@ def _untimed_runs(rows):
         i = j
 
 
-def plan_recovery(recording, observations):
+def _independent_candidates(recording, observations):
     rows = recording["utterances"]
     targets = []
     for i,j,bounds in _untimed_runs(rows):
@@ -69,7 +71,80 @@ def plan_recovery(recording, observations):
                     t["bounds"][1]-t["bounds"][0],bounds[1]-bounds[0]) for t in candidates):
                 continue
             candidates.append({"kind":"omission","bounds":bounds,"ids":[]})
-    return (targets+candidates)[:MAX_TARGETS]
+    return targets+candidates
+
+
+def plan_recovery(recording, observations):
+    """Small standalone planner used by the independent resolver controls."""
+    return _independent_candidates(recording,observations)[:MAX_TARGETS]
+
+
+def independent_crops(bounds,duration):
+    a,b = bounds
+    length = b-a
+    return [(max(0.,a-pad),min(duration,b+pad))
+            for pad in (max(.5,length*.20),max(1.,length*.60))]
+
+
+def schedule_independent(recording,observations,*,windows,policy):
+    """Select independent work from already observed shared tasks.
+
+    Specialized existing untimed/omission hypotheses must fit a task and
+    positive acquisition coverage. Unmatched disputed tasks can request
+    cross-model evidence without automatically authorizing replacement.
+    """
+    duration = recording["source"]["duration_s"]
+    observed = [w for w in windows if w.get("state")=="observed"]
+    proposals = []
+    for task in observed:
+        bounds = task["window"]
+        task_observations = [o for o in observations if task["task_id"] in o.get("task_ids",[])]
+        specialized = _independent_candidates(recording,task_observations)
+        relevant = [t for t in specialized if _overlap(t["bounds"],bounds)>0
+                    and t["bounds"][1]-t["bounds"][0]>=.65
+                    and bounds[0]-.01<=t["bounds"][0]<t["bounds"][1]<=bounds[1]+.01]
+        # Prefer an explicit original untimed run over unbound omission.
+        candidates = sorted(relevant,key=lambda t:(t["kind"]!="untimed",t["bounds"]))
+        if not candidates and (task.get("priority",4)<=2 or
+                not any(o.get("utterances") for o in observations
+                        if task["task_id"] in o.get("task_ids",[]))):
+            candidates = [{"kind":"occurrence","bounds":bounds,
+                           "ids":task.get("source_ids",[])}]
+        for t in candidates:
+            uid = stable_id("independent",[recording["source"]["fingerprint_sha256"],
+                                           t["kind"],t["bounds"],t["ids"]])
+            old = next((p for p in proposals if p["target_id"]==uid),None)
+            if old:
+                for key,items in (("task_ids",[task["task_id"]]),("evidence_ids",task["evidence_ids"]),
+                                  ("chunks",task["chunks"])):
+                    old[key] = sorted(set(old[key]+items))
+                continue
+            proposals.append({**t,"target_id":uid,"task_ids":[task["task_id"]],
+                              "evidence_ids":list(task["evidence_ids"]),"chunks":list(task["chunks"])})
+    admitted,deferred = [],[]
+    audio_s = 0.
+    # Priority must apply to the complete independent queue, not just
+    # within each Nemotron task. A later tightly bracketed original run
+    # must not be starved by earlier broad occurrence scans.
+    task_rank={w["task_id"]:i for i,w in enumerate(observed)}
+    task_priority={w["task_id"]:w.get("priority",4) for w in observed}
+    proposals.sort(key=lambda t:(
+        t["kind"]!="untimed",
+        min(task_priority[uid] for uid in t["task_ids"]),
+        t["kind"]!="omission",
+        min(task_rank[uid] for uid in t["task_ids"])))
+    for t in proposals:
+        crops = independent_crops(t["bounds"],duration)
+        cost = sum(b-a for a,b in crops)
+        reason = ("insufficient_distinct_context" if crops[0]==crops[1] else
+                  "independent_target_budget" if len(admitted)>=policy.max_independent_targets else
+                  "independent_audio_budget" if audio_s+cost>policy.max_independent_audio_s else None)
+        if reason:
+            deferred.append({**t,"state":"deferred","defer_reason":reason})
+        else:
+            admitted.append({**t,"state":"admitted","crops":crops})
+            audio_s += cost
+    return admitted,deferred
 
 
 def _interior(row, observation):
@@ -125,6 +200,11 @@ def _associate_originals(original, candidate, language):
                 other = set(old.get("chunk_indices") or [])
                 if not contained or not chunks or not other or chunks & other:
                     return None
+                # Cross-chunk membership is not proof of identity. Bound
+                # occurrence rows need explicit shared observation lineage.
+                if (row.get("source_unit_ids") or old.get("source_unit_ids")) and not (
+                    set(row.get("source_unit_ids",[])) & set(old.get("source_unit_ids",[]))):
+                    return None
             elif start < old_end:
                 return None
         spans.append((start,end,row))
@@ -169,7 +249,12 @@ def _associate_originals(original, candidate, language):
         if (not matches or sum(m.size for m in matches)/len(observed_words)<.55
                 or not _anchor(original_words,observed_words,language)):
             return None
-    return [g for _,g in grouped]
+    associations=[]
+    for index,group in grouped:
+        lo,hi,_=unique[index]
+        origins=[row for a,b,row in spans if lo<=a and b<=hi]
+        associations.append((group,origins))
+    return associations
 
 
 def _associate_recoverable_run(original,candidate,language):
@@ -208,6 +293,11 @@ def _make_row(recording, group, origins, pair, evidence, chunks):
             "chunk_indices":sorted(chunks),"alignment_status":"independent_event_bounds_approximate",
             "source_quality_status":"unresolved_wording_independent_recovery",
             "prior_source_hypotheses":origins,
+            "source_occurrence_ids":[uid],
+            "source_lineage":{"prior_candidate_source_ids":[r["id"] for r in origins],
+                "prior_candidate_span_ids":sorted({sid for r in origins for sid in r.get("occurrence_span_ids",[])}),
+                "acoustic_observation_ids":[r["observation_id"] for r in group],
+                "source_word_timing_accepted":False},
             "timestamp_provenance":{"backend":"independent_asr_segment_estimates",
                "timing_status":"approximate","human_verified":False,"word_timing_verified":False,
                "audio_sha256":[p["audio_sha256"] for p in pair],
@@ -221,7 +311,10 @@ def apply_independent(recording, targets, observations, independent):
     decisions = []
     lang = recording["source_language"]
     for index,t in enumerate(targets):
-        pair = [o for o in independent if o["id"] in (f"challenge-{index}-0",f"challenge-{index}-1")]
+        if t["kind"] not in ("untimed","omission"):
+            continue
+        target_id = t.get("target_id",f"challenge-{index}")
+        pair = [o for o in independent if o["id"] in (target_id+"-0",target_id+"-1")]
         if len(pair)!=2 or pair[0]["audio_sha256"]==pair[1]["audio_sha256"] or pair[0]["crop"]==pair[1]["crop"]:
             continue
         a,b = t["bounds"]
@@ -286,7 +379,20 @@ def apply_independent(recording, targets, observations, independent):
             resolved=originals[lo:hi]
             residual=[*originals[:lo],*originals[hi:]]
             chunks.update(c for r in resolved for c in r.get("chunk_indices",[]))
-            replacement=[_make_row(recording,g,resolved,pair,support,chunks) for g in groups]
+            replacement=[]
+            for group,associated in groups:
+                new=_make_row(recording,group,resolved,pair,support,chunks)
+                new["source_lineage"]["associated_prior_source_ids"]=[r["id"] for r in associated]
+                if len(associated)==1:
+                    original=associated[0]
+                    uid=original["id"]
+                    new.update(id=uid,utterance_id=uid,source_turn_id=uid,
+                               source_turn_ids=[uid],source_occurrence_ids=[uid])
+                    for key in ("source_unit_ids","recognized_turn_ids","occurrence_span_ids"):
+                        new[key]=list(original.get(key,[]))
+                replacement.append(new)
+            if len({r["id"] for r in replacement})!=len(replacement):
+                continue
             # Preserve unresolved original fragments in their original
             # relative order, with no fabricated duration or deletion.
             rows[positions[0]:positions[-1]+1]=[
@@ -298,8 +404,9 @@ def apply_independent(recording, targets, observations, independent):
             # A competing timed or untimed lexical occurrence can be a
             # displaced duplicate. Do not insert in that situation.
             if (len({r["audio_sha256"] for r in support})<2 or
-                    any(_anchor(y,_lex(r["source_text"]),lang)
-                        and (not _bounds(r) or abs(r["source_start"]-a)<60) for r in rows)):
+                    any(_lex(r["source_text"])==y or
+                        (_anchor(y,_lex(r["source_text"]),lang)
+                         and (not _bounds(r) or abs(r["source_start"]-a)<60)) for r in rows)):
                 continue
             # No merging distinct unverified speech turns.
             if len(first)!=1 or len(second)!=1:
@@ -309,6 +416,8 @@ def apply_independent(recording, targets, observations, independent):
             rows[pos:pos]=replacement
         decisions.append({"status":"unresolved_wording_independent_recovery","kind":t["kind"],
                           "target":t,"window":span,"source_ids":[r["id"] for r in replacement],
+                          "trigger_evidence_ids":list(t.get("evidence_ids",[])),
+                          "recovery_task_ids":list(t.get("task_ids",[])),
                           "observation_ids":[r["observation_id"] for r in second],
                           "edge_observation_used_as_corroboration":edge_support,
                           "timing_source_audio_sha256":pair[-1]["audio_sha256"],
@@ -316,57 +425,74 @@ def apply_independent(recording, targets, observations, independent):
     return rows,decisions
 
 
-def recover_independent_source(recording,observations,media,*,challenger_resource,output_dir):
-    report={"status":"not_configured","targets":[],"decisions":[],"errors":[],
-            "observations":[]}
-    rows=recording["utterances"]
+def acquire_independent_evidence(recording,targets,media,*,challenger_resource,output_dir,policy):
+    report={"status":"not_configured","targets":targets,"decisions":[],"errors":[],
+            "observations":[],"audio_seconds":0.,"requests":0}
+    if not targets:
+        report["status"]="no_targets"
+        return report
     if challenger_resource is None:
-        return rows,report
+        return report
     language=recording["source_language"]
     if not isinstance(language,str) or len(language.split("-")[0])!=2:
         report["status"]="unsupported_language"
-        return rows,report
-    targets=plan_recovery(recording,observations)
-    report["targets"]=targets
-    if not targets:
-        report["status"]="no_targets"
-        return rows,report
-    with tempfile.TemporaryDirectory(prefix="independent-source-",dir=output_dir) as tmp:
-        root=Path(tmp)
-        crops=[]
-        for i,t in enumerate(targets):
-            a,b=t["bounds"]
-            length=b-a
-            # Different amounts of surrounding context, scaled to the
-            # candidate occurrence/run instead of fixed episode crop sizes.
-            for j,pad in enumerate((max(.5,length*.20),max(1.,length*.60))):
-                lo,hi=max(0.,a-pad),min(media.duration_s,b+pad)
-                path=root/f"challenge-{i}-{j}.wav"
-                extract_wav_segment(media.path,start_s=lo,duration_s=hi-lo,out_wav=path,
-                                    audio_stream_index=media.selected_audio_stream)
-                duration,digest=validate_wav_file(path)
-                if abs(duration-(hi-lo))>.1:
-                    raise ValueError("Independent crop duration mismatch")
-                crops.append({"id":path.stem,"path":str(path),"start":lo,"end":hi,"audio_sha256":digest})
-        request={"checkpoint":challenger_resource.checkpoint_path,"language":language.split("-")[0],"crops":crops}
-        try:
+        return report
+    started = time.monotonic()
+    try:
+        if (challenger_resource.adapter!="whisper_cpu" or challenger_resource.device!="cpu"
+                or not Path(challenger_resource.worker_python).is_file()
+                or not Path(challenger_resource.checkpoint_path).is_dir()):
+            raise ValueError("Explicit cached CPU challenger resource unavailable")
+        with tempfile.TemporaryDirectory(prefix="independent-source-",dir=output_dir) as tmp:
+            root=Path(tmp)
+            crops=[]
+            for t in targets:
+                for j,(lo,hi) in enumerate(t["crops"]):
+                    path=root/(t["target_id"]+f"-{j}.wav")
+                    extract_wav_segment(media.path,start_s=lo,duration_s=hi-lo,out_wav=path,
+                                        audio_stream_index=media.selected_audio_stream)
+                    duration,digest=validate_wav_file(path)
+                    if abs(duration-(hi-lo))>.1:
+                        raise ValueError("Independent crop duration mismatch")
+                    crops.append({"id":path.stem,"path":str(path),"start":lo,"end":hi,"audio_sha256":digest})
+            report["audio_seconds"]=round(sum(c["end"]-c["start"] for c in crops),6)
+            if report["audio_seconds"]>policy.max_independent_audio_s+1e-6:
+                raise ValueError("Independent audio budget exceeded")
+            request={"checkpoint":challenger_resource.checkpoint_path,
+                     "language":language.split("-")[0],"crops":crops}
+            remaining=policy.max_independent_wall_s-(time.monotonic()-started)
+            if remaining<=0:
+                raise TimeoutError("Independent preparation exhausted wall budget")
+            report["requests"]=len(crops)
             proc=subprocess.run([challenger_resource.worker_python,
                 str(Path(__file__).with_name("_whisper_challenge_worker.py"))],
-                input=json.dumps(request),text=True,capture_output=True,timeout=900,
-                env={**os.environ,"HF_HUB_OFFLINE":"1","TRANSFORMERS_OFFLINE":"1"})
+                input=json.dumps(request),text=True,capture_output=True,timeout=remaining,
+                env={**os.environ,"HF_HUB_OFFLINE":"1","TRANSFORMERS_OFFLINE":"1","CUDA_VISIBLE_DEVICES":""})
             if proc.returncode:
                 raise RuntimeError(f"Independent worker exited {proc.returncode}: {proc.stderr[-2000:]}")
             result=json.loads(proc.stdout)
             expected={c["id"]:(c["audio_sha256"],[c["start"],c["end"]]) for c in crops}
             actual={o["id"]:(o["audio_sha256"],o["crop"]) for o in result["observations"]}
-            if expected!=actual or len(actual)!=len(result["observations"]) or result["device"]!="cpu":
+            if (expected!=actual or len(actual)!=len(result["observations"])
+                    or result["device"]!="cpu" or result["backend"]!="faster-whisper"
+                    or result["compute_type"]!="int8"):
                 raise ValueError("Independent worker receipt mismatch")
+            seen=set()
+            for obs in result["observations"]:
+                for row in obs["rows"]:
+                    b=_bounds(row)
+                    if (not b or not obs["crop"][0]<=b[0]<b[1]<=obs["crop"][1]+.01
+                            or row["observation_id"] in seen):
+                        raise ValueError("Invalid independent observation identity or bounds")
+                    seen.add(row["observation_id"])
             report["observations"]=result["observations"]
-            report["resource"]={k:v for k,v in result.items() if k!="observations"}
-            rows,report["decisions"]=apply_independent(recording,targets,observations,result["observations"])
-            report["status"]="partial" if report["decisions"] else "unresolved"
-        except (OSError,ValueError,KeyError,RuntimeError,subprocess.TimeoutExpired) as exc:
-            report["status"]="error"
-            report["errors"].append({"stage":"independent_asr","error":type(exc).__name__,"detail":str(exc)})
-            return recording["utterances"],report
-    return rows,report
+            report["resource"]={**{k:v for k,v in result.items() if k!="observations"},
+                "resource_name":challenger_resource.name,
+                "resource_fingerprint":challenger_resource.fingerprint()}
+            report["receipt_sha256"]=_digest(result)
+            report["status"]="observed"
+    except (OSError,ValueError,KeyError,TypeError,RuntimeError,subprocess.TimeoutExpired) as exc:
+        report["status"]="error"
+        report["errors"].append({"stage":"independent_asr","error":type(exc).__name__,"detail":str(exc)})
+    report["wall_s"]=round(time.monotonic()-started,4)
+    return report

@@ -1,0 +1,17 @@
+=== NVIDIA_SMI_BEFORE ===
+2026-11-25T01:04:27Z
+name, memory.used [MiB], memory.total [MiB], utilization.gpu [%]
+NVIDIA GeForce RTX 5090, 3104 MiB, 32607 MiB, 4 %
+pid, process_name, used_gpu_memory [MiB]
+11480, /usr/bin/kwin_wayland, 350 MiB
+1216176, /usr/local/bin/text-embeddings-router, 1726 MiB
+
+=== NVIDIA_SMI_AFTER ===
+2026-11-25T01:05:48Z
+name, memory.used [MiB], memory.total [MiB], utilization.gpu [%]
+NVIDIA GeForce RTX 5090, 3105 MiB, 32607 MiB, 4 %
+pid, process_name, used_gpu_memory [MiB]
+11480, /usr/bin/kwin_wayland, 351 MiB
+1216176, /usr/local/bin/text-embeddings-router, 1726 MiB
+=== MODEL_INFERENCE_OR_SERVICE_MUTATION ===
+none (CPU_ONLY campaign; no ASR/MT/LLM inference, no model downloads, no service restarts, no /workspace/pyannote modifications)

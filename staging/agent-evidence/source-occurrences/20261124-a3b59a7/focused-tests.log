@@ -1,0 +1,57 @@
+.....................................................................F.. [ 71%]
+.............................                                            [100%]
+=================================== FAILURES ===================================
+_ test_explicit_canonical_resume_preserves_order_evidence_and_messages_review __
+
+tmp_path = PosixPath('/tmp/pytest-of-filip/pytest-316/test_explicit_canonical_resume0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f748e9fd150>
+
+    def test_explicit_canonical_resume_preserves_order_evidence_and_messages_review(tmp_path, monkeypatch):
+        import json
+        from contextlib import contextmanager
+        from types import SimpleNamespace
+        from nvidia_transcribe import subtitle_pipeline as pipeline
+        from nvidia_transcribe.translation import TranslationConfig
+        from nvidia_transcribe.translation_review import TranslationReviewConfig
+    
+        record = _recording([_row("a", "Bonjour.", 4.2, 5.8),
+                             _row("b", "Bonsoir.", None, None)])
+        record["source_quality"] = {"schema": "nemovox-current-source-quality/v1",
+                                   "status": "partial",
+                                   "media_fingerprint_sha256": record["source"]["fingerprint_sha256"],
+                                   "source_language": record["source_language"]}
+        path = tmp_path / "canonical-source.contract.json"
+        path.write_text(json.dumps(record))
+        resource = SimpleNamespace(name="test", credential=lambda: None)
+        resources = {name: resource for name in ("asr", "source_refinement", "text_translation",
+                                                 "riva_translation", "translation_review")}
+        def forbidden(*a, **k):
+            raise AssertionError("Explicit canonical resume must not regenerate source")
+        @contextmanager
+        def text_scope(*a, **kw):
+            yield object()
+        def translate(rows, **kw):
+            assert [r["id"] for r in rows] == ["a", "b"]
+            assert [r["source_text"] for r in rows] == ["Bonjour.", "Bonsoir."]
+            return [{**r, "translated_text": "Hello."} for r in rows], {"backend": "riva"}
+        def review(rows, **kw):
+            assert kw["config"].wire_protocol == "ninfer_messages"
+            assert kw["config"].max_tokens == 8192
+            return [{**r, "machine_translated_text": "Hello."} for r in rows], {"status": "completed"}
+        for name in ("process_media", "review_current_source", "audit_and_reconstruct_contract"):
+>           monkeypatch.setattr(pipeline, name, forbidden)
+E           AttributeError: <module 'nvidia_transcribe.subtitle_pipeline' from '/tmp/nemovox-issue17-a1.acb5qC/candidate/src/nvidia_transcribe/subtitle_pipeline.py'> has no attribute 'audit_and_reconstruct_contract'
+
+tests/test_source_quality.py:410: AttributeError
+=============================== warnings summary ===============================
+../../../workspace/nvidia-transcribe/.venv/lib/python3.13/site-packages/anyio/pytest_plugin.py:14
+  /workspace/nvidia-transcribe/.venv/lib/python3.13/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+  The CallSpec2 alias will be removed in pytest 10.
+  Update imports to use CallSpec instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
+    from _pytest.python import CallSpec2
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_source_quality.py::test_explicit_canonical_resume_preserves_order_evidence_and_messages_review
+1 failed, 100 passed, 1 warning in 0.56s

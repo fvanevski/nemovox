@@ -15,6 +15,7 @@ from difflib import SequenceMatcher
 from typing import Any, Sequence
 
 from nvidia_transcribe.utterances import join_multilingual_units
+from nvidia_transcribe.source_occurrences import source_observation_id
 
 SCHEMA_VERSION = "nemovox-source-evidence/v1"
 
@@ -181,7 +182,7 @@ def build_source_evidence_ledger(
             raise ValueError(f"Invalid inference window for chunk {cidx}")
         if len(raw_sha) != 64 or any(ch not in "0123456789abcdef" for ch in raw_sha.lower()):
             raise ValueError(f"Chunk {cidx} lacks a raw-response SHA-256")
-        observation_id = _stable_id("asr", [media_fingerprint_sha256, cidx, raw_sha, start, end])
+        observation_id = source_observation_id(media_fingerprint_sha256, raw_sha, spec)
         chunk_rows: list[dict[str, Any]] = []
         asr_observations.append({
             "id": observation_id,
@@ -202,7 +203,13 @@ def build_source_evidence_ledger(
                 continue
             status, ts, te, reason = _timing_hypothesis(unit, start, end)
             row = {
-                "id": _stable_id("unit", [observation_id, ordinal, content]),
+                "id": unit.get("source_unit_id") or _stable_id("unit", [observation_id, ordinal, content]),
+                "recognized_turn_id": unit.get("recognized_turn_id"),
+                "raw_recognized_token_ids": unit.get("raw_recognized_token_ids", []),
+                "ctc_association_status": unit.get("ctc_association_status"),
+                "ctc_word_index": unit.get("ctc_word_index"),
+                "occurrence_span_id": unit.get("occurrence_span_id"),
+                "locality_status": unit.get("locality_status"),
                 "asr_observation_id": observation_id,
                 "chunk_index": cidx,
                 "source_ordinal": ordinal,
@@ -236,7 +243,7 @@ def build_source_evidence_ledger(
             if not run:
                 return
             turn_candidates.append({
-                "id": _stable_id("turncand", [row["id"] for row in run]),
+                "id": run[0].get("recognized_turn_id") or _stable_id("turncand", [row["id"] for row in run]),
                 "asr_observation_id": observation_id,
                 "local_speaker_id": run[0]["local_speaker_id"],
                 "unit_ids": [row["id"] for row in run],
@@ -248,7 +255,8 @@ def build_source_evidence_ledger(
 
         run: list[dict[str, Any]] = []
         for row in chunk_rows:
-            if run and row["local_speaker_id"] != run[0]["local_speaker_id"]:
+            if run and (row["recognized_turn_id"] != run[0]["recognized_turn_id"]
+                        or row["local_speaker_id"] != run[0]["local_speaker_id"]):
                 add_turn(run)
                 run = []
             run.append(row)

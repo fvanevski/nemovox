@@ -1,0 +1,5 @@
+core_py: /workspace/nvidia-transcribe/.venv/bin/python 3.13.15
+core_pkg: /tmp/nemovox-issue18-qual.4BKJfH/candidate/src/nvidia_transcribe/__init__.py
+runner: /tmp/nemovox-issue18-qual.4BKJfH/candidate/scripts/evaluate_occurrence_recovery.py
+studio_py: /workspace/nvidia-transcribe/.venv-studio/bin/python 3.13.15
+studio_pkg: /tmp/nemovox-issue18-qual.4BKJfH/candidate/src/nvidia_transcribe/__init__.py

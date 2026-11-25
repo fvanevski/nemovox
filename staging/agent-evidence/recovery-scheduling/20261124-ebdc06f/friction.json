@@ -1,0 +1,16 @@
+{
+  "events": [
+    {
+      "id": "friction-sched-01",
+      "event_kind": "evaluation_runner_type_mismatch",
+      "requested_shape": "PYTHONPATH=src /workspace/nvidia-transcribe/.venv/bin/python -m scripts.replay_recovery_schedule --archive <prior-archive> --output-dir <replay-dir>",
+      "effective_command": "PYTHONPATH=src /workspace/nvidia-transcribe/.venv/bin/python -m scripts.replay_recovery_schedule --archive /workspace/nvidia-transcribe/outputs/handbacks/occurrence-recovery-20261124-029f969/occurrence-recovery-review-029f969.tar.gz --output-dir /tmp/nemovox-issue18-sched.z7pQVZ/replay-only",
+      "execution_effect": "executed_failed (exit 1): ValueError: Explicit previously deferred target not admitted at scripts/replay_recovery_schedule.py:94",
+      "provenance": "scripts/replay_recovery_schedule.py:93 compares now[0]['bounds'] (tuple (91.535, 93.57) returned by schedule_independent) directly against prior[0]['bounds'] (list [91.535, 93.57] loaded from archived JSON source-quality.json); tuple != list evaluates True even though values are identical",
+      "contract_conflict": "SEMANTIC_REMEDIATION=forbidden and SOURCE_REMOTE_UPDATE=forbidden; candidate source left unmodified",
+      "correction": "Preserved exact literal runner failure and reproducer; executed the exact unmodified nvidia_transcribe functions (plan_recovery_windows, schedule_independent, resolution_receipts, acquire_independent_evidence, resolve_occurrences) via an external scratch driver using list(bounds) comparison to complete the 5-case replay and targeted CPU Whisper crop pair without modifying candidate source",
+      "status": "executed_failed_literal_runner_with_unmodified_core_completion",
+      "source_modified": false
+    }
+  ]
+}

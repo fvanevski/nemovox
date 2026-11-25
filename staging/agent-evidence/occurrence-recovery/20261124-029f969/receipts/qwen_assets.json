@@ -1,0 +1,16 @@
+{
+  "worker_python": "/workspace/nvidia-transcribe/outputs/modular-eval/.venv/bin/python",
+  "python_version": "3.12.14",
+  "torch_version": "2.15.0+cu132",
+  "cuda_available": true,
+  "transformers_version": "4.57.6",
+  "checkpoint_name": "Qwen3-ForcedAligner-0.6B",
+  "device": "cuda:0",
+  "checkpoint_sha256": {
+    "config.json": "d616c65d46c4b90bdc651b0a0963ea932732241140f337f9bb6b0335a9c8ef09",
+    "model.safetensors": "47831d0e82f96b20e9034dba01a075ee06436654719f6a68289e49f1b65ce0e7",
+    "preprocessor_config.json": "45e120a4eda2c20c5d7f2ea9354e63536bf35e27aa573fb7cdf78017b378770d",
+    "tokenizer_config.json": "3ab80063f8511deb9566e6ad438d17b7a2277fcffd52d92854112f19d36bd81c",
+    "vocab.json": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+  }
+}

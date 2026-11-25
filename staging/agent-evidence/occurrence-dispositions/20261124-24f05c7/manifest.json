@@ -1,0 +1,73 @@
+{
+  "repo_id": "fvanevski/nemovox",
+  "issue_number": 17,
+  "working_branch": "issue/17",
+  "base_sha": "9dd863841f72ab5f9aebf5bb4deb322bee99edf1",
+  "prior_cpu_qualified_sha": "5df4ace871940cc71e651b04fbdeaa8f3bc1f69b",
+  "prior_gpu_tested_sha": "13c0bb89637f1b451e8a3e7b115fa250a9b8de7d",
+  "prior_gpu_evidence_sha": "cc8907e7402e230e53696da770faa20a95d75b23",
+  "tested_source_sha": "24f05c71b533ea7eb830ca7215f1690abcf415fc",
+  "result": "PASS",
+  "execution_class": "CPU_ONLY",
+  "candidate_worktree": "/tmp/nemovox-issue17-disp.uonvyW/candidate",
+  "core_python": "/workspace/nvidia-transcribe/.venv/bin/python",
+  "studio_python": "/workspace/nvidia-transcribe/.venv-studio/bin/python",
+  "exits": {
+    "compileall": 0,
+    "focused_tests": 0,
+    "cpu_tests": 0,
+    "studio_tests": 0,
+    "git_diff_check": 0
+  },
+  "artifacts": [
+    {
+      "path": "identity.txt",
+      "bytes": 1195,
+      "sha256": "934b7d775d1d1568eb3899976c9fd785bb301de173b2eb10976b47754236ba77"
+    },
+    {
+      "path": "compileall.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "focused-tests.log",
+      "bytes": 827,
+      "sha256": "e546035c342842768a0a06cda3eb845f46d99cf6ee04991e1b10576d2a6312e2"
+    },
+    {
+      "path": "cpu-tests.log",
+      "bytes": 1229,
+      "sha256": "dfcd1d0fef81ff53af1c89bf6e01ca4b37dc63716f0d1dbd85cec4dbe577241d"
+    },
+    {
+      "path": "studio-tests.log",
+      "bytes": 99,
+      "sha256": "71b3e937f0ebb2fafcd40c6138295f8f3a9a505267cf83b43c8ea8781bbfaea0"
+    },
+    {
+      "path": "git-diff-check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "resources.txt",
+      "bytes": 702,
+      "sha256": "a39a5dcf7f54dd4c2b7f6c5fbbbda1750f6684ab8be18b3ecf87110f3210f944"
+    },
+    {
+      "path": "friction.json",
+      "bytes": 78,
+      "sha256": "6644850f48bdfab3541fc0ce179845dc300a422881ed615cddf4fbebe2ef220a"
+    },
+    {
+      "path": "HANDback.md",
+      "bytes": 2870,
+      "sha256": "65581e752dafc55836a5e998296ec9988b5fec073a0c182719e6277db7432228"
+    }
+  ],
+  "limitations_and_omissions": [
+    "No diff.patch produced because zero mechanical source edits were made.",
+    "No GPU campaign or historical A3 media/transcript duplication performed per controlling handoff."
+  ]
+}

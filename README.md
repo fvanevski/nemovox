@@ -170,3 +170,7 @@ remote downloads are retained independently of selected exports. See
 ### Optional speaker embeddings
 
 The normal CLI and Studio path uses existing ASR speaker tags and reconciliation without TitaNet. To use separately provisioned local TitaNet embeddings, explicitly select `--speaker-embeddings titanet` (or the Studio option). `generate-subtitles` also accepts `--audio-stream` and `--speaker-embeddings`, as does `process-media`. No implicit model download is required by the default path.
+
+### Occurrence-directed source recovery
+
+Current-source quality consumes the recognized-turn/occurrence ledger, schedules bounded localized acoustic observations and preserves explicit unresolved alternatives. Configure the optional CPU `source_challenger` role as described in [model resource configuration](docs/model-resources/CONFIGURATION.md) to enable independent faster-whisper evidence. No universal second transcription or word alignment is required. Fixed and pause-aware primary geometry options remain unchanged pending integrated qualification.

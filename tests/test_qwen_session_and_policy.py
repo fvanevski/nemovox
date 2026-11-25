@@ -319,7 +319,7 @@ def test_qwen_pipeline_finishes_all_native_chunks_before_worker(tmp_path: Path, 
         source, output_dir=tmp_path / "out", client=Client(),
         config=RecordingPipelineConfig(
             source_language="zh", speaker_embeddings="none",
-            enable_subinterval_recovery=False, alignment_fallback="qwen",
+            alignment_fallback="qwen",
             chunk_seconds=12, min_tail_seconds=5,
         ),
     )
@@ -513,7 +513,6 @@ def test_default_off_never_loads_worker_or_touches_managed_services(
         config=RecordingPipelineConfig(
             source_language="zh",
             speaker_embeddings="none",
-            enable_subinterval_recovery=False,
             alignment_fallback="off",
         ),
     )
@@ -965,7 +964,7 @@ def test_recording_propagates_typed_post_stop_failure(
             source, output_dir=tmp_path / "out", client=Client(),
             config=RecordingPipelineConfig(
                 source_language="zh", speaker_embeddings="none",
-                enable_subinterval_recovery=False, alignment_fallback="qwen",
+                alignment_fallback="qwen",
                 qwen_gpu_mode="managed", qwen_owned_asr_unit="nemovox-asr.service",
                 qwen_asr_lease_path=str(tmp_path / "lease"),
             ),

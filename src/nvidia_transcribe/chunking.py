@@ -11,6 +11,7 @@ from nvidia_transcribe.boundary_evidence import (
     recover_extended_right_context,
     recover_ownerless_straddled_overlap,
 )
+from nvidia_transcribe.occurrence_dispositions import finalize_boundary_dispositions
 from nvidia_transcribe.semantic_review import (
     DEFAULT_SEMANTIC_REVIEW_POLICY,
     plan_boundary_semantic_reviews,
@@ -243,10 +244,15 @@ def reconcile_chunk_boundaries(
             mid = _unit_midpoint(u)
             in_core = False
             if mid is not None:
+                # Own a coherent span as a whole rather than slicing it at
+                # a word midpoint. The existing positive boundary evidence
+                # can still choose a better complete neighboring hypothesis.
+                bounds = u.get("occurrence_bounds_s")
+                owner_mid = (float(bounds[0]) + float(bounds[1])) / 2 if bounds else mid
                 if spec.chunk_index == len(chunks) - 1:
-                    in_core = spec.core_start_s <= mid <= spec.core_end_s + 1e-4
+                    in_core = spec.core_start_s <= owner_mid <= spec.core_end_s + 1e-4
                 else:
-                    in_core = spec.core_start_s <= mid < spec.core_end_s
+                    in_core = spec.core_start_s <= owner_mid < spec.core_end_s
             tagged.append(
                 {
                     **u,
@@ -355,6 +361,8 @@ def reconcile_chunk_boundaries(
                 else:
                     lu["_drop"] = True
                     kept, dropped = best_ru, lu
+                dropped["_selection_reason"] = "provisional_close_boundary_correspondence"
+                dropped["_related_source_unit_ids"] = [kept["source_unit_id"]] if kept.get("source_unit_id") else []
                 dedup_count += 1
                 if len(dedup_examples) < 25:
                     dedup_examples.append(
@@ -466,7 +474,30 @@ def reconcile_chunk_boundaries(
             clean_u["boundary_provenance"] = "untimed_preserved"
         merged.append(clean_u)
 
+    selected_ids = {u["source_unit_id"] for u in merged if u.get("source_unit_id")}
+    dispositions = []
+    for tagged in tagged_by_chunk:
+        for u in tagged:
+            uid = u.get("source_unit_id")
+            if not uid:
+                continue
+            selected = uid in selected_ids
+            status = ("selected_provisional" if selected and u.get("valid_timing")
+                      else "selected_unlocalized" if selected
+                      else "alternate_not_selected" if u["_drop"]
+                      else "context_candidate_unresolved")
+            dispositions.append({
+                "source_unit_id": uid, "occurrence_span_id": u.get("occurrence_span_id"),
+                "status": status,
+                "reason": (u.get("_selection_reason") or u.get("_recovery_kind")
+                           or ("core_span_or_untimed_retained" if selected
+                               else "outside_selected_core_requires_occurrence_adjudication")),
+                "related_source_unit_ids": u.get("_related_source_unit_ids", []),
+                "timing_truth_accepted": False,
+                "occurrence_truth_accepted": False,
+            })
     return merged, {
+        "source_dispositions": finalize_boundary_dispositions(dispositions),
         "deduplicated_units": dedup_count,
         "recovered_boundary_units": recovered_count,
         "untimed_preserved_units": untimed_boundary_count,

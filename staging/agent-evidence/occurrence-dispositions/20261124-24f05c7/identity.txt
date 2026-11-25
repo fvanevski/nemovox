@@ -1,0 +1,25 @@
+REPO_ID=fvanevski/nemovox
+REMOTE_ORIGIN=https://github.com/fvanevski/nemovox.git
+ISSUE_NUMBER=17
+WORKING_BRANCH=issue/17
+BASE_SHA=9dd863841f72ab5f9aebf5bb4deb322bee99edf1
+PRIOR_CPU_QUALIFIED_SHA=5df4ace871940cc71e651b04fbdeaa8f3bc1f69b
+PRIOR_GPU_TESTED_SHA=13c0bb89637f1b451e8a3e7b115fa250a9b8de7d
+PRIOR_GPU_EVIDENCE_SHA=cc8907e7402e230e53696da770faa20a95d75b23
+TESTED_SOURCE_SHA=24f05c71b533ea7eb830ca7215f1690abcf415fc
+OBJECT_TYPE=commit
+CANDIDATE_WORKTREE=/tmp/nemovox-issue17-disp.uonvyW/candidate
+CANDIDATE_STATUS=0 dirty files
+CORE_PYTHON=/workspace/nvidia-transcribe/.venv/bin/python
+CORE_IMPORT_PATH=/tmp/nemovox-issue17-disp.uonvyW/candidate/src/nvidia_transcribe/__init__.py
+STUDIO_PYTHON=/workspace/nvidia-transcribe/.venv-studio/bin/python
+STUDIO_IMPORT_PATH=/tmp/nemovox-issue17-disp.uonvyW/candidate/src/nvidia_transcribe/__init__.py
+UNCOMMITTED_SOURCE_CHANGES=none
+
+=== CHANGED_FILES (PRIOR_GPU_EVIDENCE..CANDIDATE) ===
+A	docs/source-reconstruction/LOCAL_DISPOSITION_QUALIFICATION.md
+M	scripts/evaluate_chunk_geometry.py
+M	src/nvidia_transcribe/chunking.py
+A	src/nvidia_transcribe/occurrence_dispositions.py
+M	src/nvidia_transcribe/recording.py
+M	tests/test_source_occurrences.py

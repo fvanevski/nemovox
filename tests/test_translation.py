@@ -204,11 +204,17 @@ def test_translate_utterances_missing_id_and_malformed_retry_fallback() -> None:
     assert "missing_translation_id:utt-0001" in summary["errors"]
 
 
-def test_translate_vetoed_regrouping_never_leaves_untranslated_source_orphan() -> None:
+@pytest.mark.parametrize("bound", [False, True])
+def test_translate_vetoed_regrouping_never_leaves_untranslated_source_orphan(bound: bool) -> None:
     utts = [
         {"id": "utt-0000", "speaker_id": "SPK_00", "source_start": 100.0, "source_end": 101.2, "source_text": "C'est la"},
         {"id": "utt-0001", "speaker_id": "SPK_00", "source_start": 107.0, "source_end": 110.5, "source_text": "pyramide de Mu !"},
     ]
+    if bound:
+        # Within the ordinary merge distance, but distinct acoustic ownership.
+        utts[1].update(source_start=101.3, source_end=103.5)
+        for n, row in enumerate(utts):
+            row.update(source_occurrence_ids=[f"occ-{n}"], source_unit_ids=[f"unit-{n}"])
     stub = _StubTranslationClient(
         [
             {

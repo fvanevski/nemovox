@@ -1,0 +1,6 @@
+core_py: /workspace/nvidia-transcribe/.venv/bin/python 3.13.15
+core_pkg: /tmp/nemovox-pr20-reg.LEgQJs/candidate/src/nvidia_transcribe/__init__.py
+runner1: /tmp/nemovox-pr20-reg.LEgQJs/candidate/scripts/replay_recovery_schedule.py
+runner2: /tmp/nemovox-pr20-reg.LEgQJs/candidate/scripts/replay_acoustic_resolution.py
+studio_py: /workspace/nvidia-transcribe/.venv-studio/bin/python 3.13.15
+studio_pkg: /tmp/nemovox-pr20-reg.LEgQJs/candidate/src/nvidia_transcribe/__init__.py

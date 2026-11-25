@@ -198,8 +198,24 @@ def build_transcript_contract(
     utterances: list[dict[str, Any]] = []
     units = list(parsed_ctc.units)
 
+    # The direct transcript/challenge path uses the same recognized lexical
+    # spine as recording reconstruction. Never treat extra CTC text as speech.
+    from nvidia_transcribe.alignment import recover_chunk_alignment
+    native = recover_chunk_alignment(
+        raw_text=raw_text, ctc_payload=ctc_payload, source_offset_s=source_offset_s,
+        chunk_index=0, model_path=None,
+    )
     if units and parsed_ctc.error is None:
-        unit_dicts = [u.to_dict() for u in units]
+        unit_dicts = native["units"]
+        # Preserve the public single-request speaker label representation.
+        styles: dict[str, set[str]] = {}
+        for u in unit_dicts:
+            if u.get("raw_speaker_tag") and u.get("ctc_observed_speaker") is not None:
+                styles.setdefault(u["raw_speaker_tag"], set()).add(u["ctc_observed_speaker"])
+        for u in unit_dicts:
+            tag = u.get("raw_speaker_tag")
+            choices = styles.get(tag, set())
+            u["speaker"] = next(iter(choices)) if len(choices) == 1 else tag
         reconstructed = reconstruct_speaker_utterances(unit_dicts, source_language=resolved_lang or source_language)
         for u in reconstructed:
             u["timestamp_provenance"]["source_offset_s"] = source_offset_s
@@ -269,6 +285,7 @@ def build_transcript_contract(
         "english_translation": english_translation,
         "utterances": utterances,
         "events": events,
+        "native_ctc_observations": native["diagnostic"]["native_ctc_observations"],
         "diarization_intervals": [d.to_dict() for d in parsed_ctc.diarization],
         "speaker_mapping": dict(parsed_ctc.speaker_mapping),
         "timestamp_provenance": {
@@ -306,6 +323,9 @@ def build_recording_contract(
         clean_utts.append(
             {
                 "id": utt["id"],
+                "source_unit_ids": utt.get("source_unit_ids", []),
+                "recognized_turn_ids": utt.get("recognized_turn_ids", []),
+                "occurrence_span_ids": utt.get("occurrence_span_ids", []),
                 "source_text": utt["source_text"],
                 "source_language": utt.get("source_language") or source_language,
                 "speaker_id": utt.get("global_speaker_id") or utt.get("speaker_id"),

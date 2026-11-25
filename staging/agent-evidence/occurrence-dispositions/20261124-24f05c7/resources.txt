@@ -1,0 +1,15 @@
+=== NVIDIA_SMI_BEFORE ===
+2026-11-25T01:24:37Z
+name, memory.used [MiB], memory.total [MiB], memory.free [MiB], utilization.gpu [%]
+NVIDIA GeForce RTX 5090, 1866 MiB, 32607 MiB, 30261 MiB, 3 %
+pid, process_name, used_gpu_memory [MiB]
+11480, /usr/bin/kwin_wayland, 366 MiB
+
+=== NVIDIA_SMI_AFTER ===
+2026-11-25T01:25:17Z
+name, memory.used [MiB], memory.total [MiB], memory.free [MiB], utilization.gpu [%]
+NVIDIA GeForce RTX 5090, 1866 MiB, 32607 MiB, 30261 MiB, 2 %
+pid, process_name, used_gpu_memory [MiB]
+11480, /usr/bin/kwin_wayland, 366 MiB
+=== MODEL_INFERENCE_OR_SERVICE_MUTATION ===
+none (CPU_ONLY campaign; no GPU inference, no service restarts, no A3 replay, no /workspace/pyannote modifications)

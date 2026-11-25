@@ -246,8 +246,7 @@ def test_failed_long_core_rechunks_and_preserves_leaf_identity_on_resume(tmp_pat
         return {"raw_response":response,"contract":{"raw_text":"Bonjour."},"latency_s":.01}
     monkeypatch.setattr(NemotronVLLMClient,"transcribe",fake)
     root=tmp_path/"run"
-    cfg=RecordingPipelineConfig(source_language="fr",speaker_embeddings="none",
-                               enable_subinterval_recovery=False)
+    cfg=RecordingPipelineConfig(source_language="fr",speaker_embeddings="none")
     client=NemotronVLLMClient(model="stub")
     result=process_media(wav,output_dir=root,client=client,config=cfg)
     manifest=json.loads((root/"manifest.json").read_text())
@@ -284,8 +283,7 @@ def test_rechunk_terminal_failure_does_not_publish_and_reuses_verified_leaf(tmp_
         return {"raw_response":response,"contract":{"raw_text":"Bonjour."},"latency_s":.01}
     monkeypatch.setattr(NemotronVLLMClient,"transcribe",fake)
     root=tmp_path/"run"
-    cfg=RecordingPipelineConfig(source_language="fr",speaker_embeddings="none",
-                               enable_subinterval_recovery=False)
+    cfg=RecordingPipelineConfig(source_language="fr",speaker_embeddings="none")
     client=NemotronVLLMClient(model="stub")
     with pytest.raises(IncompleteASRGeneration,match="recovery exhausted"):
         process_media(wav,output_dir=root,client=client,config=cfg)
@@ -317,7 +315,7 @@ def test_rechunk_effective_indices_do_not_change_neighbor_checkpoint_identity(tm
         return {"raw_response":response,"contract":{"raw_text":"Bonjour."},"latency_s":.01}
     monkeypatch.setattr(NemotronVLLMClient,"transcribe",fake)
     cfg=RecordingPipelineConfig(source_language="fr",speaker_embeddings="none",
-        chunk_seconds=20,context_seconds=2,min_tail_seconds=0,enable_subinterval_recovery=False)
+        chunk_seconds=20,context_seconds=2,min_tail_seconds=0)
     root=tmp_path/"run"
     client=NemotronVLLMClient(model="stub")
     result=process_media(wav,output_dir=root,client=client,config=cfg)

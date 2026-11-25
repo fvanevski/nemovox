@@ -10,6 +10,7 @@ import hashlib
 import json
 import math
 import tempfile
+import time
 import unicodedata
 from dataclasses import dataclass
 from difflib import SequenceMatcher
@@ -21,6 +22,7 @@ from nvidia_transcribe.client import InferenceRequestConfig
 from nvidia_transcribe.media import extract_wav_segment, probe_media, validate_wav_file
 from nvidia_transcribe.parser import split_lexical_units
 from nvidia_transcribe.semantic_review import run_tiered_text_reviews
+from nvidia_transcribe.source_occurrences import stable_id
 
 
 @dataclass(frozen=True)
@@ -36,6 +38,11 @@ class SourceQualityPolicy:
     challenge_max_seconds: float = 45.
     challenge_overlap_fraction: float = .35
     max_extra_per_window: int = 3
+    max_acoustic_audio_s: float = 720.
+    max_acoustic_wall_s: float = 600.
+    max_independent_targets: int = 6
+    max_independent_audio_s: float = 240.
+    max_independent_wall_s: float = 900.
     scene_context_s: float = 60.
     scene_max_context_s: float = 180.
     scene_context_char_budget: int = 24000
@@ -53,6 +60,10 @@ class SourceQualityPolicy:
                 or not 14 <= self.challenge_max_seconds <= 90
                 or not .1 <= self.challenge_overlap_fraction <= .49
                 or not 1 <= self.max_extra_per_window <= 6
+                or not 1 <= self.max_independent_targets <= 12
+                or any(not math.isfinite(x) or x <= 0 for x in (
+                    self.max_acoustic_audio_s,self.max_acoustic_wall_s,
+                    self.max_independent_audio_s,self.max_independent_wall_s))
                 or not 0 < self.scene_context_s <= self.scene_max_context_s <= 600
                 or not 1000 <= self.scene_context_char_budget <= 64000
                 or not 1 <= self.scene_max_cases <= 24
@@ -109,10 +120,20 @@ def load_current_ledger(recording, recording_path):
     manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
     data = (root / "source-evidence.v1.json").read_bytes()
     ledger = json.loads(data)
+    # Authenticate the precise original recording, not merely its media
+    # and raw chunk hashes. An edited row can retain both while changing
+    # occurrence ownership or words. Older unbound contracts must be
+    # regenerated before current-source quality; explicit offline rerender
+    # of an already translated contract is a separate downstream entry.
+    recording_data = Path(recording_path).read_bytes()
+    if (manifest.get("recording_contract_sha256") != hashlib.sha256(recording_data).hexdigest()
+            or _digest(json.loads(recording_data)) != _digest(recording)):
+        raise ValueError("Current recording contract is missing, stale or incompatible")
     if (manifest.get("asr_run_status") != "completed"
             or (manifest.get("source_evidence") or {}).get("sha256")
             != hashlib.sha256(data).hexdigest()
             or ledger.get("schema_version") != "nemovox-source-evidence/v1"
+            or not isinstance(ledger.get("recognized_occurrence_inventories"), list)
             or ledger.get("media_fingerprint_sha256")
             != recording["source"]["fingerprint_sha256"]
             or ledger.get("source_language") != recording.get("source_language")):
@@ -129,105 +150,8 @@ def load_current_ledger(recording, recording_path):
 
 
 def plan_windows(recording, ledger, request, advisory, policy):
-    """Prioritize current material boundary conflicts, then unrepresented activity."""
-    duration = float(recording["source"]["duration_s"])
-    decisions = {r["case_id"]: r.get("assessment", {}).get("decision")
-                 for r in (advisory or {}).get("outcomes", [])
-                 if r.get("status") == "advisory_only"}
-    proposals = []
-    for case in request.get("cases", []):
-        a, b = case["context_window_s"]
-        if not 0 <= a < b <= duration:
-            continue
-        # Context expansion can discover dialogue immediately preceding a
-        # known partial observation, not only recover its exact words.
-        target = (max(0., a - 3.), min(duration, b + 1.))
-        proposals.append({
-            "id": case["case_id"], "window": target,
-            "chunks": list(case["source_chunks"]),
-            "reason": "boundary_conflict",
-            "advisory": decisions.get(case["case_id"], "not_reviewed"),
-        })
-        displaced = case.get("left_lexical_correspondence", {}).get("left_words") or []
-        if displaced:
-            starts = [w["start_s"] for w in displaced]
-            ends = [w["end_s"] for w in displaced]
-            old = (max(0., min(starts) - 1.), min(duration, max(ends) + 1.))
-            if old[1] > old[0] and not _overlap(target, old):
-                proposals.append({
-                    "id": case["case_id"] + ":competing_time",
-                    "window": old, "chunks": list(case["source_chunks"]),
-                    "reason": "competing_timing_hypothesis",
-                    "advisory": decisions.get(case["case_id"], "not_reviewed"),
-                })
-    parents = {r["id"]: r["chunk_index"] for r in ledger["asr_observations"]}
-    for activity in ledger["diarization_activity_hypotheses"]:
-        if not activity.get("possible_unrepresented_speech"):
-            continue
-        bounds = _bounds(activity, "start_s", "end_s")
-        if not bounds or bounds[1] - bounds[0] < .65 or bounds[1] > duration:
-            continue
-        proposals.append({
-            "id": activity["id"], "window": (max(0., bounds[0] - 1.),
-                                               min(duration, bounds[1] + 1.)),
-            "chunks": [parents[activity["asr_observation_id"]]],
-            "reason": "activity_without_lexical_timing",
-            "advisory": "not_reviewed",
-        })
-    # A contiguous untimed run can represent substantial omitted dialogue.
-    # Use adjacent timed turns only to PLAN listening, never to assign timing.
-    rows = recording["utterances"]
-    pos = 0
-    while pos < len(rows):
-        if _bounds(rows[pos]):
-            pos += 1
-            continue
-        end = pos + 1
-        while end < len(rows) and not _bounds(rows[end]):
-            end += 1
-        if pos > 0 and end < len(rows):
-            left, right = _bounds(rows[pos - 1]), _bounds(rows[end])
-            if left and right and 0 <= left[1] < right[0] <= duration:
-                chunks = sorted({c for row in rows[pos:end] for c in row.get("chunk_indices", [])})
-                if chunks:
-                    # Smaller subwindows supply more useful local CTC contexts.
-                    a, b = left[1], right[0]
-                    while a < b:
-                        stop = min(b, a + min(9., policy.max_target_seconds))
-                        proposals.append({
-                            "id": "untimed:" + ":".join(row["id"] for row in rows[pos:end]),
-                            "window": (a, stop), "chunks": chunks,
-                            "reason": "untimed_source_dialogue", "advisory": "not_reviewed",
-                        })
-                        a = stop
-        pos = end
-    # A text-only retain decision cannot veto a contradictory acoustic
-    # observation. It only affects bounded scheduling priority.
-    proposals.sort(key=lambda p: (
-        p["reason"] == "activity_without_lexical_timing",
-        p["advisory"] == "retain_core",
-        p["reason"] == "competing_timing_hypothesis",
-        -min(14., p["window"][1] - p["window"][0])
-        if p["reason"] == "activity_without_lexical_timing" else 0.,
-        p["window"][0],
-    ))
-    windows = []
-    for p in proposals:
-        a, b = p["window"]
-        while a < b:
-            part = (a, min(b, a + policy.max_target_seconds))
-            existing = next((w for w in windows if
-                             _overlap(w["window"], part) >= .8 * (part[1] - part[0])), None)
-            if existing is not None:
-                existing["evidence_ids"].append(p["id"])
-                existing["chunks"] = sorted(set(existing["chunks"] + p["chunks"]))
-            else:
-                windows.append({"window": part, "evidence_ids": [p["id"]],
-                                "chunks": p["chunks"], "reason": p["reason"]})
-            a = part[1]
-    # A short clip does not need an episode-sized budget. Keep a hard cap.
-    limit = min(policy.max_windows, max(6, math.ceil(duration / 90.)))
-    return windows[:limit], windows[limit:]
+    from nvidia_transcribe.recovery_planner import plan_recovery_windows
+    return plan_recovery_windows(recording, ledger, request, advisory, policy)
 
 
 def _crop_windows(target, duration):
@@ -289,13 +213,22 @@ def _observe(client, media, crop, root, index):
     audit = audit_asr_generation(raw)
     raw_text = ((raw.get("choices") or [{}])[0].get("message") or {}).get("content")
     source_lex = _lex(raw_text)
+    # Apply the same recognized-spine and locality rules as primary ASR,
+    # not the unaudited direct transcript projection.
+    from nvidia_transcribe.acoustic_observations import reconstruct_acoustic_observation
+    reconstructed, inventory = reconstruct_acoustic_observation(
+        raw, audio_sha256=wav_sha, crop=crop, language=media.source_language)
     rows = []
+    rejected = []
     if audit["status"] == "complete" and audit["finish_reason"] == "stop":
-        for u in result["contract"].get("utterances", []):
+        for u in reconstructed:
             bounds = _bounds(u)
             lexical = _lex(u.get("source_text"))
             # CTC-generated text must also occur in actual ASR source text.
             if (bounds and a - .01 <= bounds[0] < bounds[1] <= b + .01
+                    and not u.get("untimed_unit_count")
+                    and not any(x.get("locality_status") == "disputed"
+                                for x in u["source_words"]+u["source_characters"])
                     and len(lexical) >= 2 and _contains(source_lex, lexical)):
                 timed = []
                 for unit in list(u.get("source_words") or []) + list(u.get("source_characters") or []):
@@ -307,11 +240,18 @@ def _observe(client, media, crop, root, index):
                 timed.sort(key=lambda x: (x["start"], x["end"]))
                 rows.append({"source_text": u["source_text"], "source_start": bounds[0],
                              "source_end": bounds[1], "local_voice": u.get("speaker_id"),
-                             "observation_id": f"probe-{index:03d}:{u['id']}",
+                             "observation_id": u["id"],
+                             "source_unit_ids": u["source_unit_ids"],
+                             "recognized_turn_ids": u["recognized_turn_ids"],
+                             "occurrence_span_ids": u["occurrence_span_ids"],
                              "timed_lexical_units": timed})
-    return {"crop": crop, "audio_sha256": wav_sha, "raw_response_sha256": _digest(raw),
+            else:
+                rejected.append(u)
+    return {"crop": crop, "audio_sha256": wav_sha, "actual_audio_s": actual,
+            "raw_response_sha256": _digest(raw),
             "model": result["contract"].get("model_provenance", {}).get("served_model"),
-            "integrity": audit, "utterances": rows, "raw_response": raw}
+            "integrity": audit, "utterances": rows, "rejected_utterances": rejected,
+            "occurrence_inventory": inventory, "raw_response": raw}
 
 
 def _observation_groups(observation):
@@ -498,6 +438,10 @@ def _recover_untimed(recording, observations, policy):
         rows[i] = {**row, "source_start": bounds[0], "source_end": bounds[1],
                    "alignment_status": "anchored_event_bounds",
                    "source_quality_status": "unresolved_wording_anchored_timing",
+                   "source_occurrence_ids": row.get("source_occurrence_ids") or [row["id"]],
+                   "source_lineage": {**row.get("source_lineage",{}),
+                       "prior_source_ids":[row["id"]],"acoustic_observation_ids":obs_ids,
+                       "source_word_timing_accepted":False},
                    "timestamp_provenance": {
                        "backend": "separate_acoustic_contexts",
                        "timing_status": "approximate",
@@ -549,6 +493,50 @@ def select_source_events(recording, events, policy):
                             and not crossed_turn_ids(row, _bounds(other))
                             for other in events))
 
+    def bracketed_untimed_origin(row,event,bounds):
+        # Equal words elsewhere in a recording may be a genuine repeat.
+        # A task nominates an original occurrence; it does not establish
+        # that a remote acoustic match is that occurrence.
+        if not set(row.get("chunk_indices",[])).intersection(event.get("chunks",[])):
+            return False
+        if (row.get("source_unit_ids") or row.get("occurrence_span_ids")) and not (
+                row["id"] in event.get("trigger_source_ids",[])
+                or set(row.get("occurrence_span_ids",[])).intersection(event.get("trigger_evidence_ids",[]))):
+            return False
+        original=recording["utterances"]
+        positions=[i for i,u in enumerate(original) if u["id"]==row["id"]]
+        if len(positions)!=1:
+            return False
+        i=positions[0]
+        left=next((_bounds(u) for u in reversed(original[:i]) if _bounds(u)),None)
+        right=next((_bounds(u) for u in original[i+1:] if _bounds(u)),None)
+        return bool(left and right and left[1]<=bounds[0]<bounds[1]<=right[0])
+
+    def uniquely_disputed_origin(event,bounds,words):
+        # Numeric timing inside a disputed span is not an accepted event
+        # location. Relocation requires affirmative rejected-locality
+        # evidence, explicit origin references and cross-model support.
+        # A long pause, a missing observation or lexical similarity alone
+        # never authorizes movement of a timed occurrence.
+        if len(set(event.get("independent_observation_ids",[])))<2:
+            return None
+        exact=[u for u in rows if _lex(u["source_text"])==words]
+        if len(exact)!=1:
+            return None
+        row=exact[0]
+        old=_bounds(row)
+        units=list(row.get("source_words",[]))+list(row.get("source_characters",[]))
+        if (not old or _same_event_bounds(old,bounds,policy.timing_tolerance_s)
+                or not units or not any(not u.get("valid_timing") for u in units)
+                or not all(u.get("locality_status")=="disputed" for u in units)
+                or not set(row.get("occurrence_span_ids",[])).intersection(event.get("trigger_evidence_ids",[]))
+                or any(u is not row and _bounds(u) and _overlap(_bounds(u),bounds)>0 for u in rows)
+                or any(other is not event and _lex(other["source_text"])==words
+                       and not _same_event_bounds(_bounds(other),bounds,policy.timing_tolerance_s)
+                       for other in events)):
+            return None
+        return row
+
     for event in sorted(events, key=lambda e: (e["source_start"], e["source_end"])):
         bounds = _bounds(event)
         words = _lex(event["source_text"])
@@ -558,14 +546,30 @@ def select_source_events(recording, events, policy):
         nearby_matches = [u for u in rows if
                           (_contains(_lex(u["source_text"]), words)
                            or _contains(words, _lex(u["source_text"])))
-                          and (set(u.get("chunk_indices") or []) & set(event["chunks"])
+                          and (_lex(u["source_text"]) == words
+                               or set(u.get("chunk_indices") or []) & set(event["chunks"])
                                or (_bounds(u) and abs(_bounds(u)[0] - bounds[0]) <= 60))]
         status = "unresolved_competing_source"
         replace = None
         competing_hypotheses = []
         crossed_ids = []
         exact_overlaps = [u for u in overlaps if _lex(u["source_text"]) == words]
-        if exact_overlaps:
+        disputed_origin = uniquely_disputed_origin(event,bounds,words)
+        # Independently corroborated alternatives can still compete for
+        # the same event. Neither iteration order nor a common lexical
+        # sequence identifies distinct simultaneous voices.
+        competing_events_at_location = [
+            other for other in events if other is not event
+            and _same_event_bounds(_bounds(other),bounds,policy.timing_tolerance_s)
+            and (_lex(other["source_text"])!=words
+                 or not set(other["supporting_observation_ids"]).intersection(
+                            event["supporting_observation_ids"]))]
+        if competing_events_at_location:
+            status="unresolved_competing_acoustic_occurrences"
+        elif disputed_origin is not None:
+            replace=disputed_origin
+            status="relocated_disputed_occurrence"
+        elif exact_overlaps:
             # Lexical agreement and minimal overlap do not identify an
             # occurrence. This branch is exclusive: an equal-text timing
             # conflict must not fall through to source-turn extension.
@@ -601,9 +605,19 @@ def select_source_events(recording, events, policy):
             replace = overlaps[0]
             status = "replaced_corroborated_source_hypothesis"
         elif not overlaps and len(nearby_matches) == 1 and _bounds(nearby_matches[0]) is None:
-            if _lex(nearby_matches[0]["source_text"]) == words:
-                replace = nearby_matches[0]
+            candidate = nearby_matches[0]
+            # One untimed original and two separately supported equal-text
+            # occurrences do not identify which occurrence the original is.
+            competing_events = [other for other in events
+                if other is not event and _lex(other["source_text"]) == words
+                and not _same_event_bounds(_bounds(other),bounds,policy.timing_tolerance_s)]
+            if (_lex(candidate["source_text"]) == words and not competing_events
+                    and bracketed_untimed_origin(candidate,event,bounds)):
+                replace = candidate
                 status = "timed_corroborated_turn"
+            else:
+                status = "unresolved_possible_displaced_or_repeated_turn"
+                competing_hypotheses = [{"source_id":candidate["id"],"window":None}]
         elif not overlaps and all(corroborated_at_own_time(u, event) for u in nearby_matches):
             status = "recovered_corroborated_turn"
         elif not overlaps:
@@ -613,7 +627,8 @@ def select_source_events(recording, events, policy):
                 and len(set(event["audio_sha256"])) < 3):
             status = "unresolved_short_insertion_needs_support"
         if status in {"extended_corroborated_turn", "timed_corroborated_turn",
-                      "recovered_corroborated_turn", "replaced_corroborated_source_hypothesis"}:
+                      "recovered_corroborated_turn", "replaced_corroborated_source_hypothesis",
+                      "relocated_disputed_occurrence"}:
             uid = replace["id"] if replace else "src-" + _digest(
                 [media_id, event["supporting_observation_ids"], bounds])[:24]
             row = {
@@ -637,8 +652,21 @@ def select_source_events(recording, events, policy):
                     "observation_ids": event["supporting_observation_ids"],
                 },
             }
+            row["source_occurrence_ids"] = [uid]
+            row["source_lineage"] = {
+                "prior_source_ids": [replace["id"]] if replace else [],
+                "acoustic_observation_ids": list(event["supporting_observation_ids"]),
+                "trigger_evidence_ids": list(event.get("trigger_evidence_ids", [])),
+                "independent_observation_ids": list(event.get("independent_observation_ids", [])),
+                "independent_receipt_sha256": event.get("independent_receipt_sha256"),
+                "source_word_timing_accepted": False,
+            }
             if replace is not None:
                 row["prior_source_hypothesis"] = dict(replace)
+                # These are origin references, not word-level verification
+                # of the revised wording.
+                for key in ("source_unit_ids","recognized_turn_ids","occurrence_span_ids"):
+                    row[key] = list(replace.get(key, []))
                 rows.remove(replace)
             if any(u["id"] == uid for u in rows):
                 raise ValueError("Recovered source event ID collision")
@@ -648,7 +676,20 @@ def select_source_events(recording, events, policy):
             rows.insert(pos, row)
         decision = {"status": status, "observations": event["supporting_observation_ids"],
                     "window": bounds,
+                    "trigger_evidence_ids": list(event.get("trigger_evidence_ids", [])),
+                    "recovery_task_ids": list(event.get("recovery_task_ids", [])),
+                    "independent_observation_ids": list(event.get("independent_observation_ids", [])),
                     "superseded_source_id": replace["id"] if replace else None}
+        if status == "already_represented":
+            decision["source_id"] = exact_overlaps[0]["id"]
+        elif status in {"extended_corroborated_turn","timed_corroborated_turn",
+                        "recovered_corroborated_turn","replaced_corroborated_source_hypothesis",
+                        "relocated_disputed_occurrence"}:
+            decision["source_id"] = uid
+        if competing_events_at_location:
+            decision["competing_acoustic_observation_ids"] = sorted({
+                oid for other in competing_events_at_location
+                for oid in other["supporting_observation_ids"]})
         if competing_hypotheses:
             decision["competing_source_hypotheses"] = competing_hypotheses
             decision["crossed_source_ids"] = crossed_ids
@@ -656,8 +697,108 @@ def select_source_events(recording, events, policy):
     return rows, decisions
 
 
+def acquire_acoustic_evidence(recording, media, windows, *, asr_scope, output_dir, policy):
+    """One bounded acquisition scope, shared exact-crop cache, primary pairs first.
+
+    A stage wall budget controls admission of new requests; a request already
+    admitted remains subject to the client's own timeout. All untouched tasks
+    retain explicit deferral. The cache is current-job only.
+    """
+    observations, events, unresolved, cache = [], [], [], {}
+    jobs = []
+    audio_s, extra_contexts, reused = 0., 0, 0
+    started = time.monotonic()
+    def within_budget(crops):
+        new = {tuple(c) for c in crops if tuple(c) not in cache}
+        return (audio_s+sum(b-a+.1 for a,b in new) <= policy.max_acoustic_audio_s+1e-6
+                and time.monotonic()-started < policy.max_acoustic_wall_s)
+    if not windows:
+        return observations, events, unresolved, {"audio_seconds":0.,"extra_contexts":0,
+            "reused_requests":0,"wall_s":0.,"requests":0}
+    with tempfile.TemporaryDirectory(prefix="source-quality-",dir=output_dir) as tmp:
+        with asr_scope() as asr:
+            def observe(crop, task):
+                nonlocal audio_s,reused
+                key = tuple(crop)
+                if key not in cache:
+                    item = _observe(asr,media,crop,Path(tmp),len(observations))
+                    item["chunks"] = []
+                    item["task_ids"] = []
+                    cache[key] = item
+                    observations.append(item)
+                    audio_s += item.get("actual_audio_s",key[1]-key[0])
+                else:
+                    item = cache[key]
+                    reused += 1
+                item["chunks"] = sorted(set(item["chunks"]+task["chunks"]))
+                item["task_ids"] = sorted(set(item["task_ids"]+[task["task_id"]]))
+                return item
+            # No early extra-context request can consume the budget for a
+            # later primary pair that was otherwise schedulable.
+            for task in windows:
+                task.setdefault("task_id",stable_id("recovery",[
+                    recording["source"]["fingerprint_sha256"],task["window"],task["evidence_ids"]]))
+                crops = _crop_windows(task["window"],media.duration_s)
+                if not crops or not within_budget(crops):
+                    task["state"] = "deferred"
+                    task["defer_reason"] = "insufficient_distinct_context" if not crops else "acoustic_resource_budget"
+                    unresolved.append({"window":task,"reason":task["defer_reason"]})
+                    continue
+                pair = [observe(c,task) for c in crops]
+                task["state"] = "observed"
+                selected = corroborated_events(*pair,task["window"],policy.timing_tolerance_s)
+                jobs.append((task,pair,selected))
+            for task,pair,selected in jobs:
+                disputed = [e for e in selected if e["source_end"]-e["source_start"]<.65
+                            or any(_bounds(r) and _overlap(_bounds(r),_bounds(e))>.08
+                                   and _lex(r["source_text"])!=_lex(e["source_text"])
+                                   for r in recording["utterances"])]
+                if extra_contexts < policy.max_extra_contexts and (disputed or not selected):
+                    target = (min(e["source_start"] for e in disputed),
+                              max(e["source_end"] for e in disputed)) if disputed else task["window"]
+                    timing_problem = (task.get("reason") in ("untimed_source_dialogue","untimed_occurrence","disputed_occurrence")
+                                      or not any(o["utterances"] for o in pair))
+                    geometries = challenge_geometries(target,media.duration_s,policy,
+                        timing_problem=timing_problem,seen=[o["crop"] for o in pair])
+                    for kind,crop in geometries[:min(policy.max_extra_per_window,
+                                                      policy.max_extra_contexts-extra_contexts)]:
+                        if not within_budget([crop]):
+                            break
+                        third = observe(crop,task)
+                        extra_contexts += 1
+                        for e in selected:
+                            _third_context(e,third,policy.timing_tolerance_s)
+                        for previous in pair:
+                            for e in corroborated_events(previous,third,task["window"],policy.timing_tolerance_s):
+                                if not any(set(e["supporting_observation_ids"]).intersection(old["supporting_observation_ids"])
+                                           or _overlap(_bounds(e),_bounds(old))>.08 for old in selected):
+                                    for other in pair:
+                                        _third_context(e,other,policy.timing_tolerance_s)
+                                    selected.append(e)
+                        pair.append(third)
+                        if selected and not disputed and all(len(set(e["audio_sha256"]))>=3 for e in selected):
+                            break
+                for e in selected:
+                    e["chunks"] = task["chunks"]
+                    e["trigger_evidence_ids"] = task["evidence_ids"]
+                    e["trigger_source_ids"] = task.get("source_ids",[])
+                    e["recovery_task_ids"] = [task["task_id"]]
+                events.extend(selected)
+                matched = {oid for e in selected for oid in e["supporting_observation_ids"]}
+                unmatched = sorted({u["observation_id"] for o in pair for u in o["utterances"]
+                    if task["window"][0] <= (u["source_start"]+u["source_end"])/2 <= task["window"][1]
+                    and u["observation_id"] not in matched})
+                if not selected or unmatched:
+                    unresolved.append({"window":task,"reason":"unmatched_acoustic_observations"
+                        if unmatched else "no_unique_corroborated_event","unmatched_observation_ids":unmatched})
+    return observations,events,unresolved,{"audio_seconds":round(audio_s,6),
+        "requests":len(observations),"extra_contexts":extra_contexts,"reused_requests":reused,
+        "wall_s":round(time.monotonic()-started,4)}
+
+
 def review_current_source(recording, *, recording_path, media_path, output_dir,
-                          text_scope, asr_scope, policy=None, challenger_resource=None):
+                          text_scope, asr_scope, policy=None, challenger_resource=None,
+                          semantic_review=True):
     """Review one current job, with explicitly sequential managed model scopes."""
     policy = policy or SourceQualityPolicy()
     ledger = load_current_ledger(recording, recording_path)
@@ -673,7 +814,7 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
                                      source_language=recording["source_language"])
     request = recording["processing"]["boundary_reconciliation"]["semantic_review_candidates"]
     advisory = None
-    if request["cases"]:
+    if semantic_review and request["cases"]:
         with text_scope() as text:
             if text is None:
                 raise ValueError("Source quality requires an admitted NInfer text client")
@@ -684,104 +825,52 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
                 light_thinking_budget=0, reasoned_thinking_budget=1024,
             )
     windows, deferred = plan_windows(recording, ledger, request, advisory, policy)
-    observations, events, unresolved = [], [], []
-    extra_contexts = 0
-    if windows:
-        with tempfile.TemporaryDirectory(prefix="source-quality-", dir=output_dir) as tmp:
-            with asr_scope() as asr:
-                for w in windows:
-                    crops = _crop_windows(w["window"], media.duration_s)
-                    if not crops:
-                        unresolved.append({"window": w, "reason": "insufficient_distinct_context"})
-                        continue
-                    pair = []
-                    for crop in crops:
-                        item = _observe(asr, observed_media, crop, Path(tmp), len(observations))
-                        item["chunks"] = w["chunks"]
-                        observations.append(item)
-                        pair.append(item)
-                    selected = corroborated_events(*pair, w["window"], policy.timing_tolerance_s)
-                    # Disputed wording, very short proposed insertions, and
-                    # failed pairing merit a bounded targeted third context.
-                    # Prefer a tight event crop rather than replaying either input.
-                    disputed = [e for e in selected if e["source_end"] - e["source_start"] < .65
-                                or any(_bounds(r) and _overlap(_bounds(r), _bounds(e)) > .08
-                                       and _lex(r["source_text"]) != _lex(e["source_text"])
-                                       for r in recording["utterances"])]
-                    if extra_contexts < policy.max_extra_contexts and (disputed or not selected):
-                        target = (min(e["source_start"] for e in disputed),
-                                  max(e["source_end"] for e in disputed)) if disputed else w["window"]
-                        timing_problem=(w["reason"]=="untimed_source_dialogue"
-                                        or not any(o["utterances"] for o in pair))
-                        # Compare variable-length and shifted overlapping
-                        # observations; preserve positive support from all
-                        # distinct contexts, without treating them as votes.
-                        geometries=challenge_geometries(target,media.duration_s,policy,
-                            timing_problem=timing_problem,seen=[x["crop"] for x in pair])
-                        for kind,crop in geometries[:min(policy.max_extra_per_window,
-                                                     policy.max_extra_contexts-extra_contexts)]:
-                            third=_observe(asr,observed_media,crop,Path(tmp),len(observations))
-                            third["chunks"]=w["chunks"]
-                            third["geometry"]=kind
-                            observations.append(third)
-                            extra_contexts+=1
-                            for e in selected:
-                                _third_context(e,third,policy.timing_tolerance_s)
-                            for previous in pair:
-                                for e in corroborated_events(previous,third,w["window"],
-                                                            policy.timing_tolerance_s):
-                                    if not any(set(e["supporting_observation_ids"]).intersection(
-                                            old["supporting_observation_ids"])
-                                            or _overlap(_bounds(e),_bounds(old))>.08 for old in selected):
-                                        for other in pair:
-                                            _third_context(e,other,policy.timing_tolerance_s)
-                                        selected.append(e)
-                            pair.append(third)
-                            # Exact positive support can stop further
-                            # escalation for this target, but a failed
-                            # geometry never disables that mechanism.
-                            if selected and not disputed and all(
-                                    len(set(e["audio_sha256"]))>=3 for e in selected):
-                                break
-                    for item in selected:
-                        item["chunks"] = w["chunks"]
-                        item["trigger_evidence_ids"] = w["evidence_ids"]
-                    events.extend(selected)
-                    matched = {oid for item in selected for oid in item["supporting_observation_ids"]}
-                    unmatched = [u["observation_id"] for observation in pair
-                                 for u in observation["utterances"]
-                                 if w["window"][0] <= (u["source_start"] + u["source_end"]) / 2 <= w["window"][1]
-                                 and u["observation_id"] not in matched]
-                    if not selected or unmatched:
-                        unresolved.append({"window": w, "reason": "unmatched_acoustic_observations"
-                                           if unmatched else "no_unique_corroborated_event",
-                                           "unmatched_observation_ids": unmatched})
-    timed_recording, timing_decisions = _recover_untimed(recording, observations, policy)
-    rows, decisions = select_source_events(timed_recording, events, policy)
-    decisions = timing_decisions + decisions
-    # Independent source recovery runs only after the strict selector, with
-    # Nemotron released. A missing resource is explicit, never a download.
-    from nvidia_transcribe.source_recovery import recover_independent_source
-    rows, recovery = recover_independent_source(
-        {**recording, "utterances": rows}, observations, observed_media,
-        challenger_resource=challenger_resource,
-        output_dir=output_dir,
-    )
-    decisions.extend(recovery["decisions"])
+    observations, events, unresolved, acquisition = acquire_acoustic_evidence(
+        recording,observed_media,windows,asr_scope=asr_scope,output_dir=output_dir,policy=policy)
+    # Independent work is scheduled from the same admitted task inventory,
+    # before canonical mutation, with the ASR scope already released.
+    from nvidia_transcribe.source_recovery import schedule_independent, acquire_independent_evidence
+    targets, independent_deferred = schedule_independent(
+        recording,observations,windows=windows,policy=policy)
+    recovery = acquire_independent_evidence(
+        recording,targets,observed_media,challenger_resource=challenger_resource,
+        output_dir=output_dir,policy=policy)
+    recovery["deferred_targets"] = independent_deferred
+    from nvidia_transcribe.occurrence_resolution import resolve_occurrences, resolution_receipts
+    rows,decisions = resolve_occurrences(recording,events,observations,targets,recovery,policy)
     from nvidia_transcribe.scene_evidence import SceneEvidencePolicy, adjudicate_scene
-    rows,scene=adjudicate_scene({**recording,"utterances":rows},observations,
-        recovery["observations"],observed_media,text_scope,output_dir,
-        SceneEvidencePolicy(initial_context_s=policy.scene_context_s,
-            maximum_context_s=policy.scene_max_context_s,
-            context_char_budget=policy.scene_context_char_budget,
-            max_cases=policy.scene_max_cases,max_frames=policy.scene_max_frames))
+    if semantic_review:
+        rows,scene=adjudicate_scene({**recording,"utterances":rows},observations,
+            recovery["observations"],observed_media,text_scope,output_dir,
+            SceneEvidencePolicy(initial_context_s=policy.scene_context_s,
+                maximum_context_s=policy.scene_max_context_s,
+                context_char_budget=policy.scene_context_char_budget,
+                max_cases=policy.scene_max_cases,max_frames=policy.scene_max_frames))
+    else:
+        # Explicit acoustic-only evaluation entry. Normal CLI/Studio never
+        # disables semantic review through this parameter.
+        scene={"status":"not_requested","decisions":[],"errors":[],"deferred_source_ids":[]}
     reviewed_case_ids = {o["case_id"] for o in (advisory or {}).get("outcomes", [])}
     deferred_case_ids = [c["case_id"] for c in request["cases"]
                          if c["case_id"] not in reviewed_case_ids]
     discovery_deferred = request.get("deferred_by_budget", 0)
-    uncertain = (bool(unresolved or deferred or deferred_case_ids or discovery_deferred)
+    occurrence_receipts = resolution_receipts(recording,ledger,rows,decisions,policy)
+    pending_spans = sorted(r["occurrence_span_id"] for r in occurrence_receipts
+                           if r["status"] != "represented_provisional")
+    task_receipts = []
+    for task in [*windows,*deferred]:
+        ids = set(task["evidence_ids"])
+        related = [d for d in decisions if ids.intersection(d.get("trigger_evidence_ids", []))
+                   or set(task.get("source_ids",[])).intersection(
+                       [d.get("source_id"),d.get("superseded_source_id")])]
+        task_receipts.append({**task,"decision_count":len(related),
+            "decision_statuses":sorted({d["status"] for d in related}),
+            "resolution_state":"unresolved" if not related else "partially_adjudicated"})
+    uncertain = (bool(unresolved or deferred or deferred_case_ids or discovery_deferred or pending_spans)
                  or any(d["status"].startswith("unresolved") for d in decisions)
-                 or bool(recovery["decisions"] or recovery["errors"])
+                 or bool(recovery["decisions"] or recovery["errors"] or recovery["deferred_targets"])
+                 or (recovery["status"] == "not_configured" and bool(targets))
+                 or not semantic_review
                  or bool(scene["errors"] or scene["deferred_source_ids"])
                  or any(x.get("outcome") not in ("context_supported","supported") for x in scene["decisions"])
                  or recovery["status"] in ("unresolved","unsupported_language")
@@ -795,13 +884,19 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
         "source_language": recording["source_language"],
         "text_advisory": advisory, "deferred_text_case_ids": deferred_case_ids,
         "discovery_deferred_by_budget": discovery_deferred,
+        "pending_occurrence_span_ids": pending_spans,
         "windows": windows, "deferred_windows": deferred,
         "acoustic_observations": observations, "decisions": decisions,
         "unresolved_windows": unresolved, "audio_requests": len(observations),
-        "extra_acoustic_contexts": extra_contexts,
+        "extra_acoustic_contexts": acquisition["extra_contexts"],
+        "acoustic_acquisition": acquisition,
+        "recovery_tasks": task_receipts,
+        "occurrence_resolutions": occurrence_receipts,
         "source_truth_human_verified": False,
         "independent_model_agreement": any(
-            d["kind"]=="omission" for d in recovery["decisions"]),
+            d.get("independent_observation_ids") or d.get("kind")=="omission"
+            for d in decisions),
+        "semantic_review_requested": semantic_review,
         "independent_recovery": recovery,
         "scene_evidence": scene,
         "source_word_timing_verified": False,

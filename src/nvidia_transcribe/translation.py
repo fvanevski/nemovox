@@ -368,9 +368,19 @@ def _apply_safe_adjacent_regrouping(out_utts: list[dict[str, Any]]) -> int:
         # Accepted/provisional v2 source-event identities are never merged
         # merely because English text is similar. A translator is not an
         # authority to erase a separately observed acoustic source event.
-        anc_source_ids = anchor.get("source_turn_ids") or ([anchor["source_turn_id"]] if anchor.get("source_turn_id") else [])
-        cur_source_ids = u.get("source_turn_ids") or ([u["source_turn_id"]] if u.get("source_turn_id") else [])
-        if (anc_source_ids or cur_source_ids) and set(anc_source_ids) != set(cur_source_ids):
+        def source_identity(row):
+            return (row.get("source_occurrence_ids") or row.get("occurrence_span_ids")
+                    or row.get("source_turn_ids") or row.get("recognized_turn_ids")
+                    or ([row["source_turn_id"]] if row.get("source_turn_id") else []))
+        anc_source_ids, cur_source_ids = source_identity(anchor), source_identity(u)
+        # Distinct occurrence spans may belong to one recognized turn.
+        # A text model must not erase a separately observed occurrence.
+        # Even within a span, disjoint recognized units can contain a
+        # genuine repeated clause; do not perform text dedup over them.
+        if (any(row.get("source_occurrence_ids") or row.get("occurrence_span_ids")
+                or row.get("source_unit_ids") for row in (anchor, u))
+                or ((anc_source_ids or cur_source_ids)
+                    and set(anc_source_ids) != set(cur_source_ids))):
             anchor_idx = i
             continue
         spk_cur = u.get("speaker_id") or u.get("global_speaker_id")
@@ -463,6 +473,7 @@ def translate_utterances(
     gl = glossary or GlossaryConfig()
     trans_cfg_sig = {
         "prompt_version": _TRANSLATION_PROMPT_VERSION,
+        "occurrence_regrouping_contract": "bound-occurrence/v1",
         "backend": cfg.backend,
         "model": cfg.model,
         "endpoint": cfg.base_url,
@@ -615,6 +626,11 @@ def translate_utterances(
             return
         allow_grp = cfg.allow_adjacent_regrouping if allow_regrouping_override is None else allow_regrouping_override
         targets = [out_utts[i] for i in indices]
+        if any(u.get("source_unit_ids") or u.get("source_occurrence_ids")
+               or u.get("occurrence_span_ids") for u in targets):
+            # Bound observations have individual translation ownership.
+            # Avoid requesting merged/empty translations that must be repaired.
+            allow_grp = False
         lo, hi = indices[0], indices[-1] + 1
         ctx_before = out_utts[max(0, lo - cfg.context_utterances_before) : lo]
         ctx_after = out_utts[hi : min(n, hi + cfg.context_utterances_after)]
@@ -661,7 +677,9 @@ def translate_utterances(
             seen.add(uid)
             idx = expected[uid]
             trans = " ".join(str(item.get("translated_text") or "").split()).strip()
-            grp = bool(item.get("grouped_with_prev")) and (allow_regrouping_override is not False)
+            # Preserve a model's attempted merge for orphan repair, even if
+            # the prompt prohibited it. The actual merge guard remains authoritative.
+            grp = bool(item.get("grouped_with_prev")) and allow_regrouping_override is not False
             if not trans and not grp and _src_text(out_utts[idx]):
                 trans = _src_text(out_utts[idx])
                 status_str = "fallback_empty_translation"

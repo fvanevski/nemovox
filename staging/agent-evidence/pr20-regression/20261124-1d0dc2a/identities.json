@@ -1,0 +1,23 @@
+{
+  "repo_id": "fvanevski/nemovox",
+  "pr_number": 20,
+  "issue_numbers": [
+    17,
+    18
+  ],
+  "working_branch": "issue/17",
+  "execution_class": "CPU_ONLY",
+  "base_commit_identity": "9dd863841f72ab5f9aebf5bb4deb322bee99edf1",
+  "pre_remediation_reviewed_head": "ee0caf027d9df7394407b625ee58608e352db708",
+  "tested_source_identity": "1d0dc2a3c95d7657967088087effb5267dd05fcf",
+  "tested_source_tree": "50bb17a93d36b3b01019856f257c891824d036f5",
+  "evidence_carrier_identity": "published_in_commit_carrying_this_packet",
+  "source_files_modified": false,
+  "private_review_archive": {
+    "path": "/workspace/nvidia-transcribe/outputs/handbacks/pr20-regression-20261124-1d0dc2a/pr20-regression-review-1d0dc2a.tar.gz",
+    "bytes": 114836,
+    "sha256": "16da4b7d97636610c6dc7b2681134982df32f6de963abe697d481a4621e6b4a6",
+    "artifact_count": 28
+  },
+  "result": "PASS"
+}
