@@ -1,0 +1,77 @@
+{
+  "bounded": {
+    "subtitles": {
+      "total_input_utterances": 26,
+      "renderable_cues": 35,
+      "ass_displayed_cues": 35,
+      "ass_lane_1_top_cues": 5,
+      "ass_overflow_cues": 0,
+      "unrenderable_cues": 0,
+      "conflict_cues": 1
+    },
+    "files": {
+      "translated.contract.json": {
+        "sha256": "8423060b97b7c828b0fa235d7d01934cb78d27573a4a78ce3f6aab4393b6d9b0",
+        "identical_to_f45c91d5": true
+      },
+      "mcog_s04e01_260_370.en.srt": {
+        "sha256": "13d2c7ec65371bfad9b2919a6de3345a10c00a3373d3a8af2f06d98f58da52f4",
+        "identical_to_f45c91d5": true
+      },
+      "mcog_s04e01_260_370.en.ass": {
+        "sha256": "6d62099c4700de68386203a471427b984465261ee2185735e3bed17e1085e92f",
+        "identical_to_f45c91d5": true
+      }
+    }
+  },
+  "mandarin": {
+    "subtitles": {
+      "total_input_utterances": 2,
+      "renderable_cues": 2,
+      "ass_displayed_cues": 2,
+      "ass_lane_1_top_cues": 1,
+      "ass_overflow_cues": 0,
+      "unrenderable_cues": 0,
+      "conflict_cues": 0
+    },
+    "files": {
+      "translated.contract.json": {
+        "sha256": "88e9b5fa6271201d947ae83971fc5bf1f6bb29a6c65ba7b0e023aa6a25faeb78",
+        "identical_to_f45c91d5": true
+      },
+      "synthetic_zh_2spk_overlap.en.srt": {
+        "sha256": "c2145a8f8094c0d04f82f871b92407d724e06cd759088976352b7213606fcd36",
+        "identical_to_f45c91d5": true
+      },
+      "synthetic_zh_2spk_overlap.en.ass": {
+        "sha256": "b111d2524a5d5990717aee88f8a418e1b437ebbb4da0e26237380da6b822d8c4",
+        "identical_to_f45c91d5": true
+      }
+    }
+  },
+  "french": {
+    "subtitles": {
+      "total_input_utterances": 221,
+      "renderable_cues": 295,
+      "ass_displayed_cues": 295,
+      "ass_lane_1_top_cues": 48,
+      "ass_overflow_cues": 0,
+      "unrenderable_cues": 0,
+      "conflict_cues": 6
+    },
+    "files": {
+      "translated.contract.json": {
+        "sha256": "a60fe3b6048f36361dad626ef6a9ba3c4cefaaf8d512f2c2b97b3a08bdc69ef1",
+        "identical_to_f45c91d5": true
+      },
+      "Les myst\u00e9rieuses cit\u00e9s d'or Saison 4 Episode 1 [YlVGUDNbyXk].en.srt": {
+        "sha256": "2e1586c7cb70b3cc591c18b04d69c610217f9f6d37df635cb4050ec076b6b31c",
+        "identical_to_f45c91d5": true
+      },
+      "Les myst\u00e9rieuses cit\u00e9s d'or Saison 4 Episode 1 [YlVGUDNbyXk].en.ass": {
+        "sha256": "b60648795d2d9b97a59f7a70216d46f4dd5ee1ad0b4687d2460ae9d4df769f6f",
+        "identical_to_f45c91d5": true
+      }
+    }
+  }
+}

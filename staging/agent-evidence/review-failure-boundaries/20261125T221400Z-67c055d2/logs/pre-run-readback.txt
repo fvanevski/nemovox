@@ -1,0 +1,12 @@
+timestamp_utc=2026-11-25T22:14:16Z
+owner_head=4dd4599e51775ca510002783ea650ecd25fd7393
+owner_branch=main
+candidate_head=67c055d285779ad8f36206040c163d96f54122dc
+candidate_tree=8670b9aa167cb82e7e39d4d2fe437415e2bf8653
+parent_1=a614e5f0d8c3c1ad815dac3df12615ace77c2273
+parent_2=e9e9aeab6d6e554f258c46ead8ca1b0c76e7c459
+=== nvidia-smi ===
+name, memory.used [MiB], memory.total [MiB], utilization.gpu [%]
+NVIDIA GeForce RTX 5090, 3048 MiB, 32607 MiB, 2 %
+=== user services ===
+  nemovox-studio.service                                                  loaded    active     running      Nemovox Studio local subtitle GUI
