@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "<frozen runpy>", line 203, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/tmp/nemovox-issue18-sched.z7pQVZ/candidate/scripts/replay_recovery_schedule.py", line 157, in <module>
+    main()
+    ~~~~^^
+  File "/tmp/nemovox-issue18-sched.z7pQVZ/candidate/scripts/replay_recovery_schedule.py", line 116, in main
+    public,private,boundary=replay(args.archive)
+                            ~~~~~~^^^^^^^^^^^^^^
+  File "/tmp/nemovox-issue18-sched.z7pQVZ/candidate/scripts/replay_recovery_schedule.py", line 94, in replay
+    raise ValueError("Explicit previously deferred target not admitted")
+ValueError: Explicit previously deferred target not admitted

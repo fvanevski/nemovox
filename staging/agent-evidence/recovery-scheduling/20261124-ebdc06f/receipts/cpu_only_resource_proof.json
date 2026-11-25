@@ -1,0 +1,29 @@
+{
+  "execution_class": "CPU_ONLY",
+  "gpu": "NVIDIA GeForce RTX 5090",
+  "pre_gpu_mib": {
+    "used": 1662,
+    "free": 30466
+  },
+  "post_gpu_mib": {
+    "used": 1662,
+    "free": 30465
+  },
+  "nemovox_asr_service": {
+    "pre": "inactive/dead",
+    "post": "inactive/dead",
+    "started": false
+  },
+  "nemovox_text_review_service": {
+    "pre": "inactive/dead",
+    "post": "inactive/dead",
+    "started": false
+  },
+  "nemovox_studio_service": {
+    "pre": "active/running (PID 4071576)",
+    "post": "active/running (PID 4071576)",
+    "changed": false
+  },
+  "prior_archive_sha256": "4d46e32e6f2459cb348389aa4362b6a3fdfd2dddba56391160cc8ef2773d6755",
+  "boundary_wav_sha256": "d53c26af1f8dc1e0cfeb3b19735b69973cf9a5512bce0664e8445fe27139f066"
+}

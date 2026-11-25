@@ -1,0 +1,98 @@
+{
+  "tested_source_sha": "ebdc06f0bd2997c06d73e5e32158e07beb82e3a6",
+  "tested_tree_sha": "2865d1773ca385d6ea5a7695cc50a2c9d28fc51a",
+  "command_exits": {
+    "import_verify": 0,
+    "compileall": 0,
+    "pytest_focused": 0,
+    "pytest_full_cpu": 0,
+    "pytest_studio": 0,
+    "git_diff_check": 0,
+    "challenger_env_verify": 0,
+    "literal_replay_recovery_schedule": 1,
+    "unmodified_core_replay_and_targeted_worker": 0,
+    "omitted_primary_raw_responses_auth": 0
+  },
+  "artifacts": [
+    {
+      "path": "HANDback.md",
+      "bytes": 5626,
+      "sha256": "59acf2002a7e9e776d67481f6e4bf5a4420e0c73e22428d02ab9ed34b577cba2"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1603,
+      "sha256": "2e42435b27c59615cbe293047f072222280a0f4fa315748b4a98b35aeab01b64"
+    },
+    {
+      "path": "friction.json",
+      "bytes": 1750,
+      "sha256": "ce862932df6f3a8e294de2ad9e520aa49ef9785e7c80d876d8f5839d5ef1360b"
+    },
+    {
+      "path": "identities.json",
+      "bytes": 1306,
+      "sha256": "61a2045ef645f7ef5f1b774dc195eaec9bb2a3fa63506469568a6b2f564e3edb"
+    },
+    {
+      "path": "logs/challenger_env_verify.log",
+      "bytes": 390,
+      "sha256": "27a2f96d6bb1cbde8c8b2b3f99cd50cf93dcd259e1c1fa05bc30a075c9f0a3b9"
+    },
+    {
+      "path": "logs/compileall.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/git_diff_check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/import_verify.log",
+      "bytes": 401,
+      "sha256": "2787cb926443732c236ff2e019f0f8b57e8f80f4a73178f1351e50e0106edbd4"
+    },
+    {
+      "path": "logs/pytest_focused.log",
+      "bytes": 747,
+      "sha256": "a2cd7bd9c7b0683976ae10e8d9dc2d6c547d4e34c1b2e1617a552874d6034476"
+    },
+    {
+      "path": "logs/pytest_full_cpu.log",
+      "bytes": 1229,
+      "sha256": "cffd30be30fcfb7a593d272d9348472fa8d3587a7ecb9910e7f8ca6d5137f0f9"
+    },
+    {
+      "path": "logs/pytest_studio.log",
+      "bytes": 99,
+      "sha256": "7ac4744fd9a9368e4eeb5fc686923e692522ba76627a0105b5efd7956ec4d04c"
+    },
+    {
+      "path": "logs/replay_only.log",
+      "bytes": 723,
+      "sha256": "6b16927c208ac43868364c1b14cd34abcb1c5de1fe7d8455e81eced1441e4646"
+    },
+    {
+      "path": "receipts/challenger_env.json",
+      "bytes": 548,
+      "sha256": "b7b2c4c12fba104ac99c1d13a1e5763af8f0fc783304c909c175a90c9dc68633"
+    },
+    {
+      "path": "receipts/cpu_only_resource_proof.json",
+      "bytes": 751,
+      "sha256": "432642289c355a55d18b8b0399898de44ed9ab604d2c1170e1ba983361c779cd"
+    },
+    {
+      "path": "summaries/omitted_primary_raw_responses.json",
+      "bytes": 3890,
+      "sha256": "7fcc359bd642d0860f0cd198215f1770d4ee164bfbdfe35669b2630347547733"
+    },
+    {
+      "path": "summaries/replay_and_targeted_summary.json",
+      "bytes": 5567,
+      "sha256": "69709f976abc84b3cf32d2590505990d032b5f3bcc560f50826614f1a5783714"
+    }
+  ]
+}
