@@ -1,0 +1,10 @@
+src/nvidia_transcribe/subtitles.py 67c055d2=f002d2e589835851c5ee74d962fedb2ca3d3614d 791ce1f1=f002d2e589835851c5ee74d962fedb2ca3d3614d
+src/nvidia_transcribe/subtitle_pipeline.py 67c055d2=1df7b51e94bd701d7376b0c5cba2a816ae8ab995 791ce1f1=1df7b51e94bd701d7376b0c5cba2a816ae8ab995
+src/nvidia_transcribe/cli.py 67c055d2=389d27b64140ed6e308c0def8f57e7e738a7ed14 791ce1f1=389d27b64140ed6e308c0def8f57e7e738a7ed14
+web 67c055d2=1011e5c23e77821de13e8a1043735f792d9d92c7 791ce1f1=1011e5c23e77821de13e8a1043735f792d9d92c7
+configs 67c055d2=c10b6aaa015ef8f442bff87dd850189631a83aa3 791ce1f1=c10b6aaa015ef8f442bff87dd850189631a83aa3
+=== 3-file delta ===
+ docs/source-reconstruction/FINAL_QUALIFICATION.md | 16 +++++++
+ src/nvidia_transcribe/review_uncertainty.py       |  2 +-
+ tests/test_translation_review.py                  | 58 +++++++++++++++++++++++
+ 3 files changed, 75 insertions(+), 1 deletion(-)
