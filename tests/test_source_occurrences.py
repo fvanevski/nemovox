@@ -367,4 +367,5 @@ def test_untagged_cjk_localized_observation_keeps_order_and_unknown_voice():
     assert row["source_start"] == 101. and row["source_end"] == 102.1
     assert len(row["source_characters"]) == 4 and not row["source_words"]
     assert all(u["speaker"] is None for u in row["source_characters"])
-    assert row["source_unit_ids"] == inv["working_source_unit_ids"]
+    assert [u["text"] for u in row["source_characters"]] == list("你好世界")
+    assert row["source_unit_ids"] == sorted(inv["working_source_unit_ids"])
