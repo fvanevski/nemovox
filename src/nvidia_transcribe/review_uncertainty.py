@@ -89,11 +89,40 @@ def _tokens(text):
     return [w.casefold().replace("’","'") for w in _WORD.findall(text)]
 
 
-def _anchors(text):
-    """Conservative English name/number heuristic, not entity recognition."""
-    return [w.casefold().replace("’","'") for w in _WORD.findall(text)
-            if any(c.isdigit() for c in w)
-            or (w[0].isupper() and w.casefold() not in _COMMON)]
+# Closed grammatical classes, not an episode-specific entity dictionary.
+# Retain possessives on actual names (e.g. Nadia's) and all numeric tokens.
+_FUNCTION_CONTRACTIONS = re.compile(
+    r"(?:i|you|he|she|it|we|they|that|this|there|here|what|who|where|when|why|how)"
+    r"'(?:m|re|s|ve|d|ll)\Z"
+)
+_PREPOSITIONS = {"in", "on", "at", "to", "from", "for", "of", "by", "with", "as"}
+
+
+def _anchor_candidate(word):
+    folded = word.casefold().replace("’", "'")
+    if any(c.isdigit() for c in word):
+        return True
+    return (word[0].isupper() and folded not in _COMMON
+            and folded not in _PREPOSITIONS
+            and _FUNCTION_CONTRACTIONS.fullmatch(folded) is None)
+
+
+def _anchors_preserved(original, candidate):
+    """Compare lexical occurrences of potential names/numbers across both texts.
+
+    Capitalization is a nomination, not an identity: once a token is nominated
+    on either side, compare its case-folded occurrences in both texts. This
+    preserves count and order, including sentence-initial names and numbers,
+    without mistaking a case-only change at a cue boundary for substitution.
+    This deliberately conservative heuristic is not general entity recognition.
+    """
+    before = _WORD.findall(original)
+    after = _WORD.findall(candidate)
+    nominated = {w.casefold().replace("’", "'")
+                 for w in before + after if _anchor_candidate(w)}
+    def sequence(words):
+        return [w for w in _tokens(" ".join(words)) if w in nominated]
+    return sequence(before) == sequence(after)
 
 
 def uncertainty_veto(row, original, candidate, glossary):
@@ -115,6 +144,6 @@ def uncertainty_veto(row, original, candidate, glossary):
     elif kinds&_ENTITY or uncertainty["scene_outcome"] in ("unresolved","partial","error"):
         # A name/number stability guard where the uncertainty is less
         # specific. Preserve grammatical/idiomatic edits around anchors.
-        if _anchors(original)!=_anchors(candidate):
+        if not _anchors_preserved(original, candidate):
             return "unresolved_source_name_or_number_change"
     return None

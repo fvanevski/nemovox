@@ -972,3 +972,60 @@ def test_direction_construction_veto_on_joined_exact_candidate():
     out,report=review_translated_utterances(rows,source_language="fr",config=_loop_cfg(),text_client=Native())
     assert report["direction_grammar_rejections"]==2 and report["changed"]==0
     assert [r["translated_text"] for r in out]==["He headed","west."]
+
+
+def test_uncertain_entity_anchors_compare_lexical_occurrences_not_capitalization():
+    from nvidia_transcribe.review_uncertainty import _anchors_preserved
+    assert _anchors_preserved("Change course twice!", "change course twice!")
+    assert _anchors_preserved("It's us the crew!", "We're the crew!")
+    assert _anchors_preserved("You're brilliant! That's our Nakaal.", "You're brilliant! Our Nakaal.")
+    assert _anchors_preserved("in China, Japan and Arabia.", "In China, in Japan and in Arabia.")
+    assert _anchors_preserved("Nadia returns.", "nadia returns.")
+    assert not _anchors_preserved("Nadia returns.", "Isabella returns.")
+    assert not _anchors_preserved("Nadia returns.", "nadia and Nadia return.")
+    assert not _anchors_preserved("Nadia meets Tao.", "Tao meets Nadia.")
+    assert not _anchors_preserved("Route 403 to Rock Point.", "Route 404 to Rock Point.")
+    assert not _anchors_preserved("Nadia's boat.", "Tao's boat.")
+    assert not _anchors_preserved("the bus stops.", "the bus stops at Rochor.")
+
+
+def test_scene_uncertainty_allows_case_only_anchor_change_in_joined_passage():
+    from nvidia_transcribe.review_uncertainty import bind_review_uncertainty
+    rows = [
+        {"id":"a","speaker_id":"A","source_text":"Il a mis directement le cap à",
+         "translated_text":"He went straight to the"},
+        {"id":"b","speaker_id":"A","source_text":"l'ouest.","translated_text":"West."},
+    ]
+    quality = {"schema":"nemovox-current-source-quality/v1",
+               "scene_evidence":{"decisions":[{"source_id":"b","outcome":"unresolved"}]}}
+    bound = bind_review_uncertainty(rows, quality)
+    class Client:
+        def complete(self, **kwargs):
+            payload = json.loads(kwargs["messages"][1]["content"])
+            if "target_utterances" in payload:
+                body = {"reviews":[
+                    {"utterance_id":"a","corrected_text":"He headed straight","reason":"Direction"},
+                    {"utterance_id":"b","corrected_text":"west.","reason":"Continuation"}]}
+            else:
+                ids = ["a","b"] + [p["utterance_id"] for p in payload["passage_checks"]]
+                body = {"decisions":[{"utterance_id":uid,"choice":"proposal","reason":"Faithful passage"} for uid in ids]}
+            return {"choices":[{"finish_reason":"stop","message":{"content":json.dumps(body)}}]}
+    out, report = review_translated_utterances(bound, source_language="fr",
+        config=_loop_cfg(), text_client=Client())
+    assert [r["translated_text"] for r in out] == ["He headed straight","west."]
+    assert report["unresolved_source_rejections"] == report["dependent_passage_rejections"] == 0
+    assert report["changed"] == 2
+
+
+def test_scene_uncertainty_retains_names_numbers_and_material_wording():
+    from nvidia_transcribe.review_uncertainty import bind_review_uncertainty, uncertainty_veto
+    row = {"id":"u","source_text":"Nadia revient.","translated_text":"Nadia returns on bus 403."}
+    quality = {"schema":"nemovox-current-source-quality/v1",
+               "scene_evidence":{"decisions":[{"source_id":"u","outcome":"unresolved"}]}}
+    bound, = bind_review_uncertainty([row], quality)
+    original = row["translated_text"]
+    assert uncertainty_veto(bound, original, "nadia returns on bus 403.", GlossaryConfig()) is None
+    for candidate in ("Isabella returns on bus 403.", "Nadia returns on bus 404."):
+        assert uncertainty_veto(bound, original, candidate, GlossaryConfig()) == "unresolved_source_name_or_number_change"
+    bound["review_source_uncertainty"]["source_quality_status"] = "unresolved_wording"
+    assert uncertainty_veto(bound, original, "Nadia leaves on bus 403.", GlossaryConfig()) == "unresolved_source_material_lexical_change"

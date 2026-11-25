@@ -113,3 +113,24 @@ independent review and authorized merged-main acceptance follow separately.
 ## Completion of the retained C3 episode
 
 The previous full episode completed source quality and primary MT but stopped on a malformed completed comparative decision. The current review policy performs one bounded compact recovery using identical evidence; a second invalid/exhausted decision response defers changed proposals with complete primary MT, never caches invalid verdicts, and never converts transport/lifecycle/provenance failures into success. Raw rejected responses are private evidence. Unresolved current-source citations and scene dispositions are projected after MT; material unresolved wording requires lexical stability (articles/casing/punctuation permitted), and unresolved entity hypotheses receive a conservative English name/number guard. Explicit whole-row bilingual operator mappings can authorize a change. The guards do not establish source truth and may conservatively retain imperfect primary MT. The existing joined-passage comparator remains required; a narrow bare-cardinal-direction grammar veto catches the observed defective English construction without auto-rewriting it. Review prompt/cache version changed, so earlier review entries are not reused. Use scripts.prepare_review_completion to prepare each of the three exact archived inputs, then the public CLI with --recording-contract pointing to canonical-source.contract.json and --source-quality off. This is explicit retained canonical input, NOT a new source-quality checkpoint hit. Require identical primary MT and full Riva cache coverage, with no primary/acoustic ASR or Riva inference. The evaluator now reports unrendered review failures without invented render metadata. Preserve the normal defaults in deployed configuration; no extra stage or new model.
+
+
+## Final lexical-anchor qualification
+
+The completed native review archive at SHA-256
+`6f3f0e308b227e69248e4121f9064c5e7e3e9bb543a6fe554d7e6426866a592a`
+proved recovery and full rendering, but exposed a deterministic capitalization
+false positive. Compare lexical occurrences of potential name/number anchors
+in both primary and proposed English, and exclude closed grammatical
+contractions/prepositions from capitalized-word nominations. Material source
+uncertainty, comparator, polarity and dependent-passage rules are unchanged.
+The heuristic remains conservative and is not general entity recognition.
+The proposal/comparison prompt and cache key stay unchanged: the checkpoint
+stores validated proposals and verdicts, not final applied decisions; the
+current guard always re-adjudicates hits. No cache relabeling is needed.
+Use `scripts/replay_review_anchors.py` with exact old imports first to prove
+249-row replay fidelity, then current imports with the same sealed bytes.
+A cache miss is a hard stop, never a live model invocation. Review all changed
+dispositions and joined passages, including genuine names and numbers.
+The offline derived contract is not a fresh live inference receipt. Preserve
+the original execution identities and qualify current rendering separately.
