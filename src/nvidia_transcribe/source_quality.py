@@ -483,6 +483,25 @@ def select_source_events(recording, events, policy):
                             and not crossed_turn_ids(row, _bounds(other))
                             for other in events))
 
+    def bracketed_untimed_origin(row,event,bounds):
+        # Equal words elsewhere in a recording may be a genuine repeat.
+        # A task nominates an original occurrence; it does not establish
+        # that a remote acoustic match is that occurrence.
+        if not set(row.get("chunk_indices",[])).intersection(event.get("chunks",[])):
+            return False
+        if (row.get("source_unit_ids") or row.get("occurrence_span_ids")) and not (
+                row["id"] in event.get("trigger_source_ids",[])
+                or set(row.get("occurrence_span_ids",[])).intersection(event.get("trigger_evidence_ids",[]))):
+            return False
+        original=recording["utterances"]
+        positions=[i for i,u in enumerate(original) if u["id"]==row["id"]]
+        if len(positions)!=1:
+            return False
+        i=positions[0]
+        left=next((_bounds(u) for u in reversed(original[:i]) if _bounds(u)),None)
+        right=next((_bounds(u) for u in original[i+1:] if _bounds(u)),None)
+        return bool(left and right and left[1]<=bounds[0]<bounds[1]<=right[0])
+
     def uniquely_disputed_origin(event,bounds,words):
         # Numeric timing inside a disputed span is not an accepted event
         # location. Relocation requires affirmative rejected-locality
@@ -526,7 +545,18 @@ def select_source_events(recording, events, policy):
         crossed_ids = []
         exact_overlaps = [u for u in overlaps if _lex(u["source_text"]) == words]
         disputed_origin = uniquely_disputed_origin(event,bounds,words)
-        if disputed_origin is not None:
+        # Independently corroborated alternatives can still compete for
+        # the same event. Neither iteration order nor a common lexical
+        # sequence identifies distinct simultaneous voices.
+        competing_events_at_location = [
+            other for other in events if other is not event
+            and _same_event_bounds(_bounds(other),bounds,policy.timing_tolerance_s)
+            and (_lex(other["source_text"])!=words
+                 or not set(other["supporting_observation_ids"]).intersection(
+                            event["supporting_observation_ids"]))]
+        if competing_events_at_location:
+            status="unresolved_competing_acoustic_occurrences"
+        elif disputed_origin is not None:
             replace=disputed_origin
             status="relocated_disputed_occurrence"
         elif exact_overlaps:
@@ -571,10 +601,11 @@ def select_source_events(recording, events, policy):
             competing_events = [other for other in events
                 if other is not event and _lex(other["source_text"]) == words
                 and not _same_event_bounds(_bounds(other),bounds,policy.timing_tolerance_s)]
-            if _lex(candidate["source_text"]) == words and not competing_events:
+            if (_lex(candidate["source_text"]) == words and not competing_events
+                    and bracketed_untimed_origin(candidate,event,bounds)):
                 replace = candidate
                 status = "timed_corroborated_turn"
-            elif competing_events:
+            else:
                 status = "unresolved_possible_displaced_or_repeated_turn"
                 competing_hypotheses = [{"source_id":candidate["id"],"window":None}]
         elif not overlaps and all(corroborated_at_own_time(u, event) for u in nearby_matches):
@@ -645,6 +676,10 @@ def select_source_events(recording, events, policy):
                         "recovered_corroborated_turn","replaced_corroborated_source_hypothesis",
                         "relocated_disputed_occurrence"}:
             decision["source_id"] = uid
+        if competing_events_at_location:
+            decision["competing_acoustic_observation_ids"] = sorted({
+                oid for other in competing_events_at_location
+                for oid in other["supporting_observation_ids"]})
         if competing_hypotheses:
             decision["competing_source_hypotheses"] = competing_hypotheses
             decision["crossed_source_ids"] = crossed_ids
@@ -736,6 +771,7 @@ def acquire_acoustic_evidence(recording, media, windows, *, asr_scope, output_di
                 for e in selected:
                     e["chunks"] = task["chunks"]
                     e["trigger_evidence_ids"] = task["evidence_ids"]
+                    e["trigger_source_ids"] = task.get("source_ids",[])
                     e["recovery_task_ids"] = [task["task_id"]]
                 events.extend(selected)
                 matched = {oid for e in selected for oid in e["supporting_observation_ids"]}

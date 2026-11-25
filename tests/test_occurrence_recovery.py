@@ -345,3 +345,59 @@ def test_cross_model_event_support_does_not_claim_missing_word_time():
     assert rec==before and not receipts[0]["acoustic_truth_accepted"]
     ds[0]["independent_observation_ids"]=[]
     assert resolution_receipts(rec,ledger([sp],duration=110.),rec["utterances"],ds,SourceQualityPolicy())[0]["status"]=="unresolved"
+
+
+def test_untimed_equal_text_in_other_chunk_cannot_claim_original_identity():
+    rec=recording([row("left","Before",1.,2.),
+                   row("missing","Come back",None,None,"span"),
+                   row("right","After",7.,8.)])
+    local=event("Come back",4.,5.,trigger_evidence_ids=["span"],trigger_source_ids=["missing"])
+    for candidate in (
+        {**local,"source_start":80.,"source_end":81.,"chunks":[5]},
+        {**local,"source_start":80.,"source_end":81.},
+        {**local,"chunks":[5]},
+        {**local,"trigger_evidence_ids":[],"trigger_source_ids":[]},
+    ):
+        rows,ds=select_source_events(rec,[candidate],SourceQualityPolicy())
+        assert rows==rec["utterances"]
+        assert ds[0]["status"].startswith("unresolved")
+    rows,ds=select_source_events(rec,[local],SourceQualityPolicy())
+    assert len(rows)==3 and rows[1]["id"]=="missing"
+    assert rows[1]["source_start"]==4.
+    assert ds[0]["status"]=="timed_corroborated_turn"
+    assert rows[1]["source_unit_ids"]==["missing-unit"]
+
+
+@pytest.mark.parametrize("bridge_first",[False,True])
+def test_observation_bridge_merges_all_equivalent_candidates_once(bridge_first):
+    from nvidia_transcribe.occurrence_resolution import consolidate_events
+    a=event("Come back",10.,12.,("a","b"),trigger_evidence_ids=["left"])
+    b=event("Come back",10.1,12.1,("c","d"),trigger_evidence_ids=["right"])
+    bridge=event("Come back",10.2,12.2,("b","c"))
+    ordered=[bridge,a,b] if bridge_first else [a,b,bridge]
+    merged,conflicts=consolidate_events(ordered,SourceQualityPolicy())
+    assert not conflicts and len(merged)==1
+    assert merged[0]["supporting_observation_ids"]==["a","b","c","d"]
+    assert merged[0]["trigger_evidence_ids"]==["left","right"]
+
+
+def test_observation_bridge_does_not_certify_transitive_locality():
+    from nvidia_transcribe.occurrence_resolution import consolidate_events
+    events=[event("Come back",10.,12.,("a","b")),
+            event("Come back",11.2,13.2,("c","d")),
+            event("Come back",10.6,12.6,("b","c"))]
+    merged,conflicts=consolidate_events(events,SourceQualityPolicy())
+    assert not merged and len(conflicts)==1
+    assert conflicts[0]["observations"]==["a","b","c","d"]
+
+
+@pytest.mark.parametrize("second_text",["Come back","Don't come back"])
+def test_unassociated_simultaneous_acoustic_candidates_do_not_elect_a_winner(second_text):
+    rec=recording([row("other","Hello",1.,2.)])
+    first=event("Come back",10.,12.,("a","b"))
+    second=event(second_text,10.1,12.1,("c","d"))
+    for events in ([first,second],[second,first]):
+        rows,ds=resolve_occurrences(rec,events,[],[],{"status":"no_targets","observations":[]},SourceQualityPolicy())
+        assert rows==rec["utterances"]
+        assert len(ds)==2
+        assert all(d["status"]=="unresolved_competing_acoustic_occurrences" for d in ds)

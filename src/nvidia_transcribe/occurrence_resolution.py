@@ -34,7 +34,8 @@ def cross_model_events(observations,targets,recovery,policy):
                 if (not ab or not bb or len(_lex(a["source_text"]))<2
                         or _lex(a["source_text"])!=_lex(b["source_text"])
                         or not _same_event_bounds(ab,bb,policy.timing_tolerance_s)
-                        or not target["bounds"][0]<=sum(bb)/2<=target["bounds"][1]):
+                        or not all(target["bounds"][0]<=sum(x)/2<=target["bounds"][1]
+                                   for x in (ab,bb))):
                     continue
                 if not any(o["crop"][0]+.1 < x[0] < x[1] < o["crop"][1]-.1
                            for o,x in zip(pair,(ab,bb))):
@@ -52,7 +53,9 @@ def cross_model_events(observations,targets,recovery,policy):
                     continue
                 matches=[g for g in _observation_groups(obs)
                          if _lex(g["source_text"])==key
-                         and _same_event_bounds(_bounds(g),_bounds(b),policy.timing_tolerance_s)]
+                         and all(_same_event_bounds(_bounds(g),_bounds(r),policy.timing_tolerance_s)
+                                 for r in (a,b))
+                         and target["bounds"][0]<=sum(_bounds(g))/2<=target["bounds"][1]]
                 if len(matches)>1:
                     ambiguous=True
                     break
@@ -60,8 +63,8 @@ def cross_model_events(observations,targets,recovery,policy):
                     support.append((obs,matches[0]))
             if ambiguous or not support:
                 continue
-            # Reject incompatible concurrent lexical alternatives rather
-            # than silently select one voice from a multi-voice collision.
+            # All selected native supports must agree on both boundaries.
+            # Distinct concurrent hypotheses remain separate observations.
             selected=support[0][1]
             if any(not _same_event_bounds(_bounds(selected),_bounds(g),policy.timing_tolerance_s)
                    for _,g in support):
@@ -74,41 +77,61 @@ def cross_model_events(observations,targets,recovery,policy):
                 "raw_response_sha256":sorted({o["raw_response_sha256"] for o,_ in support}),
                 "context_crops":[list(o["crop"]) for o in pair]+[list(o["crop"]) for o,_ in support],
                 "chunks":target["chunks"],"trigger_evidence_ids":target["evidence_ids"],
+                "trigger_source_ids":target.get("ids",[]),
                 "recovery_task_ids":target["task_ids"]}
             events.append(event)
     return events
 
 
 def consolidate_events(events,policy):
-    """Reuse repeated observations without multiplying an event or crossing voices."""
-    conflicts=[]
-    blocked=set()
-    for i,event in enumerate(events):
-        for j,other in enumerate(events[:i]):
-            shared=set(event["supporting_observation_ids"]) & set(other["supporting_observation_ids"])
-            if shared and not (_lex(event["source_text"])==_lex(other["source_text"])
-                    and _same_event_bounds(_bounds(event),_bounds(other),policy.timing_tolerance_s)):
-                blocked.update((i,j))
-                conflicts.append({"status":"unresolved_conflicting_observation_correspondence",
-                    "observations":sorted(set(event["supporting_observation_ids"]+other["supporting_observation_ids"])),
-                    "trigger_evidence_ids":sorted(set(event.get("trigger_evidence_ids",[])+other.get("trigger_evidence_ids",[]))),
-                    "windows":[_bounds(event),_bounds(other)]})
-    result=[]
-    for i,event in enumerate(events):
-        if i in blocked:
+    """Partition by shared observation membership, not transitive timing.
+
+    Each observation belongs to at most one accepted event. A bridge may
+    unite several equivalent candidates, but pairwise locality must hold
+    across the entire connected component before anything is selected.
+    """
+    members=[set(event["supporting_observation_ids"]) for event in events]
+    remaining=set(range(len(events)))
+    result,conflicts=[],[]
+    while remaining:
+        first=min(remaining)
+        remaining.remove(first)
+        component=[first]
+        support=set(members[first])
+        while True:
+            linked=sorted(i for i in remaining if members[i] & support)
+            if not linked:
+                break
+            remaining.difference_update(linked)
+            component.extend(linked)
+            for i in linked:
+                support.update(members[i])
+        group=[events[i] for i in sorted(component)]
+        coherent=all(_lex(a["source_text"])==_lex(b["source_text"])
+                     and _same_event_bounds(_bounds(a),_bounds(b),policy.timing_tolerance_s)
+                     for i,a in enumerate(group) for b in group[:i])
+        if not coherent:
+            conflicts.append({
+                "status":"unresolved_conflicting_observation_correspondence",
+                "observations":sorted(support),
+                "trigger_evidence_ids":sorted({uid for e in group for uid in e.get("trigger_evidence_ids",[])}),
+                "recovery_task_ids":sorted({uid for e in group for uid in e.get("recovery_task_ids",[])}),
+                "windows":[_bounds(e) for e in group]})
             continue
-        hits=[e for e in result if _lex(e["source_text"])==_lex(event["source_text"])
-              and _same_event_bounds(_bounds(e),_bounds(event),policy.timing_tolerance_s)
-              and set(e["supporting_observation_ids"]).intersection(event["supporting_observation_ids"])]
-        if len(hits)==1:
-            e=hits[0]
+        merged=dict(group[0])
+        if len(group)>1:
             for key in ("supporting_observation_ids","audio_sha256","raw_response_sha256",
-                        "trigger_evidence_ids","recovery_task_ids","independent_observation_ids","chunks"):
-                e[key]=sorted(set(e.get(key,[])+event.get(key,[])))
-            if event.get("independent_receipt_sha256"):
-                e["independent_receipt_sha256"]=event["independent_receipt_sha256"]
-        else:
-            result.append({**event})
+                        "trigger_evidence_ids","trigger_source_ids","recovery_task_ids",
+                        "independent_observation_ids","chunks"):
+                merged[key]=sorted({v for e in group for v in e.get(key,[])})
+            merged["context_crops"]=[list(c) for c in sorted({
+                tuple(c) for e in group for c in e.get("context_crops",[])})]
+            receipts={e["independent_receipt_sha256"] for e in group if e.get("independent_receipt_sha256")}
+            if len(receipts)>1:
+                raise ValueError("Conflicting independent worker receipts in one acquisition")
+            if receipts:
+                merged["independent_receipt_sha256"]=next(iter(receipts))
+        result.append(merged)
     return result,conflicts
 
 
