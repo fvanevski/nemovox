@@ -377,9 +377,10 @@ def _apply_safe_adjacent_regrouping(out_utts: list[dict[str, Any]]) -> int:
         # A text model must not erase a separately observed occurrence.
         # Even within a span, disjoint recognized units can contain a
         # genuine repeated clause; do not perform text dedup over them.
-        anc_units, cur_units = set(anchor.get("source_unit_ids", [])),set(u.get("source_unit_ids", []))
-        if ((anc_source_ids or cur_source_ids) and set(anc_source_ids) != set(cur_source_ids)
-                or (anc_units or cur_units) and anc_units != cur_units):
+        if (any(row.get("source_occurrence_ids") or row.get("occurrence_span_ids")
+                or row.get("source_unit_ids") for row in (anchor, u))
+                or ((anc_source_ids or cur_source_ids)
+                    and set(anc_source_ids) != set(cur_source_ids))):
             anchor_idx = i
             continue
         spk_cur = u.get("speaker_id") or u.get("global_speaker_id")
@@ -676,7 +677,9 @@ def translate_utterances(
             seen.add(uid)
             idx = expected[uid]
             trans = " ".join(str(item.get("translated_text") or "").split()).strip()
-            grp = bool(item.get("grouped_with_prev")) and allow_grp
+            # Preserve a model's attempted merge for orphan repair, even if
+            # the prompt prohibited it. The actual merge guard remains authoritative.
+            grp = bool(item.get("grouped_with_prev")) and allow_regrouping_override is not False
             if not trans and not grp and _src_text(out_utts[idx]):
                 trans = _src_text(out_utts[idx])
                 status_str = "fallback_empty_translation"
