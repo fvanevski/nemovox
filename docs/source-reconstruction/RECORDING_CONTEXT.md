@@ -56,3 +56,5 @@ evaluation policy does not change normal defaults. No requirement to repeat
 all prior acoustic controls or run a full episode at this increment.
 
 The private source-quality report retains raw answer text; the canonical contract carries only validated hypotheses and compact attempt receipts. No raw rejected answer is passed to downstream consumers.
+
+For planning-only qualification, `--sealed-recovery-archive` accepts the exact previously adjudicated #18 private archive `occurrence-recovery-review-029f969.tar.gz` (SHA-256 `4d46e32e6f2459cb348389aa4362b6a3fdfd2dddba56391160cc8ef2773d6755`). It verifies the complete archive inventory and original recording/ledger digests, then runs the new context and planner on those sealed original observations. This is not a current-job compatibility bypass: `--live-media` requires a current manifest-bound recording, and no old manifest is edited. Default sealed cases are compression, boundary, low-flag control and multilingual control. Use `--case` to select a bounded subset.

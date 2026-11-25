@@ -244,3 +244,19 @@ def test_segment_response_cannot_reference_a_row_outside_its_request():
     assert report["status"] == "partial" and report["calls"] == 3
     assert report["rejected_proposals"][0]["reason"] == "unknown_source_reference"
     assert not report["occurrence_requests"]
+
+
+
+def test_context_missing_native_usage_does_not_discard_other_valid_segment():
+    rec, ledger = inputs()
+    def factory(req, n):
+        if n == 1:
+            return answer(req), "max_tokens", USAGE
+        if n == 2:
+            return answer(req, [proposal("wording","a",[("a","Je")])]), "end_turn", {}
+        return answer(req, [proposal("wording","c",[("c","Nadya")])]), "end_turn", USAGE
+    report = run_recording_context(rec, ledger, client=Native(factory))
+    assert report["status"] == "partial"
+    assert report["covered_source_ids"] == ["c","d"]
+    assert not report["all_attempt_token_usage_reported"]
+    assert [x["source_ids"] for x in report["occurrence_requests"]] == [["c"]]

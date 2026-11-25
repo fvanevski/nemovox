@@ -6,12 +6,13 @@ mode uses the actual production orchestrator on one bounded authenticated crop.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
 from nvidia_transcribe.client import NemotronVLLMClient
 from nvidia_transcribe.model_resources import load_model_resources
-from nvidia_transcribe.recording_context import run_recording_context
+from nvidia_transcribe.recording_context import digest, run_recording_context
 from nvidia_transcribe.resource_lifecycle import ModelLifecycle, managed_asr_client, managed_text_client
 from nvidia_transcribe.source_quality import SourceQualityPolicy, load_current_ledger, plan_windows, review_current_source
 from nvidia_transcribe.ninfer_messages_client import QUALITY_TIMEOUT_S
@@ -21,20 +22,66 @@ def write(path, value):
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+LIVE_ARCHIVE_SHA = "4d46e32e6f2459cb348389aa4362b6a3fdfd2dddba56391160cc8ef2773d6755"
+LIVE_SOURCE_SHA = "029f969b43c58d53fd27975ff122c097ead04167"
+
+
+def sealed_recordings(path, cases):
+    """Read-only qualification of the accepted #18 inputs, never a runtime bypass."""
+    from scripts.evaluate_occurrence_recovery import verified_archive
+    members = verified_archive(path, expected_sha=LIVE_ARCHIVE_SHA, expected_source=LIVE_SOURCE_SHA)
+    result = []
+    for case in cases:
+        stem = f"private/phase-b-live/{case}"
+        original = f"{stem}/recording/recording.contract.json"
+        rec = json.loads(members[original])
+        quality = json.loads(members[f"{stem}/source-quality.json"])
+        manifest = json.loads(members[f"{stem}/recording/manifest.json"])
+        data = members[f"{stem}/recording/source-evidence.v1.json"]
+        ledger = json.loads(data)
+        expected = {r["chunk_index"]: r["raw_response_sha256"]
+                    for r in rec["processing"]["chunks"]}
+        observed = {r["chunk_index"]: r["raw_response_sha256"]
+                    for r in ledger["asr_observations"]}
+        if (quality["recording_sha256"] != digest(rec)
+                or manifest["source_evidence"]["sha256"] != hashlib.sha256(data).hexdigest()
+                or manifest["asr_run_status"] != "completed"
+                or ledger["schema_version"] != "nemovox-source-evidence/v1"
+                or not isinstance(ledger.get("recognized_occurrence_inventories"), list)
+                or quality["media_fingerprint_sha256"] != rec["source"]["fingerprint_sha256"]
+                or ledger["media_fingerprint_sha256"] != rec["source"]["fingerprint_sha256"]
+                or ledger["source_language"] != rec["source_language"]
+                or not expected or expected != observed
+                or len(expected) != len(rec["processing"]["chunks"])
+                or len(observed) != len(ledger["asr_observations"])):
+            raise ValueError("Sealed recording/ledger identity mismatch")
+        result.append((f"{path.name}:{original}", rec, ledger))
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--recording", type=Path, action="append", required=True)
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--recording", type=Path, action="append")
+    source.add_argument("--sealed-recovery-archive", type=Path)
+    parser.add_argument("--case", choices=["compression", "boundary", "late_gap",
+                         "low_flag_control", "multilingual_control"], action="append")
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--model-resources", type=Path, required=True)
     parser.add_argument("--lifecycle-config", type=Path)
     parser.add_argument("--live-media", type=Path, help="One exact bounded source; production source-quality path")
     args = parser.parse_args()
-    if args.live_media and len(args.recording) != 1:
-        parser.error("--live-media requires exactly one recording")
+    if args.live_media and (not args.recording or len(args.recording) != 1):
+        parser.error("--live-media requires exactly one current manifest-bound recording")
+    if args.case and not args.sealed_recovery_archive:
+        parser.error("--case applies only to --sealed-recovery-archive")
     root = args.output_dir
     root.mkdir(parents=True, exist_ok=False)
-    recordings = []
-    for path in args.recording:
+    recordings = (sealed_recordings(args.sealed_recovery_archive,
+        list(dict.fromkeys(args.case or ["compression", "boundary", "low_flag_control",
+                                         "multilingual_control"])))
+        if args.sealed_recovery_archive else [])
+    for path in args.recording or []:
         rec = json.loads(path.read_text(encoding="utf-8"))
         ledger = load_current_ledger(rec,path)
         if args.live_media and rec["source"]["duration_s"] > 180.:
@@ -50,7 +97,11 @@ def main():
         max_acoustic_audio_s=240.,max_acoustic_wall_s=420.,
         max_independent_targets=2,max_independent_audio_s=100.,max_independent_wall_s=420.,
         max_text_cases=2,scene_max_cases=1)
-    write(root/"resources.json", {"translation_review_fingerprint":resource.fingerprint(),
+    write(root/"resources.json", {"input_authority": (
+        {"mode":"sealed_prior_evaluation", "archive_sha256":LIVE_ARCHIVE_SHA,
+         "original_source_sha":LIVE_SOURCE_SHA} if args.sealed_recovery_archive else
+        {"mode":"current_manifest_bound"}),
+        "translation_review_fingerprint":resource.fingerprint(),
         "resource":resource.name,"adapter":resource.adapter,"model":resource.model})
     if args.live_media:
         path,rec,ledger = recordings[0]
