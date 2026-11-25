@@ -65,6 +65,9 @@ def test_acoustic_selection_preserves_event_identity_and_timing():
     assert len(candidates)==1
     d={"decision":{"action":"acoustic","candidate_id":candidates[0]["id"],
                    "materially_resolved":True}}
+    assert not apply_decision(base,d,candidates,[])
+    candidates=audio_candidates(base,[base],obs,
+        [{"audio_sha256":"b","rows":[{**alt,"observation_id":"q"}]}])
     assert apply_decision(base,d,candidates,[])
     assert (base["source_start"],base["source_end"],base["speaker_id"])==(100,104,"SPK_A")
     assert base["source_text"]==alt["source_text"]
@@ -99,14 +102,44 @@ def test_current_hypothesis_corroboration_is_visible_without_counting_votes():
 def test_partial_caption_edit_preserves_uncertain_remainder_and_prior():
     original=row("t","I will find the old gate. Unknown tail.",100,104)
     item=dict(original)
-    visual=[{"id":"frame","caption":"I will find the hidden gate."}]
+    visual=[{"id":"frame","caption":"I will find the hidden gate.","inside_event":True,"uncertainty":""}]
     assessment={"decision":{"action":"caption","candidate_id":"frame",
                              "replace_span":"I will find the old gate.",
                              "materially_resolved":True}}
-    assert apply_decision(item,assessment,[],visual)
+    assert not apply_decision(item,assessment,[],visual)
+    alt={**row("p","I will find the hidden gate. Unknown tail.",100,104),"observation_id":"p"}
+    candidates=audio_candidates(item,[item],[{"audio_sha256":"a","utterances":[alt]}],
+        [{"audio_sha256":"b","rows":[{**alt,"observation_id":"q"}]}])
+    assert apply_decision(item,assessment,candidates,visual)
     assert item["source_text"]=="I will find the hidden gate. Unknown tail."
     assert item["source_semantic_resolution"]=="partial"
     assert item["source_quality_status"]=="partially_supported_caption_hypothesis"
     assert item["prior_scene_source_hypothesis"]==original
     assert item["source_caption_evidence"][0]["replaced_span"]=="I will find the old gate."
     assert (item["source_start"],item["source_end"])==(100,104)
+
+
+
+def test_context_nominations_and_visual_literals_are_row_bound():
+    from nvidia_transcribe.semantic_context import row_nominations, accepted_row_context, current_row_context
+    base=row("t","Nadia ferme la porte.",100,104)
+    base["source_unit_ids"]=["unit1"]
+    prop={"proposal_id":"p","kind":"entity_variant","citations":[
+        {"source_id":"t","quote":"Nadia","character_span":[0,5],"source_row_unit_ids":["unit1"]},
+        {"source_id":"missing","quote":"Nadya","character_span":[0,5],"source_row_unit_ids":["unit2"]}]}
+    nominations,unavailable=row_nominations([base],{"proposals":[prop]})
+    assert nominations["t"][0]["status"]=="advisory_only"
+    assert unavailable[0]["source_id"]=="missing"
+    frame={"id":"f","inside_event":True,"visible_text":"Nadia","text_kind":"entity_label",
+           "uncertainty":"","sha256":"a"*64,"requested_seek_s":101.}
+    context=accepted_row_context(base,[],[frame])
+    assert context["visual_literals"][0]["literal"]=="Nadia"
+    assert context["entity_identity_accepted"] is False
+    assert accepted_row_context(base,[],[{**frame,"visible_text":"Nadya"}]) is None
+    assert accepted_row_context(base,[],[{**frame,"inside_event":False}]) is None
+    assert accepted_row_context(base,[],[{**frame,"uncertainty":"unreadable"}]) is None
+    base["semantic_context"]=context
+    assert current_row_context(base)==context
+    base["source_text"]="Nadya ferme la porte."
+    assert current_row_context(base) is None
+    assert not row_nominations([base],{"proposals":[prop]})[0]

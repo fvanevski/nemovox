@@ -864,7 +864,7 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
             SceneEvidencePolicy(initial_context_s=policy.scene_context_s,
                 maximum_context_s=policy.scene_max_context_s,
                 context_char_budget=policy.scene_context_char_budget,
-                max_cases=policy.scene_max_cases,max_frames=policy.scene_max_frames))
+                max_cases=policy.scene_max_cases,max_frames=policy.scene_max_frames),context)
     else:
         # Explicit acoustic-only evaluation entry. Normal CLI/Studio never
         # disables semantic review through this parameter.
@@ -891,7 +891,8 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
                  or (recovery["status"] == "not_configured" and bool(targets))
                  or not semantic_review
                  or bool(context and (context["status"] == "partial" or context["occurrence_requests"]))
-                 or bool(scene["errors"] or scene["deferred_source_ids"])
+                 or bool(scene["errors"] or scene["deferred_source_ids"]
+                         or scene.get("unavailable_context_references"))
                  or any(x.get("outcome") not in ("context_supported","supported") for x in scene["decisions"])
                  or recovery["status"] in ("unresolved","unsupported_language")
                  or bool(advisory and (advisory.get("systemic_failure")
