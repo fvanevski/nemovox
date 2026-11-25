@@ -218,6 +218,17 @@ def regional_passages(rows):
     return {"regions":regions,"wholly_untimed_count":sum(_bounds(r) is None for r in rows)}
 
 
+def current_render_metadata(job, translated):
+    # A failed new review can leave stale metadata from an older render.
+    # Never count those files as output of the failed attempt.
+    if translated.get("translation_review",{}).get("status")=="completed_with_errors":
+        return None
+    path=job/"subtitles.metadata.json"
+    if not path.is_file():
+        raise ValueError("Missing render metadata without explicit failed review")
+    return read(path)
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--job",required=True,type=Path)
@@ -236,13 +247,7 @@ def main():
     quality=read(job/"source-quality.json")
     canonical=read(job/"canonical-source.contract.json")
     translated=read(job/"translated.contract.json")
-    metadata_path=job/"subtitles.metadata.json"
-    if metadata_path.is_file():
-        metadata=read(metadata_path)
-    elif translated.get("translation_review",{}).get("status")=="completed_with_errors":
-        metadata=None
-    else:
-        raise ValueError("Missing render metadata without explicit failed review")
+    metadata=current_render_metadata(job,translated)
     media=probe_media(args.media,audio_stream_index=rec["source"]["selected_audio_stream"])
     if (media.fingerprint_sha256!=rec["source"]["fingerprint_sha256"]
             or abs(media.duration_s-rec["source"]["duration_s"])>.01

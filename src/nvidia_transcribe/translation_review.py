@@ -230,7 +230,7 @@ def _compact_comparison(client, messages, ids, max_tokens):
     alternate[0]["content"] += (
         " Use the compact response format: give one concise passage-level rationale "
         "covering your decisions, then one exact ID=choice token for each requested "
-        "utterance. Do not emit the earlier nested decisions format. Avoid repeated whitespace.")
+        "row and passage ID. Do not emit the earlier nested decisions format. Avoid repeated whitespace.")
     reply = client.complete(messages=alternate, max_tokens=max_tokens, temperature=0.0,
                             response_format={"type": "json_schema", "schema": schema},
                             thinking_budget=1024, reasoning_effort="xhigh",

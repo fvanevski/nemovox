@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from nvidia_transcribe.translation_review import TranslationReviewConfig, review_translated_utterances
 from nvidia_transcribe.refinement import GlossaryConfig
 
@@ -486,9 +488,10 @@ def test_messages_incomplete_comparative_review_does_not_accept_candidate():
     out, report = review_translated_utterances(
         rows, source_language="fr", config=_cfg(wire_protocol="ninfer_messages",
                                                thinking_budget=0, reasoning_effort="none"),
-        text_client=Client(proposed, {"decisions": []}))
+        text_client=Client(proposed, {"decisions": []}, RuntimeError("comparison transport failed")))
     assert out[0]["translated_text"] == rows[0]["translated_text"]
     assert report["status"] == "completed_with_errors"
+    assert not report["deferred_comparison_ids"]
 
 
 
@@ -635,7 +638,12 @@ def test_compact_invalid_ids_defer_but_transport_failure_remains_error(tmp_path)
 
 
 
-def test_deferred_comparator_renders_without_claiming_complete_review(tmp_path, monkeypatch):
+@pytest.mark.parametrize("responses",[
+    ("loop","loop"),
+    ({"decisions":[{"utterance_id":"unknown","choice":"proposal","reason":"Bad ID"}]},
+     {"reason":"Bad ID","verdicts":["unknown=proposal"]}),
+])
+def test_deferred_comparator_renders_without_claiming_complete_review(tmp_path, monkeypatch,responses):
     from pathlib import Path
     from types import SimpleNamespace
     from nvidia_transcribe import translation
@@ -656,7 +664,7 @@ def test_deferred_comparator_renders_without_claiming_complete_review(tmp_path, 
                          "translated_text": original[item["utterance_id"]]} for item in items],
         }))
     monkeypatch.setattr(translation.subprocess, "run", fake_riva)
-    client = _LoopReviewClient(_loop_proposals(), "loop", "loop")
+    client = _LoopReviewClient(_loop_proposals(), *responses)
     root = tmp_path / "rendered"
     cfg = SubtitlePipelineConfig(
         source_language="fr", translation=TranslationConfig(backend="riva", riva_device="cuda:0"),
@@ -881,8 +889,6 @@ def test_missing_joined_passage_verdict_preserves_primary_and_not_cached(tmp_pat
 
 
 def test_completed_malformed_comparison_recovers_on_identical_evidence(tmp_path):
-    from nvidia_transcribe.translation_review import _standard_decisions, ComparativeDecisionError
-    import pytest
     invalid=[
         ({"decisions":[{"utterance_id":"unknown","choice":"proposal","reason":"x"}]},"unexpected_decision_id:0"),
         ({"decisions":[{"utterance_id":"u0","choice":"proposal","reason":"x"}]*2},"duplicate_decision_id:1"),

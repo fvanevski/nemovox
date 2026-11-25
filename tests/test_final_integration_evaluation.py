@@ -46,3 +46,17 @@ def test_occurrence_comparison_never_pairs_new_row_by_position():
               "translated_text":"Hi"}]
     result=compare_rows(prior,current)
     assert result=={"removed_ids":["a"],"added_ids":["b"],"shared":[]}
+
+
+
+def test_failed_review_never_claims_stale_render_metadata(tmp_path):
+    from scripts.evaluate_final_integration import current_render_metadata
+    failed={"translation_review":{"status":"completed_with_errors"}}
+    assert current_render_metadata(tmp_path,failed) is None
+    path=tmp_path/"subtitles.metadata.json"
+    path.write_text('{"subtitles":{"renderable_cues":10}}')
+    assert current_render_metadata(tmp_path,failed) is None
+    assert current_render_metadata(tmp_path,{"translation_review":{"status":"completed"}})["subtitles"]["renderable_cues"]==10
+    path.unlink()
+    with pytest.raises(ValueError,match="Missing render metadata"):
+        current_render_metadata(tmp_path,{"translation_review":{"status":"completed"}})
