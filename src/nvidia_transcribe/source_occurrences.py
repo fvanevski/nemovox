@@ -35,9 +35,11 @@ def _tag(value):
 def associate_native_ctc(units, parsed, payload):
     """Map native observations to the recognized spine, never the reverse.
 
-    Complete equal per-tag sequences permit ordinal association only. Partial
-    streams use unique ordered lexical anchors. Crossing anchors and ambiguous
-    repeats stay unresolved. No lexical match certifies acoustic locality.
+    Complete equal per-tag sequences permit ordinal association only. If the
+    recognized transcript is wholly untagged, use the ordered native lexical
+    stream without its speaker labels. Partial streams use unique ordered
+    lexical anchors. Crossing anchors and ambiguous repeats stay unresolved.
+    No lexical match certifies acoustic locality or supplies a speaker tag.
     """
     native = payload.get("words") if isinstance(payload, dict) else None
     observations = []
@@ -64,6 +66,15 @@ def associate_native_ctc(units, parsed, payload):
         if "timing" in observation:
             t = observation["timing"]
             right[_tag(t["speaker"])].append((i, _key(t["text"])))
+    # Untagged recognition (e.g. verbatim) can still carry native CTC
+    # speaker labels. Match the entire native stream in its observed order,
+    # including unlabelled observations, so duplicates cannot disappear into
+    # another label partition. Never use this fallback for mixed/tagged
+    # recognition: native words may already belong to an explicit turn.
+    untagged = set(left) == {None} and any(tag is not None for tag in right)
+    if untagged:
+        right[None] = sorted(item for stream in right.values() for item in stream)
+
     for tag, source in left.items():
         observed = right[tag]
         a, b = [x[1] for x in source], [x[1] for x in observed]
@@ -71,13 +82,15 @@ def associate_native_ctc(units, parsed, payload):
         source_keys = {key: i for i, key in source if ca[key] == 1}
         if a == b:
             pairs = [(x[0], y[0]) for x, y in zip(source, observed)]
-            method = "complete_per_tag_sequence_provisional"
+            method = ("complete_untagged_sequence_provisional" if untagged
+                      else "complete_per_tag_sequence_provisional")
         else:
             pairs = [(source_keys[key], j) for j, key in observed
                      if key and ca[key] == cb[key] == 1]
             if any(x[0] >= y[0] for x, y in zip(pairs, pairs[1:])):
                 pairs = []
-            method = "partial_unique_ordered_anchor_provisional"
+            method = ("partial_untagged_unique_ordered_anchor_provisional" if untagged
+                      else "partial_unique_ordered_anchor_provisional")
         for j, key in observed:
             observations[j]["candidate_source_count"] = ca[key]
             if ca[key]:

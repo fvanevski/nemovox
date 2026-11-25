@@ -1,6 +1,8 @@
 """CPU regressions for the recognized lexical spine and immutable occurrence IDs."""
 from types import SimpleNamespace
 
+import pytest
+
 from nvidia_transcribe.alignment import recover_chunk_alignment
 from nvidia_transcribe.source_occurrences import bind_occurrence_inventory, source_observation_id
 from nvidia_transcribe.utterances import reconstruct_speaker_utterances
@@ -272,3 +274,97 @@ def test_boundary_disposition_invalid_reference_fails_closed():
         finalize_boundary_dispositions([row])
     with pytest.raises(ValueError, match="Duplicate source-unit"):
         finalize_boundary_dispositions([row,row])
+
+
+@pytest.mark.parametrize("labels", [("0",)*4, ("<spk:0>",)*4, (None,"0",None,"1"), (None,)*4])
+def test_untagged_recognition_retains_ctc_timing_without_speaker_attribution(labels):
+    from nvidia_transcribe.contract import build_transcript_contract
+    from nvidia_transcribe.occurrence_locality import assess_occurrence_locality
+    from nvidia_transcribe.speakers import normalize_chunk_speakers
+
+    raw = "Bonjour tout le monde"
+    words = [word(text, 1+i*.3, label)
+             for i, (text, label) in enumerate(zip(raw.split(), labels))]
+    rec = recover(raw, words)
+    inv = bind(rec, raw)
+    units = rec["units"]
+    assert [u["text"] for u in units] == raw.split()
+    assert [u["start"] for u in units] == [w["start"] for w in words]
+    assert all(u["valid_timing"] and u["speaker"] is None and u["raw_speaker_tag"] is None
+               for u in units)
+    assert [u["ctc_observed_speaker"] for u in units] == list(labels)
+    method = ("complete_untagged_sequence_provisional" if any(labels)
+              else "complete_per_tag_sequence_provisional")
+    assert all(u["ctc_association_status"] == method for u in units)
+    observations = inv["native_ctc_observations"]
+    assert [o["raw_word"] for o in observations] == words
+    assert [o["source_unit_id"] for o in observations] == [u["source_unit_id"] for u in units]
+    assert len({o["source_unit_id"] for o in observations}) == 4
+    assert not inv["acoustic_locality_certified"]
+    audited, locality = assess_occurrence_locality(units, infer_start_s=0, infer_end_s=20)
+    assert all(u["valid_timing"] for u in audited)
+    assert all(not span["acoustic_truth_accepted"] for span in locality["spans"])
+    normalized, profiles = normalize_chunk_speakers(chunk_index=0, units=audited,
+        diarization=[], speaker_mapping={"0": 0, "1": 1})
+    assert list(profiles) == ["chunk_000:unknown"]
+    assert all(u["attribution_status"] == "unknown" and u["diarization_speaker_id"] is None
+               for u in normalized)
+    result = build_transcript_contract(raw_text=raw, source_language="fr",
+        ctc_payload={"words": words}, source_offset_s=100.)
+    row, = result["utterances"]
+    assert row["source_text"] == raw and row["speaker_id"] == "unknown"
+    assert row["source_start"] == 101. and row["source_end"] == 102.1
+    assert all(u["speaker"] is None for u in row["source_words"])
+    assert [u["ctc_observed_speaker"] for u in row["source_words"]] == list(labels)
+
+
+def test_untagged_partial_stream_uses_all_native_labels_for_ambiguity():
+    raw = "yes yes encore fin"
+    words = [word("yes",1,None), word("extra",2,"0"), word("encore",3,"1"),
+             word("fin",4,"0")]
+    rec = recover(raw, words)
+    inv = bind(rec, raw)
+    assert [u["start"] for u in rec["units"]] == [None,None,3,4]
+    assert all(u["speaker"] is None for u in rec["units"])
+    assert [o["association_status"] for o in inv["native_ctc_observations"]] == [
+        "ambiguous_sequence","unmatched","partial_untagged_unique_ordered_anchor_provisional",
+        "partial_untagged_unique_ordered_anchor_provisional"]
+    # A duplicate native word under another CTC label also competes.
+    duplicate = recover("yes encore", [word("yes",1,None),word("yes",2,"0"),word("encore",3,"1")])
+    assert [u["start"] for u in duplicate["units"]] == [None,3]
+    # Crossing anchors remain ambiguous even when labels differ.
+    reversed_native = recover("yes encore", [word("encore",1,"0"),word("yes",2,"1")])
+    assert all(not u["valid_timing"] for u in reversed_native["units"])
+
+
+def test_untagged_fallback_does_not_steal_explicit_tagged_observation():
+    rec = recover("bonjour <spk:0> encore",
+                  [word("bonjour",1,"0"),word("encore",2,"0")])
+    inv = bind(rec, "bonjour <spk:0> encore")
+    assert [u["start"] for u in rec["units"]] == [None,2]
+    assert [u["speaker"] for u in rec["units"]] == [None,"0"]
+    assert "source_unit_id" not in inv["native_ctc_observations"][0]
+    assert inv["native_ctc_observations"][1]["source_unit_id"] == rec["units"][1]["source_unit_id"]
+
+
+def test_untagged_native_error_and_invalid_interval_do_not_become_usable():
+    words = [word("bonjour",1), {**word("encore",2), "end":1.5}]
+    rec = recover("bonjour encore", words)
+    assert [u["valid_timing"] for u in rec["units"]] == [True,False]
+    assert rec["units"][1]["start"] is None and rec["units"][1]["end"] is None
+    failed = recover("bonjour encore", words, error="alignment_failed")
+    assert all(not u["valid_timing"] for u in failed["units"])
+
+
+def test_untagged_cjk_localized_observation_keeps_order_and_unknown_voice():
+    from nvidia_transcribe.acoustic_observations import reconstruct_acoustic_observation
+    raw = {"choices":[{"message":{"content":"你好世界"},"finish_reason":"stop"}],
+           "ctc_timestamps":{"words":[word(char,1+i*.3) for i,char in enumerate("你好世界")]}}
+    rows, inv = reconstruct_acoustic_observation(raw, audio_sha256="a"*64,
+                                                 crop=(100.,110.), language="zh")
+    row, = rows
+    assert row["source_text"] == "你好世界" and row["speaker_id"] == "unknown"
+    assert row["source_start"] == 101. and row["source_end"] == 102.1
+    assert len(row["source_characters"]) == 4 and not row["source_words"]
+    assert all(u["speaker"] is None for u in row["source_characters"])
+    assert row["source_unit_ids"] == inv["working_source_unit_ids"]
