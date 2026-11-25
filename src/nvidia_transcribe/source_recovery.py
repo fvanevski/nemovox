@@ -129,8 +129,9 @@ def schedule_independent(recording,observations,*,windows,policy):
     task_rank={w["task_id"]:i for i,w in enumerate(observed)}
     task_priority={w["task_id"]:w.get("priority",4) for w in observed}
     proposals.sort(key=lambda t:(
-        {"untimed":0,"omission":1,"occurrence":2}[t["kind"]],
+        t["kind"]!="untimed",
         min(task_priority[uid] for uid in t["task_ids"]),
+        t["kind"]!="omission",
         min(task_rank[uid] for uid in t["task_ids"])))
     for t in proposals:
         crops = independent_crops(t["bounds"],duration)

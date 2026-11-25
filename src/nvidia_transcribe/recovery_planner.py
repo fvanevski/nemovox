@@ -146,7 +146,7 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
                     1 if finding["reason"]=="intra_turn_order_conflict" else 3,
                     padded_window(b,duration) if b else None,chunks,finding.get("source_unit_ids", []))
         if inv.get("projection_status") != "exact":
-            add(inv["asr_observation_id"],"unmapped_raw_projection",1,
+            add(inv["asr_observation_id"],"unmapped_raw_projection",3,
                 parent_window(parent),chunks,inv.get("working_source_unit_ids", []))
         for obs in inv.get("native_ctc_observations", []):
             if obs.get("source_unit_id"):
@@ -233,7 +233,8 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
         bracket = interval((left[1],right[0]),duration) if left and right else None
         uid = stable_id("untimed",ids)
         if bracket:
-            add(uid,"untimed_source_dialogue",0,padded_window(bracket,duration),chunks,refs,ids)
+            priority=0 if bracket[1]-bracket[0]<=policy.max_target_seconds else 1
+            add(uid,"untimed_source_dialogue",priority,padded_window(bracket,duration),chunks,refs,ids)
         else:
             windows = [b for c in chunks if c in by_chunk
                        if (b := interval(parent_window(by_chunk[c]),duration))]
@@ -255,7 +256,13 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
         a,b = p["window"]
         match = next((w for w in merged
                       if overlap(w["window"],p["window"]) >= .5*min(b-a,w["window"][1]-w["window"][0])
-                      and max(b,w["window"][1])-min(a,w["window"][0]) <= policy.max_target_seconds+1e-6),None)
+                      and max(b,w["window"][1])-min(a,w["window"][0]) <= policy.max_target_seconds+1e-6
+                      # A broad fallback must not inflate a localized task
+                      # merely because they overlap. Preserve its own
+                      # discovery receipt and defer it when needed.
+                      and not (p["priority"]>w["priority"]
+                               and (p["priority"]>=3 or w["reason"]=="untimed_source_dialogue")
+                               and (a<w["window"][0] or b>w["window"][1]))),None)
         if match is None:
             merged.append(dict(p))
         else:

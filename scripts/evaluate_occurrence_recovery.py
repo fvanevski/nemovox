@@ -38,9 +38,9 @@ POLICY=SourceQualityPolicy(max_windows=4,max_extra_contexts=2,
     max_independent_targets=2,max_independent_audio_s=100.,max_independent_wall_s=420.)
 
 
-def verified_archive(path):
-    if sha_file(path)!=A3_SHA:
-        raise ValueError("A3 archive digest mismatch")
+def verified_archive(path, *, expected_sha=A3_SHA, expected_source=A3_SOURCE):
+    if sha_file(path)!=expected_sha:
+        raise ValueError("Sealed evidence archive digest mismatch")
     members={}
     with tarfile.open(path,"r:gz") as archive:
         for member in archive.getmembers():
@@ -58,8 +58,8 @@ def verified_archive(path):
                 raise ValueError("Duplicate archive member")
             members[name]=archive.extractfile(member).read()
     manifest=json.loads(members["manifest.json"])
-    if manifest["tested_source_sha"]!=A3_SOURCE:
-        raise ValueError("A3 tested source mismatch")
+    if manifest["tested_source_sha"]!=expected_source:
+        raise ValueError("Evidence tested source mismatch")
     expected={a["path"]:a for a in manifest["artifacts"]}
     if len(expected)!=len(manifest["artifacts"]) or set(expected)!=set(members)-{"manifest.json"}:
         raise ValueError("Archive manifest inventory mismatch")
