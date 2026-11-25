@@ -368,11 +368,18 @@ def _apply_safe_adjacent_regrouping(out_utts: list[dict[str, Any]]) -> int:
         # Accepted/provisional v2 source-event identities are never merged
         # merely because English text is similar. A translator is not an
         # authority to erase a separately observed acoustic source event.
-        anc_source_ids = (anchor.get("source_turn_ids") or anchor.get("recognized_turn_ids")
-                          or ([anchor["source_turn_id"]] if anchor.get("source_turn_id") else []))
-        cur_source_ids = (u.get("source_turn_ids") or u.get("recognized_turn_ids")
-                          or ([u["source_turn_id"]] if u.get("source_turn_id") else []))
-        if (anc_source_ids or cur_source_ids) and set(anc_source_ids) != set(cur_source_ids):
+        def source_identity(row):
+            return (row.get("source_occurrence_ids") or row.get("occurrence_span_ids")
+                    or row.get("source_turn_ids") or row.get("recognized_turn_ids")
+                    or ([row["source_turn_id"]] if row.get("source_turn_id") else []))
+        anc_source_ids, cur_source_ids = source_identity(anchor), source_identity(u)
+        # Distinct occurrence spans may belong to one recognized turn.
+        # A text model must not erase a separately observed occurrence.
+        # Even within a span, disjoint recognized units can contain a
+        # genuine repeated clause; do not perform text dedup over them.
+        anc_units, cur_units = set(anchor.get("source_unit_ids", [])),set(u.get("source_unit_ids", []))
+        if ((anc_source_ids or cur_source_ids) and set(anc_source_ids) != set(cur_source_ids)
+                or (anc_units or cur_units) and anc_units != cur_units):
             anchor_idx = i
             continue
         spk_cur = u.get("speaker_id") or u.get("global_speaker_id")

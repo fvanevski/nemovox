@@ -16,6 +16,7 @@ from nvidia_transcribe.alignment import (
     _contiguous_speaker_spans,
     _has_mixed_speaker_overlap,
     _join_units_for_aligner,
+    _norm_align_tok,
     group_diarization_windows,
 )
 
@@ -305,6 +306,21 @@ def apply_selective_recovery(
             decision["aligner_diagnostic"] = diagnostic
             if not external_units:
                 decision["status"] = "attempted_no_valid_units"
+                continue
+            # Forced alignment is evidence about timing of supplied text,
+            # not independent speech recognition. Reject reordering or
+            # missing lexical material before attaching any candidate time.
+            expected = "".join(_norm_align_tok(u.get("text","")) for u in units[c.lo:c.hi])
+            actual = "".join(_norm_align_tok(u.get("text","")) for u in external_units)
+            valid = [v for u in external_units if u.get("valid_timing")
+                     if (v := _finite_interval(u.get("start"),u.get("end"))) is not None]
+            if not expected or expected != actual:
+                decision["status"] = "attempted_no_verified_match"
+                decision["rejection_reason"] = "forced_alignment_lexical_order_mismatch"
+                continue
+            if not valid or any(b[0] < a[0] for a,b in zip(valid,valid[1:])):
+                decision["status"] = "attempted_no_verified_match"
+                decision["rejection_reason"] = "forced_alignment_invalid_or_reversed_times"
                 continue
             matched = _apply_verified_sequence_timings(
                 units, external_units, recovered_status="external_qwen_recovered",
