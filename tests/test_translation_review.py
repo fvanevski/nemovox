@@ -678,8 +678,11 @@ def test_mixed_comparative_verdict_does_not_break_one_source_sentence():
           {"id":"b","speaker_id":"A","source_text":"porte avant de partir.","translated_text":"Door before leaving."}]
     proposals={"reviews":[{"utterance_id":"a","corrected_text":"He closed the","reason":"Continuation"},
                           {"utterance_id":"b","corrected_text":"door before leaving.","reason":"Continuation"}]}
+    from nvidia_transcribe.translation_review import text_digest
     comparison={"decisions":[{"utterance_id":"a","choice":"proposal","reason":"Better"},
-                            {"utterance_id":"b","choice":"original","reason":"Keep"}]}
+                            {"utterance_id":"b","choice":"original","reason":"Keep"},
+                            {"utterance_id":"passage:"+text_digest(json.dumps(["a","b"])),
+                             "choice":"proposal","reason":"Joined candidate is coherent"}]}
     out, report=review_translated_utterances(rows,source_language="fr",
         config=_cfg(wire_protocol="ninfer_messages",thinking_budget=2048,reasoning_effort="xhigh"),
         text_client=Native(proposals,comparison))
@@ -804,3 +807,32 @@ def test_dependent_edits_from_separate_native_comparisons_are_not_spliced():
     out,report=review_translated_utterances(rows,source_language="fr",config=cfg,text_client=client)
     assert [r["translated_text"] for r in out]==[r["translated_text"] for r in rows]
     assert report["dependent_passage_rejections"]==2 and report["changed"]==0
+
+
+
+def test_joined_passage_verdict_vetoes_individually_approved_fragments(tmp_path):
+    class Native:
+        def complete(self, **kwargs):
+            request=json.loads(kwargs["messages"][1]["content"])
+            if "target_utterances" in request:
+                response={"reviews":[
+                    {"utterance_id":"a","corrected_text":"He headed straight for","reason":"Direction"},
+                    {"utterance_id":"b","corrected_text":"the course west.","reason":"Direction"}]}
+            else:
+                passage,=request["passage_checks"]
+                assert passage["joined_proposal"]=="He headed straight for the course west."
+                assert passage["joined_source"]=="Il a mis directement le cap à l'ouest."
+                response={"decisions":[{"utterance_id":uid,"choice":"proposal","reason":"Cue only"}
+                    for uid in ("a","b")]+[{"utterance_id":passage["utterance_id"],
+                    "choice":"original","reason":"Joined phrase is ungrammatical"}]}
+            return {"choices":[{"finish_reason":"stop","message":{"content":json.dumps(response)}}]}
+    rows=[{"id":"a","speaker_id":"A","source_text":"Il a mis directement","translated_text":"He headed"},
+          {"id":"b","speaker_id":"A","source_text":"le cap à l'ouest.","translated_text":"west."}]
+    cfg=_cfg(wire_protocol="ninfer_messages",thinking_budget=2048,reasoning_effort="xhigh")
+    path=tmp_path/"review.json"
+    for client in (Native(),FakeClient()):
+        out,report=review_translated_utterances(rows,source_language="fr",config=cfg,text_client=client,
+                                                checkpoint_path=path)
+        assert report["joined_passage_rejections"]==2 and report["changed"]==0
+        assert [r["translated_text"] for r in out]==["He headed","west."]
+        assert all(r["translation_review_passage"]["verdict"]["choice"]=="original" for r in out)

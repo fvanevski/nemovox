@@ -102,7 +102,9 @@ def test_current_hypothesis_corroboration_is_visible_without_counting_votes():
 def test_partial_caption_edit_preserves_uncertain_remainder_and_prior():
     original=row("t","I will find the old gate. Unknown tail.",100,104)
     item=dict(original)
-    visual=[{"id":"frame","caption":"I will find the hidden gate.","inside_event":True,"uncertainty":""}]
+    visual=[{"id":"frame","caption":"I will find the hidden gate.","inside_event":True,"uncertainty":"",
+             "text_kind":"dialogue_caption","literal_observation_status":"model_observed",
+             "visible_text":"I will find the hidden gate."}]
     assessment={"decision":{"action":"caption","candidate_id":"frame",
                              "replace_span":"I will find the old gate.",
                              "materially_resolved":True}}
@@ -159,3 +161,19 @@ def test_competing_cross_model_wordings_remain_unresolved():
     assert base["source_text"]=="I told you not to leave."
     from nvidia_transcribe.semantic_context import accepted_row_context
     assert accepted_row_context(base,candidates,[]) is None
+
+
+
+def test_visual_description_and_branding_are_not_dialogue_captions():
+    from nvidia_transcribe.scene_evidence import normalize_visual_observation
+    frame={"id":"f","inside_event":True,"sha256":"a"*64,"requested_seek_s":101.}
+    def observation(kind,text,description="A door in a room.",uncertainty=""):
+        return normalize_visual_observation(frame,{"id":"f","visible_text":text,
+            "text_kind":kind,"description":description,"uncertainty":uncertainty})
+    assert observation("logo","OKOO")["caption"]==""
+    assert observation("title","Nadia")["caption"]==""
+    assert observation("none","A door in a room.")["visible_text"]==""
+    assert observation("dialogue_caption","A door in a room.")["caption"]==""
+    assert observation("dialogue_caption","Bonjour",uncertainty="blurred")["caption"]==""
+    assert observation("dialogue_caption","Bonjour")["caption"]=="Bonjour"
+    assert observation("entity_label","Nadia")["visible_text"]=="Nadia"

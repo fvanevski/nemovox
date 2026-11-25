@@ -20,7 +20,7 @@ from nvidia_transcribe.semantic_context import current_row_context, literal_exam
 
 VALID_REVIEW_PROFILES = ("off", "conservative", "balanced", "expressive")
 VALID_REVIEW_STYLES = ("natural", "literal", "expressive")
-_PROMPT_VERSION = "mt_postedit_v7_grounded_context"
+_PROMPT_VERSION = "mt_postedit_v8_joined_passage_verdict"
 _SCHEMA = {
     "type": "json_schema",
     "json_schema": {
@@ -122,6 +122,41 @@ def _unsupported_polarity_inversion(
         and _ENGLISH_NEGATIVE.search(original)
         and not _ENGLISH_NEGATIVE.search(candidate)
     )
+
+
+def _passage_groups(rows):
+    groups=[]
+    group=[]
+    for i,row in enumerate(rows):
+        if group:
+            prev=rows[i-1]
+            speaker=row.get("speaker_id") or row.get("global_speaker_id")
+            prior=prev.get("speaker_id") or prev.get("global_speaker_id")
+            if ((prior and speaker and prior!=speaker)
+                    or re.search(r"""[.!?。！？…][\s"'”’]*$""",str(prev.get("source_text") or ""))):
+                groups.append(group)
+                group=[]
+        group.append(i)
+    if group:
+        groups.append(group)
+    return groups
+
+
+def _passage_checks(targets, entries):
+    """Group only actual contiguous targets; preserve row identities."""
+    # _entry names its speaker field differently from raw source rows.
+    rows=[{**t,"speaker_id":t["speaker"]} for t in targets]
+    result=[]
+    for group in _passage_groups(rows):
+        ids=[targets[i]["utterance_id"] for i in group]
+        if len(ids)<2 or not any(entries[uid]["changed"] for uid in ids):
+            continue
+        result.append({"utterance_id":"passage:"+text_digest(json.dumps(ids)),
+            "target_ids":ids,
+            "joined_source":" ".join(targets[i]["source_text"] for i in group),
+            "joined_primary":" ".join(targets[i]["machine_translation"] for i in group),
+            "joined_proposal":" ".join(entries[uid]["corrected_text"].strip() for uid in ids)})
+    return result
 
 
 def _native_output_exhausted(reply: dict[str, Any]) -> bool:
@@ -257,6 +292,7 @@ def review_translated_utterances(
     calls = hits = changed_count = reviewed_count = rejected_polarity = 0
     comparative_calls = comparative_rejections = 0
     dependent_rejections = 0
+    passage_rejections = 0
     native_attempts = []
     completion_retries = 0
     comparison_recoveries = []
@@ -362,8 +398,13 @@ def review_translated_utterances(
                             + " Prefer a conservative rendering of uncertain source; do not invent meaning. "
                             + " First establish the intended meaning of each complete clause and adjacent exchange. "
                             "Resolve idioms by their construction and discourse, not surface word substitution. "
+                            "For a polysemous idiom distinguish the possible senses using the source construction and scene; "
+                            "do not select a literal word sense just because it matches a familiar English phrase. "
                             "Track who did what to whom, negation versus restriction, tense, modality and referents. "
                             "Read adjacent source rows as a continuous passage: a sentence or object can span rows. "
+                            "Compose one fluent joined English sentence for a source sentence before allocating cues. "
+                            "Do not assign a separate literal English word for each source word if the idiom translates as a unit. "
+                            "Check the joined sentence for duplicated complements, dangling prepositions and redundant objects. "
                             "Translate the complete passage coherently, then allocate English to the corresponding "
                             "target IDs in chronological order. Do not move dialogue between distinct speakers, "
                             "duplicate continuations, invent missing objects, or treat uncertain source as established. "
@@ -438,11 +479,15 @@ def review_translated_utterances(
                                                                     if t["utterance_id"] == uid),
                                         "proposed_translation": entries[uid].get("corrected_text")}
                                        for uid in changed_ids]
+                        passage_checks=_passage_checks(targets,entries)
+                        verdict_ids=changed_ids+[x["utterance_id"] for x in passage_checks]
+                        if len(verdict_ids)!=len(set(verdict_ids)):
+                            raise ValueError("Duplicate passage review identity")
                         schema = {"type": "object", "properties": {
-                            "decisions": {"type": "array", "minItems": len(changed_ids),
-                                          "maxItems": len(changed_ids), "items": {
+                            "decisions": {"type": "array", "minItems": len(verdict_ids),
+                                          "maxItems": len(verdict_ids), "items": {
                                               "type": "object", "properties": {
-                                                  "utterance_id": {"type": "string", "enum": changed_ids},
+                                                  "utterance_id": {"type": "string", "enum": verdict_ids},
                                                   "choice": {"type": "string", "enum": ["original", "proposal"]},
                                                   "reason": {"type": "string"}},
                                               "required": ["utterance_id", "choice", "reason"],
@@ -464,11 +509,17 @@ def review_translated_utterances(
                              "ungrammatical question, changed polarity, unsupported detail or worse "
                              "readability anywhere in the cue. Check idioms against the source context. "
                              "If both are deficient or evidence is inconclusive, choose original. "
-                             "Do not invent a third translation. Return one decision per supplied ID."},
+                             "For each passage_checks ID independently judge the ENTIRE joined proposal against its "
+                             "joined source and primary. Explicitly reject malformed English even if each cue looks plausible: "
+                             "duplicated objects, literal idiom fragments, redundant complements or dangling prepositions. "
+                             "A passage proposal must be coherent as actually concatenated, not just better than broken primary MT. "
+                             "If uncertain about an idiom's meaning, choose original. "
+                             "Do not invent a third translation. Return one decision per supplied row AND passage ID."},
                             {"role": "user", "content": json.dumps({
                                 "source_language": source_language, "context_before": before,
                                 "operator_translation_examples":payload["operator_translation_examples"],
                                 "comparisons": comparisons, "context_after": after,
+                                "passage_checks":passage_checks,
                                 "complete_target_passage":[{**t,"proposed_translation":entries[t["utterance_id"]]["corrected_text"]}
                                                            for t in targets],
                                 "joined_primary_passage":" ".join(t["machine_translation"] for t in targets),
@@ -491,7 +542,7 @@ def review_translated_utterances(
                             calls += 1
                             comparative_calls += 1
                             compact, tokens = _compact_comparison(client, comparison_messages,
-                                                                  changed_ids, cfg.max_tokens)
+                                                                  verdict_ids, cfg.max_tokens)
                             native_attempts.extend({"stage":"comparison_recovery", **x} for x in
                                 compact.get("_client_request_diagnostics",{}).get("completion_attempts",[]))
                             receipt = {"target_ids": list(changed_ids),
@@ -511,7 +562,7 @@ def review_translated_utterances(
                                     entries[uid]["deferred_comparison"] = receipt
                                 decisions = []
                             else:
-                                decisions = _parse_compact_comparison(compact, tokens, changed_ids)
+                                decisions = _parse_compact_comparison(compact, tokens, verdict_ids)
                                 receipt["outcome"] = "complete"
                                 for uid in changed_ids:
                                     entries[uid]["comparison_recovery"] = receipt
@@ -526,17 +577,22 @@ def review_translated_utterances(
                         by_id = {}
                         for decision in decisions:
                             uid = decision["utterance_id"]
-                            if (uid not in changed_ids or uid in by_id
+                            if (uid not in verdict_ids or uid in by_id
                                     or decision["choice"] not in ("original", "proposal")
                                     or not isinstance(decision["reason"], str)
                                     or not decision["reason"].strip()):
                                 raise ValueError("Invalid comparative review decision")
                             by_id[uid] = decision
                         if not all("deferred_comparison" in entries[uid] for uid in changed_ids):
-                            if set(by_id) != set(changed_ids):
+                            if set(by_id) != set(verdict_ids):
                                 raise ValueError("Missing comparative review decisions")
                             for uid in changed_ids:
                                 entries[uid]["comparative_review"] = by_id[uid]
+                            for passage in passage_checks:
+                                verdict=by_id[passage["utterance_id"]]
+                                for uid in passage["target_ids"]:
+                                    if uid in changed_ids:
+                                        entries[uid]["passage_review"]={**passage,"verdict":verdict}
             except Exception as exc:
                 if isinstance(exc, ResourceLifecycleError):
                     # Do not repeatedly attempt a blocked model acquisition on
@@ -598,6 +654,14 @@ def review_translated_utterances(
                     comparative_rejections += 1
                     reviewed_count += 1
                     continue
+                passage=item.get("passage_review")
+                if passage is not None:
+                    out[i]["translation_review_passage"]=passage
+                    if passage["verdict"]["choice"]!="proposal":
+                        out[i]["translation_review_status"]="review_rejected_joined_passage_preserved_machine_translation"
+                        passage_rejections+=1
+                        reviewed_count+=1
+                        continue
             out[i]["translation_review_status"] = "corrected" if changed else "unchanged"
             if changed:
                 out[i]["translated_text"] = candidate.strip()
@@ -663,6 +727,7 @@ def review_translated_utterances(
         "rejected_polarity": rejected_polarity,
         "comparative_calls": comparative_calls, "comparative_rejections": comparative_rejections,
         "dependent_passage_rejections": dependent_rejections,
+        "joined_passage_rejections": passage_rejections,
         "native_attempts":native_attempts,
         "batch_size":batch,
         "glossary_digest":gl.digest(),

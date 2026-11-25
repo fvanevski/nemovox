@@ -15,6 +15,7 @@ from nvidia_transcribe.model_resources import ModelResource
 from nvidia_transcribe.resource_lifecycle import ModelLifecycle, ResourceLifecycleError, managed_asr_client, managed_text_client
 from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
 from nvidia_transcribe.source_quality import SourceQualityPolicy, review_current_source
+from nvidia_transcribe.source_quality_checkpoint import identity as quality_checkpoint_identity, run_checkpoint
 from nvidia_transcribe.refinement import (
     GlossaryConfig,
     RefinementConfig,
@@ -216,6 +217,7 @@ def generate_subtitles(
         )
 
     refined_path = out_dir / "refined.contract.json"
+    quality_resume="not_requested"
 
     if cfg.re_render_only:
         _log("Stage 1-3: Reusing existing translated.contract.json (--re-render)")
@@ -288,7 +290,8 @@ def generate_subtitles(
             challenge_client = asr_client or NemotronVLLMClient(
                 base_url=cfg.asr_base_url, model=cfg.asr_model,
                 api_key=lifecycle_resources["asr"].credential(), timeout_s=900.0)
-            contract, quality_report = review_current_source(
+            def compute_quality():
+                return review_current_source(
                 contract, recording_path=rc_path, media_path=media_path, output_dir=out_dir,
                 text_scope=lambda: managed_text_client(lifecycle,
                     lifecycle_resources["translation_review"], wire_protocol="ninfer_messages",
@@ -298,6 +301,16 @@ def generate_subtitles(
                 policy=cfg.source_quality_policy,
                 challenger_resource=lifecycle_resources.get("source_challenger"),
                 lifecycle=lifecycle)
+            if asr_client is None and text_client is None:
+                fingerprints={role:lifecycle_resources[role].fingerprint()
+                    for role in ("asr","translation_review","source_challenger")
+                    if lifecycle_resources.get(role) is not None}
+                key=quality_checkpoint_identity(contract,rc_path,media_path,cfg.source_quality_policy,fingerprints)
+                contract,quality_report,quality_resume=run_checkpoint(
+                    out_dir/"source-quality.checkpoint.json",key,contract,resume=cfg.resume,run=compute_quality)
+            else:
+                contract,quality_report=compute_quality()
+                quality_resume="computed_injected_client"
             _atomic_write(out_dir / "source-quality.json", json.dumps(quality_report, ensure_ascii=False, indent=2))
             _atomic_write(out_dir / "canonical-source.contract.json", json.dumps(contract, ensure_ascii=False, indent=2))
             _event("source_quality", "complete", quality_report["status"])
@@ -487,6 +500,7 @@ def generate_subtitles(
         },
         "sidecars": render_res["sidecars"],
         "source_quality": translated_contract.get("source_quality", {"status": "not_run"}),
+        "source_quality_resume":quality_resume,
         "refinement": ref_summary,
         "translation": trans_summary,
         "translation_review": review_summary,

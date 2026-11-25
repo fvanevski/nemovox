@@ -694,3 +694,16 @@ def test_studio_reconciles_owned_units_after_abrupt_cli_exit(tmp_path, monkeypat
         assert runner._processes == {}
     finally:
         runner.executor.shutdown(wait=True)
+
+
+
+def test_normal_api_defaults_match_cli_and_preserve_explicit_backend_choice():
+    from nvidia_transcribe.studio_api import Options
+    defaults=Options()
+    assert (defaults.translator,defaults.translation_review)==("riva","balanced")
+    assert (defaults.chunk_policy,defaults.chunk_seconds,defaults.context_seconds)==("fixed",90,10)
+    assert defaults.refinement=="off" and defaults.alignment_fallback=="off"
+    assert defaults.speaker_embeddings=="none" and not defaults.condense_high_cps
+    assert Options(translator="swiftu").translation_review=="off"
+    assert Options(translator="openai_chat",translation_review="balanced").translation_review=="balanced"
+    assert Options(translation_review="off").translation_review=="off"
