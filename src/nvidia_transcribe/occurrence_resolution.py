@@ -155,6 +155,22 @@ def resolution_receipts(recording,ledger,rows,decisions,policy):
                     str(row.get("source_quality_status","")).startswith("unresolved")
                     or row.get("source_semantic_resolution")=="partial"
                     else "represented_provisional")
+            elif refs and not context and missing:
+                # Whole-event cross-model corroboration can support a
+                # partially timed row without establishing individual
+                # missing word times. Keep this span explicitly pending.
+                supported={d["source_id"]:d for d in decisions
+                           if d.get("source_id") and d["status"]=="already_represented"
+                           and len(set(d.get("independent_observation_ids",[])))>=2}
+                matches=[r for r in rows if r["id"] in supported
+                         and refs<=set(r.get("source_unit_ids",[])) and _bounds(r)
+                         and _same_event_bounds(_bounds(r),supported[r["id"]]["window"],
+                                                policy.timing_tolerance_s)]
+                if len(matches)==1:
+                    row=matches[0]
+                    receipt["canonical_source_ids"]=[row["id"]]
+                    receipt["status"]="event_supported_word_timing_unresolved"
+                    receipt["supporting_observation_ids"]=supported[row["id"]]["observations"]
             # Context-only source can be linked only by exact positive
             # lexical and temporal correspondence to a unique selected row,
             # not merely by a coalesced task or shared recognized turn.

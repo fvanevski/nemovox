@@ -81,6 +81,30 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
     def parent_window(parent):
         return (parent.get("infer_start_s"),parent.get("infer_end_s"))
 
+    # A neighboring-event bracket is a listening hypothesis, never
+    # accepted timing. Prefer this localized evidence over blind parent
+    # scans for a selected wholly untimed occurrence.
+    rows = recording["utterances"]
+    def row_bounds(r):
+        return interval((r.get("source_start"),r.get("source_end")),duration)
+
+    anchored_runs = []
+    i = 0
+    while i < len(rows):
+        if row_bounds(rows[i]):
+            i += 1
+            continue
+        j = i+1
+        while j < len(rows) and not row_bounds(rows[j]):
+            j += 1
+        left = row_bounds(rows[i-1]) if i else None
+        right = row_bounds(rows[j]) if j < len(rows) else None
+        bracket = interval((left[1],right[0]),duration) if left and right else None
+        if bracket:
+            refs = {uid for row in rows[i:j] for uid in row.get("source_unit_ids",[])}
+            anchored_runs.append((refs,bracket))
+        i = j
+
     # The occurrence ledger is the primary discovery authority. Usable
     # times and rejected native hypotheses are distinct, as are raw turns.
     for inv in ledger.get("recognized_occurrence_inventories", []):
@@ -97,9 +121,20 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
             reason = ("disputed_occurrence" if status == "disputed" else
                       "untimed_occurrence" if unresolved else "unselected_context")
             bounds = (interval(span.get("candidate_bounds_s"),duration)
-                      or interval(span.get("usable_bounds_s"),duration)
-                      or interval(parent_window(parent),duration))
-            add(span["id"],reason,0 if status == "disputed" else 1 if unresolved else 2,
+                      or interval(span.get("usable_bounds_s"),duration))
+            refs = set(span["source_unit_ids"])
+            bracket = next((b for ids,b in anchored_runs if refs and refs<=ids),None)
+            if bounds is None and not context and status != "disputed" and bracket:
+                bounds = bracket
+            localized = bounds is not None
+            if bounds is None:
+                bounds = interval(parent_window(parent),duration)
+            # Unknown location still merits bounded discovery, but must
+            # not displace more actionable localized source hypotheses.
+            priority = (0 if status=="disputed" else
+                        1 if localized and unresolved else
+                        2 if localized else 3)
+            add(span["id"],reason,priority,
                 padded_window(bounds,duration) if bounds else None,chunks,span["source_unit_ids"])
         for finding in locality.get("findings", []):
             # Keep widely separated competing hypotheses as separate
@@ -108,17 +143,26 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
                       if (b := interval(v,duration))]
             for b in bounds or [None]:
                 add(finding["id"],finding["reason"],
-                    1 if finding["reason"]=="intra_turn_order_conflict" else 2,
+                    1 if finding["reason"]=="intra_turn_order_conflict" else 3,
                     padded_window(b,duration) if b else None,chunks,finding.get("source_unit_ids", []))
         if inv.get("projection_status") != "exact":
             add(inv["asr_observation_id"],"unmapped_raw_projection",1,
                 parent_window(parent),chunks,inv.get("working_source_unit_ids", []))
-        unmatched = [o["id"] for o in inv.get("native_ctc_observations", [])
-                     if not o.get("source_unit_id")]
-        if unmatched:
+        for obs in inv.get("native_ctc_observations", []):
+            if obs.get("source_unit_id"):
+                continue
             # Native-only lexical hypotheses are not new source words.
-            for uid in unmatched:
-                add(uid,"unassociated_native_observations",2,parent_window(parent),chunks)
+            # Use their own valid numeric hypothesis to plan listening,
+            # not an entire parent chunk unless locality is unavailable.
+            timing=obs.get("timing") or {}
+            parent_bounds=interval(parent_window(parent),duration)
+            candidate=interval((timing.get("start"),timing.get("end")),duration)
+            if (candidate and timing.get("valid_timing") and parent_bounds
+                    and parent_bounds[0]<=candidate[0]<candidate[1]<=parent_bounds[1]):
+                add(obs["id"],"unassociated_native_observations",2,
+                    padded_window(candidate,duration),chunks)
+            else:
+                add(obs["id"],"unassociated_native_observations",3,parent_bounds,chunks)
 
     for case in request.get("cases", []):
         bounds = interval(case.get("context_window_s"),duration)
@@ -150,7 +194,6 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
 
     # Stable semantic requests from a successor context stage use the same
     # scheduler. A request may nominate real source IDs, never dictate edits.
-    rows = recording["utterances"]
     row_map = {r["id"]:r for r in rows}
     for case in request.get("occurrence_requests", []):
         ids = case.get("source_ids", [])
@@ -168,9 +211,6 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
             add(case["case_id"],"invalid_semantic_window",3,None,chunks,source_ids=ids)
         else:
             add(case["case_id"],"semantic_occurrence_request",2,bounds,chunks,source_ids=ids)
-
-    def row_bounds(r):
-        return interval((r.get("source_start"),r.get("source_end")),duration)
 
     i = 0
     while i < len(rows):
@@ -193,12 +233,12 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
         bracket = interval((left[1],right[0]),duration) if left and right else None
         uid = stable_id("untimed",ids)
         if bracket:
-            add(uid,"untimed_source_dialogue",1,padded_window(bracket,duration),chunks,refs,ids)
+            add(uid,"untimed_source_dialogue",0,padded_window(bracket,duration),chunks,refs,ids)
         else:
             windows = [b for c in chunks if c in by_chunk
                        if (b := interval(parent_window(by_chunk[c]),duration))]
             for b in windows or [None]:
-                add(uid,"untimed_source_dialogue",1,b,chunks,refs,ids)
+                add(uid,"untimed_source_dialogue",3,b,chunks,refs,ids)
         i = j
 
     # Resolve stable source-row references from unit evidence, including

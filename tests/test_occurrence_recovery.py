@@ -289,3 +289,59 @@ def test_independent_worker_admission_binds_receipts_and_cpu_device(tmp_path,mon
     bad=True
     report=recovery.acquire_independent_evidence(recording(),[target],media,**kwargs)
     assert report["status"]=="error" and not report["observations"]
+
+
+def test_bound_untimed_target_is_prioritized_over_earlier_parent_scans():
+    # Mirrors the retained boundary failure: an explicit bracket appears
+    # only in the third observed task, after two broad parent scans.
+    rec=recording([row("first","Come back",91.01,91.535),
+                   row("missing","Come back",None,None,"missing"),
+                   row("next","Look",93.57,93.999)],110.)
+    windows=[{"task_id":uid,"window":bounds,"source_ids":["missing"],
+              "evidence_ids":[uid],"chunks":[0],"priority":1,"state":"observed"}
+             for uid,bounds in [("broad_a",(79.25,90.)),
+                               ("broad_b",(99.215,110.)),
+                               ("specific",(88.5195,100.))]]
+    admitted,deferred=schedule_independent(rec,[],windows=windows,
+        policy=SourceQualityPolicy(max_independent_targets=2,max_independent_audio_s=100.))
+    assert admitted[0]["kind"]=="untimed"
+    assert admitted[0]["bounds"]==(91.535,93.57)
+    assert admitted[0]["ids"]==["missing"]
+    assert admitted[0]["task_ids"]==["specific"]
+    assert len(admitted)==2 and len(deferred)==1
+    assert rec["utterances"][1]["source_start"] is None
+
+
+def test_planner_uses_bracket_and_local_native_hypotheses_before_blind_scans():
+    rows=[row("left","Hello",91.,91.535),
+          row("missing","Come back",None,None,"missing"),
+          row("right","Look",93.57,94.)]
+    led=ledger([span("missing",None,"unlocalized"),span("other",None,"unlocalized")],duration=110.)
+    led["asr_observations"][0].update(infer_start_s=80.,infer_end_s=110.)
+    led["recognized_occurrence_inventories"][0]["native_ctc_observations"]=[
+        {"id":"native-local","timing":{"start":102.,"end":102.4,"valid_timing":True}},
+        {"id":"native-unknown","timing":{"start":None,"end":None,"valid_timing":False}}]
+    w,d=plan_recovery_windows(recording(rows,110.),led,{},None,
+                              SourceQualityPolicy(max_windows=2))
+    assert "missing" in w[0]["evidence_ids"]
+    assert w[0]["window"][0]<=91.535<93.57<=w[0]["window"][1]
+    assert w[0]["window"][1]-w[0]["window"][0]<5.
+    assert "native-local" in w[1]["evidence_ids"]
+    assert w[1]["window"][0]<=102.<102.4<=w[1]["window"][1]
+    assert all(x["priority"]>=3 for x in d)
+    assert {"other","native-unknown"}<={uid for x in d for uid in x["evidence_ids"]}
+
+
+def test_cross_model_event_support_does_not_claim_missing_word_time():
+    sp=span("part",None,"unlocalized")
+    rec=recording([row("part","On peut descendre par là",100.2,101.23,"part")],110.)
+    before=deepcopy(rec)
+    ds=[{"source_id":"part","status":"already_represented","window":[100.135,101.533],
+         "observations":["n1","n2","w1","w2"],"independent_observation_ids":["w1","w2"]}]
+    receipts=resolution_receipts(rec,ledger([sp],duration=110.),rec["utterances"],ds,SourceQualityPolicy())
+    assert receipts[0]["status"]=="event_supported_word_timing_unresolved"
+    assert receipts[0]["canonical_source_ids"]==["part"]
+    assert receipts[0]["supporting_observation_ids"]==["n1","n2","w1","w2"]
+    assert rec==before and not receipts[0]["acoustic_truth_accepted"]
+    ds[0]["independent_observation_ids"]=[]
+    assert resolution_receipts(rec,ledger([sp],duration=110.),rec["utterances"],ds,SourceQualityPolicy())[0]["status"]=="unresolved"

@@ -123,6 +123,15 @@ def schedule_independent(recording,observations,*,windows,policy):
                               "evidence_ids":list(task["evidence_ids"]),"chunks":list(task["chunks"])})
     admitted,deferred = [],[]
     audio_s = 0.
+    # Priority must apply to the complete independent queue, not just
+    # within each Nemotron task. A later tightly bracketed original run
+    # must not be starved by earlier broad occurrence scans.
+    task_rank={w["task_id"]:i for i,w in enumerate(observed)}
+    task_priority={w["task_id"]:w.get("priority",4) for w in observed}
+    proposals.sort(key=lambda t:(
+        {"untimed":0,"omission":1,"occurrence":2}[t["kind"]],
+        min(task_priority[uid] for uid in t["task_ids"]),
+        min(task_rank[uid] for uid in t["task_ids"])))
     for t in proposals:
         crops = independent_crops(t["bounds"],duration)
         cost = sum(b-a for a,b in crops)
