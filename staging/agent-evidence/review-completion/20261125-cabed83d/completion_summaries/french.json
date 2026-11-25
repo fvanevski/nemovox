@@ -1,0 +1,61 @@
+{
+  "case": "french",
+  "rows": 221,
+  "retained_identity": "pass",
+  "primary_cache_hits": 221,
+  "changed_final_rows": 89,
+  "review": {
+    "status": "completed",
+    "profile": "balanced",
+    "style": "natural",
+    "resource_fingerprint": "7c4ddcaf9e48cbcb1e675f1484eef3d9e08aadc9fc6b4a921c8f3f6c0a03cb2a",
+    "reviewed": 221,
+    "changed": 119,
+    "rejected_polarity": 1,
+    "comparative_calls": 20,
+    "comparative_rejections": 27,
+    "dependent_passage_rejections": 2,
+    "joined_passage_rejections": 0,
+    "unresolved_source_rejections": 10,
+    "direction_grammar_rejections": 0,
+    "batch_size": 12,
+    "glossary_digest": "0b845b4dad8d",
+    "review_policy": {
+      "wire_protocol": "ninfer_messages",
+      "thinking_budget": 2048,
+      "reasoning_effort": "xhigh",
+      "max_tokens": 8192,
+      "context_before": 5,
+      "context_after": 4,
+      "temperature": 0.0,
+      "target_language": "en"
+    },
+    "subdivisions": [],
+    "completion_retries": 0,
+    "deferred_comparison_ids": [],
+    "cache_hits": 0,
+    "api_calls": 39,
+    "resource_blocked_reason": null,
+    "elapsed_s": 396.323
+  },
+  "render": {
+    "total_input_utterances": 221,
+    "renderable_cues": 296,
+    "ass_displayed_cues": 296,
+    "ass_lane_1_top_cues": 48,
+    "ass_overflow_cues": 0,
+    "unrenderable_cues": 0,
+    "conflict_cues": 6
+  },
+  "files": {
+    "srt": {
+      "name": "Les mystérieuses cités d'or Saison 4 Episode 1 [YlVGUDNbyXk].en.srt",
+      "sha256": "2f4f09a123280682408315a11abfa2087df1ac2a124ba989cf8e298703ece402"
+    },
+    "ass": {
+      "name": "Les mystérieuses cités d'or Saison 4 Episode 1 [YlVGUDNbyXk].en.ass",
+      "sha256": "73e11676c150b8f9e7ea98f8496120eec20481c50ef4f5ba94a3d5125ba2bbe7"
+    }
+  },
+  "semantic_adjudication_required": true
+}
