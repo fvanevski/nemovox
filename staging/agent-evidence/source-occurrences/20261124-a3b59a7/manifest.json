@@ -99,13 +99,13 @@
     },
     {
       "path": "friction.json",
-      "bytes": 78,
-      "sha256": "6644850f48bdfab3541fc0ce179845dc300a422881ed615cddf4fbebe2ef220a"
+      "bytes": 922,
+      "sha256": "d2234403a006ef9606f91de9041ba9aa4376e0dc94727654d92c8d8d505c6bd2"
     },
     {
       "path": "HANDback.md",
-      "bytes": 8167,
-      "sha256": "40e3b5f5e5f51ee857de314cada0b4950705fe4135d0f300aeb78fe64c499041"
+      "bytes": 8938,
+      "sha256": "29e4ca9b7fe5f03e27feaaae8b4ec747f326ac5d6b603a86ee895237311f2b29"
     }
   ]
 }
