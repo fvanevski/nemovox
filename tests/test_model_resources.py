@@ -177,13 +177,13 @@ def test_translation_review_role_defaults_to_text_and_rejects_specialized_adapte
 
 
 
-def test_optional_independent_challenger_requires_explicit_local_cpu_binding(tmp_path):
+def test_optional_independent_challenger_requires_explicit_local_cuda_binding(tmp_path):
     assert "source_challenger" not in load_model_resources(environ={}).roles
-    spec={"adapter":"whisper_cpu","checkpoint_path":"/local/model",
-          "worker_python":"/local/python","device":"cpu"}
+    spec={"adapter":"whisper_ct2","checkpoint_path":"/local/model",
+          "worker_python":"/local/python","device":"cuda:0"}
     path=_file(tmp_path,{"version":1,"resources":{"whisper":spec},
                          "roles":{"source_challenger":"whisper"}})
-    assert load_model_resources(path,environ={}).resolve("source_challenger").device=="cpu"
-    with pytest.raises(ResourceConfigError,match="explicitly configured CPU"):
-        load_model_resources(_file(tmp_path,{"version":1,"resources":{"whisper":{**spec,"device":"cuda:0"}},
+    assert load_model_resources(path,environ={}).resolve("source_challenger").device=="cuda:0"
+    with pytest.raises(ResourceConfigError,match="explicitly configured cuda:0"):
+        load_model_resources(_file(tmp_path,{"version":1,"resources":{"whisper":{**spec,"device":"cpu"}},
                                              "roles":{"source_challenger":"whisper"}}),environ={})

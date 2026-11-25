@@ -802,7 +802,7 @@ def acquire_acoustic_evidence(recording, media, windows, *, asr_scope, output_di
 
 def review_current_source(recording, *, recording_path, media_path, output_dir,
                           text_scope, asr_scope, policy=None, challenger_resource=None,
-                          semantic_review=True):
+                          semantic_review=True, lifecycle=None):
     """Review one current job, with explicitly sequential managed model scopes."""
     policy = policy or SourceQualityPolicy()
     ledger = load_current_ledger(recording, recording_path)
@@ -853,7 +853,7 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
         recording,observations,windows=windows,policy=policy)
     recovery = acquire_independent_evidence(
         recording,targets,observed_media,challenger_resource=challenger_resource,
-        output_dir=output_dir,policy=policy)
+        output_dir=output_dir,policy=policy,lifecycle=lifecycle)
     recovery["deferred_targets"] = independent_deferred
     from nvidia_transcribe.occurrence_resolution import resolve_occurrences, resolution_receipts
     rows,decisions = resolve_occurrences(recording,events,observations,targets,recovery,policy)

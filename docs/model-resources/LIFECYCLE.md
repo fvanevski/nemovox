@@ -143,3 +143,7 @@ an abandoned idle unit. Do not claim immediate standalone SIGKILL recovery.
 Verify the supervised SIGKILL path on the host with a short synthetic
 model job, and verify recovery is skipped while another CLI owns the lease,
 while external clients are connected or when unit markers change.
+
+### Independent Whisper CUDA phase
+
+The explicitly configured `whisper_ct2` challenger acquires the same CUDA worker lease as Riva/Qwen, only after the managed acoustic endpoint scope exits. Owned ASR and text units must retain `stop_after_stage: true` for sequential resource release. The worker uses one subprocess for the bounded batch; its exit releases its CUDA context before the later scene/text phase. Capacity denial remains explicit rather than falling back to CPU or stopping an external process. The initial admission threshold is the existing 8500 MiB worker minimum, subject to measured host qualification.

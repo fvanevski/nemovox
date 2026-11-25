@@ -39,7 +39,7 @@ environment) before running the CLI or Studio.
 | `translation_review` | `openai_chat` | `text_local` | Independent English post-edit of dedicated MT using source context |
 | `subtitle_condensation` | `openai_chat` | `text_local` | Shorten dense subtitle cues |
 | `riva_translation` | `riva_worker` | `riva_local` | Dedicated Riva translation worker |
-| `source_challenger` | `whisper_cpu` | none (optional explicit binding) | Independent, selectively admitted CPU acoustic evidence |
+| `source_challenger` | `whisper_ct2` | none (optional explicit binding) | Independent, selectively admitted CUDA acoustic evidence |
 | `forced_alignment` | `qwen_forced_aligner` | `qwen_local` | Optional selective Qwen forced alignment |
 | `speaker_embedding` | `titanet` | `titanet_cpu` | NeMo speaker embeddings on CPU |
 
@@ -259,10 +259,10 @@ The shared source-quality scheduler can request bounded independent faster-whisp
 {
   "resources": {
     "whisper_local": {
-      "adapter": "whisper_cpu",
+      "adapter": "whisper_ct2",
       "checkpoint_path": "/absolute/path/to/cached/large-v3-ct2",
       "worker_python": "/workspace/nvidia-transcribe/.venv-challenger/bin/python",
-      "device": "cpu"
+      "device": "cuda:0"
     }
   },
   "roles": {"source_challenger": "whisper_local"}
@@ -271,6 +271,6 @@ The shared source-quality scheduler can request bounded independent faster-whisp
 
 Install the dedicated worker dependencies using the checked-in `requirements-challenger.txt` with a supported Python (the qualified host used 3.12.14). For example, after creating or selecting the dedicated environment, run `uv pip install --python /workspace/nvidia-transcribe/.venv-challenger/bin/python -r requirements-challenger.txt` and `uv pip check --python /workspace/nvidia-transcribe/.venv-challenger/bin/python`. Do not install these into another project's environment. The PyAV pin is intentional: the observed faster-whisper 1.2.1 invocation failed with av 19.0.2 because its audio decoder passed the removed `metadata_errors` argument; av 18.0.0 passed the actual CPU control. This is a tested dependency combination, not a claim about all future releases.
 
-Merge these entries into the existing version-1 configuration; do not replace unrelated roles. Worker execution uses CPU int8 and local-files-only admission. Missing or unusable resources are explicit unresolved/error outcomes, not silent model substitution. The source-quality report distinguishes admitted tasks, acquisition receipts, resource deferral, occurrence resolutions and unresolved candidates. Qwen remains optional timing-only work; it cannot supply independent recognition of submitted wording.
+Merge these entries into the existing version-1 configuration; do not replace unrelated roles. Worker execution uses CUDA int8_float16 and local-files-only admission. The previous whisper_cpu adapter is superseded; change only the configured challenger adapter and device, preserving its local checkpoint and worker paths. The worker uses the shared ModelLifecycle CUDA lease after owned Nemotron and text stages have released their scopes. No CPU fallback, CUDA visibility override, unrelated service eviction or alternate checkpoint is allowed. A blocked lease, unsupported CUDA compute type, loader failure, or mismatched actual device receipt leaves explicit unresolved evidence. Qualify CUDA library availability and the real worker on the installed host before promotion; prior CPU evidence is not CUDA qualification. Missing or unusable resources are explicit unresolved/error outcomes, not silent model substitution. The source-quality report distinguishes admitted tasks, acquisition receipts, resource deferral, occurrence resolutions and unresolved candidates. Qwen remains optional timing-only work; it cannot supply independent recognition of submitted wording.
 
 Primary recording no longer launches the former automatic per-chunk CTC subinterval recovery. CTC errors preserve recognized text, explicit unresolved timing and native observations for the shared scheduler; optional Qwen uses the audited admission path. The former `process-media --no-subinterval-recovery` switch is therefore removed. Direct low-level alignment experiments can still use the explicit helper independently of the normal recording workflow. Current-media source quality requires the original recording contract and its occurrence ledger to match their completed-run manifest digests; regenerate incompatible retained recordings before acoustic review. Offline re-rendering of a translated contract is unaffected.

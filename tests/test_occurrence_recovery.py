@@ -257,7 +257,7 @@ def test_global_alignment_budget_retains_late_candidate_and_defers_others():
     assert sum(d["status"]=="skipped_recording_alignment_budget" for _,ds in admitted for d in ds)==4
 
 
-def test_independent_worker_admission_binds_receipts_and_cpu_device(tmp_path,monkeypatch):
+def test_independent_worker_admission_binds_receipts_and_cuda_device(tmp_path,monkeypatch):
     import json
     from types import SimpleNamespace
     from nvidia_transcribe.model_resources import ModelResource
@@ -266,29 +266,66 @@ def test_independent_worker_admission_binds_receipts_and_cpu_device(tmp_path,mon
     python.touch()
     checkpoint=tmp_path/"checkpoint"
     checkpoint.mkdir()
-    resource=ModelResource("test","whisper_cpu",checkpoint_path=str(checkpoint),
-                           worker_python=str(python),device="cpu")
+    from contextlib import contextmanager
+    from nvidia_transcribe.resource_lifecycle import ResourceLifecycleError
+    resource=ModelResource("test","whisper_ct2",checkpoint_path=str(checkpoint),
+                           worker_python=str(python),device="cuda:0")
+    events=[]
+    class Lifecycle:
+        blocked=False
+        @contextmanager
+        def worker(self, **kw):
+            assert kw["resource_name"]=="test" and 0<kw["lock_timeout_s"]<=900
+            if self.blocked:
+                raise ResourceLifecycleError("gpu_capacity_blocked")
+            events.append("acquire")
+            try:
+                yield
+            finally:
+                events.append("release")
+    lifecycle=Lifecycle()
+    monkeypatch.setenv("CUDA_VISIBLE_DEVICES","0")
     monkeypatch.setattr(recovery,"extract_wav_segment",lambda *a,**kw:None)
     monkeypatch.setattr(recovery,"validate_wav_file",lambda p:(10.,p.stem))
     target={"target_id":"target","crops":[(0.,10.),(2.,12.)]}
     bad=False
+    wrong_device=False
     def run(cmd,**kw):
         req=json.loads(kw["input"])
-        assert kw["env"]["CUDA_VISIBLE_DEVICES"]=="" and kw["env"]["HF_HUB_OFFLINE"]=="1"
+        assert events[-1]=="acquire"
+        events.append("inference")
+        assert kw["env"]["CUDA_VISIBLE_DEVICES"]=="0" and kw["env"]["HF_HUB_OFFLINE"]=="1"
+        assert req["device"]=="cuda:0" and req["compute_type"]=="int8_float16"
         assert 0<kw["timeout"]<=900
-        result={"device":"cpu","backend":"faster-whisper","compute_type":"int8",
+        result={"device":"cpu" if wrong_device else "cuda","backend":"faster-whisper",
+                "device_index":[0],"compute_type":"int8_float16","model_is_loaded":True,
+                "is_multilingual":True,
                 "observations":[{"id":c["id"],"audio_sha256":c["audio_sha256"] if not bad else "wrong",
                 "crop":[c["start"],c["end"]],"rows":[]} for c in req["crops"]]}
         return SimpleNamespace(returncode=0,stdout=json.dumps(result),stderr="")
     monkeypatch.setattr(recovery.subprocess,"run",run)
     media=SimpleNamespace(path="media",selected_audio_stream=0,duration_s=100.)
-    kwargs=dict(challenger_resource=resource,output_dir=tmp_path,policy=SourceQualityPolicy())
+    kwargs=dict(challenger_resource=resource,output_dir=tmp_path,policy=SourceQualityPolicy(),
+                lifecycle=lifecycle)
     report=recovery.acquire_independent_evidence(recording(),[target],media,**kwargs)
     assert report["status"]=="observed" and report["requests"]==2
     assert report["resource"]["resource_fingerprint"]==resource.fingerprint()
     bad=True
     report=recovery.acquire_independent_evidence(recording(),[target],media,**kwargs)
     assert report["status"]=="error" and not report["observations"]
+    bad=False
+    wrong_device=True
+    report=recovery.acquire_independent_evidence(recording(),[target],media,**kwargs)
+    assert report["status"]=="error" and not report["observations"]
+    assert events==["acquire","inference","release"]*3
+    lifecycle.blocked=True
+    report=recovery.acquire_independent_evidence(recording(),[target],media,**kwargs)
+    assert report["status"]=="error" and report["requests"]==0 and not report["observations"]
+    assert report["errors"][0]["reason"]=="gpu_capacity_blocked"
+    assert events==["acquire","inference","release"]*3
+    kwargs["lifecycle"]=None
+    report=recovery.acquire_independent_evidence(recording(),[target],media,**kwargs)
+    assert report["status"]=="error" and report["requests"]==0
 
 
 def test_bound_untimed_target_is_prioritized_over_earlier_parent_scans():

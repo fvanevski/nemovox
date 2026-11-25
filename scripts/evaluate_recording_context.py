@@ -111,7 +111,7 @@ def main():
                                    api_key=asr.credential(),timeout_s=900.)
         canonical, report = review_current_source(rec,recording_path=path,media_path=args.live_media,
             output_dir=root,text_scope=text_scope,asr_scope=lambda:managed_asr_client(lifecycle,asr,client),
-            policy=policy,challenger_resource=challenger)
+            policy=policy,challenger_resource=challenger,lifecycle=lifecycle)
         write(root/"source-quality.json",report)
         write(root/"canonical-source.contract.json",canonical)
         write(root/"summary.json",{"status":report["status"],"context":report["recording_context"]["status"],

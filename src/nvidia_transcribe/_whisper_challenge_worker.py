@@ -1,4 +1,4 @@
-"""One explicit local CPU Whisper worker for a bounded batch of evidence crops."""
+"""One explicit local CUDA Whisper worker for a bounded batch of evidence crops."""
 import hashlib
 import json
 import math
@@ -12,10 +12,25 @@ def main():
     required = ("model.bin", "config.json", "tokenizer.json", "preprocessor_config.json")
     if not checkpoint.is_dir() or not all((checkpoint / p).is_file() for p in required):
         raise ValueError("Complete local multilingual CTranslate2 assets required")
+    if request.get("device")!="cuda:0" or request.get("compute_type")!="int8_float16":
+        raise ValueError("Explicit CUDA challenger device and compute type required")
+    import ctranslate2
     from faster_whisper import WhisperModel
     from importlib.metadata import version
-    model = WhisperModel(str(checkpoint.resolve()), device="cpu", compute_type="int8",
-                         local_files_only=True)
+    if (ctranslate2.get_cuda_device_count()<1
+            or "int8_float16" not in ctranslate2.get_supported_compute_types("cuda",0)):
+        raise RuntimeError("CUDA int8_float16 unavailable for the challenger")
+    model = WhisperModel(str(checkpoint.resolve()), device="cuda", device_index=0,
+                         compute_type="int8_float16", local_files_only=True)
+    native = model.model
+    def runtime_identity():
+        return {"device":native.device,"device_index":list(native.device_index),
+                "compute_type":native.compute_type,"model_is_loaded":native.model_is_loaded,
+                "is_multilingual":native.is_multilingual}
+    identity = runtime_identity()
+    if identity != {"device":"cuda","device_index":[0],"compute_type":"int8_float16",
+                    "model_is_loaded":True,"is_multilingual":True}:
+        raise RuntimeError("Loaded challenger does not match requested CUDA model identity")
     output = []
     for crop in request["crops"]:
         path = Path(crop["path"])
@@ -40,9 +55,11 @@ def main():
     for name in required:
         with (checkpoint/name).open("rb") as stream:
             hashes[name] = hashlib.file_digest(stream,"sha256").hexdigest()
+    if runtime_identity()!=identity:
+        raise RuntimeError("Challenger runtime identity changed during inference")
     json.dump({"backend":"faster-whisper","version":version("faster-whisper"),
-               "checkpoint_sha256":hashes,"device":"cpu","compute_type":"int8",
-               "observations":output},sys.stdout,ensure_ascii=False,allow_nan=False)
+               "ctranslate2_version":version("ctranslate2"),"checkpoint_sha256":hashes,
+               **identity,"observations":output},sys.stdout,ensure_ascii=False,allow_nan=False)
 
 
 if __name__ == "__main__":

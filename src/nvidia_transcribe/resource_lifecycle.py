@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import fcntl
 import json
+import math
 import os
 import re
 import signal
@@ -247,9 +248,12 @@ class ModelLifecycle:
             if not 0.1 <= timeout <= 7200:
                 raise ResourceLifecycleError("invalid_lifecycle_lock_timeout")
             if timeout_override_s is not None:
-                if timeout_override_s != 0.0:
+                # Zero preserves nonblocking orphan recovery. A worker can
+                # shorten, but never extend, the configured shared lease wait.
+                if (type(timeout_override_s) not in (int, float)
+                        or not math.isfinite(timeout_override_s) or timeout_override_s < 0):
                     raise ResourceLifecycleError("invalid_lifecycle_lock_timeout")
-                timeout = 0.0  # Never wait behind a live CLI during recovery.
+                timeout = min(timeout, timeout_override_s)
             deadline = time.monotonic() + timeout
             while True:
                 try:
@@ -258,7 +262,7 @@ class ModelLifecycle:
                 except BlockingIOError as exc:
                     if time.monotonic() >= deadline:
                         raise ResourceLifecycleError("resource_lease_timeout") from exc
-                    time.sleep(0.25)
+                    time.sleep(min(0.25, max(0., deadline - time.monotonic())))
             prior_sigterm = None
             restore_signal = threading.current_thread() is threading.main_thread()
             if restore_signal:
@@ -431,9 +435,10 @@ class ModelLifecycle:
                             raise ResourceLifecycleError("managed_stop_unverified", resource.name)
 
     @contextmanager
-    def worker(self, *, resource_name: str, min_free_vram_mb: int = 8500) -> Iterator[None]:
-        """One on-demand Riva/Qwen worker, never a persistent service takeover."""
-        with self._lock():
+    def worker(self, *, resource_name: str, min_free_vram_mb: int = 8500,
+               lock_timeout_s: float | None = None) -> Iterator[None]:
+        """One on-demand CUDA worker, never a persistent service takeover."""
+        with self._lock(timeout_override_s=lock_timeout_s):
             free = _free_vram_mb()
             if free is None:
                 raise ResourceLifecycleError("gpu_telemetry_unavailable", resource_name)
