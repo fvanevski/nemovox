@@ -1077,8 +1077,9 @@ def test_terminal_native_comparison_exhaustion_recovers_without_weakening_review
         assert "translation_comparative_review" not in out[0]
 
 
+@pytest.mark.parametrize("blocked", [False, True])
 def test_failed_review_public_offline_salvage_preserves_failure_and_exact_contract(
-        tmp_path, monkeypatch, capsys):
+        tmp_path, monkeypatch, capsys, blocked):
     from pathlib import Path
     from types import SimpleNamespace
     from nvidia_transcribe import cli, translation
@@ -1102,9 +1103,14 @@ def test_failed_review_public_offline_salvage_preserves_failure_and_exact_contra
     cfg = SubtitlePipelineConfig(source_language="fr",
         translation=TranslationConfig(backend="riva", riva_device="cuda:0"),
         translation_review=_cfg(), formats=("srt", "ass"))
-    with pytest.raises(RuntimeError, match="Required contextual English review did not complete"):
+    from nvidia_transcribe.resource_lifecycle import ResourceLifecycleError
+    error = (ResourceLifecycleError("managed_unit_not_configured") if blocked
+             else RuntimeError("transport failed"))
+    expected = ("Required English review model unavailable" if blocked
+                else "Required contextual English review did not complete")
+    with pytest.raises(RuntimeError, match=expected):
         generate_subtitles(recording_contract_path=record, output_dir=job,
-            config=cfg, text_client=FakeClient(RuntimeError("transport failed")))
+            config=cfg, text_client=FakeClient(error))
     contract = job / "translated.contract.json"
     original = contract.read_bytes()
     retained = json.loads(original)
@@ -1128,6 +1134,8 @@ def test_failed_review_public_offline_salvage_preserves_failure_and_exact_contra
     assert result["translation_review"]["status"] == "reused_translated_contract"
     assert result["translation_review"]["retained_review_status"] == "completed_with_errors"
     assert result["translation_review"]["errors"] == retained["translation_review"]["errors"]
+    assert result["translation_review"]["resource_blocked_reason"] == (
+        "managed_unit_not_configured" if blocked else None)
     assert contract.read_bytes() == original
     assert current_render_metadata(job, retained)["render_status"] == "rendered_with_review_errors"
     files = {fmt: Path(result["files"][fmt]) for fmt in ("srt", "ass")}
@@ -1172,3 +1180,25 @@ def test_terminal_comparison_non_output_stop_is_not_a_recoverable_exhaustion(tmp
     assert not report["deferred_comparison_ids"] and not path.exists()
     assert out[0]["translated_text"] == "Hello, Estban."
     assert len(client.calls) == 2
+
+
+def test_salvage_never_binds_render_to_contract_modified_during_render(tmp_path, monkeypatch):
+    from nvidia_transcribe import subtitle_pipeline as pipeline
+    contract = tmp_path / "translated.contract.json"
+    row = dict(_utts()[0], machine_translated_text="Hello, Estban.")
+    data = {"source_language": "fr", "source": {"path": "/sample/french.mkv",
+            "duration_s": 5.0}, "utterances": [row],
+            "translation_review": {"status": "completed_with_errors", "errors": ["transport"]}}
+    contract.write_text(json.dumps(data))
+    metadata = tmp_path / "subtitles.metadata.json"
+    metadata.write_text('{"subtitles":{"renderable_cues":99}}')
+    real_render = pipeline.render_subtitles
+    def competing_write(*args, **kwargs):
+        result = real_render(*args, **kwargs)
+        contract.write_text(json.dumps({**data, "source_language": "es"}))
+        return result
+    monkeypatch.setattr(pipeline, "render_subtitles", competing_write)
+    with pytest.raises(RuntimeError, match="changed during offline salvage"):
+        pipeline.generate_subtitles(output_dir=tmp_path, config=pipeline.SubtitlePipelineConfig(
+            re_render_only=True, formats=("srt",)))
+    assert not metadata.exists()

@@ -225,7 +225,8 @@ def generate_subtitles(
         _log("Stage 1-3: Reusing existing translated.contract.json (--re-render)")
         for skipped in ("source_quality", "translation", "review", "condensation"):
             _event(skipped, "skipped", "Offline re-render uses retained contract")
-        translated_contract = json.loads(translated_path.read_text(encoding="utf-8"))
+        retained_contract_bytes = translated_path.read_bytes()
+        translated_contract = json.loads(retained_contract_bytes)
         ref_summary: dict[str, Any] = {"status": "reused_translated_contract"}
         trans_summary: dict[str, Any] = {"status": "reused_translated_contract"}
         condense_summary: dict[str, Any] = {"status": "reused_translated_contract"}
@@ -541,6 +542,8 @@ def generate_subtitles(
         # Successful rendering is not successful required review. Bind this
         # receipt to actual retained contract bytes and local subtitle outputs.
         # Basenames make the receipt verifiable after moving a whole job.
+        if translated_path.read_bytes() != retained_contract_bytes:
+            raise RuntimeError("Retained translated contract changed during offline salvage")
         outputs = {}
         for fmt, filename in render_res["outputs"].items():
             path = Path(filename)
@@ -553,7 +556,7 @@ def generate_subtitles(
         metadata["render_status"] = "rendered_with_review_errors"
         metadata["salvage_render_receipt"] = {
             "schema": "nemovox-failed-review-render/v1",
-            "translated_contract_sha256": hashlib.sha256(translated_path.read_bytes()).hexdigest(),
+            "translated_contract_sha256": hashlib.sha256(retained_contract_bytes).hexdigest(),
             "outputs": outputs,
         }
     _atomic_write(out_dir / "subtitles.metadata.json", json.dumps(metadata, ensure_ascii=False, indent=2))
