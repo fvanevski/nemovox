@@ -665,3 +665,56 @@ def test_deferred_comparator_renders_without_claiming_complete_review(tmp_path, 
     assert replay["translation_review"]["deferred_comparison_ids"] == ["u0"]
     assert contract_path.read_bytes() == contract_bytes
     assert {name: path.read_bytes() for name, path in files.items()} == before
+
+
+
+def test_mixed_comparative_verdict_does_not_break_one_source_sentence():
+    class Native(FakeClient):
+        def complete(self, **kwargs):
+            reply=super().complete(**kwargs)
+            reply["choices"][0]["finish_reason"]="stop"
+            return reply
+    rows=[{"id":"a","speaker_id":"A","source_text":"Il a fermé la","translated_text":"He closed it"},
+          {"id":"b","speaker_id":"A","source_text":"porte avant de partir.","translated_text":"Door before leaving."}]
+    proposals={"reviews":[{"utterance_id":"a","corrected_text":"He closed the","reason":"Continuation"},
+                          {"utterance_id":"b","corrected_text":"door before leaving.","reason":"Continuation"}]}
+    comparison={"decisions":[{"utterance_id":"a","choice":"proposal","reason":"Better"},
+                            {"utterance_id":"b","choice":"original","reason":"Keep"}]}
+    out, report=review_translated_utterances(rows,source_language="fr",
+        config=_cfg(wire_protocol="ninfer_messages",thinking_budget=2048,reasoning_effort="xhigh"),
+        text_client=Native(proposals,comparison))
+    assert [r["translated_text"] for r in out]==[r["translated_text"] for r in rows]
+    assert report["dependent_passage_rejections"]==1 and report["comparative_rejections"]==1
+
+
+def test_rereview_preserves_original_mt_and_bound_context():
+    from nvidia_transcribe.semantic_context import accepted_row_context
+    row={"id":"u","source_text":"Nadia revient.","machine_translated_text":"Nadia returns.",
+         "translated_text":"Nadia comes back.","source_start":1.,"source_end":2.}
+    frame={"id":"f","inside_event":True,"visible_text":"Nadia","text_kind":"entity_label",
+           "uncertainty":"","sha256":"a"*64,"requested_seek_s":1.5}
+    row["semantic_context"]=accepted_row_context(row,[],[frame])
+    client=FakeClient({"reviews":[{"utterance_id":"u","corrected_text":"Nadia returns.",
+                                   "changed":False,"reason":"Keep"}]})
+    out,report=review_translated_utterances([row],source_language="fr",config=_cfg(),text_client=client)
+    payload=json.loads(client.calls[0]["messages"][1]["content"])
+    assert payload["target_utterances"][0]["accepted_source_context"]==row["semantic_context"]
+    assert out[0]["translated_text"]==out[0]["machine_translated_text"]=="Nadia returns."
+    assert row["translated_text"]=="Nadia comes back."
+
+
+def test_riva_operator_examples_are_literal_bound_and_alternating(tmp_path):
+    from nvidia_transcribe.refinement import load_glossary
+    from nvidia_transcribe.semantic_context import literal_examples
+    from nvidia_transcribe._riva_translate_worker import translation_messages
+    path=tmp_path/"glossary.json"
+    path.write_text(json.dumps({"translation_examples":[{"source":"porte","target":"door"},
+                                                        {"source":"port","target":"harbor"}]}))
+    gl=load_glossary(path)
+    item={"lang_pair":"fr-en","text":"Ferme la porte.",
+          "context_examples":literal_examples({"source_text":"Ferme la porte."},gl)}
+    assert len(item["context_examples"])==1
+    assert translation_messages(item)==[{"role":"system","content":"fr-en"},
+        {"role":"user","content":"porte"},{"role":"assistant","content":"door"},
+        {"role":"user","content":"Ferme la porte."}]
+    assert not literal_examples({"source_text":"portefeuille"},gl)

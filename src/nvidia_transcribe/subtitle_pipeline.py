@@ -179,6 +179,7 @@ def generate_subtitles(
                  and lifecycle_resources and "translation_review" in lifecycle_resources))):
         cfg = replace(cfg, translation_review=replace(cfg.translation_review,
             wire_protocol="ninfer_messages", thinking_budget=2048, reasoning_effort="xhigh",
+            batch_size=max(cfg.translation_review.batch_size,12),
             max_tokens=max(cfg.translation_review.max_tokens,QUALITY_COMPLETION_TOKENS),
             timeout_s=max(cfg.translation_review.timeout_s,QUALITY_TIMEOUT_S)))
     out_dir.mkdir(parents=True, exist_ok=True)
