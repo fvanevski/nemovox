@@ -42,7 +42,7 @@ internal checksum inventory before use):
 All paths relative to owner. Read latest archive admission.json,
 mandarin-arms-analysis.json, arm A/B canonical-source.contract.json,
 source-quality.json, translated.contract.json, arm B asr raw chunks/ledger,
-and French-equivalence.json (actual name french-equivalence.json).
+and french-equivalence.json.
 Use existing reports at original execution identities, not as fresh outputs.
 The old analysis summary contains an inconsistent Arm B denominator; independently
 count distinct selected IDs from the actual recording/ledger (378 selected,
@@ -129,7 +129,10 @@ diagnosis and upstream-example adjustment allowed. Record exact lock/freeze,
 commands, runtime and errors. No silent CPU fallback.
 
 Use live nvidia-smi, process and lifecycle status, verify cooperative lock and
-idle owner job before GPU work. Use existing owned lease/lifecycle only;
+idle owner job before GPU work. Verify the actual cooperative lease contract;
+coordinate temporary GPU processes under that same ownership/exclusion
+boundary, without recursively acquiring a lock already held by a managed
+pipeline. Use existing owned lease/lifecycle only;
 do not stop or restart unrelated workloads or Studio. Run model groups
 sequentially. Unload/exit one before loading next, except jointly admitted
 Qwen ASR+aligner in a single process if resources fit. Reuse one loaded model
@@ -158,10 +161,17 @@ exposition evidence if a coherent exact audio/text pair can be authenticated.
 H1: Q-ASR, MOSS, FireRed, available diarizer and one ordinary Nemotron primary
 recognition run using existing CLI/ASR path; no downstream recovery/MT campaign.
 If new N H1 unavailable due resource admission, report missing comparison.
-Do not invent an integration command: use candidate's actual public ASR-only
-interface and verified existing options; if no standalone suitable entrypoint
-use existing admitted native client with identical request settings, retaining
-raw observations. No production patch. For N use actual ModelOpt mixed,
+Use the inspected public ASR-only command from the detached candidate root,
+with the owner interpreter and actual existing resource configuration:
+
+    PYTHONPATH=src:. /workspace/nvidia-transcribe/.venv/bin/python -m nvidia_transcribe.cli process-media "$H1_WAV" --output-dir "$PRIVATE_ROOT/nemotron-h1" --source-language zh --mode speaker --chunk-policy fixed --chunk-seconds 90 --context-seconds 10 --audio-stream 0 --speaker-embeddings none --alignment-fallback off --model-resources "$RESOURCE_CONFIG"
+
+Resolve RESOURCE_CONFIG from the existing effective NEMOVOX_MODEL_RESOURCES or
+host configs/model-resources.local.json, without exposing credentials. Compare
+actual mode and chunk geometry to retained primary manifest. Do not hold an
+external lease across process-media's own managed ASR acquisition; release the
+experiment lease after proving its processes exited, and let the CLI acquire
+its normal lease. No production patch. For N use actual ModelOpt mixed,
 V1 runner, CTC middleware/trust-request-mm-kwargs and explicit CTC capture per
 AGENTS.md. Retain raw CTC error, diarization and text.
 
