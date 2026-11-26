@@ -139,12 +139,23 @@ def generate_subtitles(
         raise FileNotFoundError(f"Offline re-render requires an existing translated contract: {translated_path}")
     if cfg.source_quality not in ("auto", "on", "off"):
         raise ValueError("Unsupported source quality mode")
+    if cfg.translation_review.profile != "off" and cfg.translation.backend != "riva":
+        raise ValueError("Contextual English post-edit requires dedicated Riva primary translation")
+    if (cfg.condense_high_cps and cfg.translation.backend == "riva"
+            and cfg.condensation is None and not cfg.re_render_only):
+        raise ValueError(
+            "Riva translation with subtitle condensation requires an explicit "
+            "OpenAI-compatible condensation resource config."
+        )
     asr_resource = (lifecycle_resources or {}).get("asr")
     retained_input = None
     if recording_contract_path is not None and not cfg.re_render_only:
-        retained_input = json.loads(Path(recording_contract_path).read_text(encoding="utf-8"))
+        rc_input = Path(recording_contract_path)
+        if not rc_input.is_file():
+            raise FileNotFoundError(f"Recording contract not found: {rc_input}")
+        retained_input = json.loads(rc_input.read_text(encoding="utf-8"))
     moss_source = (not cfg.re_render_only and (is_moss_contract(retained_input)
-        if retained_input is not None else asr_resource is not None and asr_resource.adapter == "moss_events"))
+        if retained_input is not None else asr_resource is not None and getattr(asr_resource, "adapter", None) == "moss_events"))
     if moss_source:
         if cfg.source_quality == "on":
             raise ValueError("Native MOSS events do not use the Nemotron lexical recovery policy")
@@ -161,20 +172,12 @@ def generate_subtitles(
     if cfg.source_quality == "on" and not cfg.re_render_only and not media_path:
         raise ValueError("Source quality requires the original media")
     if quality_enabled:
-        if asr_resource is not None and asr_resource.adapter != "nemotron_ctc":
+        if asr_resource is not None and getattr(asr_resource, "adapter", "nemotron_ctc") != "nemotron_ctc":
             raise ValueError("Legacy lexical quality review requires a native CTC resource")
         if lifecycle is None or not lifecycle_resources or not {"asr", "translation_review"} <= lifecycle_resources.keys():
             raise ValueError("Source quality requires managed ASR and NInfer review resources")
         if cfg.refinement.profile != "off":
             raise ValueError("Current source quality cannot be combined with text-only source rewriting")
-    if cfg.translation_review.profile != "off" and cfg.translation.backend != "riva":
-        raise ValueError("Contextual English post-edit requires dedicated Riva primary translation")
-    if (cfg.condense_high_cps and cfg.translation.backend == "riva"
-            and cfg.condensation is None and not cfg.re_render_only):
-        raise ValueError(
-            "Riva translation with subtitle condensation requires an explicit "
-            "OpenAI-compatible condensation resource config."
-        )
     # An explicitly supplied canonical contract is a supported downstream
     # entry point, not an implicit cache hit. Keep its accepted source rows
     # and quality evidence instead of re-auditing their order or re-running ASR.
@@ -403,7 +406,7 @@ def generate_subtitles(
                 text_client=stage_client,
                 lifecycle=lifecycle,
                 riva_resource_name=(lifecycle_resources["riva_translation"].name
-                                    if lifecycle_resources else "riva_local"),
+                                    if lifecycle_resources and "riva_translation" in lifecycle_resources else "riva_local"),
                 checkpoint_path=out_dir / "translation.checkpoint.json",
                 resume=cfg.resume_translation,
             )

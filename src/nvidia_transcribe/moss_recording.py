@@ -168,7 +168,7 @@ def validate_moss_contract(contract, *, media_path=None, source_language=None):
             or len(rows) != native.get("event_count") or not language
             or source_language is not None and normalize_language_code(source_language) != language):
         raise ValueError("Invalid native MOSS event contract or source language mismatch")
-    if media_path is not None and compute_file_sha256(media_path) != source.get("content_sha256"):
+    if media_path is not None and compute_file_sha256(Path(media_path)) != source.get("content_sha256"):
         raise ValueError("MOSS recording media identity mismatch")
     ids = set()
     untimed = set()
@@ -211,7 +211,7 @@ def _resource_identity(resource):
     return {"resource_fingerprint": resource.fingerprint(), "model": resource.model,
             "assets": assets, "runtime": json.loads(run.stdout),
             "worker_sha256": compute_file_sha256(_WORKER),
-            "adapter_sha256": compute_file_sha256(__file__)}
+            "adapter_sha256": compute_file_sha256(Path(__file__))}
 
 
 def process_moss_media(media_path, *, output_dir, resource, lifecycle,
@@ -224,7 +224,7 @@ def process_moss_media(media_path, *, output_dir, resource, lifecycle,
     if resource.adapter != ADAPTER or lifecycle is None:
         raise ValueError("MOSS requires an explicitly admitted local worker")
     media = probe_media(media_path, audio_stream_index=audio_stream_index)
-    source = {**media.to_dict(), "content_sha256": compute_file_sha256(media.path)}
+    source = {**media.to_dict(), "content_sha256": compute_file_sha256(Path(media.path))}
     identity = _resource_identity(resource)
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -278,7 +278,7 @@ def process_moss_media(media_path, *, output_dir, resource, lifecycle,
                         "--max-new-tokens", str(_token_budget(duration))], check=True, timeout=3600)
                 except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
                     raise RuntimeError("MOSS worker failed or timed out; no fallback selected") from exc
-            if compute_file_sha256(wav) != audio_sha or compute_file_sha256(media.path) != source["content_sha256"]:
+            if compute_file_sha256(wav) != audio_sha or compute_file_sha256(Path(media.path)) != source["content_sha256"]:
                 raise ValueError("Recording input changed during inference")
             generation = _read(tmp)
             _atomic(raw_path, _encode(generation))  # preserve even a rejected generation

@@ -204,3 +204,25 @@ def test_native_cli_uses_worker_and_reports_ordinary_recording_summary(tmp_path,
     assert cli.main(["process-media","episode.wav","--output-dir",str(tmp_path/"out"),
         "--source-language","zh","--model-resources",str(cfg)]) == 0
     assert json.loads(capsys.readouterr().out)["utterance_count"] == 1
+
+
+def test_resource_identity_and_str_media_path_hashing(tmp_path, monkeypatch):
+    ckpt = tmp_path / "model"
+    ckpt.mkdir()
+    (ckpt / "config.json").write_text("{}")
+    (ckpt / "model.safetensors").write_bytes(b"weights")
+    worker = tmp_path / "python"
+    worker.touch()
+    resource = _validate_resource("moss_local", {
+        "adapter": "moss_events", "model": "MOSS",
+        "checkpoint_path": str(ckpt), "worker_python": str(worker), "device": "cuda:0",
+    })
+    monkeypatch.setattr(moss.subprocess, "run", lambda *a, **k: SimpleNamespace(stdout='{"ok": true}'))
+    ident = moss._resource_identity(resource)
+    assert ident["adapter_sha256"] and ident["worker_sha256"]
+    assert set(ident["assets"]) == {"config.json", "model.safetensors"}
+    media = tmp_path / "clip.wav"
+    media.write_bytes(b"abc")
+    c = build("[1][S01]Bonjour[2]")
+    c["source"]["content_sha256"] = moss.compute_file_sha256(media)
+    moss.validate_moss_contract(c, media_path=str(media))
