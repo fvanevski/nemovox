@@ -1085,7 +1085,7 @@ def test_failed_review_public_offline_salvage_preserves_failure_and_exact_contra
     from nvidia_transcribe import cli, translation
     from nvidia_transcribe.translation import TranslationConfig
     from nvidia_transcribe.subtitle_pipeline import SubtitlePipelineConfig, generate_subtitles
-    from scripts.evaluate_final_integration import current_render_metadata
+    from nvidia_transcribe.render_receipt import current_render_metadata
 
     record = tmp_path / "recording.contract.json"
     record.write_text(json.dumps({"source_language": "fr",
@@ -1305,7 +1305,7 @@ def test_keyed_proposal_rejects_duplicate_json_keys():
 
 def test_offline_untimed_dialogue_is_not_a_successful_render(tmp_path):
     from nvidia_transcribe.subtitle_pipeline import SubtitlePipelineConfig, generate_subtitles
-    from scripts.evaluate_final_integration import current_render_metadata
+    from nvidia_transcribe.render_receipt import current_render_metadata
 
     row = dict(_utts()[0], source_start=None, source_end=None, source_words=[], source_characters=[])
     retained = {"source_language": "fr", "source": {"duration_s": 5.0}, "utterances": [row]}
@@ -1325,7 +1325,7 @@ def test_timing_only_recovery_permits_supported_relative_duration_without_freezi
     from copy import deepcopy
     from nvidia_transcribe.review_uncertainty import bind_review_uncertainty, uncertainty_veto
     from nvidia_transcribe.semantic_context import current_row_context, text_digest
-    from nvidia_transcribe.source_quality import _lex
+    from nvidia_transcribe.semantic_context import _lex
     source="将于一月后举行仪式"
     tokens=list(_lex(source))
     units=[{"source_unit_id":f"u{i}","text":t} for i,t in enumerate(tokens)]

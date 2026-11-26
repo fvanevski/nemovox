@@ -165,62 +165,6 @@ def test_lifecycle_selects_messages_only_when_explicitly_requested(monkeypatch):
             pass
 
 
-def test_messages_adapter_integrates_with_pinned_semantic_review_contract(monkeypatch):
-    from nvidia_transcribe.chunking import ChunkSpec
-    from nvidia_transcribe.semantic_review import (
-        plan_boundary_semantic_reviews, run_configured_tiered_text_reviews,
-    )
-    policy = {
-        "schema": "nemovox-semantic-review-policy/v1",
-        "policy_id": "test-review-transport",
-        "reviewer_guidance": "Prioritize polarity, clarity and evidence; abstain on unsupported audio.",
-        "model_review": {
-            "case_limit": 1, "token_budget": 1792, "light_tokens": 512,
-            "reasoned_tokens": 1792, "light_thinking_budget": 0,
-            "reasoned_thinking_budget": 1024, "light_effort": "none",
-            "reasoned_effort": "xhigh",
-        },
-    }
-    right = [{"text":t, "start":80+i*.25, "end":80.2+i*.25,
-              "valid_timing":True,"unit_type":"word","speaker":"local_A",
-              "_unit_idx":i,"_chunk_idx":1}
-             for i,t in enumerate(("The","door","is","not","open"))]
-    spec = [ChunkSpec(0,0,90,0,100),ChunkSpec(1,90,180,80,190)]
-    request = plan_boundary_semantic_reviews([[],right], spec, policy=policy,
-        activity_by_chunk={0:[{"start_s":80,"end_s":82,
-                               "possible_unrepresented_speech":True}]})
-    assert len(request["cases"])==1
-    statement = {
-        "schema":"nemovox-semantic-review-decision/v1",
-        "request_sha256":request["request_sha256"],
-        "case_id":request["cases"][0]["case_id"],
-        "decision":"unresolved",
-        "rationale":"The audio occurrence is not yet independently reviewed",
-        "supporting_evidence":["right_context_words"],
-        "contrary_evidence":[], "unresolved":["acoustic_occurrence"],
-    }
-    backend = _finished_response()
-    backend["content"][-1]["text"] = json.dumps(statement)
-    requests = _client_transport(monkeypatch, responses=[Reply(body=backend)])
-    model = NInferMessagesTextClient(base_url="http://localhost:8001/v1",model="chat")
-    result = run_configured_tiered_text_reviews(request,client=model,policy=policy)
-    assert result["outcomes"][0]["status"]=="advisory_only"
-    assert result["outcomes"][0]["assessment"]["source_application_authorized"] is False
-    assert result["model_calls"]==1
-    assert result["source_or_subtitles_modified"] is False
-    assert requests[0][1]["thinking"]=={"type":"enabled","budget_tokens":1024}
-    fmt = requests[0][1]["output_config"]["format"]
-    assert fmt["type"] == "json_schema"
-    assert fmt["schema"]["properties"]["request_sha256"]["enum"] == [request["request_sha256"]]
-    assert fmt["schema"]["properties"]["case_id"]["enum"] == [request["cases"][0]["case_id"]]
-    assert set(fmt["schema"]["properties"]["supporting_evidence"]["items"]["enum"]) == {
-        "right_context_words", "left_core_overlap_words", "left_lexical_correspondence",
-        "unrepresented_activity_intervals", "independent_audio_review", "independent_visual_review",
-    }
-    assert "system" in requests[0][1]
-    assert requests[0][1]["messages"][0]["role"]=="user"
-
-
 def test_anthropic_system_prefix_is_preserved_in_top_level_without_reordering_history(monkeypatch):
     requests = _client_transport(monkeypatch, responses=[
         Reply(body=_finished_response(thinking=False)),

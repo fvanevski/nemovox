@@ -104,7 +104,7 @@ def generate_subtitles(
     """Run staged ASR -> primary translation -> optional English review -> subtitle rendering.
 
     Can start from raw ``media_path`` OR resume directly from ``recording_contract_path``
-    without loading the 30B ASR model. Explicit CPU-only re-rendering requires
+    without loading the recognition model model. Explicit CPU-only re-rendering requires
     an existing ``translated.contract.json``; missing input never starts inference.
     """
     t0 = time.perf_counter()
@@ -232,7 +232,7 @@ def generate_subtitles(
             _log("Offline salvage: required English review remains failed; rendering retained translations")
             _event("review", "failed", "Retained required review failed; offline salvage only")
     else:
-        # Stage 1: Load existing recording contract or run chunked ASR.
+        # Stage 1: Load existing recording contract or run recording-level ASR.
         if recording_contract_path is not None:
             rc_path = Path(recording_contract_path)
             if not rc_path.is_file():

@@ -22,7 +22,6 @@ from nvidia_transcribe.translation import (
     condense_high_cps_cues_with_text_model,
     translate_utterances,
 )
-from nvidia_transcribe.utterances import audit_and_reconstruct_contract, reconstruct_speaker_utterances
 
 
 class _CallTrackingClient:
@@ -33,58 +32,6 @@ class _CallTrackingClient:
     def complete(self, *, messages, max_tokens=4096, temperature=0.0, response_format=None):
         self.calls.append({"messages": messages, "max_tokens": max_tokens, "temperature": temperature})
         return self.responder(len(self.calls) - 1, messages)
-
-
-def test_a1_untimed_cross_chunk_ordering_and_unit_preservation() -> None:
-    # Chunk 1 untimed utterance must stay inside Chunk 1 timeline (before Chunk 2 at 180s),
-    # NEVER thrown after 1000s via cidx * 1000.0, and source_start must remain None.
-    units = [
-        {"text": "Hello", "speaker": "0", "global_speaker_id": "SPK_0", "chunk_index": 0, "source_unit_index": 0, "valid_timing": True, "start": 10.0, "end": 12.0},
-        {"text": "MissingTimingInChunk1", "speaker": "1", "global_speaker_id": "SPK_1", "chunk_index": 1, "source_unit_index": 0, "valid_timing": False, "start": None, "end": None, "alignment_status": "diarization_bounded_only"},
-        {"text": "Chunk2Line", "speaker": "0", "global_speaker_id": "SPK_0", "chunk_index": 2, "source_unit_index": 0, "valid_timing": True, "start": 185.0, "end": 188.0},
-        {"text": "LateEpisodeLine", "speaker": "0", "global_speaker_id": "SPK_0", "chunk_index": 11, "source_unit_index": 0, "valid_timing": True, "start": 995.0, "end": 999.0},
-    ]
-    utts = reconstruct_speaker_utterances(
-        units,
-        source_language="en",
-        chunk_windows={0: (0.0, 95.0), 1: (85.0, 180.0), 2: (170.0, 265.0), 11: (980.0, 1080.0)},
-    )
-    texts = [u["source_text"] for u in utts]
-    assert texts == ["Hello", "MissingTimingInChunk1", "Chunk2Line", "LateEpisodeLine"]
-    assert utts[1]["source_start"] is None and utts[1]["source_end"] is None
-    assert utts[1]["chunk_indices"] == [1]
-
-
-def test_a2_existing_contract_reconstruction_and_classification() -> None:
-    contract = {
-        "schema_version": "nemotron-recording-contract/v1",
-        "source": {"path": "/tmp/ep.webm", "duration_s": 1200.0},
-        "source_language": "zh",
-        "utterances": [
-            {"id": "utt-0000", "speaker_id": "SPK_0", "chunk_indices": [0], "source_start": 15.0, "source_end": 18.0, "source_text": "我们开始吧。"},
-            {"id": "utt-0001", "speaker_id": "SPK_0", "chunk_indices": [2], "source_start": 180.0, "source_end": 185.0, "source_text": "从没人看好逆袭成商业巨子，冲上星空榜。"},
-            {"id": "utt-0002", "speaker_id": "SPK_0", "chunk_indices": [11], "source_start": 1005.0, "source_end": 1008.0, "source_text": "而你呢？"},
-            {"id": "utt-0003", "speaker_id": "SPK_1", "chunk_indices": [1], "source_start": None, "source_end": None, "alignment_status": "diarization_bounded_only", "source_text": "从没人看好逆袭成商业巨子"},  # dup of utt-0001 across chunk 1/2
-            {"id": "utt-0004", "speaker_id": "SPK_1", "chunk_indices": [11], "source_start": None, "source_end": None, "alignment_status": "diarization_bounded_only", "source_text": "我不计前嫌送你一场机缘，我不欠你的。"},  # independent omitted
-            {"id": "utt-0005", "speaker_id": "SPK_2", "chunk_indices": [14], "source_start": None, "source_end": None, "alignment_status": "alignment_failed", "source_text": "就是你你你没有怎么怎么没有遇到过没有怎么怎么没有遇到过没有怎么怎么没有"},
-        ],
-    }
-    migrated, audit = audit_and_reconstruct_contract(
-        contract,
-        chunk_windows={0: (0.0, 90.0), 1: (80.0, 175.0), 2: (165.0, 260.0), 11: (980.0, 1080.0), 14: (1180.0, 1200.0)},
-    )
-    texts = [u["source_text"] for u in migrated["utterances"]]
-    # Original ID utt-0003 (Chunk 1) placed cleanly before Chunk 2 line, utt-0004 inside Chunk 11, loop at Chunk 14
-    assert texts.index("从没人看好逆袭成商业巨子") < texts.index("从没人看好逆袭成商业巨子，冲上星空榜。")
-    assert texts.index("我不计前嫌送你一场机缘，我不欠你的。") < texts.index("就是你你你没有怎么怎么没有遇到过没有怎么怎么没有遇到过没有怎么怎么没有")
-    by_orig = {r["original_utterance_id"]: r for r in audit}
-    assert by_orig["utt-0003"]["classification"] == "probable_duplicate"
-    assert by_orig["utt-0004"]["classification"] == "plausible_independent_missing_timing"
-    assert by_orig["utt-0005"]["classification"] == "likely_hallucination_or_loop"
-    # Timestamps are never fabricated
-    for u in migrated["utterances"]:
-        if u["original_utterance_id"] in ("utt-0003", "utt-0004", "utt-0005"):
-            assert u["source_start"] is None and u["source_end"] is None
 
 
 def test_b_cache_correctness_invalidation_selective_reuse_and_rerender(tmp_path: Path) -> None:

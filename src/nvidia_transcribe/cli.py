@@ -84,6 +84,13 @@ def build_parser() -> argparse.ArgumentParser:
     gs.add_argument("--fresh-translation", action="store_true", help="Ignore translation checkpoint cache.")
     gs.add_argument("--re-render", action="store_true", help="Re-render SRT/ASS directly from translated.contract.json without model calls.")
     gs.add_argument("--validation-overlay", default=None, help="Optional viewing-validation JSON overlay for coarse timing & polish.")
+    assess = sub.add_parser("assess-source", help="Assess native dialogue intervals without translation or automatic correction.")
+    assess.add_argument("media", nargs="?", help="Original recording (required with --activity).")
+    assess.add_argument("--recording-contract", required=True)
+    assess.add_argument("--output-dir", required=True)
+    assess.add_argument("--activity", action="store_true", help="Explicitly run the configured CPU acoustic event detector.")
+    assess.add_argument("--fresh", action="store_true")
+    assess.add_argument("--model-resources", default=None)
     for parser in (pm, gs):
         parser.add_argument("--model-resources", default=None,
                             help="Host model-resource JSON path (or NEMOVOX_MODEL_RESOURCES).")
@@ -95,6 +102,28 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    if args.command == "assess-source":
+        from nvidia_transcribe.source_assessment import assess_native_dialogue
+        from nvidia_transcribe.speech_activity import assess_recording_activity
+        from nvidia_transcribe.subtitle_pipeline import _atomic_write
+        try:
+            contract = json.loads(Path(args.recording_contract).read_text(encoding="utf-8"))
+            if args.activity:
+                if not args.media:
+                    raise ValueError("--activity requires the original media")
+                resource = load_model_resources(args.model_resources).resolve("speech_activity")
+                report, _ = assess_recording_activity(contract, media_path=args.media, resource=resource,
+                    output_dir=Path(args.output_dir), resume=not args.fresh)
+            else:
+                report = assess_native_dialogue(contract)
+            out = Path(args.output_dir)
+            out.mkdir(parents=True, exist_ok=True)
+            _atomic_write(out / "source-quality.json", json.dumps(report, ensure_ascii=False, indent=2))
+            print(json.dumps({"status": "OK", "report": str(out / "source-quality.json")}))
+            return 0
+        except (ResourceConfigError, OSError, ValueError, RuntimeError) as exc:
+            print(json.dumps({"status": "ERROR", "error": str(exc)}), file=sys.stderr)
+            return 1
     if args.command == "generate-subtitles" and args.translation_review is None:
         args.translation_review = "balanced" if args.translator == "riva" else "off"
 
