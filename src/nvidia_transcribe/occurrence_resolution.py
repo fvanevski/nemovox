@@ -143,11 +143,16 @@ def resolve_occurrences(recording,events,observations,targets,recovery,policy,*,
         rows,first=adjudicate_sequences(recording,ledger,windows,observations,targets,independent)
         rows,second=recover_unlocalized_events({**recording,"utterances":rows},
                                               windows,observations,targets,independent)
-        targeted=first+second
+        from nvidia_transcribe.failed_ctc_recovery import recover_failed_ctc_events
+        rows,third=recover_failed_ctc_events({**recording,"utterances":rows},ledger,
+            windows,observations,targets,independent,policy)
+        targeted=first+second+third
         recording={**recording,"utterances":rows}
         # Special tasks are adjudicated atomically at sequence/event level.
         # Do not reuse their observations for individual fragment insertion.
-        special={w["task_id"] for w in windows if w.get("priority",4)<0}
+        special={w["task_id"] for w in windows if w.get("priority",4)<0
+                 or "failed_ctc_core" in w.get("reasons",[])}
+        special.update(uid for d in third for uid in d["recovery_task_ids"])
         events=[e for e in events if not special.intersection(e.get("recovery_task_ids",[]))]
         observations=[o for o in observations if not special.intersection(o.get("task_ids",[]))]
         blocked={t["target_id"] for t in targets if special.intersection(t["task_ids"])}

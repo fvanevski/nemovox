@@ -183,25 +183,33 @@ def adjudicate_sequences(recording,ledger,windows,observations,targets,independe
         # displaced region and contain competing speech at every disputed
         # row. Any substantial replay in raw or reconstructed text vetoes
         # retirement; lack of recognition alone is never sufficient.
-        def competes(o,key):
-            if not _interior(o,new) or _overlap(o["crop"],old)>0:
-                return False
+        def assess_later(o,key):
             observed=o[key]
             raw=o.get("raw_response",{})
             content=((raw.get("choices") or [{}])[0].get("message") or {}).get("content")
             lexical=_lex(content) if isinstance(content,str) else _tokens(observed)
-            if _longest(words,lexical)>=6:
-                return False
+            covered,repeat=[],[]
             for r in later:
                 rb=_bounds(r)
                 matching=[s for s in observed if _bounds(s) and _overlap(_bounds(s),rb)>0]
-                if not matching:
-                    return False
+                if matching:
+                    covered.append(r["id"])
                 w=_lex(r["source_text"])
                 if len(w)>=3 and any(_contains(_lex(s["source_text"]),w) for s in matching):
-                    return False
-            return True
-        native_competing=[o for o in c if competes(o,"utterances")]
+                    repeat.append(r["id"])
+            # Missing localized rows are not evidence for or against a
+            # repeat. An affirmative repeat in ANY later crop still vetoes.
+            raw_repeat=_longest(words,lexical)>=6
+            geometry=_interior(o,new) and not _overlap(o["crop"],old)>0
+            status=("repeat_veto" if raw_repeat or repeat else
+                    "complete_competing_coverage" if geometry and len(covered)==len(later)
+                    else "insufficient_coverage")
+            return {"audio_sha256":o["audio_sha256"],"crop":o["crop"],"status":status,
+                    "covered_source_ids":covered,"repeat_source_ids":repeat,
+                    "substantial_raw_repeat":raw_repeat}
+        native_checks=[(o,assess_later(o,"utterances")) for o in c]
+        independent_checks=[(o,assess_later(o,"rows")) for o in d]
+        native_competing=[o for o,r in native_checks if r["status"]=="complete_competing_coverage"]
         def contrast(o):
             raw=o.get("raw_response",{})
             content=((raw.get("choices") or [{}])[0].get("message") or {}).get("content")
@@ -216,16 +224,18 @@ def adjudicate_sequences(recording,ledger,windows,observations,targets,independe
         # locality is not an additional timing authority; separate local
         # crops must establish competing speech at the suspect locality.
         valid_arms=[o for o in arms if contrast(o)]
-        independent_competing=[o for o in d if competes(o,"rows")]
+        independent_competing=[o for o,r in independent_checks if r["status"]=="complete_competing_coverage"]
+        later_checks=[r for o,r in native_checks+independent_checks]
         receipt={"sequence_id":uid,"source_ids":[r["id"] for r in later],
                  "retained_source_ids":[r["id"] for r in earlier],
                  "trigger_evidence_ids":[uid],"recovery_task_ids":sorted(ta|tb),
-                 "earlier_bounds":old,"window":new,"acoustic_truth_accepted":False}
+                 "earlier_bounds":old,"window":new,"acoustic_truth_accepted":False,
+                 "later_observation_dispositions":later_checks}
         # Do not selectively ignore an observation supporting a later repeat.
         if (not positive or not _pairs([o for o,g in corroboration])
                 or not native_competing or not _pairs(independent_competing)
                 or not valid_arms or len(valid_arms)!=len(arms)
-                or len(native_competing)!=len(c) or len(independent_competing)!=len(d)):
+                or any(r["status"]=="repeat_veto" for r in later_checks)):
             decisions.append({**receipt,"status":"unresolved_displaced_sequence"})
             continue
         support=[o for o,g in positive+corroboration]+native_competing+independent_competing+valid_arms
@@ -247,6 +257,67 @@ def adjudicate_sequences(recording,ledger,windows,observations,targets,independe
         rows=[r for r in rows if r["id"] not in remove]
         decisions.append(receipt)
     return rows,decisions
+
+
+def _corroborated_prefix_variant(row,previous,ns,ins,associated,bounds):
+    """A cross-chunk edge variant may be another hypothesis for the same prefix.
+
+    Require an existing shared recognized turn with the immediately preceding
+    supported row, explicit chunk separation, actual timed native lexical
+    prefixes, and both independent crop estimates. Approximate lexical
+    resemblance is only one predicate; it does not establish entity identity.
+    """
+    rb=_bounds(row)
+    if not previous or not rb:
+        return None
+    prior_turns=set(previous.get("recognized_turn_ids",[]))
+    if not prior_turns.intersection(row.get("recognized_turn_ids",[])):
+        return None
+    chunks=set(row.get("chunk_indices",[]))
+    if not chunks or chunks!=set(previous.get("chunk_indices",[])) or chunks.intersection(
+            c for u in associated for c in u.get("chunk_indices",[])):
+        return None
+    words=_lex(row["source_text"])
+    if len(words)<3 or rb[0]<bounds[0]-.15 or rb[1]>bounds[1]+.15:
+        return None
+    # The prior must be the leading fragment, not a competing later turn.
+    if abs(rb[0]-bounds[0])>.15:
+        return None
+    def resembles(tokens):
+        return _ratio(tuple("".join(words)),tuple("".join(tokens)))>=.85
+    native=[]
+    exact_anchor=False
+    for o,x in ns:
+        first=x[0][0]
+        units=first.get("timed_lexical_units",[])[:len(words)]
+        tokens=tuple(u["lex"] for u in units)
+        if (len(tokens)!=len(words) or not resembles(tokens)
+                or abs(units[0]["start"]-rb[0])>.5
+                or abs(units[-1]["end"]-rb[1])>.5):
+            continue
+        exact_anchor=exact_anchor or sum(a==b for a,b in zip(words,tokens))>=2
+        native.append((o,first))
+    if not exact_anchor or not _pairs([o for o,r in native]):
+        return None
+    independent=[]
+    for o,x in ins:
+        group,span,tokens=x
+        # An independent segment can include the end of the preceding
+        # clause. Its word positions are NOT treated as timed coordinates.
+        limit=min(len(tokens)-len(words)+1,4)
+        matches=[tokens[i:i+len(words)] for i in range(max(0,limit))
+                 if resembles(tokens[i:i+len(words)])
+                 and sum(a==b for a,b in zip(words,tokens[i:i+len(words)]))>=2]
+        if (len(matches)==1 and span[0]<=rb[0]+.85 and span[1]>=rb[1]-.85):
+            independent.append((o,group))
+    if not _pairs([o for o,g in independent]):
+        return None
+    return {"source_id":row["id"],"preceding_source_id":previous["id"],
+            "status":"corroborated_prefix_wording_variant",
+            "native_observation_ids":[r["observation_id"] for o,r in native],
+            "independent_observation_ids":[r["observation_id"] for o,g in independent for r in g],
+            "audio_sha256":sorted({o["audio_sha256"] for o,r in native+independent}),
+            "entity_identity_accepted":False,"speaker_identity_accepted":False}
 
 
 def recover_unlocalized_events(recording,windows,observations,targets,independent):
@@ -323,18 +394,28 @@ def recover_unlocalized_events(recording,windows,observations,targets,independen
                 # Absorb only a short fully represented competing prefix
                 # from a different chunk. Preserve every other timed row.
                 overlaps=[r for r in rows if _bounds(r) and _overlap(_bounds(r),b)>.08]
-                if any(not (_bounds(r)[0]>=b[0]-.15 and _bounds(r)[1]<=b[1]+.15
-                           and len(_lex(r["source_text"]))<=max(3,len(words)//4)
-                           and set(r.get("chunk_indices",[])).isdisjoint(
-                               {c for u in associated for c in u.get("chunk_indices",[])})
-                           and any(_contains(x[2][0:max(3,len(words)//3)],_lex(r["source_text"]))
-                                   for o,x in ns)) for r in overlaps):
+                prefix_receipts=[]
+                blocked=False
+                for r in overlaps:
+                    short_edge=(_bounds(r)[0]>=b[0]-.15 and _bounds(r)[1]<=b[1]+.15
+                        and len(_lex(r["source_text"]))<=max(3,len(words)//4)
+                        and set(r.get("chunk_indices",[])).isdisjoint(
+                            {c for u in associated for c in u.get("chunk_indices",[])}))
+                    if short_edge and any(_contains(x[2][0:max(3,len(words)//3)],_lex(r["source_text"]))
+                                          for o,x in ns):
+                        continue
+                    variant=_corroborated_prefix_variant(r,previous,ns,ins,associated,b) if short_edge else None
+                    if not variant:
+                        blocked=True
+                        break
+                    prefix_receipts.append(variant)
+                if blocked:
                     continue
-                candidates.append((g,b,words,associated,overlaps,ns,ins))
+                candidates.append((g,b,words,associated,overlaps,ns,ins,prefix_receipts))
         if not candidates:
             continue
         candidates.sort(key=lambda x:(-len(x[3]),x[1]))
-        g,b,words,associated,overlaps,ns,ins=candidates[0]
+        g,b,words,associated,overlaps,ns,ins,prefix_receipts=candidates[0]
         if any(not {r["id"] for r in x[3]}<={r["id"] for r in associated}
                or abs(x[1][0]-b[0])>2 or abs(x[1][1]-b[1])>2
                or _ratio(x[2],words)<.8 for x in candidates[1:]):
@@ -362,6 +443,7 @@ def recover_unlocalized_events(recording,windows,observations,targets,independen
                                                 if o.get("raw_response_sha256")})},
              "source_lineage":{"prior_source_ids":sorted(ids),"acoustic_observation_ids":observation_ids,
                  "source_word_timing_accepted":False,
+                 "prefix_correspondences":prefix_receipts,
                  "contextual_wording":{"source_id":uid,"source_text_sha256":text_digest(g[0]["source_text"]),
                     "status":"advisory_model_hypotheses","entity_identity_accepted":False,
                     "alternatives":[{"text":" ".join(r["source_text"] for r in x[0]),

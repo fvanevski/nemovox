@@ -106,6 +106,25 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
         if core and earlier[1]<=core[0] and core[0]<=later[0]<later[1]<=core[1]:
             proposals[-1]["context_removed_crop"]=core
 
+    from nvidia_transcribe.failed_ctc_recovery import failed_ctc_parents
+    failed=failed_ctc_parents(ledger)
+    for chunk,(parent,units) in failed.items():
+        core=interval((parent.get("core_start_s"),parent.get("core_end_s")),duration)
+        if not core:
+            continue
+        selected=[u["id"] for u in units if u.get("boundary_disposition")=="selected_unlocalized"]
+        if not selected:
+            continue
+        # Cover the core once instead of repeatedly scanning the full
+        # inference crop for every unlocalized span. The ordinary global
+        # window/audio budgets still limit admission.
+        maximum=min(policy.challenge_max_seconds,policy.max_target_seconds*1.5)
+        count=max(1,math.ceil((core[1]-core[0])/maximum))
+        for i in range(count):
+            part=(core[0]+i*(core[1]-core[0])/count,
+                  core[0]+(i+1)*(core[1]-core[0])/count)
+            add(parent["id"],"failed_ctc_core",0,part,[chunk],selected,whole=True)
+
     anchored_runs = []
     i = 0
     while i < len(rows):
@@ -130,6 +149,10 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
         chunks = [parent["chunk_index"]] if "chunk_index" in parent else []
         locality = inv.get("locality", {})
         for span in locality.get("spans", []):
+            if parent.get("chunk_index") in failed:
+                # Preserve origin span receipts in the shared ledger; the
+                # explicit core tasks above replace blind duplicate scans.
+                continue
             ds = span.get("selection_dispositions", [])
             status = span["locality_status"]
             context = any(d["status"] == "context_candidate_unresolved" for d in ds)
@@ -263,10 +286,11 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
                 if broad[1]-broad[0]<=policy.challenge_max_seconds:
                     add(uid,"untimed_event_context",-1,broad,chunks,refs,ids,whole=True)
         else:
-            windows = [b for c in chunks if c in by_chunk
+            windows = [b for c in chunks if c in by_chunk and c not in failed
                        if (b := interval(parent_window(by_chunk[c]),duration))]
-            for b in windows or [None]:
-                add(uid,"untimed_source_dialogue",3,b,chunks,refs,ids)
+            if windows or not chunks or any(c not in failed for c in chunks):
+                for b in windows or [None]:
+                    add(uid,"untimed_source_dialogue",3,b,chunks,refs,ids)
         i = j
 
     # Resolve stable source-row references from unit evidence, including
@@ -283,6 +307,7 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
         a,b = p["window"]
         match = next((w for w in merged
                       if w["priority"]>=0 and p["priority"]>=0
+                      and "failed_ctc_core" not in w["reasons"]+p["reasons"]
                       and overlap(w["window"],p["window"]) >= .5*min(b-a,w["window"][1]-w["window"][0])
                       and max(b,w["window"][1])-min(a,w["window"][0]) <= policy.max_target_seconds+1e-6
                       # A broad fallback must not inflate a localized task

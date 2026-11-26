@@ -723,12 +723,13 @@ def render_subtitles(
     sidecars: dict[str, str] = {}
     fmts = {f.strip().lower() for f in formats if f.strip()}
 
+    no_renderable_dialogue=bool(cues) and not all_renderable
     if "srt" in fmts:
         srt_text = format_srt(all_renderable, config=cfg)
         srt_out = output_dir / f"{episode_stem}.{lang_tag}.srt"
         _atomic_write(srt_out, srt_text)
         outputs["srt"] = str(srt_out)
-        if sidecar_dir is not None:
+        if sidecar_dir is not None and not no_renderable_dialogue:
             sc_srt = Path(sidecar_dir) / f"{episode_stem}.{lang_tag}.srt"
             if sc_srt.exists() and not overwrite_sidecar:
                 raise FileExistsError(f"Refusing to overwrite existing sidecar without overwrite_sidecar=True: {sc_srt}")
@@ -740,7 +741,7 @@ def render_subtitles(
         ass_out = output_dir / f"{episode_stem}.{lang_tag}.ass"
         _atomic_write(ass_out, ass_text)
         outputs["ass"] = str(ass_out)
-        if sidecar_dir is not None:
+        if sidecar_dir is not None and not no_renderable_dialogue:
             sc_ass = Path(sidecar_dir) / f"{episode_stem}.{lang_tag}.ass"
             if sc_ass.exists() and not overwrite_sidecar:
                 raise FileExistsError(f"Refusing to overwrite existing sidecar without overwrite_sidecar=True: {sc_ass}")
@@ -763,6 +764,7 @@ def render_subtitles(
     return {
         "outputs": outputs,
         "sidecars": sidecars,
+        "no_renderable_dialogue":no_renderable_dialogue,
         "stats": {
             "total_input_utterances": len(utterances),
             "renderable_cues": len(all_renderable),

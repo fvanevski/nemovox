@@ -104,7 +104,9 @@ def schedule_independent(recording,observations,*,windows,policy):
                     and t["bounds"][1]-t["bounds"][0]>=.65
                     and bounds[0]-.01<=t["bounds"][0]<t["bounds"][1]<=bounds[1]+.01]
         # Prefer an explicit original untimed run over unbound omission.
-        candidates = ([{"kind":"occurrence","bounds":bounds,"ids":task.get("source_ids",[])}]
+        candidates = ([{"kind":"failed_ctc_core","bounds":bounds,"ids":task.get("source_ids",[])}]
+                      if "failed_ctc_core" in task.get("reasons",[]) else
+                      [{"kind":"occurrence","bounds":bounds,"ids":task.get("source_ids",[])}]
                       if task.get("priority",4)<0 else
                       sorted(relevant,key=lambda t:(t["kind"]!="untimed",t["bounds"])))
         if not candidates and (task.get("priority",4)<=2 or
@@ -132,12 +134,16 @@ def schedule_independent(recording,observations,*,windows,policy):
     task_priority={w["task_id"]:w.get("priority",4) for w in observed}
     proposals.sort(key=lambda t:(
         min(task_priority[uid] for uid in t["task_ids"])>=0,
-        t["kind"]!="untimed",
+        t["kind"] not in ("untimed","failed_ctc_core"),
         min(task_priority[uid] for uid in t["task_ids"]),
         t["kind"]!="omission",
         min(task_rank[uid] for uid in t["task_ids"])))
     for t in proposals:
-        if min(task_priority[uid] for uid in t["task_ids"])<0:
+        if t["kind"]=="failed_ctc_core":
+            a,b=t["bounds"]
+            crops=[(max(0.,a-.5),min(duration,b+2.)),
+                   (max(0.,a-2.),min(duration,b+.5))]
+        elif min(task_priority[uid] for uid in t["task_ids"])<0:
             from nvidia_transcribe.source_quality import _crop_windows
             crops=_crop_windows(t["bounds"],duration)
         else:

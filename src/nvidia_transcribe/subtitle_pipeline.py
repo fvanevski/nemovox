@@ -538,6 +538,13 @@ def generate_subtitles(
         "subtitle_conflicts": render_res["conflicts"][:200],
         "total_wall_time_s": elapsed_s,
     }
+    if render_res.get("no_renderable_dialogue"):
+        # Retain the local diagnostic files and the actual conflict report,
+        # but never publish a successful job or export empty sidecars.
+        metadata["render_status"]="failed_no_renderable_dialogue"
+        _atomic_write(out_dir / "subtitles.metadata.json",json.dumps(metadata,ensure_ascii=False,indent=2))
+        _event("render","failed","Recognized dialogue has no usable subtitle timing")
+        raise RuntimeError("Recognized dialogue has no usable subtitle timing; diagnostic artifacts preserved")
     if salvage_review_error:
         # Successful rendering is not successful required review. Bind this
         # receipt to actual retained contract bytes and local subtitle outputs.
