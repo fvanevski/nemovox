@@ -751,7 +751,7 @@ def acquire_acoustic_evidence(recording, media, windows, *, asr_scope, output_di
                     continue
                 pair = [observe(c,task) for c in crops]
                 task["state"] = "observed"
-                if task.get("priority",4)<0:
+                if task.get("priority",4)<0 or "failed_ctc_core" in task.get("reasons",[]):
                     # Atomic targeted adjudication consumes these primary
                     # observations directly. No per-fragment extra contexts.
                     arm=task.get("context_removed_crop")
@@ -883,9 +883,12 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
     task_receipts = []
     for task in [*windows,*deferred]:
         ids = set(task["evidence_ids"])
-        related = [d for d in decisions if ids.intersection(d.get("trigger_evidence_ids", []))
-                   or set(task.get("source_ids",[])).intersection(
-                       [d.get("source_id"),d.get("superseded_source_id")])]
+        if "failed_ctc_core" in task.get("reasons",[]):
+            related=[d for d in decisions if task["task_id"] in d.get("recovery_task_ids",[])]
+        else:
+            related = [d for d in decisions if ids.intersection(d.get("trigger_evidence_ids", []))
+                       or set(task.get("source_ids",[])).intersection(
+                           [d.get("source_id"),d.get("superseded_source_id")])]
         task_receipts.append({**task,"decision_count":len(related),
             "decision_statuses":sorted({d["status"] for d in related}),
             "resolution_state":"unresolved" if not related else "partially_adjudicated"})

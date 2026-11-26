@@ -1260,3 +1260,44 @@ def test_deferred_scene_guard_is_not_material_veto_or_operator_override():
         **quality, "scene_evidence": {"decisions": [{"source_id": "u",
             "outcome": "context_supported"}], "deferred_source_ids": []}})
     assert uncertainty_veto(resolved, "John arrives.", "Paul arrives.", GlossaryConfig()) is None
+
+
+def test_completed_malformed_native_proposal_recovers_with_exact_keyed_target_mapping():
+    from copy import deepcopy
+    bad=deepcopy(_loop_proposals())
+    bad["reviews"][1]["utterance_id"]="u0"
+    alternate={"reviews":{"r01":{"corrected_text":"Hello, Esteban.","reason":"Source name."},
+                          "r02":{"corrected_text":"Hi!","reason":"No change."}}}
+    comparator={"decisions":[{"utterance_id":"u0","choice":"proposal","reason":"Source spelling."}]}
+    client=_LoopReviewClient(bad,alternate,comparator)
+    out,report=review_translated_utterances(_utts(),source_language="fr",config=_loop_cfg(),text_client=client)
+    assert report["status"]=="completed" and report["reviewed"]==2 and report["api_calls"]==3
+    receipt=report["proposal_recoveries"][0]
+    assert receipt["initial_rejected_response"]["validation_failure"]=="duplicate_proposal_id:1"
+    assert json.loads(receipt["initial_rejected_response"]["answer_text"])==bad
+    first=json.loads(client.calls[0]["messages"][-1]["content"])
+    second=json.loads(client.calls[1]["messages"][-1]["content"])
+    assert second.pop("response_keys")=={"r01":"u0","r02":"u1"} and second==first
+    assert receipt["outcome"]=="complete"
+    assert out[0]["translated_text"]=="Hello, Esteban."
+
+
+def test_invalid_keyed_proposal_remains_failed_and_uncached(tmp_path):
+    bad={"reviews":[{"utterance_id":"invented","corrected_text":"x","reason":"x"}]}
+    alternate={"reviews":{"r01":{"corrected_text":"invented","reason":"x"}}}
+    client=_LoopReviewClient(bad,alternate)
+    checkpoint=tmp_path/"review.json"
+    out,report=review_translated_utterances(_utts(),source_language="fr",config=_loop_cfg(),
+        text_client=client,checkpoint_path=checkpoint)
+    assert report["status"]=="completed_with_errors"
+    assert report["proposal_recoveries"][0]["initial_rejected_response"]["validation_failure"]=="unexpected_proposal_id:0"
+    assert report["proposal_recoveries"][0]["alternate_rejected_response"]["validation_failure"]=="invalid_keyed_proposal_ids"
+    assert [r["translated_text"] for r in out]==[r["translated_text"] for r in _utts()]
+    assert not checkpoint.exists()
+
+
+def test_keyed_proposal_rejects_duplicate_json_keys():
+    from nvidia_transcribe.translation_review import _native_proposals, ProposalDecisionError
+    reply={"choices":[{"message":{"content":'{"reviews":{"r01":{"corrected_text":"A","reason":"x"},"r01":{"corrected_text":"B","reason":"y"}}}'}}]}
+    with pytest.raises(ProposalDecisionError,match="duplicate_json_key"):
+        _native_proposals(reply,[{"utterance_id":"u0","machine_translation":"A"}],{"r01":"u0"})

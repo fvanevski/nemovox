@@ -31,7 +31,7 @@ def failed_ctc_parents(ledger):
     return result
 
 
-def _groups(observation,bounds):
+def _groups(observation,bounds,tolerance):
     rows=observation.get("rows",[])
     for i,first in enumerate(rows):
         if not _bounds(first):
@@ -43,7 +43,9 @@ def _groups(observation,bounds):
                 break
             group.append(r)
             span=(_bounds(first)[0],rb[1])
-            if bounds[0]-.01<=span[0]<span[1]<=bounds[1]+.01 and span[1]-span[0]>=.65:
+            if (bounds[0]<=sum(span)/2<=bounds[1]
+                    and bounds[0]-tolerance<=span[0]<span[1]<=bounds[1]+tolerance
+                    and span[1]-span[0]>=.65):
                 words=tuple(w for x in group for w in _lex(x["source_text"]))
                 crop=observation["crop"]
                 if crop[0]-.01<=span[0]<span[1]<=crop[1]+.01:
@@ -65,7 +67,7 @@ def _source_units(row,failed):
             or any(lookup[uid].get("boundary_disposition")!="selected_unlocalized" for uid in ids)
             or len({lookup[uid]["recognized_turn_id"] for uid in ids})!=1
             or any(not _lex(u.get("text")) for u in units)
-            or _lex(join_multilingual_units(units))!=_lex(row["source_text"])):
+            or join_multilingual_units(units)!=row["source_text"]):
         return None
     return p,units
 
@@ -75,8 +77,9 @@ def _unit_slice(units,words):
     offsets=[0]
     for u in units:
         offsets.append(offsets[-1]+len(_lex(u["text"])))
-    matches=[(i,j) for i in range(len(units)) for j in range(i+1,len(units)+1)
-             if offsets[j]-offsets[i]==len(words) and tokens[offsets[i]:offsets[j]]==words]
+    ends={offset:i for i,offset in enumerate(offsets)}
+    matches=[(i,ends[offset+len(words)]) for i,offset in enumerate(offsets[:-1])
+             if offset+len(words) in ends and tokens[offset:offset+len(words)]==words]
     return matches[0] if len(matches)==1 else None
 
 
@@ -117,7 +120,7 @@ def recover_failed_ctc_events(recording,ledger,windows,observations,targets,inde
         native=[o for o in observations if task_ids.intersection(o.get("task_ids",[]))]
         if not native:
             continue
-        first,second=[list(_groups(o,target["bounds"])) for o in pair]
+        first,second=[list(_groups(o,target["bounds"],tolerance)) for o in pair]
         for a in first:
             if len(a[2])<minimum or len(set(a[2]))<3:
                 continue
@@ -153,6 +156,7 @@ def recover_failed_ctc_events(recording,ledger,windows,observations,targets,inde
                 "native_audio_sha256":sorted({o["audio_sha256"] for o in support}),
                 "native_raw_response_sha256":sorted({o["raw_response_sha256"] for o in support
                                                      if o.get("raw_response_sha256")}),
+                "native_primary_observation_id":p["id"],
                 "trigger_evidence_ids":list(target.get("evidence_ids",[])),
                 "recovery_task_ids":sorted(task_ids)})
     # Reject mutually incompatible mappings rather than electing by crop
@@ -239,7 +243,8 @@ def recover_failed_ctc_events(recording,ledger,windows,observations,targets,inde
                         "audio_sha256":p["independent_audio_sha256"],"observation_ids":p["observations"]})
                 new["source_lineage"].update(acoustic_observation_ids=p["observations"],
                     native_audio_sha256=p["native_audio_sha256"],
-                    native_raw_response_sha256=p["native_raw_response_sha256"])
+                    native_raw_response_sha256=p["native_raw_response_sha256"],
+                    native_primary_observation_id=p["native_primary_observation_id"])
                 decisions.append({**p,"status":"timed_corroborated_failed_ctc_subspan",
                     "source_id":uid,"source_unit_ids":ids,"independent_observation_ids":p["observations"],
                     "source_truth_human_verified":False})

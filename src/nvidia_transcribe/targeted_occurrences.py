@@ -301,15 +301,27 @@ def _corroborated_prefix_variant(row,previous,ns,ins,associated,bounds):
         return None
     independent=[]
     for o,x in ins:
-        group,span,tokens=x
-        # An independent segment can include the end of the preceding
-        # clause. Its word positions are NOT treated as timed coordinates.
-        limit=min(len(tokens)-len(words)+1,4)
-        matches=[tokens[i:i+len(words)] for i in range(max(0,limit))
-                 if resembles(tokens[i:i+len(words)])
-                 and sum(a==b for a,b in zip(words,tokens[i:i+len(words)]))>=2]
-        if (len(matches)==1 and span[0]<=rb[0]+.85 and span[1]>=rb[1]-.85):
-            independent.append((o,group))
+        # The whole-event match may be a suffix, when a coarse independent
+        # segment carries the onset together with the preceding clause.
+        # Find actual contiguous segment membership for the prefix itself.
+        matches={}
+        for group,span,tokens in _ordered_groups(o,"rows",(rb[0]-3,rb[1]+1),maximum=3):
+            if not rb[0]-3<=span[0]<=rb[0]+.85 or span[1]<rb[1]-.85:
+                continue
+            for i in range(min(max(0,len(tokens)-len(words)+1),4)):
+                fragment=tokens[i:i+len(words)]
+                if not resembles(fragment) or sum(a==b for a,b in zip(words,fragment))<2:
+                    continue
+                offset=0
+                members=[]
+                for r in group:
+                    end=offset+len(_lex(r["source_text"]))
+                    if offset<i+len(words) and end>i:
+                        members.append(r)
+                    offset=end
+                matches[tuple(r["observation_id"] for r in members)]=members
+        if len(matches)==1:
+            independent.append((o,next(iter(matches.values()))))
     if not _pairs([o for o,g in independent]):
         return None
     return {"source_id":row["id"],"preceding_source_id":previous["id"],
@@ -404,7 +416,8 @@ def recover_unlocalized_events(recording,windows,observations,targets,independen
                     if short_edge and any(_contains(x[2][0:max(3,len(words)//3)],_lex(r["source_text"]))
                                           for o,x in ns):
                         continue
-                    variant=_corroborated_prefix_variant(r,previous,ns,ins,associated,b) if short_edge else None
+                    variant=(_corroborated_prefix_variant(r,previous,ns,ins,associated,b)
+                             if short_edge and prefix and len(overlaps)==1 else None)
                     if not variant:
                         blocked=True
                         break

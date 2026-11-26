@@ -180,3 +180,56 @@ If the normal continuation cannot consume the authenticated recording
 without a source change, report the precise blocker before rerunning
 full primary ASR. The full Studio wall-time comparison is not valid for
 this continuation; compare source-quality/subtitle stages separately.
+
+
+## Live-failure remediation qualification
+
+The previous live candidate completed CPU validation but failed both
+language paths. This section supersedes prior live qualification
+instructions only where stated. Do not repeat the original diagnostic
+comparison or collect a new discovery case.
+
+1. Verify the exact successor and run focused targeted occurrence,
+   failed-primary CTC, translation review, rendering, recovery and
+   source-quality tests, followed by the full CPU suite and applicable
+   Studio/API/frontend checks.
+2. Replay the original sealed comparison using the existing driver and
+   the previous *live* archive through the new driver:
+
+       PYTHONPATH=src:. /workspace/nvidia-transcribe/.venv/bin/python -m scripts.replay_live_source_quality --intake "$INTAKE_ARCHIVE" --intake-sha256 "$INTAKE_SHA256" --archive "$LIVE_ARCHIVE" --sha256 "$LIVE_SHA256" --output "$PRIVATE_ROOT/live-evidence-replay.json"
+
+   These are counterfactual targeted selectors over authenticated retained
+   responses, not fresh production acquisitions. Verify the old nine-fragment
+   and exposition result remains; for the live French evidence, the missing
+   CTC coverage must not be mistaken for a repeat veto, and the corroborated
+   prefix variant must bind both model families and actual native word
+   bounds. For the live Mandarin evidence, recover only uniquely bound
+   source subspans supported by distinct independent crops and positive
+   native local recognition. Verify exact source-unit partition and no
+   invented timing or speaker identity. Inspect remaining uncertainty.
+   A substantive gate failure blocks expensive dependent runs.
+3. After the CPU/replay gate passes, run the same French authenticated
+   recording continuation and **the same 119-second Mandarin clip** used
+   by the previous live run, not a replacement clip selected for a pass.
+   The old Mandarin primary recording/manifest/source ledger is now
+   available: reuse its immutable exact bytes with the public recording
+   continuation route and original media to exercise the actual failure
+   condition. Do not let fresh primary recognition luck mask the defect.
+   Use a new output directory for each, no prior source-quality or
+   downstream checkpoints, same existing model registry and options.
+   The fresh production scheduler must acquire its own evidence.
+4. If a complete normal Mandarin continuation succeeds with meaningful
+   dialogue recovery, a fresh primary-to-render run on that same bounded
+   clip is useful to confirm public behavior. Execute it once in this
+   campaign, no broad new benchmark. Preserve both comparisons and
+   distinguish timing failure recovery from a fresh primary CTC success.
+5. Required English review must actually complete; malformed native
+   proposals get one bounded keyed-object correction, not permissive
+   identity remapping. Transport failures and rejected alternate replies
+   remain failures. Prior malformed bodies are unavailable; return
+   actual new receipts if encountered. Empty dialogue outputs must fail
+   explicitly; a real silence/no-dialogue contract can produce no cues.
+6. Verify fresh-process continuation and actual offline rerender, output
+   availability/status, resource lifecycle/restoration, total stage
+   costs and remaining omission. No new issue, PR, deployment or config
+   change. Keep only useful private bounded output evidence.

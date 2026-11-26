@@ -130,3 +130,47 @@ def test_core_contrast_is_generation_evidence_not_ctc_locality():
     assert len(adjudicate_sequences(*inputs)[0])==1
     inputs[3][-1]["raw_response"]["choices"][0]["message"]["content"]=inputs[0]["utterances"][0]["source_text"]
     assert len(adjudicate_sequences(*inputs)[0])==2
+
+
+def test_incomplete_later_native_coverage_is_not_a_repeat_veto():
+    inputs=fixture()
+    rec,ledger,windows,native,targets,ind=inputs
+    partial=observation("native-partial",[32,41],[],"utterances","late")
+    partial["raw_response"]={"choices":[{"message":{"content":"unrelated competing words"}}]}
+    native.append(partial)
+    rows,decisions=adjudicate_sequences(*inputs)
+    assert len(rows)==1
+    assert any(x["status"]=="insufficient_coverage" for x in decisions[0]["later_observation_dispositions"])
+    partial["raw_response"]["choices"][0]["message"]["content"]=rec["utterances"][1]["source_text"]
+    rows,decisions=adjudicate_sequences(*inputs)
+    assert len(rows)==2
+    assert any(x["status"]=="repeat_veto" for x in decisions[0]["later_observation_dispositions"])
+
+
+def test_corroborated_cross_chunk_prefix_variant_requires_two_families():
+    from nvidia_transcribe.targeted_occurrences import _corroborated_prefix_variant
+    from nvidia_transcribe.source_quality import _lex
+    before=row("prior","Le guide",10,12,0)
+    before["recognized_turn_ids"]=["previous-turn"]
+    prefix=row("prefix","Cet Alaric, il",13.05,14.30,0)
+    prefix["recognized_turn_ids"]=["previous-turn"]
+    origins=[row("untimed","Il cherchait la carte du royaume",None,None,1)]
+    ns=[]
+    for i,name in enumerate(("Alarik","Alaric")):
+        r=row("n"+str(i),f"C'est {name}. Il cherchait la carte du royaume",13,18,1)
+        r["timed_lexical_units"]=[{"lex":token,"start":a,"end":b}
+            for token,a,b in (("cest",13,13.3),(name.lower(),13.3,14.1),("il",14.1,14.3))]
+        o=observation("native"+str(i),[8-i,22+i],[r],"utterances","run")
+        ns.append((o,([r],(13,18),_lex(r["source_text"]))))
+    ins=[]
+    for i in range(2):
+        first=row("i"+str(i)+"-0","Le guide, c'est Alaric",11.1,14.0,1)
+        second=row("i"+str(i)+"-1","Il cherchait la carte du royaume",14.0,18,1)
+        o=observation("ind"+str(i),[8-i,22+i],[first,second],"rows","run")
+        # Whole-event matching can pick only the second segment.
+        ins.append((o,([second],(14,18),_lex(second["source_text"]))))
+    receipt=_corroborated_prefix_variant(prefix,before,ns,ins,origins,(13,18))
+    assert receipt and not receipt["entity_identity_accepted"] and not receipt["speaker_identity_accepted"]
+    assert _corroborated_prefix_variant(prefix,before,ns,ins[:1],origins,(13,18)) is None
+    prefix["recognized_turn_ids"]=["unrelated-turn"]
+    assert _corroborated_prefix_variant(prefix,before,ns,ins,origins,(13,18)) is None

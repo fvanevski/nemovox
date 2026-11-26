@@ -201,6 +201,17 @@ def resolution_receipts(recording,ledger,rows,decisions,policy):
                     or row.get("source_semantic_resolution")=="partial"
                     else "represented_provisional")
             elif refs and not context and any(
+                    d["status"]=="timed_corroborated_failed_ctc_subspan"
+                    and refs.intersection(d.get("source_unit_ids",[])) for d in decisions):
+                relevant=[d for d in decisions if d["status"]=="timed_corroborated_failed_ctc_subspan"
+                          and refs.intersection(d.get("source_unit_ids",[]))]
+                covered=refs & {u for d in relevant for u in d["source_unit_ids"]}
+                receipt["canonical_source_ids"]=sorted({d["source_id"] for d in relevant})
+                receipt["supporting_observation_ids"]=sorted({u for d in relevant for u in d["observations"]})
+                receipt["event_timing_supported_source_unit_ids"]=sorted(covered)
+                receipt["status"]=("event_supported_word_timing_unresolved" if covered==refs
+                                   else "partial_event_timing_supported")
+            elif refs and not context and any(
                     d["status"]=="retired_displaced_context_hypothesis"
                     and refs<=set(d.get("source_unit_ids",[])) for d in decisions):
                 d=next(d for d in decisions if d["status"]=="retired_displaced_context_hypothesis"

@@ -149,9 +149,11 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
         chunks = [parent["chunk_index"]] if "chunk_index" in parent else []
         locality = inv.get("locality", {})
         for span in locality.get("spans", []):
-            if parent.get("chunk_index") in failed:
-                # Preserve origin span receipts in the shared ledger; the
-                # explicit core tasks above replace blind duplicate scans.
+            if parent.get("chunk_index") in failed and set(span.get("source_unit_ids",[]))<={
+                    u["id"] for u in failed[parent["chunk_index"]][1]
+                    if u.get("boundary_disposition")=="selected_unlocalized"}:
+                # Preserve span receipts in the shared ledger; explicit
+                # core tasks replace scans of these same selected units.
                 continue
             ds = span.get("selection_dispositions", [])
             status = span["locality_status"]
