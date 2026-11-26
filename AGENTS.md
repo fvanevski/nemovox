@@ -73,7 +73,7 @@ historical evidence documents.
 - Host GPU: single NVIDIA RTX 5090 (32 GB VRAM, Blackwell sm_120).
 - Do not stop, restart, or unload external GPU services automatically. Check `nvidia-smi` before GPU runs.
 - Use the dedicated `.venv` under `/workspace/nvidia-transcribe/.venv` (Python 3.13 + vLLM + NeMo Speech plugin).
-- For the default Nemotron ASR server, load only the existing local checkpoint at `/workspace/models/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4`. An explicitly configured alternative model resource must be validated for its adapter and required CTC contract; do not trigger implicit remote weight downloads.
+- For the default Nemotron ASR server, load only the existing local checkpoint at `/workspace/models/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4`. An explicitly configured alternative model resource must be validated for its own adapter and observation contract; CTC is required only by the Nemotron CTC adapter. Do not trigger implicit remote weight downloads.
 - Verify active ModelOpt mixed NVFP4/FP8 quantization (`quantization=modelopt_mixed`) in server logs; silent BF16 dequantization is invalid for 32 GB feasibility.
 - Keep CTC timestamp capture (`--middleware nemo.collections.speechlm2.vllm.salm.ctc_serving.ctc_timestamp_middleware`, `VLLM_USE_V2_MODEL_RUNNER=0`, `--trust-request-mm-kwargs`, and `mm_processor_kwargs={"capture_ctc_timestamps": true}`) enabled when evaluating word/character timestamps and diarization.
 

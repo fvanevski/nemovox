@@ -59,6 +59,9 @@ def main():
         a.checkpoint, trust_remote_code=True, local_files_only=True,
         torch_dtype=dtype, attn_implementation="sdpa",
     ).to(device).eval()
+    actual = next(model.parameters())
+    if actual.device != device or actual.dtype != dtype:
+        raise RuntimeError("MOSS model did not load on the admitted CUDA BF16 device")
     load_s = time.perf_counter() - start
     start = time.perf_counter()
     result = generate_transcription(
@@ -70,7 +73,7 @@ def main():
         "text": result["text"], "prompt_len": result["prompt_len"],
         "generated_tokens": result["generated_tokens"], "max_new_tokens": a.max_new_tokens,
         "max_input_tokens": 131072, "prompt": DEFAULT_PROMPT,
-        "device": str(device), "dtype": str(dtype), "load_s": load_s,
+        "device": str(actual.device), "dtype": str(actual.dtype), "load_s": load_s,
         "inference_s": time.perf_counter() - start,
         "peak_allocated_bytes": torch.cuda.max_memory_allocated(device),
         "peak_reserved_bytes": torch.cuda.max_memory_reserved(device),

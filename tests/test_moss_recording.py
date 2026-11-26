@@ -162,3 +162,45 @@ def test_native_recording_continuation_uses_event_contract_and_no_lexical_review
     with pytest.raises(ValueError, match="lexical recovery"):
         pipeline.generate_subtitles(recording_contract_path=path,
             output_dir=tmp_path / "reject", config=replace(cfg, source_quality="on"))
+
+
+def test_fresh_subtitle_pipeline_selects_native_worker_and_preserves_events(tmp_path, monkeypatch):
+    from nvidia_transcribe import subtitle_pipeline as pipeline
+    from nvidia_transcribe.translation import TranslationConfig
+    from nvidia_transcribe.translation_review import TranslationReviewConfig
+    media = tmp_path / "episode.wav"
+    media.write_bytes(b"media")
+    contract = build("[1][S01]完整句子[3][4][S02]另一句[6]")
+    calls = []
+    def native(path, **kw):
+        calls.append((path, kw["resource"].adapter))
+        return {"contract": contract, "contract_path": str(tmp_path / "recording.contract.json")}
+    monkeypatch.setattr(pipeline, "process_moss_media", native)
+    monkeypatch.setattr(pipeline, "NemotronVLLMClient", lambda *a, **k: pytest.fail("Nemotron client"))
+    monkeypatch.setattr(pipeline, "review_current_source", lambda *a, **k: pytest.fail("lexical review"))
+    cfg = pipeline.SubtitlePipelineConfig(source_language="zh", translation=TranslationConfig(backend="none"),
+        translation_review=TranslationReviewConfig(profile="off"), episode_stem="clip")
+    resource = SimpleNamespace(adapter="moss_events")
+    meta = pipeline.generate_subtitles(media, output_dir=tmp_path / "out", config=cfg,
+        lifecycle=object(), lifecycle_resources={"asr":resource})
+    assert calls == [(media, "moss_events")]
+    assert meta["source_quality"]["status"] == "not_run"
+    assert json.loads(Path(meta["files"]["translated_contract"]).read_text())["native_dialogue"]["event_count"] == 2
+
+
+def test_native_cli_uses_worker_and_reports_ordinary_recording_summary(tmp_path, monkeypatch, capsys):
+    from nvidia_transcribe import cli
+    cfg = tmp_path / "resources.json"
+    cfg.write_text(json.dumps({"version":1,"resources":{"moss_local":{
+        "adapter":"moss_events","model":"MOSS","checkpoint_path":str(tmp_path),
+        "worker_python":"/local/python","device":"cuda:0"}},"roles":{"asr":"moss_local"}}))
+    c = build("[1][S01]完整句子[3]")
+    c["source"]["duration_s"] = 30
+    def run(*args, **kwargs):
+        assert kwargs["resource"].adapter == "moss_events"
+        return {"contract":c, "contract_path":"recording.contract.json"}
+    monkeypatch.setattr(cli, "process_moss_media", run)
+    monkeypatch.setattr(cli, "NemotronVLLMClient", lambda *a, **k: pytest.fail("Nemotron client"))
+    assert cli.main(["process-media","episode.wav","--output-dir",str(tmp_path/"out"),
+        "--source-language","zh","--model-resources",str(cfg)]) == 0
+    assert json.loads(capsys.readouterr().out)["utterance_count"] == 1
