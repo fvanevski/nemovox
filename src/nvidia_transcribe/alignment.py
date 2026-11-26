@@ -1,4 +1,4 @@
-"""CTC alignment diagnostics, OOV vocabulary inspection, and bounded sub-interval recovery."""
+"""CTC observation diagnostics, OOV inspection, and selective external alignment."""
 
 from __future__ import annotations
 
@@ -382,7 +382,6 @@ def recover_chunk_alignment(
     source_offset_s: float,
     chunk_index: int,
     model_path: str | None = str(DEFAULT_MODEL_PATH),
-    subinterval_runner: Callable[[float, float], tuple[str, Any]] | None = None,
     external_aligner: ExternalForcedAligner | None = None,
     chunk_wav_path: Path | None = None,
     source_language: str | None = None,
@@ -392,8 +391,8 @@ def recover_chunk_alignment(
 
     Invariants:
     - Original recognized ``raw_text`` is NEVER rewritten, substituted, or stripped of OOV chars.
-    - Recovery hypotheses are retained separately in diagnostics and only attach timestamps to
-      lexically verified matching original units.
+    - Native observations remain separate from the recognized spine; optional external
+      alignment attaches timings only to verified matching original units.
     - Missing/failed timestamps are NEVER fabricated as 0.0 or interpolated silently.
     """
     parsed: ParsedCTCAlignment = parse_ctc_timestamps(
@@ -437,76 +436,6 @@ def recover_chunk_alignment(
 
     sub_windows = group_diarization_windows(diar_list)
     recovery_attempted = False
-    sub_failures: list[str] = []
-    subinterval_hypotheses: list[dict[str, Any]] = []
-    recovered_count = 0
-    sub_diff_stats: dict[str, Any] = {"substitutions": [], "omissions": [], "insertions": []}
-    failed_windows: list[tuple[float, float]] = []
-
-    if subinterval_runner is not None and len(sub_windows) > 1 and orig_units:
-        recovery_attempted = True
-        collected_sub_units: list[dict[str, Any]] = []
-        for w_start, w_end in sub_windows:
-            try:
-                sub_raw, sub_ctc = subinterval_runner(w_start, w_end)
-            except Exception as exc:
-                sub_failures.append(f"[{w_start:.2f},{w_end:.2f}]: {exc}")
-                failed_windows.append((w_start, w_end))
-                continue
-            sub_parsed = parse_ctc_timestamps(sub_ctc, source_offset_s=w_start, strict=False)
-            sub_oov = find_ctc_oov_characters(sub_raw, vocab_chars)
-            hyp_rec = {
-                "window": [w_start, w_end],
-                "sub_raw_text": sub_raw,
-                "ctc_error": sub_parsed.error,
-                "oov_characters": sub_oov,
-                "aligned_unit_count": len(sub_parsed.units) if sub_parsed.error is None else 0,
-            }
-            subinterval_hypotheses.append(hyp_rec)
-            if sub_parsed.error is None and sub_parsed.units:
-                for u in sub_parsed.units:
-                    collected_sub_units.append(u.to_dict())
-            else:
-                failed_windows.append((w_start, w_end))
-                sub_failures.append(f"[{w_start:.2f},{w_end:.2f}]: error={sub_parsed.error}, oov={sub_oov}")
-
-        if collected_sub_units:
-            sub_diff_stats = _apply_verified_sequence_timings(
-                orig_units,
-                collected_sub_units,
-                recovered_status="subinterval_ctc_recovered",
-            )
-            recovered_count = sub_diff_stats["matched_units"]
-            untimed_cnt = sum(1 for u in orig_units if not u.get("valid_timing"))
-            if recovered_count > 0 and (untimed_cnt == 0 or external_aligner is None):
-                status = "subinterval_ctc_recovered" if (untimed_cnt == 0 and not sub_failures) else "partial_subinterval_recovery"
-                return {
-                    "units": orig_units,
-                    "diarization": diar_list,
-                    "speaker_mapping": dict(parsed.speaker_mapping),
-                    "alignment_status": status,
-                    "diagnostic": {
-                        "chunk_index": chunk_index,
-                        "status": status,
-                        "native_ctc_observations": native_observations,
-                        "ctc_error": parsed.error,
-                        "oov_characters": oov_chars,
-                        "ctc_vocabulary_status": vocab_status,
-                        "failure_cause": "ctc_vocab_oov" if oov_chars else parsed.error,
-                        "recovery_attempted": True,
-                        "recovered_units": recovered_count,
-                        "untimed_units": untimed_cnt,
-                        "sub_failures": sub_failures,
-                        "subinterval_hypotheses": subinterval_hypotheses,
-                        "hypothesis_diff": {
-                            "substitutions": sub_diff_stats["substitutions"],
-                            "omissions": sub_diff_stats["omissions"],
-                            "insertions": sub_diff_stats["insertions"],
-                        },
-                        "diarization_interval_count": len(diar_list),
-                    },
-                }
-
     # Optional external aligner hook (runs ONLY per localized untimed span; never replaces native CTC timings).
     ext_diag: dict[str, Any] | None = None
     ext_recovered_count = 0
@@ -597,11 +526,6 @@ def recover_chunk_alignment(
                     s_idx_pos = untimed_spans.index((lo, hi))
                     win_start, win_end = sub_windows[s_idx_pos]
                     win_start = max(source_offset_s, win_start)
-                elif len(failed_windows) == 1:
-                    fw_s, fw_e = failed_windows[0]
-                    win_start = max(source_offset_s, fw_s)
-                    win_end = fw_e
-
                 if win_start is None or (win_end is None and not use_full_chunk_wav):
                     if _has_mixed_speaker_overlap(diar_list, raw_text):
                         any_skipped_overlap = True
@@ -693,13 +617,8 @@ def recover_chunk_alignment(
                 }
 
             untimed_after = sum(1 for u in orig_units if not u.get("valid_timing"))
-            total_recovered = recovered_count + ext_recovered_count
-            if total_recovered > 0:
-                status = (
-                    "external_recovered"
-                    if (untimed_after == 0 and recovered_count == 0)
-                    else ("hybrid_ctc_and_external_recovered" if (recovered_count > 0 and untimed_after == 0) else "partial_external_recovery")
-                )
+            if ext_recovered_count > 0:
+                status = "external_recovered" if untimed_after == 0 else "partial_external_recovery"
                 return {
                     "units": orig_units,
                     "diarization": diar_list,
@@ -714,12 +633,9 @@ def recover_chunk_alignment(
                         "ctc_vocabulary_status": vocab_status,
                         "failure_cause": "ctc_vocab_oov" if oov_chars else parsed.error,
                         "recovery_attempted": True,
-                        "recovered_units": total_recovered,
-                        "native_ctc_recovered_units": recovered_count,
+                        "recovered_units": ext_recovered_count,
                         "external_recovered_units": ext_recovered_count,
                         "untimed_units": untimed_after,
-                        "sub_failures": sub_failures,
-                        "subinterval_hypotheses": subinterval_hypotheses,
                         "external_aligner": ext_diag,
                         "diarization_interval_count": len(diar_list),
                     },
@@ -740,10 +656,8 @@ def recover_chunk_alignment(
             "ctc_vocabulary_status": vocab_status,
             "failure_cause": "ctc_vocab_oov" if oov_chars else (parsed.error or "missing_ctc_metadata"),
             "recovery_attempted": recovery_attempted,
-            "recovered_units": recovered_count + ext_recovered_count,
+            "recovered_units": ext_recovered_count,
             "untimed_units": sum(1 for u in orig_units if not u.get("valid_timing")),
-            "sub_failures": sub_failures,
-            "subinterval_hypotheses": subinterval_hypotheses,
             "external_aligner": ext_diag,
             "diarization_interval_count": len(diar_list),
             "external_aligner_hook": "ExternalForcedAligner(audio_path, text, language, source_offset_s)",

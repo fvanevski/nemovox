@@ -376,10 +376,5 @@ def apply_selective_recovery(
         native_diag["external_recovered_units"] = total_recovered
         native_diag["untimed_units"] = remaining
         native_diag["status"] = "external_recovered" if remaining == 0 else "partial_external_recovery"
-        native["alignment_status"] = (
-            "hybrid_ctc_and_external_recovered"
-            if any(u.get("alignment_status") == "subinterval_ctc_recovered" for u in units)
-            and remaining == 0 else
-            "external_recovered" if remaining == 0 else "partial_external_recovery"
-        )
+        native["alignment_status"] = native_diag["status"]
     return native

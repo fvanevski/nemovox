@@ -778,7 +778,6 @@ def process_media(
         if rec["alignment_status"] not in (
             "ctc_aligned",
             "external_recovered",
-            "hybrid_ctc_and_external_recovered",
         ):
             warnings.append(
                 f"Chunk {idx} alignment degraded ({rec['alignment_status']}): "

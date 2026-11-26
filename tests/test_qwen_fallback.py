@@ -175,7 +175,7 @@ class _FakeExternalAligner:
         }
 
 
-def test_selective_qwen_fallback_preserves_ctc_and_recovers_oov(tmp_path: Path) -> None:
+def test_localized_qwen_fallback_recovers_two_untimed_spans(tmp_path: Path) -> None:
     wav = tmp_path / "chunk.wav"
     _write_silence_wav(wav, duration_s=6.0)
     raw_text = "<spk:0>你好。钾金属。"
@@ -188,50 +188,35 @@ def test_selective_qwen_fallback_preserves_ctc_and_recovers_oov(tmp_path: Path) 
         error="alignment_failed",
     )
 
-    def _subinterval_runner(win_start: float, win_end: float) -> tuple[str, Any]:
-        # First window recovers "你好。" via native CTC; second still fails due to '钾'.
-        if win_start < 12.0:
-            return (
-                "<spk:0>你好。",
-                _make_ctc_payload(
-                    words=[
-                        {"word": "你", "start": 0.2, "end": 0.45},
-                        {"word": "好。", "start": 0.45, "end": 0.8},
-                    ],
-                    diar=[{"speaker": "spk_0", "start": 0.2, "end": 0.8}],
-                ),
-            )
-        return ("<spk:0>钾金属。", _make_ctc_payload([], [{"speaker": "spk_0", "start": 0.1, "end": 1.4}], error="oov"))
-
     def _wav_extractor(win_start: float, win_end: float) -> Path:
         dst = tmp_path / "sub" / f"{win_start:.2f}_{win_end:.2f}.wav"
         _write_silence_wav(dst, duration_s=max(0.5, win_end - win_start))
         return dst
 
-    aligner = _FakeExternalAligner({"钾": (0.2, 0.48), "金": (0.48, 0.76), "属": (0.76, 1.04)})
+    aligner = _FakeExternalAligner({"你": (0.2, 0.45), "好": (0.45, 0.8), "钾": (0.2, 0.48), "金": (0.48, 0.76), "属": (0.76, 1.04)})
     recovered = recover_chunk_alignment(
         raw_text=raw_text,
         ctc_payload=ctc_payload,
         source_offset_s=10.0,
         chunk_index=0,
-        subinterval_runner=_subinterval_runner,
         external_aligner=aligner,
         chunk_wav_path=wav,
         source_language="zh",
         subinterval_wav_extractor=_wav_extractor,
     )
 
-    assert len(aligner.calls) == 1
-    assert "钾" in aligner.calls[0]["text"]
-    assert "你" not in aligner.calls[0]["text"]
-    assert recovered["alignment_status"] == "hybrid_ctc_and_external_recovered"
+    assert len(aligner.calls) == 2
+    first, second = aligner.calls
+    assert first["text"] == "你好。"
+    assert second["text"] == "钾金属。"
+    assert first["offset"] == pytest.approx(10.05)
+    assert second["offset"] == pytest.approx(12.65)
+    assert first["audio_path"] != second["audio_path"]
+    assert recovered["alignment_status"] == "external_recovered"
 
     units = recovered["units"]
-    # Native subinterval CTC units keep original subinterval timing provenance!
-    assert units[0]["text"] == "你"
-    assert units[0]["alignment_status"] == "subinterval_ctc_recovered"
-    assert units[1]["text"] == "好。"
-    assert units[1]["alignment_status"] == "subinterval_ctc_recovered"
+    assert [u["text"] for u in units] == ["你", "好。", "钾", "金", "属。"]
+    assert all(u["alignment_status"] == "external_qwen_recovered" for u in units)
     # OOV window recovered via selective Qwen fallback
     assert units[2]["text"] == "钾"
     assert units[2]["alignment_status"] == "external_qwen_recovered"
@@ -275,7 +260,6 @@ def test_qwen_fallback_skips_mixed_speaker_overlap(tmp_path: Path) -> None:
         ctc_payload=ctc_payload,
         source_offset_s=0.0,
         chunk_index=0,
-        subinterval_runner=None,
         external_aligner=aligner,
         chunk_wav_path=wav,
         source_language="zh",
@@ -323,38 +307,6 @@ def test_qwen_fallback_localizes_oov_span_and_never_migrates_to_earlier_utteranc
         error="alignment_failed",
     )
 
-    def _subinterval_runner(win_start: float, win_end: float) -> tuple[str, Any]:
-        if win_start < 10.0:
-            # Earlier utterance recovers cleanly via native subinterval CTC.
-            return (
-                "<spk:0>这并不是告别。",
-                _make_ctc_payload(
-                    words=[
-                        {"word": ch, "start": 0.2 + i * 0.4, "end": 0.5 + i * 0.4}
-                        for i, ch in enumerate(["这", "并", "不", "是", "告", "别。"])
-                    ],
-                    diar=[{"speaker": "spk_0", "start": 0.2, "end": 3.0}],
-                ),
-            )
-        # Second subinterval substitutes '甲' for '钾' (no ctc_error, leaving failed_windows empty!).
-        return (
-            "<spk:0>钙、甲等元素属于金属。",
-            _make_ctc_payload(
-                words=[
-                    {"word": "钙、", "start": 0.3, "end": 0.55},
-                    {"word": "甲", "start": 0.55, "end": 0.8},
-                    {"word": "等", "start": 0.85, "end": 1.1},
-                    {"word": "元", "start": 1.1, "end": 1.35},
-                    {"word": "素", "start": 1.35, "end": 1.6},
-                    {"word": "属", "start": 1.6, "end": 1.85},
-                    {"word": "于", "start": 1.85, "end": 2.1},
-                    {"word": "金", "start": 2.1, "end": 2.35},
-                    {"word": "属。", "start": 2.35, "end": 2.65},
-                ],
-                diar=[{"speaker": "spk_0", "start": 0.2, "end": 2.8}],
-            ),
-        )
-
     def _wav_extractor(win_start: float, win_end: float) -> Path:
         dst = tmp_path / "sub" / f"{win_start:.2f}_{win_end:.2f}.wav"
         _write_silence_wav(dst, duration_s=max(0.5, win_end - win_start))
@@ -390,14 +342,14 @@ def test_qwen_fallback_localizes_oov_span_and_never_migrates_to_earlier_utteranc
         ctc_payload=ctc_payload,
         source_offset_s=0.0,
         chunk_index=0,
-        subinterval_runner=_subinterval_runner,
         external_aligner=good_aligner,
         chunk_wav_path=wav,
         source_language="zh",
         subinterval_wav_extractor=_wav_extractor,
     )
-    assert len(good_aligner.calls) == 1
-    call = good_aligner.calls[0]
+    assert len(good_aligner.calls) == 2
+    assert good_aligner.calls[0]["offset"] < 10.0
+    call = good_aligner.calls[1]
     assert call["offset"] > 10.0  # Localized to 2nd sentence window, NOT chunk 0.0s!
     assert "钙" in call["text"] and "钾" in call["text"] and "金属" in call["text"]
     assert "告别" not in call["text"]
@@ -412,8 +364,10 @@ def test_qwen_fallback_localizes_oov_span_and_never_migrates_to_earlier_utteranc
     assert jia_unit["alignment_status"] == "external_qwen_recovered"
 
     # 2. Adversarial aligner returning bogus timestamp 1.92..2.08 (earlier utterance) must be rejected WITHOUT moving '钾'!
-    class _MigratingBugAligner:
+    class _MigratingBugAligner(_LocalizedSpanAligner):
         def align(self, *, audio_path: Path, text: str, language: str | None, source_offset_s: float) -> dict[str, Any]:
+            if source_offset_s < 10.0:
+                return super().align(audio_path=audio_path, text=text, language=language, source_offset_s=source_offset_s)
             return {
                 "units": [
                     {"text": "钾", "start": 1.92, "end": 2.08, "valid_timing": True, "timing_error": None}
@@ -426,7 +380,6 @@ def test_qwen_fallback_localizes_oov_span_and_never_migrates_to_earlier_utteranc
         ctc_payload=ctc_payload,
         source_offset_s=0.0,
         chunk_index=0,
-        subinterval_runner=_subinterval_runner,
         external_aligner=_MigratingBugAligner(),
         chunk_wav_path=wav,
         source_language="zh",
@@ -441,3 +394,19 @@ def test_qwen_fallback_localizes_oov_span_and_never_migrates_to_earlier_utteranc
     assert jia_bad["start"] is None
     assert jia_bad["timing_error"] == "external_bounds_violation"
 
+
+
+def test_complete_native_ctc_never_invokes_optional_aligner(tmp_path):
+    aligner = _FakeExternalAligner({"你": (0.2, 0.4)})
+    rec = recover_chunk_alignment(
+        raw_text="<spk:0>你好。",
+        ctc_payload=_make_ctc_payload([
+            {"word": "你", "speaker": "0", "start": 1.0, "end": 1.2},
+            {"word": "好。", "speaker": "0", "start": 1.2, "end": 1.4},
+        ], []),
+        source_offset_s=0.0, chunk_index=0, model_path=None,
+        external_aligner=aligner, chunk_wav_path=tmp_path / "unused.wav",
+    )
+    assert aligner.calls == []
+    assert rec["alignment_status"] == "ctc_aligned"
+    assert [u["start"] for u in rec["units"]] == [1.0, 1.2]
