@@ -58,9 +58,6 @@ def test_cli_distinct_text_resources_and_specialized_adapter_settings(tmp_path, 
     assert cfg.condensation.base_url.endswith("8203/v1")
     assert len({cfg.refinement.resource_fingerprint, cfg.translation.resource_fingerprint,
                 cfg.condensation.resource_fingerprint}) == 3
-    assert cfg.qwen_device == "cuda:0"
-    assert cfg.qwen_gpu_mode == "available"
-    assert cfg.speaker_embedding_model == "titanet_small"
 
 
 def test_cli_generic_text_options_override_all_text_roles(tmp_path, monkeypatch):
@@ -95,7 +92,7 @@ def test_cli_rejects_retired_text_aliases(tmp_path, retired):
 
 def test_cli_invalid_bindings_fail_before_pipeline(tmp_path, monkeypatch, capsys):
     config = tmp_path / "invalid.json"
-    config.write_text(json.dumps({"version": 1, "roles": {"source_refinement": "asr_local"}}))
+    config.write_text(json.dumps({"version": 1, "roles": {"source_refinement": "moss_local"}}))
     monkeypatch.setattr(cli, "generate_subtitles", lambda *args, **kw:
                         pytest.fail("Inference must not run for invalid resource config"))
     status = cli.main([
@@ -243,155 +240,13 @@ def test_condensation_rejects_specialized_riva_adapter():
             [], source_language="fr", config=TranslationConfig(backend="riva"))
 
 
-def test_single_clip_asr_role_default_and_legacy_explicit_endpoint(tmp_path, monkeypatch, capsys):
-    from nvidia_transcribe import resource_lifecycle
-
-    for key in ("ASR_BASE_URL", "ASR_MODEL", "NEMOVOX_MODEL_RESOURCES",
-                "NEMOVOX_LIFECYCLE_CONFIG"):
-        monkeypatch.delenv(key, raising=False)
-    monkeypatch.setenv("NEMOVOX_LIFECYCLE_LOCK", str(tmp_path / "model-stage.lock"))
-
-    # This CPU case tests resource-binding precedence, not GPU inference.
-    # Simulate an exact-model, healthy *unowned* endpoint at the HTTP
-    # readiness boundary. The real lifecycle must borrow, never start/stop,
-    # and still reject unavailable endpoints in the negative test below.
-    readiness = []
-    def healthy(resource):
-        readiness.append((resource.name, resource.endpoint, resource.model))
-        return True
-
-    monkeypatch.setattr(resource_lifecycle, "_models_healthy", healthy)
-    monkeypatch.setattr(resource_lifecycle, "_unit", lambda _unit: {
-        "LoadState": "not-found", "FragmentPath": "", "Environment": "",
-        "ActiveState": "inactive",
-    })
-    monkeypatch.setattr(resource_lifecycle, "_systemctl",
-                        lambda *args: pytest.fail("Unowned resource must never be mutated"))
-    constructed = []
-
-    class FakeASR:
-        def __init__(self, *, base_url, model, api_key=None):
-            constructed.append((base_url, model))
-
-        def transcribe(self, audio, config):
-            return {"contract": {"raw_text": "synthetic"}, "raw_response": {}}
-
-    monkeypatch.setattr(cli, "NemotronVLLMClient", FakeASR)
-    assert cli.main(["transcribe", "synthetic.wav"]) == 0, capsys.readouterr()
-    assert constructed[-1] == (
-        "http://127.0.0.1:8190/v1",
-        "nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4",
-    )
-
-    legacy_model = "/workspace/models/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4"
-    assert cli.main([
-        "transcribe", "synthetic.wav",
-        "--base-url", "http://127.0.0.1:8000/v1", "--model", legacy_model,
-    ]) == 0, capsys.readouterr()
-    assert constructed[-1] == ("http://127.0.0.1:8000/v1", legacy_model)
-    assert readiness == [
-        ("asr_local", "http://127.0.0.1:8190/v1",
-         "nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4"),
-        ("asr_local", "http://127.0.0.1:8000/v1", legacy_model),
-    ]
-
-
-def test_single_clip_cli_rejects_unavailable_unowned_asr(tmp_path, monkeypatch, capsys):
-    from nvidia_transcribe import resource_lifecycle
-
-    for key in ("ASR_BASE_URL", "ASR_MODEL", "NEMOVOX_MODEL_RESOURCES",
-                "NEMOVOX_LIFECYCLE_CONFIG"):
-        monkeypatch.delenv(key, raising=False)
-    monkeypatch.setenv("NEMOVOX_LIFECYCLE_LOCK", str(tmp_path / "model-stage.lock"))
-    monkeypatch.setattr(resource_lifecycle, "_models_healthy", lambda _resource: False)
-    monkeypatch.setattr(resource_lifecycle, "_unit", lambda _unit: {
-        "LoadState": "not-found", "FragmentPath": "", "Environment": "",
-        "ActiveState": "inactive",
-    })
-    monkeypatch.setattr(resource_lifecycle, "_systemctl",
-                        lambda *args: pytest.fail("Unowned service must not be started"))
-
-    class FakeASR:
-        def __init__(self, *, base_url, model, api_key=None):
-            pass
-        def transcribe(self, audio, config):
-            pytest.fail("Inference must never run before resource acquisition")
-
-    monkeypatch.setattr(cli, "NemotronVLLMClient", FakeASR)
-    assert cli.main(["transcribe", "synthetic.wav"]) == 1
-    error = json.loads(capsys.readouterr().err)
-    assert error["status"] == "RESOURCE_BLOCKED"
-    assert error["reason"] == "managed_unit_not_configured"
-
-
-def test_alternative_asr_checkpoint_is_not_fabricated_in_cli_configs(tmp_path, monkeypatch, capsys):
-    path = _resource_file(tmp_path)
-    doc = json.loads(path.read_text(encoding="utf-8"))
-    doc["resources"]["other_asr"] = {
-        "adapter": "nemotron_ctc", "endpoint": "http://localhost:8191/v1",
-        "model": "other-ctc-model",
-    }
-    doc["roles"]["asr"] = "other_asr"
-    path.write_text(json.dumps(doc), encoding="utf-8")
-
-    class StopAtRecording(Exception):
-        pass
-
-    captured = {}
-    def intercept_recording(media, *, output_dir, client, config):
-        captured["model_path"] = config.model_path
-        captured["client_model"] = client.model
-        raise StopAtRecording()
-
-    monkeypatch.setattr(cli, "process_media", intercept_recording)
-    with pytest.raises(StopAtRecording):
-        cli.main(["process-media", "synthetic-media.wav", "--output-dir",
-                  str(tmp_path / "out"), "--model-resources", str(path)])
-    assert captured == {"model_path": None, "client_model": "other-ctc-model"}
-
-    with pytest.raises(StopAtRecording):
-        cli.main(["process-media", "synthetic-media.wav", "--output-dir",
-                  str(tmp_path / "out"), "--model-resources", str(path),
-                  "--model-path", "/matching/other-checkpoint"])
-    assert captured["model_path"] == "/matching/other-checkpoint"
-
-    captured.clear()
-    monkeypatch.setattr(cli, "generate_subtitles",
-                        lambda *args, **kwargs: captured.setdefault("cfg", kwargs["config"]) and {"ok": True})
-    code = cli.main([
-        "generate-subtitles", "--translator", "openai_chat", "--recording-contract", "not-opened-by-fake",
-        "--output-dir", str(tmp_path / "subs"), "--model-resources", str(path),
-    ])
-    assert code == 0, capsys.readouterr()
-    assert captured["cfg"].asr_model_path is None
-
-
-def test_ctc_without_checkpoint_disables_vocabulary_claims(monkeypatch):
-    from nvidia_transcribe import alignment
-
-    def must_not_load(_checkpoint):
-        pytest.fail("No CTC vocabulary checkpoint was configured")
-
-    monkeypatch.setattr(alignment, "load_ctc_vocabulary_chars", must_not_load)
-    result = alignment.recover_chunk_alignment(
-        raw_text="alternate language vocab", ctc_payload=None,
-        source_offset_s=0.0, chunk_index=0, model_path=None)
-    diagnostic = result["diagnostic"]
-    assert diagnostic["ctc_vocabulary_status"] == "not_configured"
-    assert diagnostic["oov_characters"] == []
-    assert diagnostic["failure_cause"] != "ctc_vocab_oov"
-
-
-def test_generate_subtitles_exposes_audio_stream_and_embedding_policy(tmp_path, monkeypatch):
+def test_generate_subtitles_exposes_audio_stream_and_source_language(tmp_path, monkeypatch):
     captured = []
     monkeypatch.delenv("NEMOVOX_MODEL_RESOURCES", raising=False)
     monkeypatch.setattr(cli, "generate_subtitles",
-                        lambda *args, **kw: captured.append(kw["config"]) or {"ok": True})
-    args = ["generate-subtitles", "--translator", "openai_chat", "--recording-contract",
-            "not-read-by-fake", "--output-dir", str(tmp_path)]
-    assert cli.main(args) == 0
-    assert captured[-1].speaker_embeddings == "none"
-    assert captured[-1].audio_stream_index == 0
-    assert cli.main(args + ["--audio-stream", "2", "--speaker-embeddings", "titanet"]) == 0
+                        lambda *a, **kw: captured.append(kw["config"]) or {"ok": True})
+    assert cli.main(["generate-subtitles", "--translator", "openai_chat",
+                     "--recording-contract", "unused", "--output-dir", str(tmp_path),
+                     "--audio-stream", "2", "--source-language", "fr"]) == 0
     assert captured[-1].audio_stream_index == 2
-    assert captured[-1].speaker_embeddings == "titanet"
+    assert captured[-1].source_language == "fr"

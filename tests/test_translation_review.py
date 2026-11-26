@@ -1085,7 +1085,7 @@ def test_failed_review_public_offline_salvage_preserves_failure_and_exact_contra
     from nvidia_transcribe import cli, translation
     from nvidia_transcribe.translation import TranslationConfig
     from nvidia_transcribe.subtitle_pipeline import SubtitlePipelineConfig, generate_subtitles
-    from scripts.evaluate_final_integration import current_render_metadata
+    from nvidia_transcribe.render_receipt import current_render_metadata
 
     record = tmp_path / "recording.contract.json"
     record.write_text(json.dumps({"source_language": "fr",
@@ -1260,3 +1260,98 @@ def test_deferred_scene_guard_is_not_material_veto_or_operator_override():
         **quality, "scene_evidence": {"decisions": [{"source_id": "u",
             "outcome": "context_supported"}], "deferred_source_ids": []}})
     assert uncertainty_veto(resolved, "John arrives.", "Paul arrives.", GlossaryConfig()) is None
+
+
+def test_completed_malformed_native_proposal_recovers_with_exact_keyed_target_mapping():
+    from copy import deepcopy
+    bad=deepcopy(_loop_proposals())
+    bad["reviews"][1]["utterance_id"]="u0"
+    alternate={"reviews":{"r01":{"corrected_text":"Hello, Esteban.","reason":"Source name."},
+                          "r02":{"corrected_text":"Hi!","reason":"No change."}}}
+    comparator={"decisions":[{"utterance_id":"u0","choice":"proposal","reason":"Source spelling."}]}
+    client=_LoopReviewClient(bad,alternate,comparator)
+    out,report=review_translated_utterances(_utts(),source_language="fr",config=_loop_cfg(),text_client=client)
+    assert report["status"]=="completed" and report["reviewed"]==2 and report["api_calls"]==3
+    receipt=report["proposal_recoveries"][0]
+    assert receipt["initial_rejected_response"]["validation_failure"]=="duplicate_proposal_id:1"
+    assert json.loads(receipt["initial_rejected_response"]["answer_text"])==bad
+    first=json.loads(client.calls[0]["messages"][-1]["content"])
+    second=json.loads(client.calls[1]["messages"][-1]["content"])
+    assert second.pop("response_keys")=={"r01":"u0","r02":"u1"} and second==first
+    assert receipt["outcome"]=="complete"
+    assert out[0]["translated_text"]=="Hello, Esteban."
+
+
+def test_invalid_keyed_proposal_remains_failed_and_uncached(tmp_path):
+    bad={"reviews":[{"utterance_id":"invented","corrected_text":"x","reason":"x"}]}
+    alternate={"reviews":{"r01":{"corrected_text":"invented","reason":"x"}}}
+    client=_LoopReviewClient(bad,alternate)
+    checkpoint=tmp_path/"review.json"
+    out,report=review_translated_utterances(_utts(),source_language="fr",config=_loop_cfg(),
+        text_client=client,checkpoint_path=checkpoint)
+    assert report["status"]=="completed_with_errors"
+    assert report["proposal_recoveries"][0]["initial_rejected_response"]["validation_failure"]=="unexpected_proposal_id:0"
+    assert report["proposal_recoveries"][0]["alternate_rejected_response"]["validation_failure"]=="invalid_keyed_proposal_ids"
+    assert [r["translated_text"] for r in out]==[r["translated_text"] for r in _utts()]
+    assert not checkpoint.exists()
+
+
+def test_keyed_proposal_rejects_duplicate_json_keys():
+    from nvidia_transcribe.translation_review import _native_proposals, ProposalDecisionError
+    reply={"choices":[{"message":{"content":'{"reviews":{"r01":{"corrected_text":"A","reason":"x"},"r01":{"corrected_text":"B","reason":"y"}}}'}}]}
+    with pytest.raises(ProposalDecisionError,match="duplicate_json_key"):
+        _native_proposals(reply,[{"utterance_id":"u0","machine_translation":"A"}],{"r01":"u0"})
+
+
+def test_offline_untimed_dialogue_is_not_a_successful_render(tmp_path):
+    from nvidia_transcribe.subtitle_pipeline import SubtitlePipelineConfig, generate_subtitles
+    from nvidia_transcribe.render_receipt import current_render_metadata
+
+    row = dict(_utts()[0], source_start=None, source_end=None, source_words=[], source_characters=[])
+    retained = {"source_language": "fr", "source": {"duration_s": 5.0}, "utterances": [row]}
+    contract = tmp_path / "translated.contract.json"
+    contract.write_text(json.dumps(retained), encoding="utf-8")
+    original = contract.read_bytes()
+    with pytest.raises(RuntimeError, match="no usable subtitle timing"):
+        generate_subtitles(output_dir=tmp_path, config=SubtitlePipelineConfig(
+            re_render_only=True, formats=("srt", "ass")))
+    assert contract.read_bytes() == original
+    metadata = json.loads((tmp_path / "subtitles.metadata.json").read_text())
+    assert metadata["render_status"] == "failed_no_renderable_dialogue"
+    assert current_render_metadata(tmp_path, retained) is None
+
+
+def test_timing_only_recovery_permits_supported_relative_duration_without_freezing_bad_mt():
+    from copy import deepcopy
+    from nvidia_transcribe.review_uncertainty import bind_review_uncertainty, uncertainty_veto
+    from nvidia_transcribe.semantic_context import current_row_context, text_digest
+    from nvidia_transcribe.semantic_context import _lex
+    source="将于一月后举行仪式"
+    tokens=list(_lex(source))
+    units=[{"source_unit_id":f"u{i}","text":t} for i,t in enumerate(tokens)]
+    ids=[u["source_unit_id"] for u in units]
+    row={"id":"u","source_text":source,"source_unit_ids":ids,
+        "source_quality_status":"event_timing_recovered_original_wording",
+        "wording_status":"model_variants_unresolved","source_start":10.,"source_end":13.,
+        "translated_text":"The ceremony will be held in January.",
+        "prior_source_hypotheses":[{"source_characters":units}],
+        "source_lineage":{"localized_wording_evidence":{"source_id":"u","source_text_sha256":text_digest(source),
+            "source_unit_ids":ids,"status":"advisory_model_hypotheses","entity_identity_accepted":False,
+            "alternatives":[{"backend":backend,"tokens":tokens,"source_unit_range":[0,len(ids)],
+                             "audio_sha256":sha*64,"observation_ids":[backend]}
+                            for backend,sha in (("nemotron","a"),("independent_asr","b"))]}}}
+    quality={"schema":"nemovox-current-source-quality/v1","scene_evidence":{"decisions":[],"deferred_source_ids":["u"]}}
+    bound,=bind_review_uncertainty([row],quality)
+    assert current_row_context(bound)["localized_wording_alternatives"]
+    good="The ceremony will be held in one month."
+    assert uncertainty_veto(bound,row["translated_text"],good,GlossaryConfig()) is None
+    assert uncertainty_veto(bound,row["translated_text"],"The ceremony will be held in two months.",GlossaryConfig())
+    assert uncertainty_veto(bound,row["translated_text"],"Paul will arrive in one month.",GlossaryConfig())
+    client=_LoopReviewClient({"reviews":[{"utterance_id":"u","corrected_text":good,"reason":"Relative interval."}]},
+        {"decisions":[{"utterance_id":"u","choice":"proposal","reason":"Source duration."}]})
+    out,report=review_translated_utterances([bound],source_language="zh",config=_loop_cfg(),text_client=client)
+    assert report["status"]=="completed" and out[0]["translated_text"]==good
+    # Do not use another range or stale source evidence to bypass the guard.
+    stale=deepcopy(bound)
+    stale["source_lineage"]["localized_wording_evidence"]["alternatives"][1]["source_unit_range"]=[len(ids)-2,len(ids)]
+    assert uncertainty_veto(stale,row["translated_text"],good,GlossaryConfig())

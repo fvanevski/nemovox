@@ -15,8 +15,8 @@ def prohibit_inference(monkeypatch):
         calls.append("inference stage")
         pytest.fail("Offline rerender entered an inference stage")
 
-    for name in ("managed_asr_client", "managed_text_client", "process_media",
-                 "review_current_source", "refine_utterances_with_text_model",
+    for name in ("managed_text_client", "process_moss_media",
+                 "assess_recording_activity", "assess_native_dialogue", "refine_utterances_with_text_model",
                  "translate_utterances", "review_translated_utterances",
                  "condense_high_cps_cues_with_text_model"):
         monkeypatch.setattr(pipeline, name, forbidden)

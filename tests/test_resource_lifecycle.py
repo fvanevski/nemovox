@@ -11,8 +11,8 @@ from nvidia_transcribe import resource_lifecycle as lifecycle
 
 
 @pytest.fixture
-def asr():
-    return load_model_resources(environ={}).resolve("asr")
+def text_resource():
+    return load_model_resources(environ={}).resolve("translation_review")
 
 
 @pytest.fixture
@@ -20,14 +20,14 @@ def manager(tmp_path):
     return lifecycle.ModelLifecycle(lock_path=tmp_path / "locks" / "models.lock")
 
 
-def _unit(*, active=False, name="asr_local", valid=True):
+def _unit(*, active=False, name="text_local", valid=True):
     return {
         "LoadState": "loaded",
-        "FragmentPath": "/home/operator/.config/systemd/user/nemovox-asr.service",
+        "FragmentPath": "/home/operator/.config/systemd/user/nemovox-text-review.service",
         "Environment": (
             "NEMOVOX_MANAGED_RESOURCE=1 NEMOVOX_RESOURCE_NAME=" + name
-            + " NEMOVOX_RESOURCE_MODEL=nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4"
-            + " NEMOVOX_RESOURCE_ENDPOINT=http://127.0.0.1:8190/v1"
+            + " NEMOVOX_RESOURCE_MODEL=chat"
+            + " NEMOVOX_RESOURCE_ENDPOINT=http://127.0.0.1:8001/v1"
             if valid else "UNRELATED_SERVICE=1"
         ),
         "ActiveState": "active" if active else "inactive",
@@ -35,46 +35,12 @@ def _unit(*, active=False, name="asr_local", valid=True):
 
 
 
-@pytest.mark.parametrize("token", ["secret-for-test", None])
-def test_asr_readiness_auth_matches_legacy_inference_client(asr, monkeypatch, token):
-    """Readiness and real ASR requests must use the same fallback credentials."""
-    import os
-    from nvidia_transcribe.client import NemotronVLLMClient
-
-    if token is None:
-        monkeypatch.delenv("VLLM_API_KEY", raising=False)
-    else:
-        monkeypatch.setenv("VLLM_API_KEY", token)
-    seen = []
-
-    class Response:
-        status = 200
-        def __enter__(self):
-            return self
-        def __exit__(self, *args):
-            return False
-        def read(self, maximum):
-            assert maximum == 250_000
-            return json.dumps({"data": [{"id": asr.model}]}).encode()
-
-    def fake_urlopen(request, *, timeout):
-        assert timeout == 3.0
-        seen.append((request.full_url, request.get_header("Authorization")))
-        return Response()
-
-    monkeypatch.setattr(lifecycle.urllib.request, "urlopen", fake_urlopen)
-    assert lifecycle._models_healthy(asr)
-    inference = NemotronVLLMClient(base_url=asr.endpoint, model=asr.model)
-    assert seen == [(asr.endpoint + "/models", inference._headers()["Authorization"])]
-    assert seen[0][1] == "Bearer " + (token or "EMPTY")
-
-
-def test_asr_explicit_credential_overrides_legacy_fallback(asr, monkeypatch):
+def test_text_explicit_credential_overrides_legacy_fallback(text_resource, monkeypatch):
     from dataclasses import replace
 
     monkeypatch.setenv("VLLM_API_KEY", "legacy-token")
     monkeypatch.setenv("NEMOVOX_ASR_TOKEN_FOR_TEST", "explicit-token")
-    selected = replace(asr, api_key_env="NEMOVOX_ASR_TOKEN_FOR_TEST")
+    selected = replace(text_resource, api_key_env="NEMOVOX_ASR_TOKEN_FOR_TEST")
     seen = []
 
     class Response:
@@ -97,7 +63,7 @@ def test_asr_explicit_credential_overrides_legacy_fallback(asr, monkeypatch):
 
 def test_legacy_asr_token_does_not_leak_to_text_readiness(monkeypatch):
     resource = load_model_resources(environ={}).resolve("translation_review")
-    monkeypatch.setenv("VLLM_API_KEY", "legacy-asr-only")
+    monkeypatch.setenv("VLLM_API_KEY", "legacy-text_resource-only")
     seen = []
 
     class Response:
@@ -118,11 +84,11 @@ def test_legacy_asr_token_does_not_leak_to_text_readiness(monkeypatch):
     assert seen == [None]
 
 
-def test_missing_explicit_asr_token_remains_fail_closed(asr, monkeypatch):
+def test_missing_explicit_text_token_remains_fail_closed(text_resource, monkeypatch):
     from dataclasses import replace
     from nvidia_transcribe.model_resources import ResourceConfigError
 
-    selected = replace(asr, api_key_env="NEMOVOX_ABSENT_ASR_TOKEN_FOR_TEST")
+    selected = replace(text_resource, api_key_env="NEMOVOX_ABSENT_ASR_TOKEN_FOR_TEST")
     monkeypatch.delenv("NEMOVOX_ABSENT_ASR_TOKEN_FOR_TEST", raising=False)
     monkeypatch.setenv("VLLM_API_KEY", "legacy-must-not-override-explicit")
     with pytest.raises(ResourceConfigError, match="NEMOVOX_ABSENT_ASR_TOKEN_FOR_TEST"):
@@ -132,13 +98,13 @@ def test_missing_explicit_asr_token_remains_fail_closed(asr, monkeypatch):
 
 @pytest.mark.parametrize("surface", ["inspect", "endpoint"])
 def test_missing_explicit_token_blocks_before_host_service_access(
-    manager, asr, monkeypatch, surface,
+    manager, text_resource, monkeypatch, surface,
 ):
     from dataclasses import replace
     from nvidia_transcribe.model_resources import ResourceConfigError
 
     token_env = "NEMOVOX_MISSING_AUTH_TOKEN_FOR_TEST"
-    selected = replace(asr, api_key_env=token_env)
+    selected = replace(text_resource, api_key_env=token_env)
     monkeypatch.delenv(token_env, raising=False)
     # The legacy fallback must never override a declared but absent key.
     monkeypatch.setenv("VLLM_API_KEY", "synthetic-legacy-token")
@@ -158,17 +124,17 @@ def test_missing_explicit_token_blocks_before_host_service_access(
                 pytest.fail("Invalid configuration must not admit ASR inference")
 
 
-def test_readiness_network_error_still_reports_unavailable(asr, monkeypatch):
+def test_readiness_network_error_still_reports_unavailable(text_resource, monkeypatch):
     def unreachable(*_args, **_kwargs):
         raise lifecycle.urllib.error.URLError("synthetic unavailable endpoint")
 
     monkeypatch.delenv("VLLM_API_KEY", raising=False)
     monkeypatch.setattr(lifecycle.urllib.request, "urlopen", unreachable)
-    assert lifecycle._models_healthy(asr) is False
+    assert lifecycle._models_healthy(text_resource) is False
 
 def test_default_ownership_configuration_and_json_override(tmp_path):
     defaults = lifecycle._service_config()
-    assert defaults["asr_local"].unit == "nemovox-asr.service"
+    assert set(defaults) == {"text_local"}
     assert defaults["text_local"].unit == "nemovox-text-review.service"
     config = tmp_path / "lifecycle.json"
     config.write_text(json.dumps({
@@ -178,15 +144,15 @@ def test_default_ownership_configuration_and_json_override(tmp_path):
         }
     }), encoding="utf-8")
     assert lifecycle._service_config(config)["review_local"].stop_after_stage is False
-    assert "asr_local" not in lifecycle._service_config(config)
+    assert "text_local" not in lifecycle._service_config(config)
 
 
 @pytest.mark.parametrize("document", [
     {"version": 3, "services": {}},
     {"version": 1, "services": []},
-    {"version": 1, "services": {"asr_local": {"unit": "unrelated.service"}}},
-    {"version": 1, "services": {"asr_local": {"unit": "nemovox-asr.service", "startup_timeout_s": 0}}},
-    {"version": 1, "services": {"asr_local": {"unit": "nemovox-asr.service", "device": "cpu"}}},
+    {"version": 1, "services": {"text_local": {"unit": "unrelated.service"}}},
+    {"version": 1, "services": {"text_local": {"unit": "nemovox-text-review.service", "startup_timeout_s": 0}}},
+    {"version": 1, "services": {"text_local": {"unit": "nemovox-text-review.service", "device": "cpu"}}},
 ])
 def test_invalid_config_fails_closed(tmp_path, document):
     config = tmp_path / "invalid.json"
@@ -196,29 +162,29 @@ def test_invalid_config_fails_closed(tmp_path, document):
     assert error.value.status == "invalid_lifecycle_config"
 
 
-def test_healthy_unowned_endpoint_is_borrowed_without_mutation(manager, asr, monkeypatch):
+def test_healthy_unowned_endpoint_is_borrowed_without_mutation(manager, text_resource, monkeypatch):
     monkeypatch.setattr(lifecycle, "_models_healthy", lambda _: True)
     monkeypatch.setattr(lifecycle, "_unit", lambda _: _unit(valid=False))
     attempted = []
     monkeypatch.setattr(lifecycle, "_systemctl", lambda *args: attempted.append(args))
-    with manager.endpoint(asr):
+    with manager.endpoint(text_resource):
         assert attempted == []
     assert attempted == []
 
 
-def test_missing_or_unowned_unit_never_starts(manager, asr, monkeypatch):
+def test_missing_or_unowned_unit_never_starts(manager, text_resource, monkeypatch):
     monkeypatch.setattr(lifecycle, "_models_healthy", lambda _: False)
     monkeypatch.setattr(lifecycle, "_unit", lambda _: _unit(valid=False))
     attempted = []
     monkeypatch.setattr(lifecycle, "_systemctl", lambda *args: attempted.append(args))
     with pytest.raises(lifecycle.ResourceLifecycleError, match="no verified Nemovox-owned service") as error:
-        with manager.endpoint(asr):
+        with manager.endpoint(text_resource):
             pass
     assert error.value.status == "managed_unit_not_configured"
     assert attempted == []
 
 
-def test_owned_asr_started_and_released_around_one_stage(manager, asr, monkeypatch):
+def test_owned_text_started_and_released_around_one_stage(manager, text_resource, monkeypatch):
     monkeypatch.setattr(lifecycle, "_free_vram_mb", lambda: 31000)
     state = {"active": False}
     transitions = []
@@ -230,27 +196,27 @@ def test_owned_asr_started_and_released_around_one_stage(manager, asr, monkeypat
         state["active"] = args[0] == "start"
         return ""
     monkeypatch.setattr(lifecycle, "_systemctl", systemctl)
-    with manager.endpoint(asr):
+    with manager.endpoint(text_resource):
         assert state["active"] is True
-        assert transitions == [("start", "nemovox-asr.service")]
+        assert transitions == [("start", "nemovox-text-review.service")]
     assert state["active"] is False
-    assert transitions[-1] == ("stop", "nemovox-asr.service")
+    assert transitions[-1] == ("stop", "nemovox-text-review.service")
 
 
-def test_active_owned_unit_with_live_other_client_is_not_stopped(manager, asr, monkeypatch):
+def test_active_owned_unit_with_live_other_client_is_not_stopped(manager, text_resource, monkeypatch):
     monkeypatch.setattr(lifecycle, "_unit", lambda _: _unit(active=True))
     monkeypatch.setattr(lifecycle, "_models_healthy", lambda _: True)
     monkeypatch.setattr(lifecycle, "_external_clients", lambda _: True)
     transitions = []
     monkeypatch.setattr(lifecycle, "_systemctl", lambda *args: transitions.append(args))
     with pytest.raises(lifecycle.ResourceLifecycleError) as error:
-        with manager.endpoint(asr):
+        with manager.endpoint(text_resource):
             pass
     assert error.value.status == "managed_resource_busy"
     assert transitions == []
 
 
-def test_owned_service_start_failure_does_not_escape_cleanup(manager, asr, monkeypatch):
+def test_owned_service_start_failure_does_not_escape_cleanup(manager, text_resource, monkeypatch):
     monkeypatch.setattr(lifecycle, "_free_vram_mb", lambda: 31000)
     state = {"active": False}
     monkeypatch.setattr(lifecycle, "_unit", lambda _: _unit(active=state["active"]))
@@ -263,7 +229,7 @@ def test_owned_service_start_failure_does_not_escape_cleanup(manager, asr, monke
         state["active"] = False
     monkeypatch.setattr(lifecycle, "_systemctl", systemctl)
     with pytest.raises(lifecycle.ResourceLifecycleError):
-        with manager.endpoint(asr):
+        with manager.endpoint(text_resource):
             pass
     assert state["active"] is False
 
@@ -310,50 +276,51 @@ def test_text_client_is_lazily_started_only_when_inference_occurs(manager, monke
     assert events == ["acquire", "create", "inference", "inference", "release"]
 
 
-def test_systemd_transport_unavailable_does_not_block_healthy_external_endpoint(manager, asr, monkeypatch):
+def test_systemd_transport_unavailable_does_not_block_healthy_external_endpoint(manager, text_resource, monkeypatch):
     monkeypatch.setattr(lifecycle, "_models_healthy", lambda _: True)
     def inaccessible(_):
         raise lifecycle.ResourceLifecycleError("systemd_unavailable")
     monkeypatch.setattr(lifecycle, "_unit", inaccessible)
-    with manager.endpoint(asr):
+    with manager.endpoint(text_resource):
         pass
 
 
-def test_owned_unit_wrong_model_marker_cannot_start(manager, asr, monkeypatch):
+def test_owned_unit_wrong_model_marker_cannot_start(manager, text_resource, monkeypatch):
     marker = _unit()
     marker["Environment"] = marker["Environment"].replace(
-        "NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4", "different-model"
+        "chat", "different-model"
     )
     monkeypatch.setattr(lifecycle, "_unit", lambda _: marker)
     monkeypatch.setattr(lifecycle, "_models_healthy", lambda _: False)
     attempts = []
     monkeypatch.setattr(lifecycle, "_systemctl", lambda *args: attempts.append(args))
     with pytest.raises(lifecycle.ResourceLifecycleError) as error:
-        with manager.endpoint(asr):
+        with manager.endpoint(text_resource):
             pass
     assert error.value.status == "managed_unit_not_configured"
     assert attempts == []
 
 
-def test_owned_asr_start_requires_reported_capacity(manager, asr, monkeypatch):
+def test_owned_text_start_requires_reported_capacity(manager, text_resource, monkeypatch):
+    monkeypatch.setattr(lifecycle, "_service_config", lambda _: {"text_local": lifecycle.OwnedService("nemovox-text-review.service", min_free_vram_mb=16000)})
     monkeypatch.setattr(lifecycle, "_unit", lambda _: _unit())
     monkeypatch.setattr(lifecycle, "_models_healthy", lambda _: False)
     monkeypatch.setattr(lifecycle, "_free_vram_mb", lambda: 2000)
     attempts = []
     monkeypatch.setattr(lifecycle, "_systemctl", lambda *args: attempts.append(args))
     with pytest.raises(lifecycle.ResourceLifecycleError) as error:
-        with manager.endpoint(asr):
+        with manager.endpoint(text_resource):
             pass
     assert error.value.status == "gpu_capacity_blocked"
     assert attempts == []
 
 
-def test_inspection_is_read_only_and_reports_startable(manager, asr, monkeypatch):
+def test_inspection_is_read_only_and_reports_startable(manager, text_resource, monkeypatch):
     calls = []
     monkeypatch.setattr(lifecycle, "_unit", lambda _: _unit(active=False))
     monkeypatch.setattr(lifecycle, "_models_healthy", lambda _: False)
     monkeypatch.setattr(lifecycle, "_systemctl", lambda *args: calls.append(args))
-    state = manager.inspect(asr)
+    state = manager.inspect(text_resource)
     assert state["state"] == "startable"
     assert state["startable"] is True
     assert calls == []
@@ -410,38 +377,7 @@ def test_resource_lease_wait_is_bounded(tmp_path, monkeypatch):
         os.close(fd)
 
 
-def test_cached_recording_does_not_acquire_asr_before_first_transcribe(manager, asr, monkeypatch):
-    events = []
-
-    @contextmanager
-    def fake_endpoint(_):
-        events.append("start")
-        try:
-            yield
-        finally:
-            events.append("stop")
-
-    class FakeASR:
-        model = "nemotron"
-        base_url = "http://127.0.0.1:8190/v1"
-
-        def transcribe(self, filename, config=None):
-            events.append("transcribe")
-            return filename
-
-    monkeypatch.setattr(manager, "endpoint", fake_endpoint)
-    with lifecycle.managed_asr_client(manager, asr, FakeASR()) as client:
-        assert client.model == "nemotron"
-        assert client.base_url.endswith("/v1")
-        assert events == []
-    assert events == []
-    with lifecycle.managed_asr_client(manager, asr, FakeASR()) as client:
-        assert client.transcribe("fixture.wav") == "fixture.wav"
-        assert client.transcribe("next.wav") == "next.wav"
-    assert events == ["start", "transcribe", "transcribe", "stop"]
-
-
-def test_reconcile_idle_owned_reclaims_only_exact_abandoned_unit(manager, asr, monkeypatch):
+def test_reconcile_idle_owned_reclaims_only_exact_abandoned_unit(manager, text_resource, monkeypatch):
     state = {"active": True}
     calls = []
 
@@ -451,30 +387,30 @@ def test_reconcile_idle_owned_reclaims_only_exact_abandoned_unit(manager, asr, m
     monkeypatch.setattr(lifecycle, "_unit", unit)
     monkeypatch.setattr(lifecycle, "_external_clients", lambda _: False)
     monkeypatch.setattr(lifecycle, "_service_config",
-                        lambda _: {"asr_local": lifecycle.OwnedService("nemovox-asr.service")})
+                        lambda _: {"text_local": lifecycle.OwnedService("nemovox-text-review.service")})
 
     def command(*args):
         calls.append(args)
-        assert args == ("stop", "nemovox-asr.service")
+        assert args == ("stop", "nemovox-text-review.service")
         state["active"] = False
         return ""
     monkeypatch.setattr(lifecycle, "_systemctl", command)
-    assert manager.reconcile_idle_owned(resources={"asr_local": asr}) == {"asr_local": "recovered"}
-    assert calls == [("stop", "nemovox-asr.service")]
-    assert manager.reconcile_idle_owned(resources={"asr_local": asr}) == {"asr_local": "inactive"}
+    assert manager.reconcile_idle_owned(resources={"text_local": text_resource}) == {"text_local": "recovered"}
+    assert calls == [("stop", "nemovox-text-review.service")]
+    assert manager.reconcile_idle_owned(resources={"text_local": text_resource}) == {"text_local": "inactive"}
 
 
-def test_reconcile_refuses_unowned_or_mismatched_model_units(manager, asr, monkeypatch):
+def test_reconcile_refuses_unowned_or_mismatched_model_units(manager, text_resource, monkeypatch):
     attempts = []
     monkeypatch.setattr(lifecycle, "_unit", lambda _: _unit(valid=False, active=True))
     monkeypatch.setattr(lifecycle, "_systemctl", lambda *args: attempts.append(args))
     monkeypatch.setattr(lifecycle, "_service_config",
-                        lambda _: {"asr_local": lifecycle.OwnedService("nemovox-asr.service")})
-    assert manager.reconcile_idle_owned(resources={"asr_local": asr})["asr_local"] == "unowned_or_identity_mismatch"
+                        lambda _: {"text_local": lifecycle.OwnedService("nemovox-text-review.service")})
+    assert manager.reconcile_idle_owned(resources={"text_local": text_resource})["text_local"] == "unowned_or_identity_mismatch"
     assert attempts == []
 
 
-def test_reconcile_respects_external_live_clients(manager, asr, monkeypatch):
+def test_reconcile_respects_external_live_clients(manager, text_resource, monkeypatch):
     attempts = []
     # A properly identified owned unit is still untouchable while someone
     # else has an established client connection.
@@ -485,12 +421,12 @@ def test_reconcile_respects_external_live_clients(manager, asr, monkeypatch):
     monkeypatch.setattr(lifecycle, "_external_clients", lambda _: True)
     monkeypatch.setattr(lifecycle, "_systemctl", lambda *args: attempts.append(args))
     monkeypatch.setattr(lifecycle, "_service_config",
-                        lambda _: {"asr_local": lifecycle.OwnedService("nemovox-asr.service")})
-    assert manager.reconcile_idle_owned(resources={"asr_local": asr})["asr_local"] == "active_clients"
+                        lambda _: {"text_local": lifecycle.OwnedService("nemovox-text-review.service")})
+    assert manager.reconcile_idle_owned(resources={"text_local": text_resource})["text_local"] == "active_clients"
     assert attempts == []
 
 
-def test_reconcile_does_not_preempt_another_cli_lease(manager, asr, monkeypatch):
+def test_reconcile_does_not_preempt_another_cli_lease(manager, text_resource, monkeypatch):
     import fcntl
     import os
     manager.lock_path.parent.mkdir(parents=True, exist_ok=True)
@@ -499,21 +435,21 @@ def test_reconcile_does_not_preempt_another_cli_lease(manager, asr, monkeypatch)
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         monkeypatch.setattr(lifecycle, "_systemctl",
                             lambda *args: pytest.fail("Recovery may not preempt a running stage"))
-        assert manager.reconcile_idle_owned(resources={"asr_local": asr}) == {"status": "active_model_stage"}
+        assert manager.reconcile_idle_owned(resources={"text_local": text_resource}) == {"status": "active_model_stage"}
     finally:
         fcntl.flock(fd, fcntl.LOCK_UN)
         os.close(fd)
 
 
 
-def test_reconcile_requires_verified_unit_invocation_identity(manager, asr, monkeypatch):
+def test_reconcile_requires_verified_unit_invocation_identity(manager, text_resource, monkeypatch):
     events = []
     monkeypatch.setattr(lifecycle, "_unit", lambda _: _unit(active=True))
     monkeypatch.setattr(lifecycle, "_external_clients", lambda _: False)
     monkeypatch.setattr(lifecycle, "_systemctl", lambda *args: events.append(args))
     monkeypatch.setattr(lifecycle, "_service_config",
-                        lambda _: {"asr_local": lifecycle.OwnedService("nemovox-asr.service")})
-    assert manager.reconcile_idle_owned(resources={"asr_local": asr})["asr_local"] == "unit_identity_unavailable"
+                        lambda _: {"text_local": lifecycle.OwnedService("nemovox-text-review.service")})
+    assert manager.reconcile_idle_owned(resources={"text_local": text_resource})["text_local"] == "unit_identity_unavailable"
     assert events == []
 
 

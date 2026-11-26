@@ -8,9 +8,7 @@ export function isEnglishSourceToEnglish(source: string, target: string): boolea
 }
 
 export const INITIAL_OPTIONS: JobOptions = {
-  source_language: "auto", target_language: "en", asr_mode: "speaker",
-  audio_stream: 0, chunk_seconds: 90, context_seconds: 10, chunk_policy: "fixed",
-  speaker_embeddings: "none", alignment_fallback: "off",
+  source_language: "auto", target_language: "en", audio_stream: 0,
   refinement: "off", translator: "riva", translation_review: "balanced", style: "natural",
   glossary: null, ass_layout: "standard", ass_max_lanes: 3,
   condense_high_cps: false, formats: ["srt", "ass"],
@@ -22,16 +20,6 @@ export interface ExplainedOption {
   description: string;
 }
 
-export const ASR_MODES: readonly ExplainedOption[] = [
-  {value: "speaker", label: "Speaker-attributed (recommended)",
-   description: "Preserves spoken words and fillers with punctuation and speaker tags. Best general choice for dialogue and subtitle timing; speaker IDs are reconciled later."},
-  {value: "multispeaker_sot", label: "Overlapping speakers",
-   description: "Prompts a speaker-tagged, punctuation-free transcript with attention to speaker turns and simultaneous speech. Useful for overlap-prone audio; not a guarantee of perfect separation."},
-  {value: "verbatim", label: "Verbatim transcript",
-   description: "Keeps fillers and repetitions, with punctuation, but does not request speaker tags. Use when literal words matter more than speaker attribution."},
-  {value: "rich", label: "Rich transcription",
-   description: "Requests special event and speaking-style tokens in addition to spoken words. Experimental for subtitles; tag support depends on the ASR model and response."},
-];
 export const TRANSLATION_REVIEW: readonly ExplainedOption[] = [
   {value: "off", label: "Off: raw machine translation",
    description: "Keep the dedicated translation model's English output as-is. Machine translation remains available for inspection."},

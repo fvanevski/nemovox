@@ -8,7 +8,7 @@ from __future__ import annotations
 from copy import deepcopy
 import re
 
-from nvidia_transcribe.semantic_context import row_nominations, text_digest
+from nvidia_transcribe.semantic_context import row_nominations, text_digest, localized_wording_evidence
 
 SCHEMA="nemovox-review-source-uncertainty/v1"
 _MATERIAL={"hallucination","missing_dialogue","wording","polarity"}
@@ -55,13 +55,16 @@ def bind_review_uncertainty(rows, quality):
                if uid in dispositions[n["proposal_id"]].get("source_ids",[])]
         outcome=outcomes.get(uid)
         status=str(row.get("source_quality_status") or "")
-        if not cited and not outcome and not status.startswith("unresolved_wording"):
+        timing_only=status=="event_timing_recovered_original_wording"
+        if not cited and not outcome and not status.startswith("unresolved_wording") and not timing_only:
             continue
         row["review_source_uncertainty"]={"schema":SCHEMA,"source_id":uid,
             "source_text_sha256":text_digest(row["source_text"]),
             "source_unit_ids":deepcopy(row.get("source_unit_ids",[])),
             "nominations":cited,"scene_outcome":outcome,
-            "source_quality_status":status,"source_truth_accepted":False}
+            "source_quality_status":status,"source_truth_accepted":False,
+            **({"wording_status":row.get("wording_status"),"timing_only_recovery":localized_wording_evidence(row) is not None}
+               if timing_only else {})}
     return result
 
 
@@ -125,6 +128,62 @@ def _anchors_preserved(original, candidate):
     return sequence(before) == sequence(after)
 
 
+_MONTHS=("January","February","March","April","May","June","July","August","September","October","November","December")
+_MONTH_WORDS=("one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve")
+_ZH_MONTHS={"一":1,"二":2,"两":2,"三":3,"四":4,"五":5,"六":6,"七":7,"八":8,"九":9,"十":10,"十一":11,"十二":12}
+
+
+def _relative_month_anchor(row, original, candidate):
+    """Do not treat an erroneous English calendar month as a protected name.
+
+    Only the explicit future relative-duration construction, independently
+    supported in the current source span, permits this narrow normalization.
+    The comparator still judges the actual unmodified translation strings.
+    """
+    from nvidia_transcribe.semantic_context import _lex, _contains
+    evidence=localized_wording_evidence(row)
+    if evidence is None:
+        return original,candidate
+    matches=list(re.finditer(r"(?:将于|将在|会在)([一二两三四五六七八九十]{1,2})(?:个)?月后",row["source_text"]))
+    if len(matches)!=1:
+        return original,candidate
+    n=_ZH_MONTHS.get(matches[0].group(1))
+    if n is None:
+        return original,candidate
+    phrase=_lex(matches[0].group())
+    # Prove the relative phrase is supported by alternatives for its actual
+    # source-unit range, not an insertion in some unrelated recovered span.
+    ids=row.get("source_unit_ids",[])
+    originals={u.get("source_unit_id"):u for prior in row.get("prior_source_hypotheses",[])
+               for u in prior.get("source_words",[])+prior.get("source_characters",[])}
+    if any(uid not in originals for uid in ids):
+        return original,candidate
+    tokens=[]
+    positions=[]
+    for i,uid in enumerate(ids):
+        part=_lex(originals[uid]["text"])
+        tokens.extend(part)
+        positions.extend([i]*len(part))
+    if tuple(tokens)!=_lex(row["source_text"]):
+        return original,candidate
+    hits=[i for i in range(len(tokens)-len(phrase)+1) if tuple(tokens[i:i+len(phrase)])==phrase]
+    if len(hits)!=1:
+        return original,candidate
+    lo,hi=positions[hits[0]],positions[hits[0]+len(phrase)-1]+1
+    support={a["backend"] for a in evidence["alternatives"]
+             if a["source_unit_range"][0]<=lo<hi<=a["source_unit_range"][1]
+             and _contains(tuple(a["tokens"]),phrase)}
+    if support!={"nemotron","independent_asr"}:
+        return original,candidate
+    numeral=rf"(?:{n}|{_MONTH_WORDS[n-1]}"+(r"|a" if n==1 else "")+")"
+    duration=numeral+(r"\s+month" if n==1 else r"\s+months")
+    before=re.compile(r"\bin\s+"+_MONTHS[n-1]+r"\b",re.I)
+    after=re.compile(r"\b(?:in\s+"+duration+r"|"+duration+r"\s+later|after\s+"+duration+r")\b",re.I)
+    if len(before.findall(original))!=1 or len(after.findall(candidate))!=1:
+        return original,candidate
+    return before.sub(" relative_duration ",original),after.sub(" relative_duration ",candidate)
+
+
 def uncertainty_veto(row, original, candidate, glossary):
     uncertainty=current_uncertainty(row)
     if uncertainty is None:
@@ -134,16 +193,25 @@ def uncertainty_veto(row, original, candidate, glossary):
            for source,target in glossary.translation_examples):
         # Explicit operator authority for this complete source/target pair.
         return None
-    if kinds&_MATERIAL or uncertainty["source_quality_status"].startswith("unresolved_wording"):
+    timing_only=uncertainty["source_quality_status"]=="event_timing_recovered_original_wording"
+    valid_timing_only=(timing_only and uncertainty.get("timing_only_recovery") is True
+                       and localized_wording_evidence(row) is not None)
+    if (kinds&_MATERIAL or uncertainty["source_quality_status"].startswith("unresolved_wording")
+            or (timing_only and not valid_timing_only)):
         # In materially disputed source, retain content words, order,
         # polarity, and numbers. Permit punctuation, casing and articles.
         # No claim that primary MT is correct; no invented resolution.
         if [w for w in _tokens(original) if w not in _ARTICLES]!=[
                 w for w in _tokens(candidate) if w not in _ARTICLES]:
             return "unresolved_source_material_lexical_change"
-    elif kinds&_ENTITY or uncertainty["scene_outcome"] in ("unresolved","partial","error","deferred"):
+    elif (kinds&_ENTITY or uncertainty["scene_outcome"] in ("unresolved","partial","error","deferred")
+          or (valid_timing_only and uncertainty.get("wording_status")=="model_variants_unresolved")):
         # A name/number stability guard where the uncertainty is less
         # specific. Preserve grammatical/idiomatic edits around anchors.
-        if not _anchors_preserved(original, candidate):
+        # Recovery of timing without choosing new wording is not a
+        # material source rewrite. Preserve genuinely uncertain anchors,
+        # but don't freeze an evidenced relative duration as a month name.
+        before,after=_relative_month_anchor(row,original,candidate) if valid_timing_only else (original,candidate)
+        if not _anchors_preserved(before, after):
             return "unresolved_source_name_or_number_change"
     return None

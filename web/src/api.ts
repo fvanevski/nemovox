@@ -72,13 +72,7 @@ export interface TranslationBackendStatus {
 export interface JobOptions {
   source_language: string;
   target_language: string;
-  asr_mode: "speaker" | "multispeaker_sot" | "rich" | "verbatim";
   audio_stream: number;
-  chunk_seconds: number;
-  context_seconds: number;
-  chunk_policy: "fixed" | "pause_aware";
-  speaker_embeddings: "titanet" | "none";
-  alignment_fallback: "off" | "qwen";
   refinement: "off" | "conservative" | "balanced" | "expressive";
   translator: "openai_chat" | "riva" | "none";
   translation_review: "off" | "conservative" | "balanced" | "expressive";

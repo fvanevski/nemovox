@@ -22,33 +22,30 @@ class ResourceConfigError(ValueError):
 
 # Stage requirements, not model names. Specialized adapters remain distinct.
 ROLE_ADAPTERS: dict[str, frozenset[str]] = {
-    "asr": frozenset({"nemotron_ctc"}),
-    "source_challenger": frozenset({"whisper_ct2"}),
+    "asr": frozenset({"moss_events"}),
+    "speech_activity": frozenset({"firered_aed"}),
     "source_refinement": frozenset({"openai_chat"}),
     "text_translation": frozenset({"openai_chat"}),
     "translation_review": frozenset({"openai_chat"}),
     "subtitle_condensation": frozenset({"openai_chat"}),
     "riva_translation": frozenset({"riva_worker"}),
-    "forced_alignment": frozenset({"qwen_forced_aligner"}),
-    "speaker_embedding": frozenset({"titanet"}),
 }
 RESOURCE_FIELDS = frozenset({"adapter", "model", "endpoint", "checkpoint_path", "worker_python", "device", "api_key_env"})
 # A field that the selected adapter ignores must be rejected rather than silently
 # suggesting it controls inference (particularly device and credential settings).
 _ADAPTER_FIELDS = {
-    "nemotron_ctc": frozenset({"adapter", "endpoint", "model", "checkpoint_path", "api_key_env"}),
-    "whisper_ct2": frozenset({"adapter", "checkpoint_path", "worker_python", "device"}),
+    "firered_aed": frozenset({"adapter", "model", "checkpoint_path", "worker_python", "device"}),
+    "moss_events": frozenset({"adapter", "model", "checkpoint_path", "worker_python", "device"}),
     "openai_chat": frozenset({"adapter", "endpoint", "model", "api_key_env"}),
     "riva_worker": frozenset({"adapter", "checkpoint_path", "worker_python", "device"}),
-    "qwen_forced_aligner": frozenset({"adapter", "checkpoint_path", "worker_python", "device"}),
-    "titanet": frozenset({"adapter", "model", "device"}),
 }
 _RESOURCE_DEFAULTS: dict[str, dict[str, str]] = {
-    "asr_local": {
-        "adapter": "nemotron_ctc",
-        "endpoint": "http://127.0.0.1:8190/v1",
-        "model": "nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4",
-        "checkpoint_path": "/workspace/models/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4",
+    "moss_local": {
+        "adapter": "moss_events",
+        "model": "OpenMOSS-Team/MOSS-Transcribe-Diarize",
+        "checkpoint_path": "/workspace/models/MOSS-Transcribe-Diarize",
+        "worker_python": "/workspace/nvidia-transcribe/.venv-moss/bin/python",
+        "device": "cuda:0",
     },
     "text_local": {
         "adapter": "openai_chat",
@@ -61,23 +58,14 @@ _RESOURCE_DEFAULTS: dict[str, dict[str, str]] = {
         "worker_python": "/workspace/nvidia-transcribe/outputs/modular-eval/.venv/bin/python",
         "device": "cuda:0",
     },
-    "qwen_local": {
-        "adapter": "qwen_forced_aligner",
-        "checkpoint_path": "/workspace/models/Qwen3-ForcedAligner-0.6B",
-        "worker_python": "/workspace/nvidia-transcribe/outputs/modular-eval/.venv/bin/python",
-        "device": "cuda:0",
-    },
-    "titanet_cpu": {"adapter": "titanet", "model": "titanet_small", "device": "cpu"},
 }
 _ROLE_DEFAULTS = {
-    "asr": "asr_local",
+    "asr": "moss_local",
     "source_refinement": "text_local",
     "text_translation": "text_local",
     "subtitle_condensation": "text_local",
     "translation_review": "text_local",
     "riva_translation": "riva_local",
-    "forced_alignment": "qwen_local",
-    "speaker_embedding": "titanet_cpu",
 }
 _ID = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
 _ENV = re.compile(r"^[A-Z_][A-Z0-9_]*$")
@@ -136,21 +124,19 @@ def _validate_resource(name: str, spec: Mapping[str, Any]) -> ModelResource:
             _ = parsed.port
         except ValueError as exc:
             raise ResourceConfigError(f"Resource {name!r} has invalid endpoint port") from exc
-    if adapter in ("openai_chat", "nemotron_ctc") and not (endpoint and spec.get("model")):
+    if adapter == "openai_chat" and not (endpoint and spec.get("model")):
         raise ResourceConfigError(f"Resource {name!r} requires endpoint and served model")
-    if adapter in ("riva_worker", "qwen_forced_aligner", "whisper_ct2") and not (spec.get("checkpoint_path") and spec.get("worker_python")):
+    if adapter == "riva_worker" and not (spec.get("checkpoint_path") and spec.get("worker_python")):
         raise ResourceConfigError(f"Resource {name!r} requires checkpoint_path and worker_python")
-    if adapter == "titanet" and not spec.get("model"):
-        raise ResourceConfigError(f"Resource {name!r} requires a model identifier")
+    if adapter == "moss_events" and not (spec.get("model") and spec.get("checkpoint_path")
+            and spec.get("worker_python") and spec.get("device") == "cuda:0"):
+        raise ResourceConfigError("MOSS requires model, local checkpoint_path, worker_python and explicit cuda:0")
+    if adapter == "firered_aed" and not (spec.get("model") and spec.get("checkpoint_path")
+            and spec.get("worker_python") and spec.get("device") == "cpu"):
+        raise ResourceConfigError("FireRed AED requires model, local checkpoint_path, worker_python and explicit cpu")
     env_name = spec.get("api_key_env")
     if env_name and not _ENV.fullmatch(env_name):
         raise ResourceConfigError(f"Resource {name!r} api_key_env must name an environment variable")
-    if adapter == "qwen_forced_aligner" and spec.get("device", "cuda:0") not in ("cuda:0", "cpu"):
-        raise ResourceConfigError("Qwen aligner device must be cuda:0 or explicitly cpu")
-    if adapter == "whisper_ct2" and spec.get("device") != "cuda:0":
-        raise ResourceConfigError("Whisper challenger requires explicitly configured cuda:0 device")
-    if adapter == "titanet" and spec.get("device", "cpu") != "cpu":
-        raise ResourceConfigError("NeMo TitaNet speaker embedding runs on CPU only")
     if adapter == "riva_worker":
         device = spec.get("device", "auto")
         if device not in ("auto", "cpu") and not re.fullmatch(r"cuda:\d+", device):
@@ -176,6 +162,8 @@ class ModelResources:
         resource = self.resources[name]
         if resource.adapter not in ROLE_ADAPTERS[role]:
             raise ResourceConfigError(f"Role {role!r} cannot use {resource.adapter!r} resource {name!r}")
+        if resource.adapter != "openai_chat" and (endpoint is not None or model is not None):
+            raise ResourceConfigError("Select a configured local worker resource instead of endpoint/model overrides")
         updates = {}
         if endpoint is not None:
             updates["endpoint"] = endpoint
@@ -185,10 +173,6 @@ class ModelResources:
             fields = {
                 k: getattr(resource, k) for k in RESOURCE_FIELDS if getattr(resource, k) is not None
             }
-            # Changing the served ASR model does not establish that the old
-            # checkpoint contains the new model's CTC vocabulary.
-            if role == "asr" and model is not None and model != resource.model:
-                fields.pop("checkpoint_path", None)
             resource = _validate_resource(resource.name, {**fields, **updates})
         if require_local_paths:
             for attr in ("checkpoint_path", "worker_python"):
@@ -216,6 +200,8 @@ def load_model_resources(
     role-specific resources in the JSON file remain independent.
     """
     env = os.environ if environ is None else environ
+    if {"ASR_BASE_URL", "ASR_MODEL"} & env.keys():
+        raise ResourceConfigError("Retired ASR endpoint overrides; configure a MOSS local worker resource")
     if {"SWIFTU_BASE_URL", "SWIFTU_MODEL"} & env.keys():
         raise ResourceConfigError("Retired SWIFTU_* environment settings; use TEXT_BASE_URL and TEXT_MODEL")
     requested = path if path is not None else env.get("NEMOVOX_MODEL_RESOURCES")
@@ -240,12 +226,9 @@ def load_model_resources(
                 raise ResourceConfigError(f"Resource {name!r} definition must be an object")
             prior = resources.get(name, {})
             merged = {**prior, **spec}
-            # A partial override of the built-in ASR model cannot inherit the
-            # shipped checkpoint. Explicitly re-state the matching path.
-            if (name == "asr_local" and "model" in spec
-                    and spec["model"] != prior.get("model")
-                    and "checkpoint_path" not in spec):
-                merged.pop("checkpoint_path", None)
+            if name == "moss_local" and "model" in spec and spec["model"] != prior.get("model"):
+                if "checkpoint_path" not in spec or "worker_python" not in spec:
+                    raise ResourceConfigError("A different local recognition model requires explicit checkpoint and worker paths")
             resources[name] = merged
         if set(role_overrides) - ROLE_ADAPTERS.keys():
             raise ResourceConfigError(f"Unknown roles: {sorted(set(role_overrides) - ROLE_ADAPTERS.keys())}")
@@ -256,7 +239,6 @@ def load_model_resources(
 
     # Environment overrides are scoped to *default resource identities* only.
     for resource_name, settings in {
-        "asr_local": {"endpoint": env.get("ASR_BASE_URL"), "model": env.get("ASR_MODEL")},
         "text_local": {"endpoint": env.get("TEXT_BASE_URL"),
                        "model": env.get("TEXT_MODEL")},
     }.items():
@@ -265,14 +247,11 @@ def load_model_resources(
                 if not value.strip():
                     raise ResourceConfigError(f"Empty environment override for {resource_name}.{field_name}")
                 chosen = value.strip()
-                if (resource_name == "asr_local" and field_name == "model"
-                        and chosen != resources[resource_name].get("model")):
-                    resources[resource_name].pop("checkpoint_path", None)
                 resources[resource_name][field_name] = chosen
     validated = {name: _validate_resource(name, spec) for name, spec in resources.items()}
     registry = ModelResources(resources=validated, roles=roles)
     for role in ROLE_ADAPTERS:
-        if role == "source_challenger" and role not in roles:
+        if role == "speech_activity" and role not in roles:
             continue
         registry.resolve(role)
     return registry

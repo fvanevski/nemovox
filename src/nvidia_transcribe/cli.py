@@ -1,4 +1,4 @@
-"""Command-line interface for Nemotron 3.5 Transcribe evaluation and chunked recording processing."""
+"""NemoVox command-line recording, translation and rendering."""
 
 from __future__ import annotations
 
@@ -7,14 +7,10 @@ import json
 import sys
 from pathlib import Path
 
-from nvidia_transcribe.checkpoint import DEFAULT_MODEL_PATH, CheckpointValidationError, validate_checkpoint
-from nvidia_transcribe.client import InferenceRequestConfig, NemotronVLLMClient
-from nvidia_transcribe.gpu_handoff import ManagedASRBlocked, ManagedASRConfig, recover_pending_managed_asr
 from nvidia_transcribe.media import MediaInspectionError
 from nvidia_transcribe.model_resources import ResourceConfigError, load_model_resources
-from nvidia_transcribe.resource_lifecycle import ModelLifecycle, ResourceLifecycleError, managed_asr_client
-from nvidia_transcribe.parser import CTCMetadataError
-from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
+from nvidia_transcribe.moss_recording import process_moss_media
+from nvidia_transcribe.resource_lifecycle import ModelLifecycle, ResourceLifecycleError
 from nvidia_transcribe.refinement import RefinementConfig
 from nvidia_transcribe.subtitle_pipeline import SubtitlePipelineConfig, generate_subtitles
 from nvidia_transcribe.subtitles import SubtitleConfig
@@ -25,58 +21,25 @@ from nvidia_transcribe.translation_review import TranslationReviewConfig
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="nvidia-transcribe",
-        description="Evaluate or transcribe local audio/video using Nemotron 3.5 Transcribe via vLLM.",
+        description="Recognize and translate local audiovisual dialogue using native speaker-attributed events.",
     )
     sub = p.add_subparsers(dest="command", required=True)
 
-    v = sub.add_parser("validate-checkpoint", help="Validate local checkpoint files and quantization config.")
-    v.add_argument("--model-path", default=str(DEFAULT_MODEL_PATH))
-
-    t = sub.add_parser("transcribe", help="Run single-clip transcription/translation against a running vLLM server.")
-    t.add_argument("audio", help="Path to local audio file.")
-    t.add_argument("--base-url", default=None, help="Explicit ASR endpoint (otherwise use configured role).")
-    t.add_argument("--model", default=None, help="Explicit served ASR model.")
-    t.add_argument(
-        "--mode",
-        default="verbatim",
-        choices=["verbatim", "readable", "speaker", "multispeaker_sot", "rich", "fleurs", "ascend", "translate", "lid", "contextual"],
-    )
-    t.add_argument("--source-language", default=None, help="Optional explicit language or 'auto'.")
-    t.add_argument("--target-language", default="English")
-    t.add_argument("--context-terms", default=None)
-    t.add_argument("--source-offset", type=float, default=0.0, help="Clip start offset in seconds.")
-    t.add_argument("--no-timestamps", action="store_true", help="Disable capture_ctc_timestamps.")
-    t.add_argument("--require-timestamps", action="store_true", help="Fail if ctc_timestamps has error or is absent.")
-    t.add_argument("--out-json", default=None, help="Write normalized contract JSON to file.")
-    t.add_argument("--out-raw", default=None, help="Write raw vLLM JSON response to file.")
-
-    pm = sub.add_parser("process-media", help="Process a full audio/video recording into a chunked canonical transcript.")
+    pm = sub.add_parser("process-media", help="Recognize recording-level speaker-attributed dialogue.")
     pm.add_argument("media", help="Path to local audio or video media file.")
-    pm.add_argument("--output-dir", required=True, help="Directory to store chunks, manifest, transcript, and contract JSON.")
-    pm.add_argument("--base-url", default=None, help="Explicit ASR endpoint override.")
-    pm.add_argument("--model", default=None, help="Explicit served ASR model override.")
-    pm.add_argument("--model-path", default=None, help="Explicit ASR checkpoint path override.")
-    pm.add_argument("--source-language", default=None, help="Explicit source language (e.g. 'fr', 'zh') or omit for auto.")
-    pm.add_argument("--mode", default="speaker", choices=["speaker", "multispeaker_sot", "rich", "verbatim"])
-    pm.add_argument("--chunk-seconds", type=float, default=90.0)
-    pm.add_argument("--chunk-policy", choices=["pause_aware", "fixed"], default="fixed",
-                    help="Pause-aware inference cores or legacy fixed-size cores.")
-    pm.add_argument("--context-seconds", type=float, default=10.0)
-    pm.add_argument("--min-tail-seconds", type=float, default=15.0)
+    pm.add_argument("--output-dir", required=True, help="Directory for transcript, raw generation, manifest and recording contract.")
+    pm.add_argument("--source-language", required=True, help="Actual source language (e.g. fr, zh).")
     pm.add_argument("--audio-stream", type=int, default=0)
-    pm.add_argument("--speaker-embeddings", default="none", choices=["titanet", "none"])
-    pm.add_argument("--embedding-threshold", type=float, default=0.65)
-    pm.add_argument("--alignment-fallback", default="off", choices=["off", "qwen"])
-    pm.add_argument("--fresh", action="store_true", help="Ignore previous manifest checkpoints and recompute all chunks.")
+    pm.add_argument("--fresh", action="store_true", help="Recompute native dialogue instead of resuming.")
 
     gs = sub.add_parser(
         "generate-subtitles",
         help="Run or resume ASR -> dedicated translation -> optional English review -> SRT/ASS rendering.",
     )
     gs.add_argument("media", nargs="?", default=None, help="Path to local media file (omit when using --recording-contract).")
-    gs.add_argument("--recording-contract", default=None, help="Existing recording.contract.json (skips initial ASR); supply original media as well for current-source review.")
+    gs.add_argument("--recording-contract", default=None, help="Existing recording.contract.json (skips ASR); original media is needed only for optional acoustic assessment.")
     gs.add_argument("--source-quality", choices=["auto", "on", "off"], default="auto",
-                    help="Bounded current-media source review (auto for Riva jobs, off for fast output or other text providers).")
+                    help="auto: native interval assessment; on: explicit configured speech-activity assessment; off: skip new assessment.")
     gs.add_argument("--output-dir", required=True, help="Directory for refined/translated contracts and SRT/ASS outputs.")
     gs.add_argument("--source-language", default=None, help="Source language code (e.g. 'fr', 'zh').")
     gs.add_argument("--target-language", default="en", help="Target subtitle language (default: en).")
@@ -94,17 +57,7 @@ def build_parser() -> argparse.ArgumentParser:
     gs.add_argument("--episode-stem", default=None, help="Override subtitle output filename stem.")
     gs.add_argument("--sidecar-dir", default=None, help="Optional directory for EpisodeName.<lang>.srt/.ass sidecars.")
     gs.add_argument("--overwrite-sidecar", action="store_true", help="Allow overwriting existing sidecar files.")
-    gs.add_argument("--base-url", default=None, help="Explicit ASR endpoint override.")
-    gs.add_argument("--model", default=None, help="Explicit served ASR model override.")
-    gs.add_argument("--alignment-fallback", default="off", choices=["off", "qwen"])
     gs.add_argument("--audio-stream", type=int, default=0)
-    gs.add_argument("--speaker-embeddings", default="none", choices=["titanet", "none"],
-                    help="Optional locally provisioned TitaNet embeddings; default none.")
-    gs.add_argument("--chunk-seconds", type=float, default=90.0)
-    gs.add_argument("--chunk-policy", choices=["pause_aware", "fixed"], default="fixed",
-                    help="Pause-aware ~39–46s inference cores or legacy fixed-size cores.")
-    gs.add_argument("--context-seconds", type=float, default=10.0)
-    gs.add_argument("--min-tail-seconds", type=float, default=15.0)
     gs.add_argument("--text-url", default=None,
                     help="Explicit endpoint override for all text roles.")
     gs.add_argument("--text-model", default=None,
@@ -131,30 +84,17 @@ def build_parser() -> argparse.ArgumentParser:
     gs.add_argument("--fresh-translation", action="store_true", help="Ignore translation checkpoint cache.")
     gs.add_argument("--re-render", action="store_true", help="Re-render SRT/ASS directly from translated.contract.json without model calls.")
     gs.add_argument("--validation-overlay", default=None, help="Optional viewing-validation JSON overlay for coarse timing & polish.")
-    for parser in (t, pm, gs):
+    assess = sub.add_parser("assess-source", help="Assess native dialogue intervals without translation or automatic correction.")
+    assess.add_argument("media", nargs="?", help="Original recording (required with --activity).")
+    assess.add_argument("--recording-contract", required=True)
+    assess.add_argument("--output-dir", required=True)
+    assess.add_argument("--activity", action="store_true", help="Explicitly run the configured CPU acoustic event detector.")
+    assess.add_argument("--fresh", action="store_true")
+    assess.add_argument("--model-resources", default=None)
+    for parser in (pm, gs):
         parser.add_argument("--model-resources", default=None,
                             help="Host model-resource JSON path (or NEMOVOX_MODEL_RESOURCES).")
-        parser.add_argument("--asr-resource", default=None, help="Named ASR/CTC model resource.")
-    for parser in (pm, gs):
-        parser.add_argument("--qwen-policy", default="subtitle", choices=["subtitle", "fine"],
-                            help="Admit useful untimed subtitle windows by default; fine admits smaller gaps.")
-        parser.add_argument("--qwen-device", default=None, choices=["cuda:0", "cpu"],
-                            help="CUDA BF16 required unless CPU is explicitly selected.")
-        parser.add_argument("--qwen-gpu-mode", default="available", choices=["available", "managed"],
-                            help="Default never alters other services; managed requires a cooperative ASR lease.")
-        parser.add_argument("--qwen-owned-asr-unit", default=None,
-                            help="Explicit Nemovox-owned ASR systemd user unit, managed mode only.")
-        parser.add_argument("--qwen-asr-lease-path", default=None,
-                            help="Cooperative ASR ownership lease file, managed mode only.")
-
-    recover = sub.add_parser(
-        "recover-qwen-asr", help="Explicitly verify and restore a previously owned interrupted ASR handoff."
-    )
-    recover.add_argument("--asr-unit", required=True)
-    recover.add_argument("--base-url", required=True)
-    recover.add_argument("--model", required=True)
-    recover.add_argument("--lease-path", required=True)
-    recover.add_argument("--journal", required=True)
+        parser.add_argument("--asr-resource", default=None, help="Named MOSS recording resource.")
 
     return p
 
@@ -162,173 +102,78 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    if args.command == "assess-source":
+        from nvidia_transcribe.source_assessment import assess_native_dialogue
+        from nvidia_transcribe.speech_activity import assess_recording_activity
+        from nvidia_transcribe.subtitle_pipeline import _atomic_write
+        try:
+            contract = json.loads(Path(args.recording_contract).read_text(encoding="utf-8"))
+            if args.activity:
+                if not args.media:
+                    raise ValueError("--activity requires the original media")
+                resource = load_model_resources(args.model_resources).resolve("speech_activity")
+                report, _ = assess_recording_activity(contract, media_path=args.media, resource=resource,
+                    output_dir=Path(args.output_dir), resume=not args.fresh)
+            else:
+                report = assess_native_dialogue(contract)
+            out = Path(args.output_dir)
+            out.mkdir(parents=True, exist_ok=True)
+            _atomic_write(out / "source-quality.json", json.dumps(report, ensure_ascii=False, indent=2))
+            print(json.dumps({"status": "OK", "report": str(out / "source-quality.json")}))
+            return 0
+        except (ResourceConfigError, OSError, ValueError, RuntimeError) as exc:
+            print(json.dumps({"status": "ERROR", "error": str(exc)}), file=sys.stderr)
+            return 1
     if args.command == "generate-subtitles" and args.translation_review is None:
         args.translation_review = "balanced" if args.translator == "riva" else "off"
 
-    if args.command == "recover-qwen-asr":
-        try:
-            report = recover_pending_managed_asr(ManagedASRConfig(
-                unit=args.asr_unit, lease_path=Path(args.lease_path),
-                base_url=args.base_url, served_model=args.model,
-                journal_path=Path(args.journal),
-            ))
-        except (ManagedASRBlocked, ValueError, RuntimeError) as exc:
-            print(json.dumps({"status": "BLOCKED", "reason": getattr(exc, "status", type(exc).__name__)}),
-                  file=sys.stderr)
-            return 2
-        print(json.dumps(report, ensure_ascii=False, indent=2))
-        return 0
-
-    if args.command == "validate-checkpoint":
-        try:
-            summary = validate_checkpoint(args.model_path)
-        except CheckpointValidationError as exc:
-            print(json.dumps({"status": "FAIL", "error": str(exc)}, indent=2), file=sys.stderr)
-            return 2
-        print(json.dumps(summary.to_dict(), indent=2))
-        return 0
-
-    if args.command in ("transcribe", "process-media", "generate-subtitles"):
-        try:
-            registry = load_model_resources(args.model_resources)
-            asr_resource = registry.resolve(
-                "asr", resource_name=args.asr_resource, endpoint=args.base_url, model=args.model)
-            if args.command in ("process-media", "generate-subtitles"):
-                qwen_resource = registry.resolve(
-                    "forced_alignment", require_local_paths=(args.alignment_fallback == "qwen" and
-                                         (args.command == "process-media" or
-                                          (not args.recording_contract and not args.re_render))))
-                speaker_resource = registry.resolve("speaker_embedding")
-                qwen_device = args.qwen_device or qwen_resource.device or "cuda:0"
-            if args.command == "generate-subtitles":
-                # Existing English contracts do not need a Riva worker or
-                # a text-model credential merely to render the original ASR.
-                source_for_preflight = args.source_language
-                if not source_for_preflight and args.recording_contract:
-                    try:
-                        contract = json.loads(Path(args.recording_contract).read_text(encoding="utf-8"))
-                        if isinstance(contract, dict):
-                            source_for_preflight = contract.get("source_language")
-                    except (OSError, ValueError, TypeError):
-                        pass  # Normal contract admission owns invalid-input errors.
-                same_language = is_english_source_to_english(
-                    source_for_preflight, args.target_language)
-                text_overrides = {"endpoint": args.text_url, "model": args.text_model}
-                refinement_resource = registry.resolve(
-                    "source_refinement", resource_name=args.refinement_resource, **text_overrides)
-                translation_resource = registry.resolve(
-                    "text_translation", resource_name=args.translation_resource, **text_overrides)
-                condensation_resource = registry.resolve(
-                    "subtitle_condensation", resource_name=args.condensation_resource, **text_overrides)
-                review_resource = registry.resolve(
-                    "translation_review", resource_name=args.translation_review_resource, **text_overrides)
-                challenger_resource = (registry.resolve("source_challenger")
-                                       if "source_challenger" in registry.roles else None)
-                riva_resource = registry.resolve(
-                    "riva_translation", require_local_paths=(
-                        args.translator == "riva" and not args.re_render and not same_language))
-            asr_key = asr_resource.credential() if (
-                args.command != "generate-subtitles" or
-                (args.recording_contract is None and not args.re_render)) else None
-            if args.command == "generate-subtitles":
-                refinement_key = (refinement_resource.credential()
-                                  if args.refinement != "off" and not args.re_render else None)
-                translation_key = (translation_resource.credential()
-                                   if args.translator == "openai_chat" and not args.re_render else None)
-                condensation_key = (condensation_resource.credential()
-                                    if args.condense_high_cps and args.translator != "none" and not args.re_render else None)
-                review_key = (review_resource.credential()
-                              if args.translation_review != "off" and args.translator == "riva"
-                              and not args.re_render and not same_language else None)
-        except ResourceConfigError as exc:
-            print(json.dumps({"status": "CONFIG_ERROR", "error": str(exc)}), file=sys.stderr)
-            return 2
-
-    if args.command == "transcribe":
-        cfg = InferenceRequestConfig(
-            mode=args.mode,
-            source_language=args.source_language,
-            target_language=args.target_language,
-            context_terms=args.context_terms,
-            capture_ctc_timestamps=not args.no_timestamps,
-            require_ctc_timestamps=args.require_timestamps,
-            source_offset_s=args.source_offset,
-        )
-        client = NemotronVLLMClient(base_url=asr_resource.endpoint, model=asr_resource.model,
-                                    api_key=asr_key)
-        try:
-            with ModelLifecycle().endpoint(asr_resource):
-                result = client.transcribe(args.audio, cfg)
-        except (FileNotFoundError, CTCMetadataError, RuntimeError) as exc:
-            print(json.dumps({"status": "RESOURCE_BLOCKED" if isinstance(exc, ResourceLifecycleError) else "ERROR",
-                              "reason": exc.status if isinstance(exc, ResourceLifecycleError) else None,
-                              "error": str(exc)}, indent=2), file=sys.stderr)
-            return 1
-
-        if args.out_raw:
-            Path(args.out_raw).parent.mkdir(parents=True, exist_ok=True)
-            Path(args.out_raw).write_text(json.dumps(result["raw_response"], ensure_ascii=False, indent=2), encoding="utf-8")
-        if args.out_json:
-            Path(args.out_json).parent.mkdir(parents=True, exist_ok=True)
-            Path(args.out_json).write_text(json.dumps(result["contract"], ensure_ascii=False, indent=2), encoding="utf-8")
-        else:
-            print(json.dumps(result["contract"], ensure_ascii=False, indent=2))
-        return 0
-
-    if args.command == "process-media":
-        client = NemotronVLLMClient(base_url=asr_resource.endpoint, model=asr_resource.model,
-                                    api_key=asr_key, timeout_s=900.0)
-        rcfg = RecordingPipelineConfig(
-            source_language=args.source_language,
-            mode=args.mode,
-            chunk_seconds=args.chunk_seconds,
-            context_seconds=args.context_seconds,
-            chunk_policy=args.chunk_policy,
-            min_tail_seconds=args.min_tail_seconds,
-            audio_stream_index=args.audio_stream,
-            speaker_embeddings=args.speaker_embeddings,
-            embedding_threshold=args.embedding_threshold,
-            alignment_fallback=args.alignment_fallback,
-            qwen_policy=args.qwen_policy,
-            qwen_device=qwen_device,
-            qwen_model_path=qwen_resource.checkpoint_path,
-            qwen_worker_python=qwen_resource.worker_python,
-            qwen_gpu_mode=args.qwen_gpu_mode,
-            qwen_owned_asr_unit=args.qwen_owned_asr_unit,
-            qwen_asr_lease_path=args.qwen_asr_lease_path,
-            resume=not args.fresh,
-            model_path=args.model_path or asr_resource.checkpoint_path,
-            asr_resource_fingerprint=asr_resource.fingerprint(),
-            speaker_embedding_model=speaker_resource.model or "titanet_small",
-        )
-        try:
-            with managed_asr_client(ModelLifecycle(), asr_resource, client) as stage_client:
-                out = process_media(args.media, output_dir=args.output_dir, client=stage_client, config=rcfg)
-        except (FileNotFoundError, MediaInspectionError, ValueError, RuntimeError) as exc:
-            print(json.dumps({"status": "RESOURCE_BLOCKED" if isinstance(exc, ResourceLifecycleError) else "ERROR",
-                              "reason": exc.status if isinstance(exc, ResourceLifecycleError) else None,
-                              "error": str(exc)}, indent=2), file=sys.stderr)
-            return 1
-
-        c = out["contract"]
-        summary = {
-            "status": "OK",
-            "contract_path": out["contract_path"],
-            "transcript_path": out["transcript_path"],
-            "manifest_path": out["manifest_path"],
-            "source_language": c["source_language"],
-            "language_provenance": c["language_provenance"],
-            "duration_s": c["source"]["duration_s"],
-            "chunk_count": c["processing"]["chunk_count"],
-            "utterance_count": len(c["utterances"]),
-            "speaker_count": len(c["speakers"]),
-            "boundary_deduplicated_units": c["processing"]["boundary_reconciliation"]["deduplicated_units"],
-            "boundary_recovered_units": c["processing"]["boundary_reconciliation"]["recovered_boundary_units"],
-            "total_wall_time_s": out["total_wall_time_s"],
-            "warnings": c["processing_warnings"],
-        }
-        print(json.dumps(summary, ensure_ascii=False, indent=2))
-        return 0
+    try:
+        registry = load_model_resources(args.model_resources)
+        asr_resource = registry.resolve("asr", resource_name=args.asr_resource)
+        if args.command == "process-media":
+            out = process_moss_media(args.media, output_dir=args.output_dir, resource=asr_resource,
+                lifecycle=ModelLifecycle(), source_language=args.source_language,
+                audio_stream_index=args.audio_stream, resume=not args.fresh)
+            c = out["contract"]
+            print(json.dumps({"status": "OK", **{k:v for k,v in out.items() if k != "contract"},
+                              "source_language": c["source_language"],
+                              "language_provenance": c["language_provenance"],
+                              "duration_s": c["source"]["duration_s"],
+                              "utterance_count": len(c["utterances"]), "speaker_count": len(c["speakers"]),
+                              "source_quality": c["source_quality"],
+                              "warnings": c["processing_warnings"]}, ensure_ascii=False, indent=2))
+            return 0
+        source_for_preflight = args.source_language
+        if not source_for_preflight and args.recording_contract and not args.re_render:
+            try:
+                contract = json.loads(Path(args.recording_contract).read_text(encoding="utf-8"))
+                if isinstance(contract, dict):
+                    source_for_preflight = contract.get("source_language")
+            except (OSError, ValueError, TypeError):
+                pass  # Pipeline admission owns invalid-input errors.
+        same_language = is_english_source_to_english(source_for_preflight, args.target_language)
+        text_overrides = {"endpoint": args.text_url, "model": args.text_model}
+        refinement_resource = registry.resolve("source_refinement", resource_name=args.refinement_resource, **text_overrides)
+        translation_resource = registry.resolve("text_translation", resource_name=args.translation_resource, **text_overrides)
+        condensation_resource = registry.resolve("subtitle_condensation", resource_name=args.condensation_resource, **text_overrides)
+        review_resource = registry.resolve("translation_review", resource_name=args.translation_review_resource, **text_overrides)
+        activity_resource = registry.resolve("speech_activity") if "speech_activity" in registry.roles else None
+        riva_resource = registry.resolve("riva_translation", require_local_paths=(
+            args.translator == "riva" and not args.re_render and not same_language))
+        refinement_key = refinement_resource.credential() if args.refinement != "off" and not args.re_render else None
+        translation_key = translation_resource.credential() if args.translator == "openai_chat" and not args.re_render else None
+        condensation_key = (condensation_resource.credential()
+                            if args.condense_high_cps and args.translator != "none" and not args.re_render else None)
+        review_key = (review_resource.credential() if args.translation_review != "off" and args.translator == "riva"
+                      and not args.re_render and not same_language else None)
+    except ResourceConfigError as exc:
+        print(json.dumps({"status": "CONFIG_ERROR", "error": str(exc)}), file=sys.stderr)
+        return 2
+    except (OSError, ValueError, RuntimeError) as exc:
+        print(json.dumps({"status": "RESOURCE_BLOCKED" if isinstance(exc, ResourceLifecycleError) else "ERROR",
+                          "reason": exc.status if isinstance(exc, ResourceLifecycleError) else None,
+                          "error": str(exc)}, indent=2), file=sys.stderr)
+        return 1
 
     if args.command == "generate-subtitles":
         if args.translation_review != "off" and args.translator != "riva":
@@ -382,25 +227,6 @@ def main(argv: list[str] | None = None) -> int:
             source_language=args.source_language,
             target_language=args.target_language,
             audio_stream_index=args.audio_stream,
-            speaker_embeddings=args.speaker_embeddings,
-            chunk_seconds=args.chunk_seconds,
-            context_seconds=args.context_seconds,
-            chunk_policy=args.chunk_policy,
-            min_tail_seconds=args.min_tail_seconds,
-            alignment_fallback=args.alignment_fallback,
-            qwen_policy=args.qwen_policy,
-            qwen_device=qwen_device,
-            qwen_model_path=qwen_resource.checkpoint_path,
-            qwen_worker_python=qwen_resource.worker_python,
-            qwen_gpu_mode=args.qwen_gpu_mode,
-            qwen_owned_asr_unit=args.qwen_owned_asr_unit,
-            qwen_asr_lease_path=args.qwen_asr_lease_path,
-            asr_base_url=asr_resource.endpoint,
-            asr_model=asr_resource.model,
-            asr_api_key=asr_key,
-            asr_model_path=asr_resource.checkpoint_path,
-            asr_resource_fingerprint=asr_resource.fingerprint(),
-            speaker_embedding_model=speaker_resource.model or "titanet_small",
             refinement=ref_cfg,
             translation=trans_cfg,
             translation_review=review_cfg,
@@ -436,7 +262,7 @@ def main(argv: list[str] | None = None) -> int:
                     "asr": asr_resource, "source_refinement": refinement_resource,
                     "text_translation": translation_resource, "riva_translation": riva_resource,
                     "translation_review": review_resource, "subtitle_condensation": condensation_resource,
-                    **({"source_challenger": challenger_resource} if challenger_resource else {}),
+                    **({"speech_activity": activity_resource} if activity_resource else {}),
                 },
             )
         except (FileExistsError, FileNotFoundError, MediaInspectionError, ValueError, RuntimeError) as exc:

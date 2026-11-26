@@ -33,6 +33,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from nvidia_transcribe.media import MediaInspectionError, inspect_audio_streams
+from nvidia_transcribe.contract import normalize_language_code
 from nvidia_transcribe.translation import is_english_source_to_english
 from nvidia_transcribe.model_resources import ResourceConfigError, load_model_resources
 from nvidia_transcribe.resource_lifecycle import ModelLifecycle, ResourceLifecycleError
@@ -147,13 +148,7 @@ class Source(BaseModel):
 class Options(BaseModel):
     source_language: str = Field(default="auto", max_length=24)
     target_language: str = Field(default="en", max_length=24)
-    asr_mode: Literal["speaker", "multispeaker_sot", "verbatim", "rich"] = "speaker"
     audio_stream: int = Field(default=0, ge=0, le=15)
-    chunk_seconds: int = Field(default=90, ge=30, le=300)
-    context_seconds: int = Field(default=10, ge=0, le=30)
-    chunk_policy: Literal["fixed", "pause_aware"] = "fixed"
-    speaker_embeddings: Literal["titanet", "none"] = "none"
-    alignment_fallback: Literal["off", "qwen"] = "off"
     refinement: Literal["off", "conservative", "balanced", "expressive"] = "off"
     translator: Literal["openai_chat", "riva", "none"] = "riva"
     translation_review: Literal["off", "conservative", "balanced", "expressive"] = "balanced"
@@ -647,23 +642,14 @@ class JobRunner:
                     _format_existing_transcript(value), encoding="utf-8"
                 )
                 if spec.task != "transcription":
-                    # Keep the original input directory as the reconstruction
-                    # authority: subtitle_pipeline reads manifest.json and
-                    # chunks/*.raw.json adjacent to recording.contract.json.
-                    # The job-owned copy above remains available for export.
+                    # Use the original admitted recording contract. The job-owned copy is exported.
                     contract = source
             else:
                 args = [
                     "process-media", str(source), "--output-dir", str(root / "asr"),
-                    "--mode", opt.asr_mode, "--audio-stream", str(opt.audio_stream),
-                    "--chunk-seconds", str(opt.chunk_seconds),
-                    "--context-seconds", str(opt.context_seconds),
-                    "--chunk-policy", opt.chunk_policy,
-                    "--speaker-embeddings", opt.speaker_embeddings,
-                    "--alignment-fallback", opt.alignment_fallback,
+                    "--audio-stream", str(opt.audio_stream),
+                    "--source-language", opt.source_language,
                 ]
-                if opt.source_language != "auto":
-                    args.extend(["--source-language", opt.source_language])
                 self._stage_event(job_id, "asr", "running")
                 self._command(job_id, args, "Transcribing audio and speakers", 8)
                 self._stage_event(job_id, "asr", "complete")
@@ -947,6 +933,8 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
                 load_model_resources().resolve("riva_translation", require_local_paths=True)
             except ResourceConfigError as exc:
                 raise HTTPException(422, f"Dedicated Riva translation is not available: {exc}") from exc
+        if request.source.kind != "contract" and normalize_language_code(request.options.source_language) is None:
+            raise HTTPException(422, "Select the actual spoken language for recording recognition.")
         return runner.submit(request, source)
 
     @app.get("/api/job-history")

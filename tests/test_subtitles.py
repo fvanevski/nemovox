@@ -156,3 +156,17 @@ def test_media_end_bounds_both_formats_and_keeps_unrenderable_visible(tmp_path, 
     assert res["stats"]["unrenderable_cues"] == 1
     assert "Outside." not in Path(res["outputs"]["srt"]).read_text()
     assert any("unrenderable_outside_media_duration" in c["conflicts"] for c in res["conflicts"])
+
+
+def test_all_unlocalized_dialogue_does_not_publish_empty_sidecars(tmp_path):
+    sidecars=tmp_path/"sidecars"
+    sidecars.mkdir()
+    res=render_subtitles({"utterances":[{"id":"x","source_text":"Known speech",
+        "translated_text":"Known speech","source_start":None,"source_end":None}]},
+        output_dir=tmp_path,episode_stem="untimed",sidecar_dir=sidecars)
+    assert res["no_renderable_dialogue"] is True
+    assert res["stats"]["unrenderable_cues"]==1
+    assert not res["sidecars"] and not list(sidecars.iterdir())
+    assert Path(res["outputs"]["srt"]).read_bytes()==b""
+    silent=render_subtitles({"utterances":[]},output_dir=tmp_path,episode_stem="silence")
+    assert silent["no_renderable_dialogue"] is False

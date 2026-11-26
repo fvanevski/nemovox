@@ -10,7 +10,6 @@ pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
 from nvidia_transcribe.studio_api import JobRunner, StudioConfig, create_app
-from nvidia_transcribe.utterances import audit_and_reconstruct_contract
 
 
 @pytest.fixture
@@ -39,7 +38,7 @@ def live(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 def make_job(client: TestClient, clip: Path, export_root: Path, **plan):
     response = client.post("/api/jobs", json={
         "source": {"kind": "path", "value": str(clip)},
-        "task": "transcription",
+        "task": "transcription", "options": {"source_language": "en"},
         "export": {"destination": str(export_root),
                    "artifacts": ["source_transcript"], **plan},
     })
@@ -61,21 +60,21 @@ def test_authorized_destinations_and_rejected_paths(live, tmp_path: Path):
     assert client.get("/api/export-directories", params={"path": str(outside)}).status_code == 403
     assert client.post("/api/jobs", json={
         "source": {"kind": "path", "value": str(clip)},
-        "task": "transcription",
+        "task": "transcription", "options": {"source_language": "en"},
         "export": {"destination": str(outside), "artifacts": ["source_transcript"]},
     }).status_code == 422
     assert client.post("/api/jobs", json={
         "source": {"kind": "path", "value": str(clip)},
-        "task": "transcription",
+        "task": "transcription", "options": {"source_language": "en"},
         "export": {"destination": None, "artifacts": ["source_transcript"]},
     }).status_code == 422
 
 
-def test_legacy_request_remains_valid_and_default_export_is_disabled(live):
+def test_default_export_is_disabled(live):
     client, _settings, clip, _root = live
     response = client.post("/api/jobs", json={
         "source": {"kind": "path", "value": str(clip)},
-        "task": "transcription",
+        "task": "transcription", "options": {"source_language": "en"},
     })
     assert response.status_code == 202, response.text
     record = response.json()
@@ -87,7 +86,7 @@ def test_empty_export_selection_is_disabled_even_with_folder(live):
     client, _settings, clip, root = live
     response = client.post("/api/jobs", json={
         "source": {"kind": "path", "value": str(clip)},
-        "task": "transcription",
+        "task": "transcription", "options": {"source_language": "en"},
         "export": {"destination": str(root), "artifacts": [], "save_remote_media": False},
     })
     assert response.status_code == 202, response.text
@@ -129,90 +128,10 @@ def test_subtitles_imported_contract_has_source_exports(live, tmp_path: Path, mo
         "utterances"][0]["source_text"] == "Une phrase."
 
 
-@pytest.mark.parametrize("task", ["translation", "subtitles"])
-def test_imported_contract_processing_keeps_adjacent_reconstruction_sidecars(
-    live, monkeypatch: pytest.MonkeyPatch, task: str,
-):
-    client, settings, _clip, root = live
-    original = settings.media_roots[0] / "recording.contract.json"
-    source_contract = {
-        "source_language": "fr",
-        "utterances": [
-            {"utterance_id": "chunk1-untimed", "source_text": "Parole sans temps.",
-             "chunk_index": 1, "source_start": None, "source_end": None},
-            {"utterance_id": "chunk0-timed", "source_text": "Parole avec temps.",
-             "chunk_index": 0, "source_start": 150.0, "source_end": 151.0},
-        ],
-    }
-    original.write_text(json.dumps(source_contract), encoding="utf-8")
-    manifest = original.parent / "manifest.json"
-    manifest.write_text(json.dumps({"chunks": [
-        {"chunk_index": 0, "infer_start_s": 0.0, "infer_end_s": 300.0},
-        {"chunk_index": 1, "infer_start_s": 290.0, "infer_end_s": 610.0},
-    ]}), encoding="utf-8")
-    chunks = original.parent / "chunks"
-    chunks.mkdir()
-    sidecar = chunks / "chunk_001.raw.json"
-    sidecar.write_text(json.dumps({"choices": [{
-        "finish_reason": "stop",
-        "message": {"content": "<spk:0> Parole sans temps."},
-    }]}), encoding="utf-8")
-    original_contents = original.read_bytes()
-    response = client.post("/api/jobs", json={
-        "source": {"kind": "contract", "value": str(original)},
-        "task": task,
-        "options": {"translator": "openai_chat", "translation_review": "off"},
-        "export": {"destination": str(root),
-                   "artifacts": ["recording_contract", "source_transcript"]},
-    })
-    assert response.status_code == 202, response.text
-    job_id = response.json()["id"]
-    runner = client.app.state.runner
-    invoked = []
-
-    def fake_generate(job: str, args: list[str], stage: str, progress: int) -> None:
-        assert job == job_id
-        assert args[0] == "generate-subtitles"
-        path = Path(args[args.index("--recording-contract") + 1])
-        invoked.append(path)
-        # Untimed-order reconstruction reads these files via path.parent.
-        assert path == original
-        manifest_chunks = json.loads((path.parent / "manifest.json").read_text())["chunks"]
-        assert manifest_chunks[1]["infer_end_s"] == 610.0
-        assert (path.parent / "chunks" / sidecar.name).read_bytes() == sidecar.read_bytes()
-        # Exercise the real reconstruction algorithm with the sidecars the CLI
-        # will see, not a mocked interpretation of chunk-window ordering.
-        reconstructed, audit = audit_and_reconstruct_contract(
-            json.loads(path.read_text(encoding="utf-8")),
-            chunk_raw_dir=path.parent / "chunks", manifest_chunks=manifest_chunks,
-        )
-        entry = next(item for item in audit
-                     if item["original_utterance_id"] == "chunk1-untimed")
-        assert entry["chunk_window_s"] == [290.0, 610.0]
-        assert entry["estimated_order_s"] > 150.0
-        assert reconstructed["utterances"][-1]["original_utterance_id"] == "chunk1-untimed"
-        (settings.job_root / job_id / "output").mkdir(exist_ok=True)
-
-    monkeypatch.setattr(runner, "_command", fake_generate)
-    runner._run(job_id)
-    job = runner.get(job_id)
-    assert job["state"] == "complete", job
-    assert job["export_report"]["status"] == "complete"
-    assert invoked == [original]
-    archived = settings.job_root / job_id / "asr"
-    assert json.loads((archived / "recording.contract.json").read_text()) == source_contract
-    assert (archived / "recording.contract.json").read_bytes() == original_contents
-    assert "Parole sans temps." in (archived / "transcript.txt").read_text()
-    assert original.read_bytes() == original_contents
-    saved = root / ("nemovox-" + job_id)
-    assert (saved / "recording.contract.json").read_bytes() == original_contents
-    assert (saved / "transcript.txt").is_file()
-
-
 def test_invalid_task_and_remote_media_export_selection(live):
     client, _settings, clip, root = live
     base = {"source": {"kind": "path", "value": str(clip)},
-            "task": "transcription"}
+            "task": "transcription", "options": {"source_language": "en"}}
     response = client.post("/api/jobs", json={
         **base, "export": {"destination": str(root), "artifacts": ["ass"]},
     })

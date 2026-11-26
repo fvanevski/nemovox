@@ -1,71 +1,7 @@
-# Nemovox Studio
+# NemoVox Studio
 
-This is a local React interface over the existing Nemovox Python CLI, not a replacement processing pipeline.
+Browser workflow: choose original media or an existing recording contract, select actual spoken language for new media and an audio track, select transcription/translation/subtitles, and choose output/export settings. MOSS recognizes recording-level timed dialogue and anonymous speakers. Ordinary operation does not configure chunk windows, forced alignment or speaker embedding reconciliation.
 
-## Stack
-- React 19, TypeScript 6, Vite 8, Tailwind 4
-- Radix Tabs, TanStack Query, Lucide icons, Motion
-- shadcn/ui registry configuration for accessible component generation
-- JASSUB/libass WASM for browser ASS overlay, with HTML text fallback
-- FastAPI and a single background CLI worker
+The backend is the repository's FastAPI Studio service (nvidia_transcribe.studio_api), using the same host resource registry as CLI. Configure actual media/export roots and isolated model workers; see repository README and model-resource documentation. From web/, install the locked dependencies with npm ci, run npm test and npm run build. Use npm run dev for local frontend development; do not expose private media to untrusted networks. Existing job history is retained. No source-quality detector runs implicitly.
 
-## Run on the Garuda host
-
-Use a separate lightweight HTTP environment, NOT the existing vLLM environment.
-
-~~~bash
-cd /workspace/nvidia-transcribe
-uv venv .venv-studio --python 3.13
-uv pip install -p .venv-studio/bin/python -e '.[studio]'
-export NEMOVOX_CLI_PYTHON=/workspace/nvidia-transcribe/.venv/bin/python
-export NEMOVOX_MEDIA_ROOTS=/path/to/optional/extra/media
-.venv-studio/bin/python -m uvicorn nvidia_transcribe.studio_api:app --host 127.0.0.1 --port 8765 --workers 1
-~~~
-
-In a second shell:
-
-~~~bash
-cd /workspace/nvidia-transcribe/web
-npm install
-npm run dev
-~~~
-
-Then open http://127.0.0.1:5173. The frontend proxies /api to the Python backend. A production build (npm run build) is served by the same backend from web/dist.
-
-Studio delegates automatic acquisition/release of verified Nemovox-owned ASR and English-review services to the same CLI lifecycle manager used by direct CLI commands; the HTTP/web process does not itself run inference or change external services. One-time host provisioning of the owned services is documented in [model lifecycle configuration](../docs/model-resources/LIFECYCLE.md). Studio uses existing CLI stages with **Riva-Translate for primary translation** and a separately configured NInfer Messages-compatible text resource for **recording context, bounded source-quality adjudication and English review**. Original ASR observations are retained; canonical source may change only with positive source evidence. Legacy text-only source rewriting is not part of Studio's normal workflow. The default Riva binding requests `cuda:0`, without silently falling back to CPU. Verify model availability and GPU headroom on the host; the UI reports only configured checkpoint/worker file availability, not a successful inference session. Export `NEMOVOX_MODEL_RESOURCES` before starting Studio; resource identities are configured on the host rather than selected by a model marketplace in the UI. See [resource configuration](../docs/model-resources/CONFIGURATION.md).
-
-FFmpeg/ffprobe are required for media processing; yt-dlp is required for remote/YouTube URLs. All model weights continue under /workspace/models.
-
-## Three tabs
-
-1. Media & task: host directory browsing, browser file upload, remote URL, language choice, transcription/translation/subtitle tasks.
-2. Configure: accessible explanations for ASR/English-review/style settings; **actual FFprobe audio tracks for a local selected file** (not hard-coded 0–3 choices); dedicated Riva translation followed by optional context-aware English post-edit; descriptive optional glossary previews; ASS layout and speaker/alignment settings. The shipped GUI selects Riva and balanced review, fixed 90/10 geometry, speaker-attributed ASR, and no optional TitaNet, Qwen or extra condensation. Current-media Riva jobs automatically use source quality; there is no legacy text-only source-rewriting control.
-3. Process & preview: job status/history, logs, video where browser-compatible, synchronized cues, ASS preview and downloads.
-
-## Current limitations
-
-- The app indexes new Studio jobs. Historical CLI outputs are not yet automatically included in the GUI job library.
-- Selected local/uploaded media are inspected for real audio-only stream indices. Remote URL tracks cannot be shown before download, so track 0 is used. A preexisting recording contract needs no audio track selection.
-- Two example series glossaries are included for demonstration but **not selected automatically**; glossary entries are contextual guidance, not enforced replacements.
-- WebM typically plays in current Firefox/Chromium; MKV or unsupported codecs may require a future short FFmpeg preview proxy.
-- Percent shown is a coarse workflow milestone, not per-chunk completion.
-- In-flight jobs are marked interrupted if the Studio process restarts. Re-submission is possible; automated cross-job cache reuse is not implemented.
-- The HTML subtitle overlay is approximate. JASSUB is the accurate preview when worker/WASM/video support permits.
-- The frontend uses Radix Tabs and styled semantic controls. Host-side shadcn component generation is supported by `components.json` but is not required for running Studio.
-- Remote ingestion is intended for a trusted local operator. Keep the API bound to loopback; it is not ready for public deployment.
-
-Current operation: [subtitle workflow](../docs/gui/SUBTITLE_WORKFLOW.md),
-[Studio architecture](../docs/gui/ARCHITECTURE.md) and
-[deployed acceptance](https://github.com/fvanevski/nemovox/issues/19#issuecomment-7178926236).
-
-
-## Host output destinations and retained job records
-
-See [Studio output/export and log behavior](../docs/gui/STUDIO_OUTPUTS.md) for the
-host export-root configuration, task-specific artifact choices, collision-safe
-copies, persistent logs, typed progress and full job history. Selecting a host
-folder does not change the browser download directory or the CLI runtime.
-
-### Independent source evidence
-
-Studio uses the same occurrence-directed source-quality pipeline as the CLI. An optional explicit `source_challenger` resource binding enables bounded cached-model Whisper observations using `whisper_ct2`, CUDA `int8_float16` and the shared lifecycle lease; see [model resource configuration](../docs/model-resources/CONFIGURATION.md). Unavailable or unresolved evidence remains visible in the current job's source-quality report.
+The normal Riva translation and bounded English review settings, glossary selection, preview, export and ASS presentation controls remain available.

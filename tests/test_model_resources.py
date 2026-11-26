@@ -16,11 +16,13 @@ def _file(tmp_path, payload):
 
 def test_default_resource_roles_preserve_current_local_services():
     reg = load_model_resources(environ={})
-    assert reg.resolve("asr").endpoint == "http://127.0.0.1:8190/v1"
+    assert reg.resolve("asr").adapter == "moss_events"
+    assert reg.resolve("asr").endpoint is None
+    assert reg.resolve("asr").device == "cuda:0"
     assert reg.resolve("source_refinement").model == "chat"
     assert reg.resolve("source_refinement") == reg.resolve("text_translation")
     assert reg.resolve("text_translation") == reg.resolve("subtitle_condensation")
-    assert reg.resolve("forced_alignment").device == "cuda:0"
+    assert "speech_activity" not in reg.roles
 
 
 def test_host_bindings_support_distinct_text_roles(tmp_path):
@@ -55,7 +57,7 @@ def test_env_overrides_file_and_command_override_last(tmp_path):
 @pytest.mark.parametrize("document", [
     {"version": 2},
     {"version": 1, "roles": {"unexpected": "text_local"}},
-    {"version": 1, "roles": {"source_refinement": "asr_local"}},
+    {"version": 1, "roles": {"source_refinement": "moss_local"}},
     {"version": 1, "roles": {"text_translation": "missing"}},
     {"version": 1, "roles": {"text_translation": ["unhashable"]}},
     {"version": 1, "roles": {"text_translation": ""}},
@@ -72,11 +74,11 @@ def test_invalid_resource_config_fails_closed(tmp_path, document):
 
 def test_local_path_check_is_lazy_and_explicit(tmp_path):
     path = _file(tmp_path, {"version": 1, "resources": {
-        "qwen_local": {"checkpoint_path": str(tmp_path / "missing")}}})
+        "moss_local": {"checkpoint_path": str(tmp_path / "missing")}}})
     reg = load_model_resources(path, environ={})
-    assert reg.resolve("forced_alignment").checkpoint_path.endswith("missing")
+    assert reg.resolve("asr").checkpoint_path.endswith("missing")
     with pytest.raises(ResourceConfigError, match="unavailable"):
-        reg.resolve("forced_alignment", require_local_paths=True)
+        reg.resolve("asr", require_local_paths=True)
 
 
 def test_safe_bindings_and_credentials_never_expose_values():
@@ -125,47 +127,6 @@ def test_rejects_unsupported_adapter_fields_and_silent_device_fallback(tmp_path,
         load_model_resources(path, environ={})
 
 
-def test_configured_cpu_titanet_is_valid(tmp_path):
-    path = _file(tmp_path, {"version": 1, "resources": {
-        "titanet_cpu": {"adapter": "titanet", "model": "titanet_small", "device": "cpu"}}})
-    assert load_model_resources(path, environ={}).resolve("speaker_embedding").device == "cpu"
-
-
-
-def test_alternate_asr_resource_without_checkpoint_has_no_borrowed_vocabulary(tmp_path):
-    path = _file(tmp_path, {"version": 1, "resources": {
-        "alternative": {"adapter": "nemotron_ctc", "endpoint": "http://localhost:8191/v1",
-                        "model": "served-alternative"}},
-        "roles": {"asr": "alternative"}})
-    reg = load_model_resources(path, environ={})
-    assert reg.resolve("asr").checkpoint_path is None
-    assert reg.resolve("asr", model="another-model").checkpoint_path is None
-    assert reg.resolve("asr").model == "served-alternative"
-
-
-def test_asr_model_override_clears_inherited_checkpoint_unless_explicit(tmp_path):
-    original = load_model_resources(environ={}).resolve("asr")
-    assert original.checkpoint_path is not None
-    assert load_model_resources(environ={"ASR_MODEL": "different"}).resolve("asr").checkpoint_path is None
-    assert load_model_resources(environ={}).resolve("asr", model="different").checkpoint_path is None
-
-    file_override = _file(tmp_path, {"version": 1, "resources": {
-        "asr_local": {"model": "other-model"}}})
-    assert load_model_resources(file_override, environ={}).resolve("asr").checkpoint_path is None
-
-    explicit_checkpoint = "/matching/checkpoint"
-    file_override = _file(tmp_path, {"version": 1, "resources": {
-        "asr_local": {"model": "other-model", "checkpoint_path": explicit_checkpoint}}})
-    assert load_model_resources(file_override, environ={}).resolve("asr").checkpoint_path == explicit_checkpoint
-    assert load_model_resources(file_override, environ={"ASR_MODEL": "override"}).resolve("asr").checkpoint_path is None
-
-
-def test_asr_endpoint_only_override_retains_default_checkpoint():
-    reg = load_model_resources(environ={"ASR_BASE_URL": "http://localhost:8200/v1"})
-    assert reg.resolve("asr").checkpoint_path == load_model_resources(environ={}).resolve("asr").checkpoint_path
-
-
-
 def test_translation_review_role_defaults_to_text_and_rejects_specialized_adapter(tmp_path):
     registry = load_model_resources(environ={})
     review = registry.resolve("translation_review")
@@ -175,13 +136,18 @@ def test_translation_review_role_defaults_to_text_and_rejects_specialized_adapte
 
 
 
-def test_optional_independent_challenger_requires_explicit_local_cuda_binding(tmp_path):
-    assert "source_challenger" not in load_model_resources(environ={}).roles
-    spec={"adapter":"whisper_ct2","checkpoint_path":"/local/model",
-          "worker_python":"/local/python","device":"cuda:0"}
-    path=_file(tmp_path,{"version":1,"resources":{"whisper":spec},
-                         "roles":{"source_challenger":"whisper"}})
-    assert load_model_resources(path,environ={}).resolve("source_challenger").device=="cuda:0"
-    with pytest.raises(ResourceConfigError,match="explicitly configured cuda:0"):
-        load_model_resources(_file(tmp_path,{"version":1,"resources":{"whisper":{**spec,"device":"cpu"}},
-                                             "roles":{"source_challenger":"whisper"}}),environ={})
+
+@pytest.mark.parametrize("key", ["ASR_MODEL", "ASR_BASE_URL"])
+def test_retired_recognition_environment_rejected(key):
+    with pytest.raises(ResourceConfigError):
+        load_model_resources(environ={key: "old"})
+
+
+def test_optional_activity_explicit_cpu(tmp_path):
+    spec = {"adapter": "firered_aed", "model": "FireRed AED",
+            "checkpoint_path": "/local/model", "worker_python": "/local/python", "device": "cpu"}
+    doc = {"version": 1, "resources": {"detector": spec}, "roles": {"speech_activity": "detector"}}
+    assert load_model_resources(_file(tmp_path, doc), environ={}).resolve("speech_activity").device == "cpu"
+    spec["device"] = "cuda:0"
+    with pytest.raises(ResourceConfigError):
+        load_model_resources(_file(tmp_path, doc), environ={})

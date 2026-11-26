@@ -1,5 +1,0 @@
-# Dedicated challenger Python dependency combination (CPU qualified previously; CUDA runtime requires host qualification).
-# Keep PyAV pinned: 19.0.2 removed metadata_errors used by faster-whisper 1.2.1.
-faster-whisper==1.2.1
-ctranslate2==4.9.1
-av==18.0.0

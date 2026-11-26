@@ -7,16 +7,15 @@ import json
 import os
 import time
 from contextlib import nullcontext
-from dataclasses import asdict, dataclass, replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
-from nvidia_transcribe.client import NemotronVLLMClient
 from nvidia_transcribe.model_resources import ModelResource
-from nvidia_transcribe.resource_lifecycle import ModelLifecycle, ResourceLifecycleError, managed_asr_client, managed_text_client
-from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
-from nvidia_transcribe.source_quality import SourceQualityPolicy, review_current_source
-from nvidia_transcribe.source_quality_checkpoint import identity as quality_checkpoint_identity, run_checkpoint
+from nvidia_transcribe.moss_recording import is_moss_contract, process_moss_media, validate_moss_contract
+from nvidia_transcribe.resource_lifecycle import ModelLifecycle, ResourceLifecycleError, managed_text_client
+from nvidia_transcribe.source_assessment import assess_native_dialogue
+from nvidia_transcribe.speech_activity import assess_recording_activity
 from nvidia_transcribe.refinement import (
     GlossaryConfig,
     RefinementConfig,
@@ -39,27 +38,7 @@ from nvidia_transcribe.utterances import apply_validation_overlay
 class SubtitlePipelineConfig:
     source_language: str | None = None
     target_language: str = "en"
-    asr_mode: str = "speaker"
-    chunk_seconds: float = 90.0
-    context_seconds: float = 10.0
-    chunk_policy: str = "fixed"  # opt in to pause_aware after qualification
-    min_tail_seconds: float = 15.0
     audio_stream_index: int = 0
-    alignment_fallback: str = "off"
-    qwen_policy: str = "subtitle"
-    qwen_device: str = "cuda:0"
-    qwen_model_path: str | None = None
-    qwen_worker_python: str | None = None
-    qwen_gpu_mode: str = "available"
-    qwen_owned_asr_unit: str | None = None
-    qwen_asr_lease_path: str | None = None
-    speaker_embeddings: str = "none"
-    speaker_embedding_model: str = "titanet_small"
-    asr_base_url: str = "http://127.0.0.1:8190/v1"
-    asr_model: str = "nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-NVFP4"
-    asr_api_key: str | None = None
-    asr_resource_fingerprint: str = ""
-    asr_model_path: str | None = None
     refinement: RefinementConfig = RefinementConfig(backend="off", profile="off")
     translation: TranslationConfig = TranslationConfig()
     translation_review: TranslationReviewConfig = TranslationReviewConfig()
@@ -77,8 +56,7 @@ class SubtitlePipelineConfig:
     re_render_only: bool = False
     condense_high_cps: bool = False
     condense_cps_threshold: float = 25.0
-    source_quality: str = "auto"  # auto: Riva subtitle jobs with original media and managed resources
-    source_quality_policy: SourceQualityPolicy = SourceQualityPolicy()
+    source_quality: str = "auto"  # auto: native geometry; on: explicit acoustic activity assessment
     validation_overlay_path: str | Path | None = None
 
 
@@ -118,7 +96,6 @@ def generate_subtitles(
     output_dir: str | Path,
     config: SubtitlePipelineConfig | None = None,
     glossary: GlossaryConfig | str | Path | None = None,
-    asr_client: NemotronVLLMClient | None = None,
     text_client: Any = None,
     progress_callback: Callable[[str], None] | None = None,
     lifecycle: ModelLifecycle | None = None,
@@ -127,7 +104,7 @@ def generate_subtitles(
     """Run staged ASR -> primary translation -> optional English review -> subtitle rendering.
 
     Can start from raw ``media_path`` OR resume directly from ``recording_contract_path``
-    without loading the 30B ASR model. Explicit CPU-only re-rendering requires
+    without loading the recognition model model. Explicit CPU-only re-rendering requires
     an existing ``translated.contract.json``; missing input never starts inference.
     """
     t0 = time.perf_counter()
@@ -138,17 +115,6 @@ def generate_subtitles(
         raise FileNotFoundError(f"Offline re-render requires an existing translated contract: {translated_path}")
     if cfg.source_quality not in ("auto", "on", "off"):
         raise ValueError("Unsupported source quality mode")
-    quality_enabled = (not cfg.re_render_only and media_path is not None and (
-        cfg.source_quality == "on" or (cfg.source_quality == "auto"
-        and cfg.translation.backend == "riva" and lifecycle is not None
-        and lifecycle_resources is not None)))
-    if cfg.source_quality == "on" and not cfg.re_render_only and not media_path:
-        raise ValueError("Source quality requires the original media")
-    if quality_enabled:
-        if lifecycle is None or not lifecycle_resources or not {"asr", "translation_review"} <= lifecycle_resources.keys():
-            raise ValueError("Source quality requires managed ASR and NInfer review resources")
-        if cfg.refinement.profile != "off":
-            raise ValueError("Current source quality cannot be combined with text-only source rewriting")
     if cfg.translation_review.profile != "off" and cfg.translation.backend != "riva":
         raise ValueError("Contextual English post-edit requires dedicated Riva primary translation")
     if (cfg.condense_high_cps and cfg.translation.backend == "riva"
@@ -157,28 +123,44 @@ def generate_subtitles(
             "Riva translation with subtitle condensation requires an explicit "
             "OpenAI-compatible condensation resource config."
         )
-    # An explicitly supplied canonical contract is a supported downstream
-    # entry point, not an implicit cache hit. Keep its accepted source rows
-    # and quality evidence instead of re-auditing their order or re-running ASR.
+    asr_resource = (lifecycle_resources or {}).get("asr")
     retained_contract = None
-    retained_canonical = False
     if recording_contract_path is not None and not cfg.re_render_only:
         rc_input = Path(recording_contract_path)
         if not rc_input.is_file():
             raise FileNotFoundError(f"Recording contract not found: {rc_input}")
         retained_contract = json.loads(rc_input.read_text(encoding="utf-8"))
-        if not quality_enabled:
-            quality = retained_contract.get("source_quality") or {}
-            if quality.get("schema") == "nemovox-current-source-quality/v1":
-                if (quality.get("status") not in ("complete", "partial")
-                        or not quality.get("media_fingerprint_sha256")
-                        or quality["media_fingerprint_sha256"] != retained_contract["source"].get("fingerprint_sha256")
-                        or quality.get("source_language") != retained_contract.get("source_language")):
-                    raise ValueError("Retained canonical source quality identity mismatch")
-                retained_canonical = True
-    if (cfg.translation_review.profile != "off"
-            and (quality_enabled or (retained_canonical and lifecycle is not None
-                 and lifecycle_resources and "translation_review" in lifecycle_resources))):
+        if not isinstance(retained_contract, dict) or not isinstance(retained_contract.get("utterances"), list):
+            raise ValueError("Recording contract must contain utterances")
+    native_source = not cfg.re_render_only and (
+        retained_contract is None or is_moss_contract(retained_contract))
+    retained_canonical = False
+    if native_source:
+        if cfg.refinement.profile != "off":
+            raise ValueError("Native dialogue preserves observed source wording; text-only source rewriting is unsupported")
+        if retained_contract is not None:
+            validate_moss_contract(retained_contract, media_path=media_path, source_language=cfg.source_language)
+        elif (asr_resource is None or getattr(asr_resource, "adapter", None) != "moss_events"
+              or lifecycle is None):
+            raise ValueError("Fresh recording requires a managed MOSS local worker resource")
+        if cfg.source_quality == "on" and (media_path is None
+                or not lifecycle_resources or "speech_activity" not in lifecycle_resources):
+            raise ValueError("Explicit acoustic assessment requires original media and a configured speech_activity resource")
+    elif not cfg.re_render_only:
+        if cfg.source_quality == "on":
+            raise ValueError("Acoustic assessment requires a native dialogue recording")
+        # Imported contracts remain a downstream entry point, never a reason to
+        # re-acquire old lexical observations or resurrect a retired backend.
+        quality = retained_contract.get("source_quality") or {}
+        if quality.get("schema") == "nemovox-current-source-quality/v1":
+            if (quality.get("status") not in ("complete", "partial")
+                    or not quality.get("media_fingerprint_sha256")
+                    or quality["media_fingerprint_sha256"] != retained_contract["source"].get("fingerprint_sha256")
+                    or quality.get("source_language") != retained_contract.get("source_language")):
+                raise ValueError("Retained canonical source quality identity mismatch")
+            retained_canonical = True
+    if (cfg.translation_review.profile != "off" and (native_source or retained_canonical)
+            and lifecycle is not None and lifecycle_resources and "translation_review" in lifecycle_resources):
         cfg = replace(cfg, translation_review=replace(cfg.translation_review,
             wire_protocol="ninfer_messages", thinking_budget=2048, reasoning_effort="xhigh",
             max_tokens=max(cfg.translation_review.max_tokens,QUALITY_COMPLETION_TOKENS),
@@ -250,15 +232,14 @@ def generate_subtitles(
             _log("Offline salvage: required English review remains failed; rendering retained translations")
             _event("review", "failed", "Retained required review failed; offline salvage only")
     else:
-        # Stage 1: Load existing recording contract or run chunked ASR.
+        # Stage 1: Load existing recording contract or run recording-level ASR.
         if recording_contract_path is not None:
             rc_path = Path(recording_contract_path)
             if not rc_path.is_file():
                 raise FileNotFoundError(f"Recording contract not found: {rc_path}")
             _log(f"Stage 1/4: Loading existing recording contract {rc_path}")
             contract = retained_contract
-            # Retained and fresh recordings enter source quality with the same
-            # immutable IDs. No positional renumbering or heuristic duplicate label.
+            # Retained recordings preserve their actual dialogue IDs.
             default_stem = Path(str((contract.get("source") or {}).get("path") or rc_path)).stem
         else:
             if media_path is None:
@@ -266,79 +247,30 @@ def generate_subtitles(
             m_path = Path(media_path)
             if not m_path.is_file():
                 raise FileNotFoundError(f"Media file not found: {m_path}")
-            _log(f"Stage 1/4: Transcribing media via Nemotron chunked core: {m_path.name}")
-            client = asr_client or NemotronVLLMClient(base_url=cfg.asr_base_url, model=cfg.asr_model,
-                                                   api_key=cfg.asr_api_key, timeout_s=900.0)
-            with (managed_asr_client(lifecycle, lifecycle_resources["asr"], client)
-                  if lifecycle and lifecycle_resources else nullcontext(client)) as stage_client:
-                asr_res = process_media(
-                    m_path,
-                    output_dir=out_dir / "asr",
-                    client=stage_client,
-                    config=RecordingPipelineConfig(
-                        source_language=cfg.source_language,
-                        mode=cfg.asr_mode,
-                        chunk_seconds=cfg.chunk_seconds,
-                        context_seconds=cfg.context_seconds,
-                        chunk_policy=cfg.chunk_policy,
-                        min_tail_seconds=cfg.min_tail_seconds,
-                        audio_stream_index=cfg.audio_stream_index,
-                        alignment_fallback=cfg.alignment_fallback,
-                        qwen_policy=cfg.qwen_policy,
-                        qwen_device=cfg.qwen_device,
-                        qwen_model_path=cfg.qwen_model_path,
-                        qwen_worker_python=cfg.qwen_worker_python,
-                        qwen_gpu_mode=cfg.qwen_gpu_mode,
-                        qwen_owned_asr_unit=cfg.qwen_owned_asr_unit,
-                        qwen_asr_lease_path=cfg.qwen_asr_lease_path,
-                        speaker_embeddings=cfg.speaker_embeddings,
-                        speaker_embedding_model=cfg.speaker_embedding_model,
-                        asr_resource_fingerprint=cfg.asr_resource_fingerprint,
-                        model_path=cfg.asr_model_path,
-                        resume=cfg.resume,
-                    ),
-                )
+            _event("asr", "running", "Recognizing recording-level dialogue events")
+            asr_res = process_moss_media(m_path, output_dir=out_dir / "asr", resource=asr_resource,
+                lifecycle=lifecycle, source_language=cfg.source_language,
+                audio_stream_index=cfg.audio_stream_index, resume=cfg.resume)
+            _event("asr", "complete")
             contract = asr_res["contract"]
-            rc_path = Path(asr_res["contract_path"]) if quality_enabled else None
             default_stem = m_path.stem
 
-        if quality_enabled:
-            _event("source_quality", "running", "Reviewing consequential source ambiguity")
-            challenge_client = asr_client or NemotronVLLMClient(
-                base_url=cfg.asr_base_url, model=cfg.asr_model,
-                api_key=lifecycle_resources["asr"].credential(), timeout_s=900.0)
-            def compute_quality():
-                return review_current_source(
-                contract, recording_path=rc_path, media_path=media_path, output_dir=out_dir,
-                text_scope=lambda: managed_text_client(lifecycle,
-                    lifecycle_resources["translation_review"], wire_protocol="ninfer_messages",
-                    timeout_s=QUALITY_TIMEOUT_S),
-                asr_scope=lambda: managed_asr_client(lifecycle,
-                    lifecycle_resources["asr"], challenge_client),
-                policy=cfg.source_quality_policy,
-                challenger_resource=lifecycle_resources.get("source_challenger"),
-                lifecycle=lifecycle)
-            if asr_client is None and text_client is None:
-                fingerprints={role:{"name":lifecycle_resources[role].name,
-                                    "fingerprint":lifecycle_resources[role].fingerprint()}
-                    for role in ("asr","translation_review","source_challenger")
-                    if lifecycle_resources.get(role) is not None}
-                fingerprints["owned_services"]={name:asdict(service)
-                    for name,service in lifecycle.services.items()}
-                key=quality_checkpoint_identity(contract,rc_path,media_path,cfg.source_quality_policy,fingerprints)
-                contract,quality_report,quality_resume=run_checkpoint(
-                    out_dir/"source-quality.checkpoint.json",key,contract,resume=cfg.resume,run=compute_quality)
+        if native_source and cfg.source_quality != "off":
+            _event("source_quality", "running", "Assessing observed dialogue coverage")
+            if cfg.source_quality == "on":
+                report, quality_resume = assess_recording_activity(contract, media_path=media_path,
+                    resource=lifecycle_resources["speech_activity"], output_dir=out_dir,
+                    resume=cfg.resume)
             else:
-                contract,quality_report=compute_quality()
-                quality_resume="computed_injected_client"
-            _atomic_write(out_dir / "source-quality.json", json.dumps(quality_report, ensure_ascii=False, indent=2))
+                report = assess_native_dialogue(contract)
+                quality_resume = "computed_geometry"
+            contract = {**contract, "source_quality": report}
+            _atomic_write(out_dir / "source-quality.json", json.dumps(report, ensure_ascii=False, indent=2))
             _atomic_write(out_dir / "canonical-source.contract.json", json.dumps(contract, ensure_ascii=False, indent=2))
-            _event("source_quality", "complete", quality_report["status"])
+            _event("source_quality", "complete", report["scope"] + "; no automatic source corrections")
         else:
-            _event("source_quality", "skipped",
-                   "Using explicitly supplied canonical source: " + contract["source_quality"]["status"]
-                   if retained_canonical else "No current-media quality review requested")
-        src_lang = cfg.source_language or contract.get("source_language")
+            _event("source_quality", "skipped", "Explicit skip or imported recording evidence")
+        src_lang = contract.get("source_language") if native_source else cfg.source_language or contract.get("source_language")
         raw_utterances = list(contract.get("utterances") or [])
 
         # The ordinary path preserves the ASR transcript unchanged. The
@@ -377,7 +309,7 @@ def generate_subtitles(
                 text_client=stage_client,
                 lifecycle=lifecycle,
                 riva_resource_name=(lifecycle_resources["riva_translation"].name
-                                    if lifecycle_resources else "riva_local"),
+                                    if lifecycle_resources and "riva_translation" in lifecycle_resources else "riva_local"),
                 checkpoint_path=out_dir / "translation.checkpoint.json",
                 resume=cfg.resume_translation,
             )
@@ -538,6 +470,13 @@ def generate_subtitles(
         "subtitle_conflicts": render_res["conflicts"][:200],
         "total_wall_time_s": elapsed_s,
     }
+    if render_res.get("no_renderable_dialogue"):
+        # Retain the local diagnostic files and the actual conflict report,
+        # but never publish a successful job or export empty sidecars.
+        metadata["render_status"]="failed_no_renderable_dialogue"
+        _atomic_write(out_dir / "subtitles.metadata.json",json.dumps(metadata,ensure_ascii=False,indent=2))
+        _event("render","failed","Recognized dialogue has no usable subtitle timing")
+        raise RuntimeError("Recognized dialogue has no usable subtitle timing; diagnostic artifacts preserved")
     if salvage_review_error:
         # Successful rendering is not successful required review. Bind this
         # receipt to actual retained contract bytes and local subtitle outputs.

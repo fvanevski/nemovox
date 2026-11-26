@@ -10,7 +10,7 @@ import {
   Square, UploadCloud, Waves, X
 } from "lucide-react";
 import { studio, secondsLabel, type Cue, type Glossary, type Job, type JobOptions, type JobRequest, type MediaKind, type Step, type TaskKind } from "./api";
-import { ASR_MODES, TRANSLATION_REVIEW, LOCALIZATION_STYLES, hasAudioIndex, normalizeAudioIndex, streamLabel, isEnglishSourceToEnglish, INITIAL_OPTIONS } from "./config-options";
+import { TRANSLATION_REVIEW, LOCALIZATION_STYLES, hasAudioIndex, normalizeAudioIndex, streamLabel, isEnglishSourceToEnglish, INITIAL_OPTIONS } from "./config-options";
 import { ExplainedSelect } from "./ExplainedSelect";
 import { emptySource, sourceForSubmission, uploadResponseIsCurrent, type SourceMethod } from "./source-selection";
 import { mediaPreviewState, resultQueryKey } from "./job-display";
@@ -22,7 +22,7 @@ const TASKS: {id: TaskKind; title: string; description: string; icon: typeof Fil
   {id: "subtitles", title: "Subtitles", description: "Natural English SRT and styled ASS, ready to watch.", icon: Captions},
 ];
 const LANGUAGES = [
-  ["auto", "Auto-detect"], ["zh", "Mandarin Chinese"], ["fr", "French"], ["ja", "Japanese"],
+  ["auto", "Select spoken language / use imported contract"], ["zh", "Mandarin Chinese"], ["fr", "French"], ["ja", "Japanese"],
   ["ko", "Korean"], ["es", "Spanish"], ["de", "German"], ["en", "English"],
 ];
 const stages: {id: Step; name: string; icon: typeof Film; detail: string}[] = [
@@ -210,6 +210,7 @@ export default function App() {
   }
   function start() {
     if (!selectedSource) {setError("Select a media file, upload a file, or enter a URL."); setStep("media"); return;}
+    if (selectedSource.kind !== "contract" && options.source_language === "auto") {setError("Select the actual spoken language."); return;}
     if (!audioValid) {setError("Wait for audio inspection or select an available audio track."); return;}
     if (task !== "transcription" && options.translator === "riva" && !englishOnly &&
         translationBackends.data?.riva.configured !== true) {
@@ -494,8 +495,7 @@ export default function App() {
               {managedResources.data?.error && <p className="text-amber-300">Resource configuration needs attention: {managedResources.data.error}</p>}
             </div>
             <div className="grid gap-5 sm:grid-cols-2">
-              <Field title="Transcription mode"><ExplainedSelect label="Transcription mode"
-                value={options.asr_mode} items={ASR_MODES} onChange={v => option("asr_mode", v as JobOptions["asr_mode"])}/></Field>
+              <Field title="Dialogue recognition"><p className="text-sm muted">MOSS recognizes timed, speaker-attributed dialogue across the recording. Select its spoken language above.</p></Field>
               {isLocalMedia ? <Field title="Audio stream">
                 {audioInfo.isPending ? <p className="text-xs muted">Inspecting audio streams in the selected file…</p>
                   : audioInfo.isError ? <p role="alert" className="text-xs text-rose-300">{(audioInfo.error as Error).message}</p>
@@ -565,38 +565,23 @@ export default function App() {
             <div className="mt-5"><Toggle title="Optional extra condensation pass (advanced)" detail="Disabled by default. Enables a second English text-model pass only for overly dense cues; otherwise one contextual review pass is used."
               value={options.condense_high_cps} onChange={v => option("condense_high_cps", v)}/></div>
           </section>}
-          <section className="panel p-6">
+          {task === "subtitles" && <section className="panel p-6">
             <button onClick={() => setAdvanced(v => !v)} className="flex w-full items-center justify-between text-left">
               <div className="flex items-center gap-3"><Settings2 size={19} className="text-teal-300"/>
-                <span className="text-sm font-semibold">Advanced acoustic settings</span></div>
+                <span className="text-sm font-semibold">Advanced subtitle settings</span></div>
               <ChevronRight className={"transition-transform " + (advanced ? "rotate-90" : "")} size={18}/>
             </button>
             {advanced && <div className="mt-6 grid gap-5 border-t border-[#2b3b4c] pt-6 sm:grid-cols-2">
-              <Field title="ASR chunk strategy" hint="Fixed uses the legacy 90-second windows. Pause-aware is experimental: finds low-energy boundaries near 39 seconds (up to 46), keeps overlap context, and logs forced cuts. Existing jobs remain fixed unless you select it.">
-                <Select value={options.chunk_policy} onChange={v => option("chunk_policy", v as JobOptions["chunk_policy"])}>
-                  <option value="fixed">Fixed windows (compatible)</option>
-                  <option value="pause_aware">Pause-aware (experimental)</option>
-                </Select></Field>
-              <Field title="ASR window (seconds)"><input type="number" className="control" min={30} max={300} value={options.chunk_seconds}
-                onChange={e => option("chunk_seconds", Number(e.target.value))}/></Field>
-              <Field title="Context overlap (seconds)"><input type="number" className="control" min={0} max={30} value={options.context_seconds}
-                onChange={e => option("context_seconds", Number(e.target.value))}/></Field>
-              <Field title="Speaker embeddings"><Select value={options.speaker_embeddings} onChange={v => option("speaker_embeddings", v as JobOptions["speaker_embeddings"])}>
-                <option value="titanet">TitaNet (CPU)</option><option value="none">Off</option>
-              </Select></Field>
-              <Field title="Forced alignment fallback" hint="Off is recommended for full episodes. Qwen can substantially increase CPU processing time.">
-                <Select value={options.alignment_fallback} onChange={v => option("alignment_fallback", v as JobOptions["alignment_fallback"])}>
-                  <option value="off">Off (native CTC)</option><option value="qwen">Qwen on CTC failure</option>
-                </Select></Field>
               {task === "subtitles" && <Field title="Maximum ASS speaker lanes"><Select value={options.ass_max_lanes} onChange={v => option("ass_max_lanes", Number(v) as 2 | 3)}>
                 <option value={2}>Two</option><option value={3}>Three</option>
               </Select></Field>}
             </div>}
-          </section>
+          </section>}
           <div className="flex flex-wrap justify-between gap-3">
             <button className="btn btn-secondary" onClick={() => setStep("media")}><ChevronLeft size={16}/> Back</button>
             <button className="btn btn-primary" onClick={start}
               disabled={!ready || submit.isPending || !audioValid ||
+                (selectedSource?.kind !== "contract" && options.source_language === "auto") ||
                 (task !== "transcription" && options.translator === "riva" && !englishOnly &&
                  translationBackends.data?.riva.configured !== true)}>
               {submit.isPending ? <LoaderCircle className="animate-spin" size={16}/> : <Play size={16}/>}

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 
-from nvidia_transcribe.speakers import _near_threshold_single_embedding_candidate
 from nvidia_transcribe.translation_review import (
     TranslationReviewConfig,
     review_translated_utterances,
@@ -35,16 +34,6 @@ def _review(text, source, primary):
         config=TranslationReviewConfig(profile="balanced"),
     )
     return item, out[0], summary
-
-
-def test_single_near_threshold_embedding_cannot_force_merge():
-    assert _near_threshold_single_embedding_candidate(0.6536, 0.65)
-    assert _near_threshold_single_embedding_candidate(0.6637, 0.65)
-    assert not _near_threshold_single_embedding_candidate(0.78, 0.65)
-    assert not _near_threshold_single_embedding_candidate(0.649, 0.65)
-    assert _near_threshold_single_embedding_candidate(0.6999, 0.65)
-    assert not _near_threshold_single_embedding_candidate(0.70, 0.65)
-    assert not _near_threshold_single_embedding_candidate(0.7001, 0.65)
 
 
 def test_negation_inversion_is_rejected_without_modifying_original():

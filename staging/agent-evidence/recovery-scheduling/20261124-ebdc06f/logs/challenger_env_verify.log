@@ -1,7 +1,0 @@
-challenger_py: /workspace/nvidia-transcribe/.venv-challenger/bin/python 3.12.14
-faster-whisper: installed=1.2.1 expected=1.2.1 match=True
-ctranslate2: installed=4.9.1 expected=4.9.1 match=True
-av: installed=18.0.0 expected=18.0.0 match=True
-Using Python 3.12.14 environment at: /workspace/nvidia-transcribe/.venv-challenger
-Checked 23 packages in 39ms
-All installed packages are compatible
