@@ -143,12 +143,12 @@ def test_evaluate_refinement_measures_fix_and_false_correction() -> None:
     assert prop.status == "proposed_only"
 
 
-def test_batched_swiftu_refinement_profiles_screening_and_resume(tmp_path: Path) -> None:
+def test_batched_text_refinement_profiles_screening_and_resume(tmp_path: Path) -> None:
     from nvidia_transcribe.refinement import (
         GlossaryConfig,
         RefinementConfig,
         load_glossary,
-        refine_utterances_with_swiftu,
+        refine_utterances_with_text_model,
         screen_refinement_edit,
     )
 
@@ -186,7 +186,7 @@ def test_batched_swiftu_refinement_profiles_screening_and_resume(tmp_path: Path)
     ]
 
     # Profile "off" makes zero client calls and retains raw_source_text == refined_text
-    off_out, off_meta = refine_utterances_with_swiftu(
+    off_out, off_meta = refine_utterances_with_text_model(
         utts, source_language="fr", config=RefinementConfig(profile="off"), glossary=gl, text_client=object()
     )
     assert off_meta["changed_count"] == 0
@@ -242,7 +242,7 @@ def test_batched_swiftu_refinement_profiles_screening_and_resume(tmp_path: Path)
 
     stub = _StubRefClient()
     ckpt = tmp_path / "ref.ckpt.json"
-    out_bal, meta_bal = refine_utterances_with_swiftu(
+    out_bal, meta_bal = refine_utterances_with_text_model(
         utts,
         source_language="fr",
         config=RefinementConfig(profile="balanced", batch_size=4),
@@ -257,7 +257,7 @@ def test_batched_swiftu_refinement_profiles_screening_and_resume(tmp_path: Path)
     assert out_bal[1]["refined_text"] == "Pas maintenant, Esteban."
 
     # Resuming same profile + glossary makes 0 additional API calls
-    out_resumed, _ = refine_utterances_with_swiftu(
+    out_resumed, _ = refine_utterances_with_text_model(
         utts,
         source_language="fr",
         config=RefinementConfig(profile="balanced", batch_size=4),
@@ -268,3 +268,15 @@ def test_batched_swiftu_refinement_profiles_screening_and_resume(tmp_path: Path)
     )
     assert stub.calls == 1
     assert out_resumed[1]["refined_text"] == "Pas maintenant, Esteban."
+
+
+def test_retired_refinement_backend_is_rejected_before_inference():
+    import pytest
+    from nvidia_transcribe.refinement import RefinementConfig, refine_utterances_with_text_model
+
+    with pytest.raises(ValueError, match="Unsupported refinement backend"):
+        refine_utterances_with_text_model(
+            [{"id": "u", "source_text": "Bonjour"}], source_language="fr",
+            config=RefinementConfig(backend="swiftu", profile="balanced"),
+            text_client=object(),
+        )

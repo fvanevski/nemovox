@@ -17,7 +17,7 @@ from typing import Any
 from nvidia_transcribe.refinement import GlossaryConfig, OpenAIChatTextClient
 from nvidia_transcribe.resource_lifecycle import ModelLifecycle
 
-VALID_TRANSLATION_BACKENDS = ("openai_chat", "swiftu", "riva", "none")
+VALID_TRANSLATION_BACKENDS = ("openai_chat", "riva", "none")
 VALID_TRANSLATION_STYLES = ("natural", "literal", "expressive")
 
 DEFAULT_RIVA_MODEL_PATH = Path("/workspace/models/Riva-Translate-4B-Instruct-v2")
@@ -83,7 +83,7 @@ def map_language_for_riva(source_language: str | None) -> str | None:
 
 @dataclass(frozen=True)
 class TranslationConfig:
-    backend: str = "openai_chat"  # "openai_chat" | legacy "swiftu" | "riva" | "none"
+    backend: str = "openai_chat"  # "openai_chat" | "riva" | "none"
     style: str = "natural"  # "natural" | "literal" | "expressive"
     target_language: str = "en"
     context_utterances_before: int = 6
@@ -854,7 +854,7 @@ def condense_high_cps_cues_with_text_model(
     out_utts = [{**u} for u in utterances]
     if cfg.backend == "none":
         return out_utts, {"status": "skipped_backend_none", "candidate_count": 0, "condensed_count": 0}
-    if cfg.backend not in ("openai_chat", "swiftu"):
+    if cfg.backend != "openai_chat":
         raise ValueError(
             "Subtitle condensation requires an OpenAI-compatible text resource, "
             f"not translation backend {cfg.backend!r}"
@@ -989,6 +989,3 @@ def condense_high_cps_cues_with_text_model(
         "errors": errors,
         "elapsed_s": round(time.perf_counter() - t0, 3),
     }
-
-# Legacy API name retained for existing callers.
-condense_high_cps_cues_with_swiftu = condense_high_cps_cues_with_text_model

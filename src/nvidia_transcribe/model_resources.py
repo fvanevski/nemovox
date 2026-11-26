@@ -210,12 +210,14 @@ class ModelResources:
 def load_model_resources(
     path: str | Path | None = None, *, environ: Mapping[str, str] | None = None
 ) -> ModelResources:
-    """Resolve defaults < JSON host file < new/legacy env vars; CLI overrides happen later.
+    """Resolve defaults < JSON host file < environment; CLI overrides happen later.
 
-    Legacy SWIFTU_* only governs the built-in text_local binding and loses to
-    TEXT_*. Arbitrary role-specific resources in the JSON file remain independent.
+    TEXT_* governs only the built-in text_local binding. Independently named
+    role-specific resources in the JSON file remain independent.
     """
     env = os.environ if environ is None else environ
+    if {"SWIFTU_BASE_URL", "SWIFTU_MODEL"} & env.keys():
+        raise ResourceConfigError("Retired SWIFTU_* environment settings; use TEXT_BASE_URL and TEXT_MODEL")
     requested = path if path is not None else env.get("NEMOVOX_MODEL_RESOURCES")
     resources = {name: dict(spec) for name, spec in _RESOURCE_DEFAULTS.items()}
     roles = dict(_ROLE_DEFAULTS)
@@ -255,8 +257,8 @@ def load_model_resources(
     # Environment overrides are scoped to *default resource identities* only.
     for resource_name, settings in {
         "asr_local": {"endpoint": env.get("ASR_BASE_URL"), "model": env.get("ASR_MODEL")},
-        "text_local": {"endpoint": env.get("TEXT_BASE_URL") if "TEXT_BASE_URL" in env else env.get("SWIFTU_BASE_URL"),
-                       "model": env.get("TEXT_MODEL") if "TEXT_MODEL" in env else env.get("SWIFTU_MODEL")},
+        "text_local": {"endpoint": env.get("TEXT_BASE_URL"),
+                       "model": env.get("TEXT_MODEL")},
     }.items():
         for field_name, value in settings.items():
             if value is not None:

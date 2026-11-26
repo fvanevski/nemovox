@@ -40,14 +40,13 @@ def test_host_bindings_support_distinct_text_roles(tmp_path):
                 ("source_refinement", "text_translation", "subtitle_condensation")}) == 3
 
 
-def test_env_new_overrides_legacy_and_command_override_last(tmp_path):
+def test_env_overrides_file_and_command_override_last(tmp_path):
     path = _file(tmp_path, {"version": 1, "resources": {
         "text_local": {"model": "file-model", "endpoint": "http://host.test:9000/v1"}}})
     reg = load_model_resources(path, environ={
-        "SWIFTU_MODEL": "legacy", "TEXT_MODEL": "new",
-        "SWIFTU_BASE_URL": "http://legacy.test/v1"})
+        "TEXT_MODEL": "new", "TEXT_BASE_URL": "http://override.test/v1"})
     assert reg.resolve("source_refinement").model == "new"
-    assert reg.resolve("source_refinement").endpoint == "http://legacy.test/v1"
+    assert reg.resolve("source_refinement").endpoint == "http://override.test/v1"
     chosen = reg.resolve("source_refinement", model="cli-model")
     assert chosen.model == "cli-model"
     assert chosen.fingerprint() != reg.resolve("source_refinement").fingerprint()
@@ -99,17 +98,16 @@ def test_overrides_do_not_mutate_registry():
     assert reg.resolve("source_refinement") == orig
 
 
-def test_explicit_empty_new_env_does_not_silently_fall_back_to_legacy():
+@pytest.mark.parametrize("key", ["TEXT_BASE_URL", "TEXT_MODEL"])
+def test_explicit_empty_env_override_fails_closed(key):
     with pytest.raises(ResourceConfigError, match="Empty environment override"):
-        load_model_resources(environ={
-            "SWIFTU_BASE_URL": "http://127.0.0.1:8001/v1",
-            "TEXT_BASE_URL": "",
-        })
-    with pytest.raises(ResourceConfigError, match="Empty environment override"):
-        load_model_resources(environ={
-            "SWIFTU_MODEL": "chat",
-            "TEXT_MODEL": " ",
-        })
+        load_model_resources(environ={key: " "})
+
+
+@pytest.mark.parametrize("key", ["SWIFTU_BASE_URL", "SWIFTU_MODEL"])
+def test_retired_text_environment_alias_fails_closed(key):
+    with pytest.raises(ResourceConfigError, match="Retired SWIFTU"):
+        load_model_resources(environ={key: "old-value"})
 
 
 @pytest.mark.parametrize("adapter,fields", [

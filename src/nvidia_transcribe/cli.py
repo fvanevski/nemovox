@@ -83,8 +83,8 @@ def build_parser() -> argparse.ArgumentParser:
     gs.add_argument("--refinement", default="off",
                     choices=["off", "conservative", "balanced", "expressive"],
                     help="Source-language text correction is OFF by default. Non-off profiles are explicit legacy opt-ins.")
-    gs.add_argument("--translator", default="riva", choices=["openai_chat", "swiftu", "riva", "none"],
-                    help="OpenAI chat text model, Riva worker, or none; swiftu is a compatibility alias.")
+    gs.add_argument("--translator", default="riva", choices=["openai_chat", "riva", "none"],
+                    help="OpenAI chat text model, Riva worker, or none.")
     gs.add_argument("--style", default="natural", choices=["natural", "literal", "expressive"])
     gs.add_argument("--translation-review", default=None,
                     choices=["off", "conservative", "balanced", "expressive"],
@@ -105,10 +105,10 @@ def build_parser() -> argparse.ArgumentParser:
                     help="Pause-aware ~39–46s inference cores or legacy fixed-size cores.")
     gs.add_argument("--context-seconds", type=float, default=10.0)
     gs.add_argument("--min-tail-seconds", type=float, default=15.0)
-    gs.add_argument("--text-url", "--swiftu-url", dest="text_url", default=None,
-                    help="Explicit endpoint override for all text roles; --swiftu-url is legacy.")
-    gs.add_argument("--text-model", "--swiftu-model", dest="text_model", default=None,
-                    help="Explicit served-model override for all text roles; --swiftu-model is legacy.")
+    gs.add_argument("--text-url", default=None,
+                    help="Explicit endpoint override for all text roles.")
+    gs.add_argument("--text-model", default=None,
+                    help="Explicit served-model override for all text roles.")
     gs.add_argument("--refinement-resource", default=None, help="Named text resource for source refinement.")
     gs.add_argument("--translation-resource", default=None,
                     help="Named text resource for legacy general-text-model primary translation.")
@@ -234,7 +234,7 @@ def main(argv: list[str] | None = None) -> int:
                 refinement_key = (refinement_resource.credential()
                                   if args.refinement != "off" and not args.re_render else None)
                 translation_key = (translation_resource.credential()
-                                   if args.translator in ("openai_chat", "swiftu") and not args.re_render else None)
+                                   if args.translator == "openai_chat" and not args.re_render else None)
                 condensation_key = (condensation_resource.credential()
                                     if args.condense_high_cps and args.translator != "none" and not args.re_render else None)
                 review_key = (review_resource.credential()

@@ -81,7 +81,7 @@ def test_job_submission_and_preview(client):
     response = c.post("/api/jobs", json={
         "source": {"kind": "contract", "value": str(media / "recording.contract.json")},
         "task": "subtitles",
-        "options": {"source_language": "zh", "refinement": "off", "translator": "swiftu"},
+        "options": {"source_language": "zh", "refinement": "off", "translator": "openai_chat"},
     })
     assert response.status_code == 202, response.text
     job = response.json()
@@ -245,7 +245,7 @@ def test_cancel_process_group_and_env_forwarding(tmp_path: Path, monkeypatch: py
     args_file = tmp_path / "args.json"
     (fake_cli_dir / "cli.py").write_text(
         "import json, os, pathlib, subprocess, sys, time\n"
-        f"pathlib.Path({str(args_file)!r}).write_text(json.dumps(dict(args=sys.argv[1:], asr=os.getenv('ASR_BASE_URL'), resource_config=os.getenv('NEMOVOX_MODEL_RESOURCES'))))\n"
+        f"pathlib.Path({str(args_file)!r}).write_text(json.dumps(dict(args=sys.argv[1:], asr=os.getenv('ASR_BASE_URL'), text_url=os.getenv('TEXT_BASE_URL'), resource_config=os.getenv('NEMOVOX_MODEL_RESOURCES'))))\n"
         "if sys.argv[1] == 'process-media':\n"
         "    child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])\n"
         f"    pathlib.Path({str(pid_file)!r}).write_text(str(child.pid))\n"
@@ -255,7 +255,7 @@ def test_cancel_process_group_and_env_forwarding(tmp_path: Path, monkeypatch: py
 
     monkeypatch.setenv("PYTHONPATH", str(tmp_path / "fake_pkg"))
     monkeypatch.setenv("ASR_BASE_URL", "http://127.0.0.1:9190/v1")
-    monkeypatch.setenv("SWIFTU_BASE_URL", "http://127.0.0.1:9788/v1")
+    monkeypatch.setenv("TEXT_BASE_URL", "http://127.0.0.1:9788/v1")
     monkeypatch.setenv("NEMOVOX_MODEL_RESOURCES", str(tmp_path / "model-resources.local.json"))
 
     settings = StudioConfig(
@@ -279,7 +279,8 @@ def test_cancel_process_group_and_env_forwarding(tmp_path: Path, monkeypatch: py
             child_pid = int(pid_file.read_text())
             recorded_args = json.loads(args_file.read_text())
             assert "--base-url" not in recorded_args["args"]
-            assert "--swiftu-url" not in recorded_args["args"]
+            assert "--text-url" not in recorded_args["args"]
+            assert recorded_args["text_url"] == "http://127.0.0.1:9788/v1"
             assert recorded_args["asr"] == "http://127.0.0.1:9190/v1"
             assert recorded_args["resource_config"] == str(tmp_path / "model-resources.local.json")
 
@@ -704,6 +705,9 @@ def test_normal_api_defaults_match_cli_and_preserve_explicit_backend_choice():
     assert (defaults.chunk_policy,defaults.chunk_seconds,defaults.context_seconds)==("fixed",90,10)
     assert defaults.refinement=="off" and defaults.alignment_fallback=="off"
     assert defaults.speaker_embeddings=="none" and not defaults.condense_high_cps
-    assert Options(translator="swiftu").translation_review=="off"
+    assert Options(translator="openai_chat").translation_review=="off"
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):
+        Options(translator="swiftu")
     assert Options(translator="openai_chat",translation_review="balanced").translation_review=="balanced"
     assert Options(translation_review="off").translation_review=="off"

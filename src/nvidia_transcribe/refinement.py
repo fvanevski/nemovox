@@ -273,7 +273,7 @@ def evaluate_refinement_against_reference(
 
 
 # --------------------------------------------------------------------------- #
-# Production Batched SwiftU Contextual Refinement (Work Package B)
+# Optional batched contextual source refinement
 # --------------------------------------------------------------------------- #
 
 VALID_REFINEMENT_PROFILES = ("off", "conservative", "balanced", "expressive")
@@ -365,7 +365,7 @@ def load_glossary(path_or_terms: str | Path | Sequence[str] | None) -> GlossaryC
 
 @dataclass(frozen=True)
 class RefinementConfig:
-    backend: str = "openai_chat"  # "off" | "openai_chat" | legacy "swiftu"
+    backend: str = "openai_chat"  # "off" | "openai_chat"
     profile: str = "balanced"  # "off" | "conservative" | "balanced" | "expressive"
     context_utterances_before: int = 6
     context_utterances_after: int = 4
@@ -698,6 +698,8 @@ def refine_utterances_with_text_model(
     cfg = config or RefinementConfig()
     if cfg.profile not in VALID_REFINEMENT_PROFILES:
         raise ValueError(f"Unsupported refinement profile {cfg.profile!r}; expected one of {VALID_REFINEMENT_PROFILES}")
+    if cfg.backend not in ("off", "openai_chat"):
+        raise ValueError(f"Unsupported refinement backend {cfg.backend!r}")
     if cfg.profile == "off" or cfg.backend == "off":
         out = [_copy_utt_unrefined(u, "off") for u in utterances]
         return out, {"backend": cfg.backend, "profile": "off", "total_utterances": len(out), "changed_count": 0}
@@ -888,6 +890,3 @@ def refine_utterances_with_text_model(
         "elapsed_s": elapsed_s,
     }
     return out_utts, summary
-
-# Legacy API name retained for existing callers.
-refine_utterances_with_swiftu = refine_utterances_with_text_model
