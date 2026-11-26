@@ -19,7 +19,7 @@ from nvidia_transcribe.failed_ctc_recovery import recover_failed_ctc_events
 from nvidia_transcribe.recovery_planner import plan_recovery_windows
 
 
-def live_inputs(path,expected):
+def live_inputs(path,expected,wanted=None):
     if sha(path)!=expected:
         raise ValueError("Live archive digest mismatch")
     with tarfile.open(path,"r:gz") as t:
@@ -34,8 +34,9 @@ def live_inputs(path,expected):
         manifest=json.loads(read("manifest.json"))
         if set(names)!=set(manifest["files"])|{"manifest.json","SHA256SUMS"}:
             raise ValueError("Live manifest membership mismatch")
-        wanted={"french/source-quality.json","mandarin/source-quality.json",
-                "mandarin/asr/recording.contract.json","mandarin/asr/source-evidence.v1.json"}
+        if wanted is None:
+            wanted={"french/source-quality.json","mandarin/source-quality.json",
+                    "mandarin/asr/recording.contract.json","mandarin/asr/source-evidence.v1.json"}
         result={}
         hashes={}
         for name,entry in manifest["files"].items():
@@ -77,7 +78,13 @@ def replay(recording,ledger,report):
         raise ValueError("Input recording mutated")
     admitted,deferred=plan_recovery_windows(recording,ledger,
         recording["processing"]["boundary_reconciliation"]["semantic_review_candidates"],None,policy)
+    original_units=[u for r in before["utterances"] for u in r.get("source_unit_ids",[])]
+    current_units=[u for r in rows for u in r.get("source_unit_ids",[])]
+    timed_units={u for r in rows if _bounds(r) for u in r.get("source_unit_ids",[])}
     return {"sequence_decisions":echo,"untimed_event_decisions":untimed,"failed_ctc_decisions":failed,
+        "original_source_unit_count":len(original_units),"timed_original_source_unit_count":len(set(original_units)&timed_units),
+        "exact_original_unit_partition":sorted(original_units)==sorted(current_units),
+        "ambiguous_origin_event_count":sum(d["status"]=="localized_event_ambiguous_primary_origin" for d in failed),
         "original_rows":len(before["utterances"]),"original_untimed":sum(not _bounds(r) for r in before["utterances"]),
         "candidate_rows":len(rows),"candidate_untimed":sum(not _bounds(r) for r in rows),
         "candidate_timed":sum(bool(_bounds(r)) for r in rows),"canonical_rows":rows,
@@ -91,16 +98,31 @@ def main():
     p.add_argument("--intake-sha256",required=True)
     p.add_argument("--archive",type=Path,required=True)
     p.add_argument("--sha256",required=True)
+    p.add_argument("--observations-archive",type=Path)
+    p.add_argument("--observations-sha256")
     p.add_argument("--output",type=Path,required=True)
     args=p.parse_args()
     os.umask(0o077)
     _,intake=read_intake(args.intake,args.intake_sha256)
     manifest,live=live_inputs(args.archive,args.sha256)
-    output={"live_evidence_commit":manifest["candidate"],
+    if bool(args.observations_archive)!=bool(args.observations_sha256):
+        p.error("Both additional observation archive identity arguments are required")
+    reports=live
+    french_key,mandarin_key="french/source-quality.json","mandarin/source-quality.json"
+    observation_commit=manifest["candidate"]
+    if args.observations_archive:
+        french_key,mandarin_key="french-output/source-quality.json","mandarin-output/source-quality.json"
+        latest,reports=live_inputs(args.observations_archive,args.observations_sha256,{french_key,mandarin_key})
+        if not any(r.get("sha256")==args.sha256 and r.get("bytes")==args.archive.stat().st_size
+                   for r in latest.get("prior_archive_refs",[])):
+            raise ValueError("Latest live observations do not bind the original Mandarin recording archive")
+        observation_commit=latest["candidate"]
+    output={"live_evidence_commit":observation_commit,
+        "primary_recording_archive_commit":manifest["candidate"],
         "french":replay(intake["retained/recording/asr/recording.contract.json"],
-            intake["retained/recording/asr/source-evidence.v1.json"],live["french/source-quality.json"]),
+            intake["retained/recording/asr/source-evidence.v1.json"],reports[french_key]),
         "mandarin":replay(live["mandarin/asr/recording.contract.json"],
-            live["mandarin/asr/source-evidence.v1.json"],live["mandarin/source-quality.json"])}
+            live["mandarin/asr/source-evidence.v1.json"],reports[mandarin_key])}
     with args.output.open("x",encoding="utf-8") as f:
         json.dump(output,f,ensure_ascii=False,indent=2)
 

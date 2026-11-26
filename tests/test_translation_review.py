@@ -1319,3 +1319,39 @@ def test_offline_untimed_dialogue_is_not_a_successful_render(tmp_path):
     metadata = json.loads((tmp_path / "subtitles.metadata.json").read_text())
     assert metadata["render_status"] == "failed_no_renderable_dialogue"
     assert current_render_metadata(tmp_path, retained) is None
+
+
+def test_timing_only_recovery_permits_supported_relative_duration_without_freezing_bad_mt():
+    from copy import deepcopy
+    from nvidia_transcribe.review_uncertainty import bind_review_uncertainty, uncertainty_veto
+    from nvidia_transcribe.semantic_context import current_row_context, text_digest
+    from nvidia_transcribe.source_quality import _lex
+    source="将于一月后举行仪式"
+    tokens=list(_lex(source))
+    units=[{"source_unit_id":f"u{i}","text":t} for i,t in enumerate(tokens)]
+    ids=[u["source_unit_id"] for u in units]
+    row={"id":"u","source_text":source,"source_unit_ids":ids,
+        "source_quality_status":"event_timing_recovered_original_wording",
+        "wording_status":"model_variants_unresolved","source_start":10.,"source_end":13.,
+        "translated_text":"The ceremony will be held in January.",
+        "prior_source_hypotheses":[{"source_characters":units}],
+        "source_lineage":{"localized_wording_evidence":{"source_id":"u","source_text_sha256":text_digest(source),
+            "source_unit_ids":ids,"status":"advisory_model_hypotheses","entity_identity_accepted":False,
+            "alternatives":[{"backend":backend,"tokens":tokens,"source_unit_range":[0,len(ids)],
+                             "audio_sha256":sha*64,"observation_ids":[backend]}
+                            for backend,sha in (("nemotron","a"),("independent_asr","b"))]}}}
+    quality={"schema":"nemovox-current-source-quality/v1","scene_evidence":{"decisions":[],"deferred_source_ids":["u"]}}
+    bound,=bind_review_uncertainty([row],quality)
+    assert current_row_context(bound)["localized_wording_alternatives"]
+    good="The ceremony will be held in one month."
+    assert uncertainty_veto(bound,row["translated_text"],good,GlossaryConfig()) is None
+    assert uncertainty_veto(bound,row["translated_text"],"The ceremony will be held in two months.",GlossaryConfig())
+    assert uncertainty_veto(bound,row["translated_text"],"Paul will arrive in one month.",GlossaryConfig())
+    client=_LoopReviewClient({"reviews":[{"utterance_id":"u","corrected_text":good,"reason":"Relative interval."}]},
+        {"decisions":[{"utterance_id":"u","choice":"proposal","reason":"Source duration."}]})
+    out,report=review_translated_utterances([bound],source_language="zh",config=_loop_cfg(),text_client=client)
+    assert report["status"]=="completed" and out[0]["translated_text"]==good
+    # Do not use another range or stale source evidence to bypass the guard.
+    stale=deepcopy(bound)
+    stale["source_lineage"]["localized_wording_evidence"]["alternatives"][1]["source_unit_range"]=[len(ids)-2,len(ids)]
+    assert uncertainty_veto(stale,row["translated_text"],good,GlossaryConfig())

@@ -172,5 +172,16 @@ def test_corroborated_cross_chunk_prefix_variant_requires_two_families():
     receipt=_corroborated_prefix_variant(prefix,before,ns,ins,origins,(13,18))
     assert receipt and not receipt["entity_identity_accepted"] and not receipt["speaker_identity_accepted"]
     assert _corroborated_prefix_variant(prefix,before,ns,ins[:1],origins,(13,18)) is None
+    # A second broad event's name can differ substantially while a separate
+    # previously acquired local crop corroborates the actual timed prefix.
+    broad=ns[1][1][0][0]
+    broad["timed_lexical_units"][1]["lex"]="alexander"
+    assert _corroborated_prefix_variant(prefix,before,ns,ins,origins,(13,18)) is None
+    local=row("local","Cet Alaric, il cherchait",13.02,15,0)
+    local["timed_lexical_units"]=[{"lex":w,"start":a,"end":b}
+        for w,a,b in (("cet",13.02,13.3),("alaric",13.3,14.1),("il",14.1,14.3))]
+    aux=observation("aux-local",[11,16],[local],"utterances","other-task")
+    recovered=_corroborated_prefix_variant(prefix,before,ns,ins,origins,(13,18),[aux])
+    assert recovered and "local" in recovered["native_observation_ids"]
     prefix["recognized_turn_ids"]=["unrelated-turn"]
     assert _corroborated_prefix_variant(prefix,before,ns,ins,origins,(13,18)) is None

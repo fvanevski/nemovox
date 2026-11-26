@@ -92,3 +92,99 @@ def test_failed_ctc_recovery_rejects_raw_repeat_absent_from_canonical_rows():
             "recognized_turn_id":"repeat-turn","source_ordinal":8+i,
             "raw_recognized_token_ids":[f"repeat-token{i}"]})
     assert not recover_failed_ctc_events(*args)[1]
+
+
+def _timed_segments(words,groups,offset=10.):
+    result=[]
+    for i,(lo,hi) in enumerate(groups):
+        items=[{"text":words[k],"start":offset+k*.4,"end":offset+(k+1)*.4} for k in range(lo,hi)]
+        result.append({"observation_id":f"seg{i}","source_text":" ".join(words[lo:hi]),
+                       "source_start":items[0]["start"],"source_end":items[-1]["end"],"words":items})
+    return result
+
+
+def test_ordered_event_anchors_accept_internal_wording_and_segmentation_variants():
+    args=fixture()
+    rec,ledger,windows,native,targets,ind,policy=args
+    words="we must protect the secret archive before sunset".split()
+    native[0]["raw_response"]["choices"][0]["message"]["content"]=" ".join(words)
+    for i,groups in enumerate(([(0,4),(4,8)],[(0,2),(2,6),(6,8)])):
+        ind[i]["rows"]=_timed_segments(words,groups,10.-.05*i)
+        for r in ind[i]["rows"]:
+            r["observation_id"]=ind[i]["id"]+":"+r["observation_id"]
+    original=deepcopy(rec)
+    rows,ds=recover_failed_ctc_events(*args)
+    assert rec==original and len(rows)==len(ds)==1
+    assert rows[0]["source_text"]==original["utterances"][0]["source_text"]
+    assert rows[0]["wording_status"]=="model_variants_unresolved"
+    assert rows[0]["source_unit_ids"]==original["utterances"][0]["source_unit_ids"]
+    assert not rows[0]["source_words"] and not rows[0]["source_characters"]
+    assert rows[0]["timestamp_provenance"]["word_timing_verified"] is False
+    assert ds[0]["constituent_event_evidence"] and not ds[0]["wording_exact"]
+
+
+def test_repeated_local_recognition_does_not_assign_one_origin_arbitrarily():
+    args=fixture()
+    for o in args[5]:
+        repeat={**o["rows"][0],"observation_id":o["id"]+":repeat",
+                "source_start":13.2,"source_end":14.9}
+        o["rows"].append(repeat)
+    # The two possible local realizations must not be assigned to one
+    # primary row merely by the sequence matcher's first best match.
+    assert not recover_failed_ctc_events(*args)[1]
+
+
+def test_ambiguous_cross_chunk_origin_localizes_speech_without_consuming_hypotheses():
+    args=fixture()
+    rec,ledger,windows,native,targets,ind,policy=args
+    previous=deepcopy(rec["utterances"][0])
+    repeat=deepcopy(previous)
+    repeat.update(id="second",chunk_indices=[1],recognized_turn_ids=["second-turn"])
+    lookup={}
+    for u in list(ledger["lexical_observations"]):
+        new={**u,"id":"second-"+u["id"],"asr_observation_id":"second-parent","chunk_index":1,
+             "recognized_turn_id":"second-turn","raw_recognized_token_ids":["second-"+u["id"]]}
+        lookup[u["id"]]=new["id"]
+        ledger["lexical_observations"].append(new)
+    repeat["source_unit_ids"]=[lookup[x] for x in previous["source_unit_ids"]]
+    for u in repeat["source_words"]:
+        u["source_unit_id"]=lookup[u["source_unit_id"]]
+    rec["utterances"].append(repeat)
+    ledger["asr_observations"][0]["core_end_s"]=20
+    ledger["asr_observations"].append({"id":"second-parent","chunk_index":1,"infer_start_s":10,
+        "infer_end_s":40,"core_start_s":20,"core_end_s":40})
+    ledger["recognized_occurrence_inventories"].append({"asr_observation_id":"second-parent","projection_status":"exact"})
+    before=deepcopy(rec)
+    rows,ds=recover_failed_ctc_events(*args)
+    assert rec==before and len(rows)==3 and len(ds)==1
+    assert rows[:2]==before["utterances"]
+    event=rows[-1]
+    assert event["source_start"]==9.9 and event["source_end"]==12.9
+    assert not event["source_unit_ids"] and not event["recognized_turn_ids"]
+    assert event["source_lineage"]["primary_origin_accepted"] is False
+    assert set(ds[0]["candidate_origin_ids"])=={"original","second"}
+    assert ds[0]["status"]=="localized_event_ambiguous_primary_origin"
+
+
+def test_short_wholly_failed_recording_covers_tail_within_same_audio_and_target_budgets():
+    args=fixture()
+    rec,ledger,*_=args
+    rec["source"]["duration_s"]=119.
+    ledger["asr_observations"][0].update(infer_end_s=100.,core_end_s=90.)
+    ledger["asr_observations"].append({"id":"later","chunk_index":1,"infer_start_s":80.,
+        "infer_end_s":119.,"core_start_s":90.,"core_end_s":119.})
+    ledger["recognized_occurrence_inventories"].append({"asr_observation_id":"later","projection_status":"exact"})
+    for i,u in enumerate(list(ledger["lexical_observations"])):
+        ledger["lexical_observations"].append({**u,"id":f"later{i}","chunk_index":1,
+            "asr_observation_id":"later","recognized_turn_id":"later-turn","raw_recognized_token_ids":[f"later-token{i}"]})
+    policy=SourceQualityPolicy()
+    admitted,_=plan_recovery_windows(rec,ledger,{"cases":[]},None,policy)
+    core=sorted((w for w in admitted if w["reason"]=="failed_ctc_core"),key=lambda w:w["window"])
+    assert len(core)==6 and core[0]["window"][0]==0 and core[-1]["window"][1]==119
+    assert all(x["window"][1]==y["window"][0] for x,y in zip(core,core[1:]))
+    for w in core:
+        w["state"]="observed"
+    targets,deferred=schedule_independent(rec,[],windows=core,policy=policy)
+    assert len(targets)==6 and not deferred
+    assert all(len(t["crops"])==2 and t["crops"][0]!=t["crops"][1] for t in targets)
+    assert sum(b-a for t in targets for a,b in t["crops"])<=policy.max_independent_audio_s

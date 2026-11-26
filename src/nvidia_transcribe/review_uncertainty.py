@@ -151,7 +151,28 @@ def _relative_month_anchor(row, original, candidate):
     if n is None:
         return original,candidate
     phrase=_lex(matches[0].group())
-    support={a["backend"] for a in evidence["alternatives"] if _contains(tuple(a["tokens"]),phrase)}
+    # Prove the relative phrase is supported by alternatives for its actual
+    # source-unit range, not an insertion in some unrelated recovered span.
+    ids=row.get("source_unit_ids",[])
+    originals={u.get("source_unit_id"):u for prior in row.get("prior_source_hypotheses",[])
+               for u in prior.get("source_words",[])+prior.get("source_characters",[])}
+    if any(uid not in originals for uid in ids):
+        return original,candidate
+    tokens=[]
+    positions=[]
+    for i,uid in enumerate(ids):
+        part=_lex(originals[uid]["text"])
+        tokens.extend(part)
+        positions.extend([i]*len(part))
+    if tuple(tokens)!=_lex(row["source_text"]):
+        return original,candidate
+    hits=[i for i in range(len(tokens)-len(phrase)+1) if tuple(tokens[i:i+len(phrase)])==phrase]
+    if len(hits)!=1:
+        return original,candidate
+    lo,hi=positions[hits[0]],positions[hits[0]+len(phrase)-1]+1
+    support={a["backend"] for a in evidence["alternatives"]
+             if a["source_unit_range"][0]<=lo<hi<=a["source_unit_range"][1]
+             and _contains(tuple(a["tokens"]),phrase)}
     if support!={"nemotron","independent_asr"}:
         return original,candidate
     numeral=rf"(?:{n}|{_MONTH_WORDS[n-1]}"+(r"|a" if n==1 else "")+")"
