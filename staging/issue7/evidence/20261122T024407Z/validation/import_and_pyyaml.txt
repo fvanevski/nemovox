@@ -1,3 +1,0 @@
-COMMAND: /workspace/nvidia-transcribe/.venv/bin/python -c "import nvidia_transcribe, yaml; print(nvidia_transcribe.__file__, yaml.__version__)"
-/workspace/nemovox-issue7-codex-requal/src/nvidia_transcribe/__init__.py 6.0.3
-EXIT_CODE: 0

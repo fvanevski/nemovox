@@ -1,5 +1,0 @@
-COMMAND: /workspace/nvidia-transcribe/.venv/bin/python -c "import tomllib, yaml, nvidia_transcribe; from pathlib import Path; doc=tomllib.loads(Path('pyproject.toml').read_text()); print('package_file:', nvidia_transcribe.__file__); print('deps:', doc['project']['dependencies']); print('yaml_version:', yaml.__version__)"
-package_file: /workspace/nemovox-issue7-requal/src/nvidia_transcribe/__init__.py
-deps: ['openai>=1.0.0', 'httpx>=0.27.0', 'PyYAML>=6.0']
-yaml_version: 6.0.3
-EXIT_CODE: 0
