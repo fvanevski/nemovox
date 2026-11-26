@@ -198,6 +198,7 @@ def resolution_receipts(recording,ledger,rows,decisions,policy):
                 receipt["canonical_source_ids"]=[row["id"]]
                 receipt["status"]=("timing_supported_wording_unresolved" if
                     str(row.get("source_quality_status","")).startswith("unresolved")
+                    or row.get("wording_status")=="model_variants_unresolved"
                     or row.get("source_semantic_resolution")=="partial"
                     else "represented_provisional")
             elif refs and not context and any(

@@ -497,7 +497,8 @@ def adjudicate_scene(recording,observations,independent,media,text_scope,output_
                 unlocalized.append(row["id"])
             continue
         alternatives=audio_candidates(row,rows,observations,independent,include_current=True)
-        uncertain=str(row.get("source_quality_status","")).startswith("unresolved_wording")
+        uncertain=(str(row.get("source_quality_status","")).startswith("unresolved_wording")
+                   or row.get("wording_status")=="model_variants_unresolved")
         nominated=nominations.get(row["id"],[])
         # Reuse already acquired acoustic evidence even when no extra
         # semantic/visual call is justified.

@@ -87,6 +87,37 @@ def accepted_row_context(row, alternatives, visual):
             "entity_identity_accepted": False, "human_verified": False}
 
 
+def localized_wording_evidence(row):
+    """Bound timing-recovery wording alternatives to the current source units."""
+    value=row.get("source_lineage",{}).get("localized_wording_evidence")
+    text=row.get("source_text")
+    ids=row.get("source_unit_ids",[])
+    if (not isinstance(value,dict) or not isinstance(text,str)
+            or value.get("source_id")!=row.get("id") or value.get("source_text_sha256")!=text_digest(text)
+            or value.get("source_unit_ids")!=ids or value.get("entity_identity_accepted") is not False
+            or value.get("status")!="advisory_model_hypotheses"):
+        return None
+    alternatives=value.get("alternatives")
+    if not isinstance(alternatives,list) or not alternatives:
+        return None
+    for a in alternatives:
+        if not isinstance(a,dict):
+            return None
+        span=a.get("source_unit_range")
+        if (not isinstance(span,list) or len(span)!=2 or any(type(x) is not int for x in span)
+                or not 0<=span[0]<span[1]<=len(ids)
+                or not isinstance(a.get("tokens"),list) or not a["tokens"]
+                or not all(isinstance(t,str) and t for t in a["tokens"])
+                or not isinstance(a.get("audio_sha256"),str) or not re.fullmatch(r"[a-f0-9]{64}",a["audio_sha256"])
+                or not isinstance(a.get("observation_ids"),list) or not a["observation_ids"]
+                or not all(isinstance(x,str) and x for x in a["observation_ids"])
+                or a.get("backend") not in ("nemotron","independent_asr")):
+            return None
+    if {a["backend"] for a in alternatives}!={"nemotron","independent_asr"}:
+        return None
+    return deepcopy(value)
+
+
 def current_row_context(row):
     value = row.get("semantic_context")
     text = row.get("source_text")
@@ -123,6 +154,12 @@ def current_row_context(row):
                         "source_text_sha256":text_digest(text),"acoustic_support":[],
                         "visual_literals":[],"entity_identity_accepted":False,"human_verified":False}
             result["advisory_wording_alternatives"]=deepcopy(alternatives)
+    local=localized_wording_evidence(row)
+    if local is not None:
+        if result is None:
+            result={"schema":SCHEMA,"source_id":row["id"],"source_text_sha256":text_digest(text),
+                    "acoustic_support":[],"visual_literals":[],"entity_identity_accepted":False,"human_verified":False}
+        result["localized_wording_alternatives"]=local["alternatives"]
     return result
 
 
