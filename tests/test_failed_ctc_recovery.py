@@ -214,3 +214,33 @@ def test_native_edge_variant_requires_two_independent_timed_streams():
     assert _raw_support([o],words,(2.,8.),independently_localized=True)
     assert not _raw_support([o],_lex("we must destroy the secret house after midnight"),(2.,8.),
                             independently_localized=True)
+
+
+def test_observed_failed_core_can_localize_unbound_speech_without_fabricating_primary_identity():
+    args=fixture()
+    rec,ledger,windows,native,targets,ind,policy=args
+    text="the council will meet at dawn"
+    for o in ind:
+        o["rows"][0]["source_text"]=text
+    native[0]["raw_response"]["choices"][0]["message"]["content"]="<spk:0> "+text
+    # Two independent timed observations alone do not admit this new
+    # unbound event under the failed-core policy.
+    assert not recover_failed_ctc_events(*args)[1]
+    second=deepcopy(native[0])
+    second.update(crop=[6.,17.],audio_sha256="native2",raw_response_sha256="raw2")
+    native.append(second)
+    original=deepcopy(rec)
+    rows,ds=recover_failed_ctc_events(*args)
+    assert rec==original and rows[0]==original["utterances"][0]
+    assert len(ds)==1 and len(rows)==2
+    assert ds[0]["status"]=="localized_event_unbound_primary_origin"
+    assert rows[1]["source_text"]==text and rows[1]["source_start"]==9.9
+    assert rows[1]["source_end"]==12.9 and not rows[1]["source_unit_ids"]
+    assert not rows[1]["recognized_turn_ids"] and rows[1]["speaker_id"]=="SPK_UNK"
+    assert rows[1]["source_lineage"]["primary_origin_accepted"] is False
+    assert set(ds[0]["native_audio_sha256"])=={"native","native2"}
+    second["task_ids"]=["unrelated"]
+    assert not recover_failed_ctc_events(*args)[1]
+    second["task_ids"]=["task"]
+    ledger["asr_observations"][0]["core_end_s"]=9.
+    assert not recover_failed_ctc_events(*args)[1]

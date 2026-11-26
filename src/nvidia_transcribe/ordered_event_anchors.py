@@ -360,25 +360,31 @@ def ambiguous_local_events(recording, sources, windows, observations, targets, i
                 words=a[2]
                 origins=[r for r in rows if r["id"] in unresolved and _near(words,_lex(r["source_text"]),edges=False,fraction=.85)
                          and _near(_lex(r["source_text"]),words,edges=False,fraction=.75)]
-                ambiguous=len(origins)>=2 and len({sources[r["id"]][0]["chunk_index"] for r in origins})>=2 and len(words)>=6
+                ambiguity_minimum=6 if recording["source_language"].startswith(("zh","ja")) else 4
+                ambiguous=len(origins)>=2 and len({sources[r["id"]][0]["chunk_index"] for r in origins})>=2 and len(words)>=ambiguity_minimum
                 # Unbound speech in an actually observed failed core can
                 # be admitted without asserting a unique primary origin.
                 # This requires stricter native corroboration than the
                 # already supported cross-chunk ambiguity case.
                 core_tasks=[w for w in observed.values() if "failed_ctc_core" in w.get("reasons",[])
                     and w["window"][0]<=sum(b[1])/2<=w["window"][1]]
-                if not ambiguous and (not core_tasks or not any(
-                        parent["core_start_s"]<=a[1][0]<a[1][1]<=parent["core_end_s"]
-                        and parent["core_start_s"]<=b[1][0]<b[1][1]<=parent["core_end_s"]
-                        for parent,_ in sources.values())):
-                    continue
-                if any(_bounds(r) and _overlap(_bounds(r),b[1])>.08 for r in timed_rows):
+                if not ambiguous:
+                    core_chunks={parent["chunk_index"] for parent,_ in sources.values()
+                        if parent["core_start_s"]<=a[1][0]<a[1][1]<=parent["core_end_s"]
+                        and parent["core_start_s"]<=b[1][0]<b[1][1]<=parent["core_end_s"]}
+                    task_ids={w["task_id"] for w in core_tasks if core_chunks.intersection(w["chunks"])}
+                    if not task_ids.intersection(at["task_ids"]) or not task_ids.intersection(bt["task_ids"]):
+                        continue
+                if any(_bounds(r) and (_overlap(_bounds(r),b[1])>.08
+                        or (not ambiguous and _overlap(_bounds(r),a[1])>.08)) for r in timed_rows):
                     continue
                 # Independent wording agreement plus positive recognition in
                 # an interior native crop, not exact primary-origin identity.
                 support=[]
                 for o in native:
                     if not o["crop"][0]+.1<b[1][0]<b[1][1]<o["crop"][1]-.1:
+                        continue
+                    if not ambiguous and not task_ids.intersection(o.get("task_ids",[])):
                         continue
                     content=((o.get("raw_response",{}).get("choices") or [{}])[0].get("message") or {}).get("content")
                     def corroborates(turn):
