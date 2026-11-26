@@ -184,52 +184,92 @@ this continuation; compare source-quality/subtitle stages separately.
 
 ## Live-failure remediation qualification
 
-The previous live candidate completed CPU validation but failed both
-language paths. This section supersedes prior live qualification
-instructions only where stated. Do not repeat the original diagnostic
-comparison or collect a new discovery case.
+The live candidate d0d4af0dc95edcc823b654a25dba89f35738a739 failed
+both languages. Its successor a010a7ebbb8c57d4bdd2d6ed0862df8646663dbf
+passed the focused and full CPU suites, applicable Studio/API and frontend
+checks, the original sealed comparison and the French retained-live
+selector replay. The Mandarin retained-live selector recovered six events
+(65/402 source units, 14.16 s) without losing source units or collapsing
+the unresolved repeat hypotheses. This is a real insufficiency of output
+coverage for that retained evidence, not a fresh test of the changed
+acquisition scheduler.
 
-1. Verify the exact successor and run focused targeted occurrence,
-   failed-primary CTC, translation review, rendering, recovery and
-   source-quality tests, followed by the full CPU suite and applicable
-   Studio/API/frontend checks.
-2. Replay the original sealed comparison using the existing driver and
-   the previous *live* archive through the new driver:
+The earlier independent targets covered only 28.3105 unique target
+seconds; their actual crop union ended at 50.8454 s. The new dry structural
+plan admits six failed-core windows covering 0–104.5 s of the same 119 s
+clip. Its independent crop projection costs 236.5 s against the existing
+240 s limit. These are planning measurements, not recovered speech or
+actual acquisition receipts. The 104.5–119 s core remains deferred in
+that dry plan.
 
-       PYTHONPATH=src:. /workspace/nvidia-transcribe/.venv/bin/python -m scripts.replay_live_source_quality --intake "$INTAKE_ARCHIVE" --intake-sha256 "$INTAKE_SHA256" --archive "$LIVE_ARCHIVE" --sha256 "$LIVE_SHA256" --output "$PRIVATE_ROOT/live-evidence-replay.json"
+### Continuation and evidence-specific gates
 
-   These are counterfactual targeted selectors over authenticated retained
-   responses, not fresh production acquisitions. Verify the old nine-fragment
-   and exposition result remains; for the live French evidence, the missing
-   CTC coverage must not be mistaken for a repeat veto, and the corroborated
-   prefix variant must bind both model families and actual native word
-   bounds. For the live Mandarin evidence, recover only uniquely bound
-   source subspans supported by distinct independent crops and positive
-   native local recognition. Verify exact source-unit partition and no
-   invented timing or speaker identity. Inspect remaining uncertainty.
-   A substantive gate failure blocks expensive dependent runs.
-3. After the CPU/replay gate passes, run the same French authenticated
-   recording continuation and **the same 119-second Mandarin clip** used
-   by the previous live run, not a replacement clip selected for a pass.
-   The old Mandarin primary recording/manifest/source ledger is now
-   available: reuse its immutable exact bytes with the public recording
-   continuation route and original media to exercise the actual failure
-   condition. Do not let fresh primary recognition luck mask the defect.
-   Use a new output directory for each, no prior source-quality or
-   downstream checkpoints, same existing model registry and options.
-   The fresh production scheduler must acquire its own evidence.
-4. If a complete normal Mandarin continuation succeeds with meaningful
-   dialogue recovery, a fresh primary-to-render run on that same bounded
-   clip is useful to confirm public behavior. Execute it once in this
-   campaign, no broad new benchmark. Preserve both comparisons and
-   distinguish timing failure recovery from a fresh primary CTC success.
-5. Required English review must actually complete; malformed native
-   proposals get one bounded keyed-object correction, not permissive
-   identity remapping. Transport failures and rejected alternate replies
-   remain failures. Prior malformed bodies are unavailable; return
-   actual new receipts if encountered. Empty dialogue outputs must fail
-   explicitly; a real silence/no-dialogue contract can produce no cues.
-6. Verify fresh-process continuation and actual offline rerender, output
-   availability/status, resource lifecycle/restoration, total stage
-   costs and remaining omission. No new issue, PR, deployment or config
-   change. Keep only useful private bounded output evidence.
+This section supersedes earlier instructions that make sufficient
+retained-evidence Mandarin dialogue coverage a prerequisite for any live
+qualification. Do not relax source acceptance predicates, increase
+budgets, or accept an unusable output to pass a gate.
+
+1. Admit the exact current candidate. The documentation-only successor
+   may reuse the authenticated CPU, integration and replay receipts of
+   a010a7ebbb8c57d4bdd2d6ed0862df8646663dbf if complete delta and loaded
+   source/configuration identity prove unchanged functional inputs.
+   Preserve their original tested identity. Run diff/identity/import
+   checks. Repeat executable tests or replay only if the equivalence
+   check fails or an applicable exact-head verification requirement
+   independently mandates it.
+
+2. Retain the Mandarin replay result as **partial selector evidence /
+   insufficient dialogue coverage**. It passed preservation and
+   evidence-admission controls; it did not pass useful whole-clip
+   coverage. Do not relabel the 16.17% result as successful live
+   qualification. The changed acquisition path has not been exercised.
+   A selector safety regression, identity mismatch, failed CPU gate or
+   common resource-integrity problem remains blocking. Missing historic
+   acoustic coverage is not a reason to prevent acquiring the evidence
+   necessary to test that acquisition path.
+
+3. Execute the French normal continuation and Mandarin retained
+   failed-recording continuation as independent qualification arms in one
+   handback, sequentially under the existing GPU lifecycle. A semantic
+   failure in one language does not block the other. The existing
+   French command above and previous live handback's Mandarin options
+   govern. Use the same authenticated media/recording/manifest/ledger
+   bytes and fresh private outputs with no old source-quality or
+   downstream checkpoints. Do not inject replay observations. For
+   Mandarin, retain the actual whole-primary CTC failure input rather
+   than rerunning primary recognition first.
+
+4. For Mandarin, verify the dry structural plan and actual independent
+   admission against current policy and task/target/crop identities.
+   The dry plan excludes recording-context nominations and is not an
+   assertion that the fresh schedule must be identical. Report actual
+   native/independent crops, union of acquired target coverage, costs,
+   and all deferrals including the clip tail. Diagnose residual omissions
+   by separating unacquired material, recognition/segmentation
+   disagreement, ambiguous source association, selector conflict,
+   unresolved timing and rendering/review failures. Compare original
+   source-unit coverage and actual rendered dialogue, distributed
+   throughout the clip; do not claim adequate coverage from a handful of
+   recovered clauses or an empty output. Report actual missing narrative
+   and meaningful residuals. No numerical pass threshold is inferred
+   from the prior 16.17% result. Useful output remains a substantive
+   acceptance criterion requiring Central review.
+
+5. If the retained failed-recording Mandarin continuation yields
+   meaningfully usable dialogue and completes required review, execute
+   one fresh primary-to-render run on the same clip. If the continuation
+   is inadequate, preserve evidence and skip only that dependent
+   fresh-primary run. Complete the independent French arm regardless,
+   subject to common identity, CPU and resource safety gates. Do not
+   select another clip or start a broad benchmark.
+
+6. Required English review must actually complete. Capture actual
+   malformed native proposals and bounded keyed-object correction
+   receipts when encountered. Transport failures and rejected alternate
+   replies remain failures. Empty recognized-dialogue outputs must fail
+   explicitly; legitimate no-dialogue recordings may have no cues.
+   Verify fresh-process continuation and offline rerender for each
+   successful live output. Record actual stage costs, resource peaks and
+   restoration, and all unresolved limitations. Do not deploy, merge,
+   create a PR or close the issue. Return one private authenticated
+   evidence archive covering both independent arms.
