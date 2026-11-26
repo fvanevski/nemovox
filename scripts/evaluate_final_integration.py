@@ -259,6 +259,8 @@ def current_render_metadata(job, translated):
     if not path.is_file():
         raise ValueError("Missing render metadata without explicit failed review")
     metadata = read(path)
+    if metadata.get("render_status") == "failed_no_renderable_dialogue":
+        return None
     if metadata.get("render_status") == "rendered_with_review_errors" or "salvage_render_receipt" in metadata:
         raise ValueError("Stale failed-review salvage metadata for nonfailed contract")
     return metadata

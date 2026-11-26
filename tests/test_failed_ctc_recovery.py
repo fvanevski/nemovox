@@ -82,3 +82,13 @@ def test_failed_primary_core_coverage_is_scheduled_once_under_existing_budget():
     targets,deferred=schedule_independent(rec,[],windows=core,policy=policy)
     assert len(targets)==2 and all(t["kind"]=="failed_ctc_core" for t in targets)
     assert sum(b-a for t in targets for a,b in t["crops"])<=policy.max_independent_audio_s
+
+
+def test_failed_ctc_recovery_rejects_raw_repeat_absent_from_canonical_rows():
+    args=fixture()
+    ledger=args[1]
+    for i,u in enumerate(list(ledger["lexical_observations"])[:6]):
+        ledger["lexical_observations"].append({**u,"id":f"repeat{i}",
+            "recognized_turn_id":"repeat-turn","source_ordinal":8+i,
+            "raw_recognized_token_ids":[f"repeat-token{i}"]})
+    assert not recover_failed_ctc_events(*args)[1]

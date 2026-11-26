@@ -1301,3 +1301,21 @@ def test_keyed_proposal_rejects_duplicate_json_keys():
     reply={"choices":[{"message":{"content":'{"reviews":{"r01":{"corrected_text":"A","reason":"x"},"r01":{"corrected_text":"B","reason":"y"}}}'}}]}
     with pytest.raises(ProposalDecisionError,match="duplicate_json_key"):
         _native_proposals(reply,[{"utterance_id":"u0","machine_translation":"A"}],{"r01":"u0"})
+
+
+def test_offline_untimed_dialogue_is_not_a_successful_render(tmp_path):
+    from nvidia_transcribe.subtitle_pipeline import SubtitlePipelineConfig, generate_subtitles
+    from scripts.evaluate_final_integration import current_render_metadata
+
+    row = dict(_utts()[0], source_start=None, source_end=None, source_words=[], source_characters=[])
+    retained = {"source_language": "fr", "source": {"duration_s": 5.0}, "utterances": [row]}
+    contract = tmp_path / "translated.contract.json"
+    contract.write_text(json.dumps(retained), encoding="utf-8")
+    original = contract.read_bytes()
+    with pytest.raises(RuntimeError, match="no usable subtitle timing"):
+        generate_subtitles(output_dir=tmp_path, config=SubtitlePipelineConfig(
+            re_render_only=True, formats=("srt", "ass")))
+    assert contract.read_bytes() == original
+    metadata = json.loads((tmp_path / "subtitles.metadata.json").read_text())
+    assert metadata["render_status"] == "failed_no_renderable_dialogue"
+    assert current_render_metadata(tmp_path, retained) is None

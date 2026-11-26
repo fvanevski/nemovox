@@ -108,6 +108,15 @@ def recover_failed_ctc_events(recording,ledger,windows,observations,targets,inde
     observed={w["task_id"]:w for w in windows if w.get("state")=="observed"}
     minimum=4 if recording["source_language"].startswith(("zh","ja")) else 3
     tolerance=policy.timing_tolerance_s
+    # Check the raw failed-primary turn inventory as well as the canonical
+    # rows. An omitted or differently partitioned repeated hypothesis is
+    # not a unique origin merely because it disappeared from the row view.
+    raw_turns={}
+    for p,units in failed.values():
+        for u in units:
+            raw_turns.setdefault((p["id"],u["recognized_turn_id"]),[]).append(u)
+    raw_sequences=[tuple(w for u in sorted(us,key=lambda x:x["source_ordinal"])
+                         for w in _lex(u["text"])) for us in raw_turns.values()]
     proposals=[]
     for target in targets:
         task_ids=set(target["task_ids"]) & set(observed)
@@ -134,7 +143,9 @@ def recover_failed_ctc_events(recording,ledger,windows,observations,targets,inde
             # A genuinely repeated source sequence cannot identify one origin
             # solely because one occurrence lies in a convenient crop.
             origins=[r for r in rows if _contains(_lex(r["source_text"]),a[2])]
-            if len(origins)!=1 or origins[0]["id"] not in sources:
+            count=sum(seq[i:i+len(a[2])]==a[2] for seq in raw_sequences
+                      for i in range(len(seq)-len(a[2])+1))
+            if count!=1 or len(origins)!=1 or origins[0]["id"] not in sources:
                 continue
             row=origins[0]
             p,units=sources[row["id"]]
