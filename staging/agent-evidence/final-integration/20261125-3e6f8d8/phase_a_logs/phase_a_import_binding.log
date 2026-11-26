@@ -1,3 +1,0 @@
-=== IMPORT BINDING ===
-core: /workspace/nvidia-transcribe/outputs/worktrees/candidate-d4f1d8b/src/nvidia_transcribe/__init__.py /workspace/nvidia-transcribe/outputs/worktrees/candidate-d4f1d8b/src/nvidia_transcribe/subtitle_pipeline.py /workspace/nvidia-transcribe/outputs/worktrees/candidate-d4f1d8b/src/nvidia_transcribe/source_quality_checkpoint.py
-studio: /workspace/nvidia-transcribe/outputs/worktrees/candidate-d4f1d8b/src/nvidia_transcribe/__init__.py /workspace/nvidia-transcribe/outputs/worktrees/candidate-d4f1d8b/src/nvidia_transcribe/studio_api.py
