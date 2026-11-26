@@ -98,3 +98,34 @@ def test_missing_or_modified_frame_receipt_invalidates_reuse(tmp_path):
     assert not frame_receipts_available(report,tmp_path)
     frame.unlink()
     assert not frame_receipts_available(report,tmp_path)
+
+
+def test_checkpoint_digest_is_stable_for_two_digit_anchor_offsets(tmp_path):
+    rec={"source":{},"source_language":"zh","utterances":[]}
+    calls=[]
+    def compute():
+        calls.append(1)
+        report={"status":"partial","semantic_review_requested":True,"original_recording_modified":False,
+            "recording_sha256":_digest(rec),"recording_context":{"attempts":[]},
+            "scene_evidence":{"errors":[]},"independent_recovery":{"errors":[]},
+            "decisions":[{"constituent_event_evidence":[{"anchors":{2:[1.,2.],10:[3.,4.]},
+                "window":(1.,4.)}]}]}
+        return {**rec,"source_quality":report},report
+    path=tmp_path/"quality.json"
+    first=run_checkpoint(path,"id",rec,resume=True,run=compute)
+    saved=json.loads(path.read_bytes())
+    assert saved["payload_sha256"]==_digest(saved["payload"])
+    second=run_checkpoint(path,"id",rec,resume=True,run=compute)
+    assert len(calls)==1 and second[2]=="reused_exact_input" and first[:2]==second[:2]
+
+
+def test_checkpoint_rejects_key_collisions_before_publication(tmp_path):
+    rec={"source":{},"source_language":"zh","utterances":[]}
+    report={"status":"partial","semantic_review_requested":True,"original_recording_modified":False,
+        "recording_sha256":_digest(rec),"recording_context":{"attempts":[]},
+        "scene_evidence":{"errors":[]},"independent_recovery":{"errors":[]},
+        "anchors":{2:"one","2":"two"}}
+    path=tmp_path/"quality.json"
+    with pytest.raises(ValueError,match="Duplicate checkpoint JSON key"):
+        run_checkpoint(path,"id",rec,resume=True,run=lambda:({**rec,"source_quality":report},report))
+    assert not path.exists()

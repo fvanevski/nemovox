@@ -133,9 +133,12 @@ def recover_failed_ctc_events(recording,ledger,windows,observations,targets,inde
              "speaker_id":"SPK_UNK","speaker_identity_accepted":False,"local_speaker_id":None,"raw_speaker_tag":None,
              "source_words":[],"source_characters":[],"unit_count":0,"timed_unit_count":0,"untimed_unit_count":0,
              "timing_gaps":[],"event_refs":[],
-             "chunk_indices":sorted({c for r in p["origins"] for c in r.get("chunk_indices",[])}),
+             "chunk_indices":sorted({c for r in p["origins"] for c in r.get("chunk_indices",[])}
+                 | {parent["chunk_index"] for parent,_ in sources.values()
+                    if parent["core_start_s"]<=p["window"][0]<p["window"][1]<=parent["core_end_s"]}),
              "alignment_status":"independent_event_bounds_approximate",
-             "source_quality_status":"unresolved_wording_ambiguous_origin_event",
+             "source_quality_status":("unresolved_wording_ambiguous_origin_event" if p["ambiguous"]
+                                      else "unresolved_wording_unbound_origin_event"),
              "prior_source_hypotheses":p["origins"],
              "source_lineage":{"prior_candidate_source_ids":candidate_ids,"primary_origin_accepted":False,
                 "acoustic_observation_ids":p["observations"],"source_word_timing_accepted":False,
@@ -145,7 +148,8 @@ def recover_failed_ctc_events(recording,ledger,windows,observations,targets,inde
                 "observation_ids":p["observations"]}}
         insert=next((i for i,r in enumerate(result) if _bounds(r) and r["source_start"]>row["source_start"]),len(result))
         result.insert(insert,row)
-        decisions.append({"status":"localized_event_ambiguous_primary_origin","source_id":uid,
+        decisions.append({"status":("localized_event_ambiguous_primary_origin" if p["ambiguous"]
+                                    else "localized_event_unbound_primary_origin"),"source_id":uid,
             "candidate_origin_ids":candidate_ids,"source_unit_ids":[],"window":p["window"],
             "observations":p["observations"],"independent_observation_ids":p["observations"],
             "audio_sha256":p["audio_sha256"],"native_audio_sha256":p["native_audio_sha256"],

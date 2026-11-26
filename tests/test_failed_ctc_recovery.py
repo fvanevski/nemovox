@@ -188,3 +188,29 @@ def test_short_wholly_failed_recording_covers_tail_within_same_audio_and_target_
     assert len(targets)==6 and not deferred
     assert all(len(t["crops"])==2 and t["crops"][0]!=t["crops"][1] for t in targets)
     assert sum(b-a for t in targets for a,b in t["crops"])<=policy.max_independent_audio_s
+
+
+def test_independent_word_envelope_survives_coarser_segment_disagreement():
+    from nvidia_transcribe.ordered_event_anchors import _atoms,_streams
+    r={"source_start":73.46,"source_end":74.72,"source_text":"将于一月后",
+       "observation_id":"a","words":[{"text":x,"start":a,"end":b} for x,a,b in (
+           ("将",73.28,73.68),("于",73.68,73.94),("一",73.94,74.18),
+           ("月",74.18,74.46),("后",74.46,74.72))]}
+    atoms=_atoms(r,False)
+    assert atoms and atoms[0][1]==73.28 and atoms[-1][2]==74.72
+    assert list(_streams({"crop":[72.,75.],"rows":[r]},False))
+    assert not list(_streams({"crop":[73.4,75.],"rows":[r]},False))
+    assert not _atoms({**r,"source_start":74.5},False)
+    assert not _atoms({**r,"source_text":"不同文字"},False)
+
+
+def test_native_edge_variant_requires_two_independent_timed_streams():
+    from nvidia_transcribe.ordered_event_anchors import _raw_support
+    from nvidia_transcribe.source_quality import _lex
+    words=_lex("we must protect the hidden archive before sunset")
+    o={"crop":[0.,20.],"raw_response":{"choices":[{"message":{
+        "content":"<spk:0> we must protect the hidden archive before sunrise"}}]}}
+    assert not _raw_support([o],words,(2.,8.))
+    assert _raw_support([o],words,(2.,8.),independently_localized=True)
+    assert not _raw_support([o],_lex("we must destroy the secret house after midnight"),(2.,8.),
+                            independently_localized=True)

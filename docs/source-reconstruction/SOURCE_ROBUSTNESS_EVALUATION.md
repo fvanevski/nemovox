@@ -182,99 +182,89 @@ full primary ASR. The full Studio wall-time comparison is not valid for
 this continuation; compare source-quality/subtitle stages separately.
 
 
-## Ordered event recovery qualification
+## Failed-CTC dialogue completion and continuation qualification
 
-This section supersedes the previous live-failure remediation qualification
-instructions. The fresh live candidate fdf6e655fce882cc1ae39d63c1e1781f94cfda0b
-retired all nine French displaced fragments, but failed exposition recovery.
-Mandarin acquired independent crops covering 106.5/119 seconds, costing
-236.5/240 audio seconds, yet localized only 84/402 original source units.
-Both arms completed required review and rendered; Mandarin review incorrectly
-preserved a calendar-month MT error despite a correct comparator-approved
-relative-duration proposal. Neither arm qualified.
+The preceding exact candidate 56cd12040f02ca068fd9967cb86d4fcaf2585317
+passed 610 non-GPU, 224 focused, 51 Studio/API tests, both replays and
+the French normal live arm (nine displaced fragments retired, Ophir
+exposition recovered, 208 reviewed rows, 282 cues per format). Mandarin
+localized 241/402 original units and one separately localized event,
+but its 25 cues omitted consequential dialogue. Both required reviews
+completed. Mandarin same-job checkpoint reuse failed because integer
+anchor keys were sorted numerically before write and as strings on
+readback; canonical-contract continuation and offline rerender passed.
 
-The successor replaces exact-subspan failed-CTC selection with ordered
-observed lexical-anchor correspondence, retains timing-only wording
-alternatives with exact source-unit lineage, and separately localizes
-corroborated events with ambiguous primary origins. The French prefix
-correction uses already-acquired local native observations. Short fully
-failed recordings can consolidate failed-core windows to fit the existing
-budget, including the tail. No model or resource substitution is authorized.
+The successor uses JSON-stable anchor keys and hashes the actual
+persisted JSON payload; duplicate serialized keys are rejected. It
+validates observed independent word envelopes separately from coarse
+segment estimates and permits bounded native edge variants when two
+independent timed streams corroborate the event. Near-duplicate complete
+primary hypotheses cannot be assigned by short distinguishing prefixes.
+An unbound event in an observed failed core may render when both
+independent crops agree and two distinct native contexts positively
+corroborate it. Original units remain unclaimed; do not count these
+events as source-bound timing. No additional models or budgets.
 
-1. Authenticate the exact Central candidate commit/tree, origin and the
-   immutable inputs. Verify candidate imports and diff checks. Production
-   code changed: run focused recovery, planner, source quality,
-   targeted occurrence, scene, uncertainty, translation review and replay
-   tests, then the complete non-GPU CPU suite and applicable Studio/API
-   checks. Unchanged frontend-only evidence may be reused only after
-   verified functional equivalence. Preserve actual execution identities.
-2. Replay the authenticated original comparison and latest live evidence
-   through the successor production selectors. The preceding live archive
-   supplies the immutable Mandarin primary recording and ledger, while
-   the latest live archive supplies fresh observations from both arms.
-   Use the following commands from the candidate root:
+1. Authenticate exact candidate, all immutable source inputs and previous
+   archives. Run focused failed-CTC, source-quality checkpoint, source
+   quality, occurrence, review and renderer regressions, full non-GPU
+   and applicable Studio/API checks. Unchanged frontend receipts may
+   be reused with proven identity. Verify actual loaded source.
+2. Execute original sealed replay and latest-live replay using the
+   prior immutable Mandarin recording archive and the latest ordered
+   qualification archive as observations. The latest archive paths
+   remain french-output/source-quality.json and
+   mandarin-output/source-quality.json.
 
        PYTHONPATH=src:. /workspace/nvidia-transcribe/.venv/bin/python -m scripts.replay_source_robustness --archive "$COMPARISON_ARCHIVE" --sha256 "$COMPARISON_SHA256" --output "$PRIVATE_ROOT/original-comparison-replay.json"
 
        PYTHONPATH=src:. /workspace/nvidia-transcribe/.venv/bin/python -m scripts.replay_live_source_quality --intake "$INTAKE_ARCHIVE" --intake-sha256 "$INTAKE_SHA256" --archive "$PRIOR_LIVE_ARCHIVE" --sha256 "$PRIOR_LIVE_SHA256" --observations-archive "$LATEST_LIVE_ARCHIVE" --observations-sha256 "$LATEST_LIVE_SHA256" --output "$PRIVATE_ROOT/latest-live-replay.json"
 
-   Check actual source lineage, event bounds, rejected alternatives,
-   genuine-repeat controls and all six original scene decisions. French:
-   preserve the nine justified retirements and recover the corroborated
-   exposition without claiming exact entity spelling or speaker identity.
-   Mandarin: require exact original-unit partition, no incompatible
-   event localization or invented word times, and material improvement
-   over 84/402 localized units on the same sealed observations. Central's
-   isolated helper experiment recovered 241 units and two independently
-   localized events with ambiguous primary origins; this is an exploratory
-   reference, not a mandatory output count or full-candidate receipt.
-   Do not count unbound events toward original source-unit recovery.
-   Record wording disagreement, residual omissions and actual temporal
-   coverage. No arbitrary whole-clip usability threshold is inferred
-   from retained evidence. An observed selector safety regression,
-   identity failure or CPU failure blocks affected inference. Failure
-   to improve on the same evidence is a substantive selector failure,
-   not an acquisition-coverage limitation.
-3. Qualify French and Mandarin as independently admissible live arms,
-   sequentially under the existing GPU lifecycle. A language-specific
-   replay or live failure blocks only its affected/dependent work;
-   common CPU, identity, resource-integrity or lifecycle failures block
-   both. Use the same authenticated French original recording and media
-   and the retained Mandarin whole-primary CTC-failure recording and
-   119-second clip; see the existing French CLI command above and the
-   prior Mandarin handback for exact job options. Use fresh output
-   roots with no source-quality/downstream checkpoints or replay
-   injection. Do not rerun full French primary ASR.
-4. For Mandarin, verify the actual planned/admitted windows and crops
-   (including the 104.5–119 s region), union coverage and actual
-   acquisition costs against existing 240-second independent and
-   configured native limits. The compact full-coverage plan is a dry
-   expectation, not evidence of acquisition or recovered speech.
-   Compare old and new localized original units and unbound events
-   separately. Audit source wording, origin ambiguity, omitted material
-   and meaningful English subtitle coverage throughout the clip. Verify
-   timing-only recovery does not freeze the erroneous calendar-month
-   MT when both model families support the relative-duration phrase;
-   retain material-source, entity and number guards for unsupported
-   changes. Check actual translation/review dispositions, not just the
-   final text. A handful of timed clauses is not a useful subtitle result.
-5. Only after meaningfully usable retained failed-recording Mandarin
-   continuation and required review, run one fresh primary-to-render
-   job on the same clip. If inadequate, skip that dependent job and
-   finish the independent French arm. No new model downloads, broad
-   benchmarks, alternative clips, budget increases or threshold changes.
-6. For successful outputs, verify fresh-process continuation and offline
-   rerender, actual SRT/ASS content, resource restoration and unchanged
-   original job, owner checkout, Studio and unrelated GPU workload.
-   Report actual phase times, resource peaks, failure modes and unresolved
-   limitations. Complete required English review; capture malformed
-   proposals and bounded recovery receipts when encountered.
-   Do not deploy, merge, create a PR or close the issue.
+   Compare original and new source-bound and unbound events separately;
+   preserve original-unit partition, distinct speech, no invented times
+   or identities. Verify actual ceremony phrase and complete fight-clause
+   recovery, and inspect newly admitted unbound events and repeat controls.
+   Central's isolated Chinese helper reproduction matched the prior
+   279/16/241 result and the amended selection produced 249 localized
+   units, plus three unbound/ambiguous events. This is a bounded
+   exploratory comparison, not a required count or full candidate gate.
+3. French: retain prior live evidence at original SHA only after proving
+   unchanged French selector inputs/results on actual retained observations
+   and verifying no failed-primary CTC parent in the French ledger.
+   Compare exact canonical source rows and downstream review/render input
+   equivalence, with original French checkpoint digest/roundtrip regression.
+   If equivalence cannot be established, run the affected French path only.
+   Do not rerun the complete French job merely because HEAD changed.
+4. Mandarin: run normal retained failed-recording continuation on the
+   exact same 119 s clip and immutable failed primary contract, manifest
+   and ledger. Fresh private outputs and current public entrypoint, prior
+   normal options and registry, no injected replay or previous checkpoints.
+   Verify actual selected speech, missing clauses, wording, review, ceremony
+   future meaning and subtitle presence, repeated-event preservation,
+   total coverage and resource costs. Full usable dialogue remains required;
+   do not substitute a source-unit count for usability.
+5. Run one fresh primary-to-render execution on the same clip as a
+   separate qualification arm even if the retained recording still has
+   material omissions. Do not claim that fresh-primary success qualifies
+   retained failed-CTC recovery. Shared CPU, identity, resource-integrity
+   and safety failures block both; semantic quality failure in one does
+   not prevent the other. No other clips, model downloads, budget changes
+   or broad evaluation.
+6. For each completed output, verify same-job fresh-process continuation
+   with source quality ON and exact checkpoint readback, zero reacquisition,
+   and actual byte-identical SRT/ASS rerender. Snapshot outputs before
+   testing and distinguish pre-existing from newly produced files.
+   Preserve the invalid preceding checkpoint as historical evidence; do
+   not edit or coerce its saved digest to force a cache hit. If unexpected
+   reacquisition starts, stop only the campaign-owned execution and restore
+   the verified owned resource state. Canonical-only continuation does not
+   qualify same-job source-quality reuse.
 
-Return one private authenticated review archive containing test results,
-replay reports, normal acquisition/output receipts, meaningful output and
-residual-omission comparisons, resource costs/restoration, exact identity
-and input authentication, and canonical GHDEV-10 command-shape friction.
-Reference prior archives instead of copying them wholesale. Exclude
-credentials, media, model weights and bulk WAV files. Central owns
-substantive implementation corrections and the acceptance decision.
+Return one private review-ready archive with actual exact-head gates,
+replay comparisons, live arms, source/translation/renderer and checkpoint
+evidence, resource costs/restoration and GHDEV-10 friction. Authenticate
+manifest/checksums. Preserve owner checkout, original job, Studio and
+unrelated workload. No PR, deployment, merge or issue closure. If useful
+Mandarin output remains inadequate, report a qualified failure and the
+specific remaining evidence rather than begin another speculative selector
+campaign. Central owns any architectural/scope decision.

@@ -43,12 +43,17 @@ def _atoms(row, native):
         if not tokens:
             continue
         span = _bounds(w, "start", "end")
-        if not span or span[0]<rb[0]-.10 or span[1]>rb[1]+.10:
+        if not span or (native and (span[0]<rb[0]-.10 or span[1]>rb[1]+.10)):
             return []
         if atoms and span[0]<atoms[-1][2]-.10:
             return []
         atoms.extend((token, *span, i==0, i==len(tokens)-1, row["observation_id"])
                      for i,token in enumerate(tokens))
+    # Independent segment and word estimates are different projections.
+    # Require a coherent observed envelope, not exact containment in the
+    # coarser segment estimate. _streams independently checks crop bounds.
+    if not native and atoms and not _same_event_bounds((atoms[0][1],atoms[-1][2]),rb,.85):
+        return []
     if tuple(x[0] for x in atoms) != _lex(row["source_text"]):
         return []
     return atoms
@@ -88,7 +93,7 @@ def _runs(words, atoms):
         yield dict(group)
 
 
-def _raw_support(native, words, bounds):
+def _raw_support(native, words, bounds, *, independently_localized=False):
     result = []
     for o in native:
         if not o["crop"][0]+.1<bounds[0]<bounds[1]<o["crop"][1]-.1:
@@ -99,9 +104,16 @@ def _raw_support(native, words, bounds):
             continue
         for turn in parse_speaker_turns(content):
             tokens = _lex(turn.text)
-            if _near(words, tokens):
-                m = _mapping(words, tokens)
-                part = tokens[m[0]:m[len(words)-1]+1]
+            m = _mapping(words, tokens)
+            # The two independent timed streams establish outer bounds.
+            # One differing native edge token is a wording alternative,
+            # not evidence against occurrence. Native still needs the
+            # same ordered anchor density and bounded internal gaps.
+            relaxed=(independently_localized and len(words)>=8
+                     and _near(words,tokens,edges=False,fraction=.72)
+                     and min(m)<=1 and max(m)>=len(words)-2)
+            if _near(words, tokens) or relaxed:
+                part = tokens[min(m.values()):max(m.values())+1]
                 result.append((o, part))
                 break
     return result
@@ -135,6 +147,12 @@ def ordered_proposals(recording, ledger, sources, windows, observations, targets
             continue
         parent, units = sources[row["id"]]
         words = tuple(w for u in units for w in _lex(u["text"]))
+        # Do not assign a short distinguishing prefix of a near-duplicate
+        # complete primary hypothesis to an arbitrary original occurrence.
+        if len(words)>=8 and any(r["id"]!=row["id"] and r["id"] in sources
+                and _near(words,_lex(r["source_text"]),edges=False,fraction=.85)
+                and _near(_lex(r["source_text"]),words,edges=False,fraction=.85) for r in rows):
+            continue
         offsets = [0]
         for u in units:
             offsets.append(offsets[-1]+len(_lex(u["text"])))
@@ -193,7 +211,7 @@ def ordered_proposals(recording, ledger, sources, windows, observations, targets
                            for atoms,m in ((aa,am),(ba,bm))
                            for part in (atoms[:m[i]],atoms[m[j]+1:])):
                         continue
-                    support = _raw_support(native,segment,span)
+                    support = _raw_support(native,segment,span,independently_localized=not an and not bn)
                     if not support:
                         continue
                     all_tasks = at|bt|{t for o,_ in support for t in o["task_ids"]}
@@ -218,7 +236,7 @@ def ordered_proposals(recording, ledger, sources, windows, observations, targets
                         "recovery_task_ids":sorted(all_tasks),"wording_exact":exact,
                         "wording_alternatives":[{**a,"source_unit_range":[ends[i],ends[j+1]]} for a in alternatives],
                         "independent_observation_ids":sorted({v for a in alternatives if a["backend"]=="independent_asr" for v in a["observation_ids"]}),
-                        "anchors":{x-i:[aa[am[x]][1],aa[am[x]][2],ba[bm[x]][1],ba[bm[x]][2]] for x in anchors},
+                        "anchors":{str(x-i):[aa[am[x]][1],aa[am[x]][2],ba[bm[x]][1],ba[bm[x]][2]] for x in anchors},
                         "lexical_offset":i,"anchor_fraction":len(anchors)/len(segment)})
                     # Prefer maximal supported endpoint for this start and pair.
                     break
@@ -293,10 +311,11 @@ def select_ordered_proposals(proposals, rows, tolerance):
 
 
 def ambiguous_local_events(recording, sources, windows, observations, targets, independent, timed_rows, policy):
-    """Localize speech without choosing between competing untimed raw origins.
+    """Localize speech without claiming unresolved primary source units.
 
-    Only positive same-event recognition may create a row. The original
-    hypotheses remain untimed and no primary source units are claimed.
+    Preserve the cross-chunk ambiguity path; in a failed core, also admit
+    exact paired independent speech with two corroborating native contexts.
+    No primary origin, word timing or speaker identity is inferred.
     """
     observed={w["task_id"]:w for w in windows if w.get("state")=="observed"}
     target_map={t["target_id"]:t for t in targets if set(t["task_ids"]) & set(observed)}
@@ -310,7 +329,7 @@ def ambiguous_local_events(recording, sources, windows, observations, targets, i
     # the whole original hypothesis is unclaimed.
     unresolved={r["id"] for r in rows if r["id"] in unresolved
                 and not timed_units.intersection(r.get("source_unit_ids",[]))}
-    minimum=6 if recording["source_language"].startswith(("zh","ja")) else 4
+    minimum=4 if recording["source_language"].startswith(("zh","ja")) else 3
     tol=policy.timing_tolerance_s
     def groups(o):
         for i,r in enumerate(o.get("rows",[])):
@@ -341,7 +360,17 @@ def ambiguous_local_events(recording, sources, windows, observations, targets, i
                 words=a[2]
                 origins=[r for r in rows if r["id"] in unresolved and _near(words,_lex(r["source_text"]),edges=False,fraction=.85)
                          and _near(_lex(r["source_text"]),words,edges=False,fraction=.75)]
-                if len(origins)<2 or len({sources[r["id"]][0]["chunk_index"] for r in origins})<2:
+                ambiguous=len(origins)>=2 and len({sources[r["id"]][0]["chunk_index"] for r in origins})>=2 and len(words)>=6
+                # Unbound speech in an actually observed failed core can
+                # be admitted without asserting a unique primary origin.
+                # This requires stricter native corroboration than the
+                # already supported cross-chunk ambiguity case.
+                core_tasks=[w for w in observed.values() if "failed_ctc_core" in w.get("reasons",[])
+                    and w["window"][0]<=sum(b[1])/2<=w["window"][1]]
+                if not ambiguous and (not core_tasks or not any(
+                        parent["core_start_s"]<=a[1][0]<a[1][1]<=parent["core_end_s"]
+                        and parent["core_start_s"]<=b[1][0]<b[1][1]<=parent["core_end_s"]
+                        for parent,_ in sources.values())):
                     continue
                 if any(_bounds(r) and _overlap(_bounds(r),b[1])>.08 for r in timed_rows):
                     continue
@@ -352,13 +381,23 @@ def ambiguous_local_events(recording, sources, windows, observations, targets, i
                     if not o["crop"][0]+.1<b[1][0]<b[1][1]<o["crop"][1]-.1:
                         continue
                     content=((o.get("raw_response",{}).get("choices") or [{}])[0].get("message") or {}).get("content")
-                    if isinstance(content,str) and any(_near(words,_lex(t.text),edges=False,fraction=.85)
-                                                       for t in parse_speaker_turns(content)):
+                    def corroborates(turn):
+                        tokens=_lex(turn.text)
+                        if ambiguous:
+                            return _near(words,tokens,edges=False,fraction=.85)
+                        m=_mapping(words,tokens)
+                        if len(m)<3 or min(m)>1 or max(m)<len(words)-2:
+                            return False
+                        missing=len(words)-len(m)
+                        inserted=max(m.values())-min(m.values())+1-len(m)
+                        return missing+inserted<=max(2,int(len(words)*.20))
+                    if isinstance(content,str) and any(corroborates(t) for t in parse_speaker_turns(content)):
                         support.append(o)
-                if not support:
+                if not support or (not ambiguous and (len({o["audio_sha256"] for o in support})<2
+                        or len({tuple(o["crop"]) for o in support})<2)):
                     continue
                 tasks=(set(at["task_ids"])|set(bt["task_ids"])|{x for o in support for x in o["task_ids"]})&set(observed)
-                proposals.append({"group":b[0],"window":b[1],"words":words,"origins":origins,
+                proposals.append({"group":b[0],"window":b[1],"words":words,"origins":origins,"ambiguous":ambiguous,
                     "observations":sorted({r["observation_id"] for g in (a,b) for r in g[0]}),
                     "audio_sha256":sorted({ao["audio_sha256"],bo["audio_sha256"]}),
                     "native_audio_sha256":sorted({o["audio_sha256"] for o in support}),

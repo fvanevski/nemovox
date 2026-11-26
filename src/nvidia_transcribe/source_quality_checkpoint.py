@@ -60,6 +60,15 @@ def frame_receipts_available(report,root):
     return True
 
 
+def _unique_json_object(pairs):
+    result={}
+    for key,value in pairs:
+        if key in result:
+            raise ValueError("Duplicate checkpoint JSON key")
+        result[key]=value
+    return result
+
+
 def run_checkpoint(path, key, recording, *, resume, run):
     """Reuse only an authenticated completed stage, including its honest
     unresolved/deferred dispositions. Never cache an execution error.
@@ -67,7 +76,7 @@ def run_checkpoint(path, key, recording, *, resume, run):
     path=Path(path)
     if resume and path.is_file():
         try:
-            doc=json.loads(path.read_bytes())
+            doc=json.loads(path.read_bytes(),object_pairs_hook=_unique_json_object)
             payload=doc["payload"]
             canonical,report=payload["canonical"],payload["report"]
             if (doc["schema"]==SCHEMA and doc["input_sha256"]==key
@@ -85,7 +94,12 @@ def run_checkpoint(path, key, recording, *, resume, run):
     path.unlink(missing_ok=True)
     canonical,report=run()
     if reusable(report) and frame_receipts_available(report,path.parent):
-        payload={"canonical":canonical,"report":report}
+        # Persist and hash the same JSON representation. Numeric keys,
+        # tuples and other JSON coercions must not change the digest on
+        # a subsequent process readback. Reject colliding object keys.
+        payload=json.loads(json.dumps({"canonical":canonical,"report":report},
+            ensure_ascii=False,allow_nan=False),object_pairs_hook=_unique_json_object)
+        canonical,report=payload["canonical"],payload["report"]
         doc={"schema":SCHEMA,"input_sha256":key,"payload_sha256":_digest(payload),"payload":payload}
         tmp=path.with_name("."+path.name+".tmp")
         tmp.write_text(json.dumps(doc,ensure_ascii=False,indent=2),encoding="utf-8")

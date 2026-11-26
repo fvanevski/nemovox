@@ -85,6 +85,7 @@ def replay(recording,ledger,report):
         "original_source_unit_count":len(original_units),"timed_original_source_unit_count":len(set(original_units)&timed_units),
         "exact_original_unit_partition":sorted(original_units)==sorted(current_units),
         "ambiguous_origin_event_count":sum(d["status"]=="localized_event_ambiguous_primary_origin" for d in failed),
+        "unbound_origin_event_count":sum(d["status"]=="localized_event_unbound_primary_origin" for d in failed),
         "original_rows":len(before["utterances"]),"original_untimed":sum(not _bounds(r) for r in before["utterances"]),
         "candidate_rows":len(rows),"candidate_untimed":sum(not _bounds(r) for r in rows),
         "candidate_timed":sum(bool(_bounds(r)) for r in rows),"canonical_rows":rows,
