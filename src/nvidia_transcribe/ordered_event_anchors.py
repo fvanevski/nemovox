@@ -7,7 +7,7 @@ from difflib import SequenceMatcher
 from itertools import combinations
 
 from nvidia_transcribe.parser import parse_speaker_turns
-from nvidia_transcribe.source_quality import _bounds, _lex, _overlap, _same_event_bounds
+from nvidia_transcribe.source_quality import _bounds, _lex, _overlap, _same_event_bounds, _contains
 
 
 def _mapping(a, b):
@@ -60,6 +60,8 @@ def _streams(observation, native):
     for row in sorted(observation.get("utterances" if native else "rows", []),
                       key=lambda r: _bounds(r) or (float("inf"), float("inf"))):
         atoms = _atoms(row, native)
+        if atoms and any(a[1]<observation["crop"][0]-.01 or a[2]>observation["crop"][1]+.01 for a in atoms):
+            atoms = []
         if not atoms or (group and (native or not -.10 <= atoms[0][1]-group[-1][2] <= 1.5)):
             if group:
                 yield group
@@ -184,6 +186,13 @@ def ordered_proposals(recording, ledger, sources, windows, observations, targets
                     if count!=1 or any(_near(segment,_lex(r["source_text"]),edges=False,fraction=.85)
                                        for r in rows if r["id"]!=row["id"]):
                         continue
+                    # A best sequence alignment is not unique localization if
+                    # the same text has another plausible occurrence in either
+                    # timed stream. Keep those hypotheses unresolved.
+                    if any(_near(segment,tuple(a[0] for a in part),edges=False,fraction=.85)
+                           for atoms,m in ((aa,am),(ba,bm))
+                           for part in (atoms[:m[i]],atoms[m[j]+1:])):
+                        continue
                     support = _raw_support(native,segment,span)
                     if not support:
                         continue
@@ -281,3 +290,84 @@ def select_ordered_proposals(proposals, rows, tolerance):
                 merged.pop(key)
             selected.append(merged)
     return selected
+
+
+def ambiguous_local_events(recording, sources, windows, observations, targets, independent, timed_rows, policy):
+    """Localize speech without choosing between competing untimed raw origins.
+
+    Only positive same-event recognition may create a row. The original
+    hypotheses remain untimed and no primary source units are claimed.
+    """
+    observed={w["task_id"]:w for w in windows if w.get("state")=="observed"}
+    target_map={t["target_id"]:t for t in targets if set(t["task_ids"]) & set(observed)}
+    native=[o for o in observations if set(o.get("task_ids",[])) & set(observed)
+            and o.get("integrity",{}).get("status")=="complete"
+            and o.get("integrity",{}).get("finish_reason")=="stop"]
+    rows=[r for r in recording["utterances"] if r["id"] in sources]
+    unresolved={r["id"] for r in timed_rows if not _bounds(r)}
+    minimum=6 if recording["source_language"].startswith(("zh","ja")) else 4
+    tol=policy.timing_tolerance_s
+    def groups(o):
+        for i,r in enumerate(o.get("rows",[])):
+            group=[]
+            for x in o["rows"][i:i+5]:
+                b=_bounds(x)
+                if not b or not o["crop"][0]-.01<=b[0]<b[1]<=o["crop"][1]+.01:
+                    break
+                if group and not -.10<=b[0]-group[-1]["source_end"]<=1.5:
+                    break
+                group.append(x)
+                span=(group[0]["source_start"],b[1])
+                words=tuple(w for row in group for w in _lex(row["source_text"]))
+                if len(words)>=minimum and len(set(words))>=3 and span[1]-span[0]>=.65:
+                    yield (list(group),span,words)
+    inputs=[(o,target_map[o["id"].rsplit("-",1)[0]],list(groups(o))) for o in independent
+            if o["id"].rsplit("-",1)[0] in target_map]
+    proposals=[]
+    for (ao,at,ag),(bo,bt,bg) in combinations(inputs,2):
+        if ao["audio_sha256"]==bo["audio_sha256"] or ao["crop"]==bo["crop"]:
+            continue
+        for a in ag:
+            for b in bg:
+                if a[2]!=b[2] or not _same_event_bounds(a[1],b[1],tol):
+                    continue
+                if not any(o["crop"][0]+.1<g[1][0]<g[1][1]<o["crop"][1]-.1 for o,g in ((ao,a),(bo,b))):
+                    continue
+                words=a[2]
+                origins=[r for r in rows if r["id"] in unresolved and _near(words,_lex(r["source_text"]),edges=False,fraction=.85)
+                         and _near(_lex(r["source_text"]),words,edges=False,fraction=.75)]
+                if len(origins)<2 or len({sources[r["id"]][0]["chunk_index"] for r in origins})<2:
+                    continue
+                if any(_bounds(r) and _overlap(_bounds(r),b[1])>.08 for r in timed_rows):
+                    continue
+                # Independent wording agreement plus positive recognition in
+                # an interior native crop, not exact primary-origin identity.
+                support=[]
+                for o in native:
+                    if not o["crop"][0]+.1<b[1][0]<b[1][1]<o["crop"][1]-.1:
+                        continue
+                    content=((o.get("raw_response",{}).get("choices") or [{}])[0].get("message") or {}).get("content")
+                    if isinstance(content,str) and any(_near(words,_lex(t.text),edges=False,fraction=.85)
+                                                       for t in parse_speaker_turns(content)):
+                        support.append(o)
+                if not support:
+                    continue
+                tasks=(set(at["task_ids"])|set(bt["task_ids"])|{x for o in support for x in o["task_ids"]})&set(observed)
+                proposals.append({"group":b[0],"window":b[1],"words":words,"origins":origins,
+                    "observations":sorted({r["observation_id"] for g in (a,b) for r in g[0]}),
+                    "audio_sha256":sorted({ao["audio_sha256"],bo["audio_sha256"]}),
+                    "native_audio_sha256":sorted({o["audio_sha256"] for o in support}),
+                    "native_raw_response_sha256":sorted({o["raw_response_sha256"] for o in support if o.get("raw_response_sha256")}),
+                    "recovery_task_ids":sorted(tasks),"trigger_evidence_ids":sorted({v for t in tasks for v in observed[t]["evidence_ids"]})})
+    # Identical or nested evidence for one locality is not repeated speech.
+    # Never elect incompatible overlapping events; distinct times survive.
+    out=[]
+    for p in sorted(proposals,key=lambda p:(-len(p["words"]),p["window"])):
+        overlaps=[q for q in proposals if q is not p and _overlap(p["window"],q["window"])>.10]
+        if any(not ((p["words"]==q["words"] and _same_event_bounds(p["window"],q["window"],tol))
+                    or (_contains(p["words"],q["words"]) and p["window"][0]-tol<=q["window"][0] and q["window"][1]<=p["window"][1]+tol)
+                    or (_contains(q["words"],p["words"]) and q["window"][0]-tol<=p["window"][0] and p["window"][1]<=q["window"][1]+tol)) for q in overlaps):
+            continue
+        if not any(_overlap(p["window"],q["window"])>.10 for q in out):
+            out.append(p)
+    return out

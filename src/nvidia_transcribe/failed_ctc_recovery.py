@@ -10,7 +10,7 @@ from __future__ import annotations
 from nvidia_transcribe.source_occurrences import stable_id
 from nvidia_transcribe.source_quality import _bounds, _lex
 from nvidia_transcribe.semantic_context import text_digest
-from nvidia_transcribe.ordered_event_anchors import ordered_proposals, select_ordered_proposals
+from nvidia_transcribe.ordered_event_anchors import ordered_proposals, select_ordered_proposals, ambiguous_local_events
 from nvidia_transcribe.utterances import join_multilingual_units
 
 
@@ -119,6 +119,39 @@ def recover_failed_ctc_events(recording,ledger,windows,observations,targets,inde
                     "source_id":uid,"source_unit_ids":ids,"independent_observation_ids":p["independent_observation_ids"],
                     "source_truth_human_verified":False})
             result.append(new)
+    # An acoustic occurrence can be real while its original source-row
+    # identity remains ambiguous. Render positively corroborated events
+    # without assigning or consuming either competing primary hypothesis.
+    for p in ambiguous_local_events(recording,sources,windows,observations,targets,independent,result,policy):
+        lang=recording["source_language"]
+        text=("".join if lang.startswith(("zh","ja")) else " ".join)(r["source_text"] for r in p["group"])
+        uid=stable_id("utt",[recording["source"]["fingerprint_sha256"],p["observations"],p["window"]])
+        candidate_ids=sorted(r["id"] for r in p["origins"])
+        row={"id":uid,"utterance_id":uid,"source_turn_id":uid,"source_turn_ids":[uid],
+             "source_occurrence_ids":[uid],"source_unit_ids":[],"recognized_turn_ids":[],"occurrence_span_ids":[],
+             "source_language":lang,"source_text":text,"source_start":p["window"][0],"source_end":p["window"][1],
+             "speaker_id":"SPK_UNK","speaker_identity_accepted":False,"local_speaker_id":None,"raw_speaker_tag":None,
+             "source_words":[],"source_characters":[],"unit_count":0,"timed_unit_count":0,"untimed_unit_count":0,
+             "timing_gaps":[],"event_refs":[],
+             "chunk_indices":sorted({c for r in p["origins"] for c in r.get("chunk_indices",[])}),
+             "alignment_status":"independent_event_bounds_approximate",
+             "source_quality_status":"unresolved_wording_ambiguous_origin_event",
+             "prior_source_hypotheses":p["origins"],
+             "source_lineage":{"prior_candidate_source_ids":candidate_ids,"primary_origin_accepted":False,
+                "acoustic_observation_ids":p["observations"],"source_word_timing_accepted":False,
+                "native_audio_sha256":p["native_audio_sha256"],"native_raw_response_sha256":p["native_raw_response_sha256"]},
+             "timestamp_provenance":{"backend":"independent_asr_segment_estimates","timing_status":"approximate",
+                "human_verified":False,"word_timing_verified":False,"audio_sha256":p["audio_sha256"],
+                "observation_ids":p["observations"]}}
+        insert=next((i for i,r in enumerate(result) if _bounds(r) and r["source_start"]>row["source_start"]),len(result))
+        result.insert(insert,row)
+        decisions.append({"status":"localized_event_ambiguous_primary_origin","source_id":uid,
+            "candidate_origin_ids":candidate_ids,"source_unit_ids":[],"window":p["window"],
+            "observations":p["observations"],"independent_observation_ids":p["observations"],
+            "audio_sha256":p["audio_sha256"],"native_audio_sha256":p["native_audio_sha256"],
+            "native_raw_response_sha256":p["native_raw_response_sha256"],
+            "trigger_evidence_ids":p["trigger_evidence_ids"],"recovery_task_ids":p["recovery_task_ids"],
+            "primary_origin_accepted":False,"source_truth_human_verified":False})
     if len({r["id"] for r in result})!=len(result):
         raise ValueError("Recovered source subspan ID collision")
     return result,decisions

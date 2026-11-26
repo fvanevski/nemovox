@@ -498,5 +498,6 @@ def recover_unlocalized_events(recording,windows,observations,targets,independen
             "source_ids":sorted(ids),"window":b,"observations":observation_ids,
             "trigger_evidence_ids":task["evidence_ids"],"recovery_task_ids":[task["task_id"]],
             "independent_observation_ids":sorted({o["id"] for o,x in ins}),
+            "prefix_correspondences":prefix_receipts,
             "audio_sha256":audio,"acoustic_truth_accepted":False})
     return rows,decisions
