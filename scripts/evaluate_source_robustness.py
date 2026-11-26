@@ -18,6 +18,7 @@ import tarfile
 import time
 
 from nvidia_transcribe.source_quality import SourceQualityPolicy, _lex
+from nvidia_transcribe.targeted_occurrences import displaced_sequences
 
 
 def sha(path):
@@ -71,74 +72,6 @@ def read_intake(path, expected_sha):
             out[name]=json.loads(b)
     return manifest,out
 
-
-def displaced_sequences(ledger, *, minimum_units=6):
-    """Nominate exact recognized-order matches with disjoint CTC hypotheses.
-
-    The shared crop must contain the earlier hypothesized words; the later
-    projection must fall outside that shared crop. The match is a reason to
-    listen, not a finding of echo or speaker identity.
-    """
-    if minimum_units<2:
-        raise ValueError("Minimum sequence too short")
-    parents={a["id"]:a for a in ledger.get("asr_observations",[])}
-    exact={i["asr_observation_id"] for i in ledger.get(
-        "recognized_occurrence_inventories",[]) if i.get("projection_status")=="exact"}
-    by_chunk={}
-    for u in ledger.get("lexical_observations",[]):
-        if u["asr_observation_id"] in exact and u.get("raw_recognized_token_ids") and _lex(u["text"]):
-            by_chunk.setdefault(u["chunk_index"],[]).append(u)
-    for items in by_chunk.values():
-        items.sort(key=lambda u:u["source_ordinal"])
-    by_index={p["chunk_index"]:p for p in parents.values()}
-    result=[]
-    def bounds(u):
-        a,b=u.get("ctc_start_s"),u.get("ctc_end_s")
-        if isinstance(a,(int,float)) and isinstance(b,(int,float)) and a<b:
-            return a,b
-        return None
-    for index,left in sorted(by_chunk.items()):
-        right=by_chunk.get(index+1,[])
-        if not right:
-            continue
-        a,b=by_index[index],by_index[index+1]
-        shared=(max(a["infer_start_s"],b["infer_start_s"]),
-                min(a["infer_end_s"],b["infer_end_s"]))
-        if shared[0]>=shared[1]:
-            continue
-        lkeys=[_lex(u["text"]) for u in left]
-        rkeys=[_lex(u["text"]) for u in right]
-        for match in SequenceMatcher(None,lkeys,rkeys,autojunk=False).get_matching_blocks():
-            run=[]
-            def flush():
-                if len(run)<minimum_units or len({_lex(x["text"]) for x,_ in run})<3:
-                    return
-                before,after=zip(*run)
-                result.append({
-                    "left_chunk":index,"right_chunk":index+1,
-                    "shared_crop":shared,
-                    "left_unit_ids":[u["id"] for u in before],
-                    "right_unit_ids":[u["id"] for u in after],
-                    "left_bounds":[bounds(u) for u in before],
-                    "right_bounds":[bounds(u) for u in after],
-                    "left_turn_ids":sorted({u["recognized_turn_id"] for u in before}),
-                    "right_turn_ids":sorted({u["recognized_turn_id"] for u in after}),
-                    "unit_count":len(run),"acoustic_truth_accepted":False,
-                })
-            for offset in range(match.size):
-                x,y=left[match.a+offset],right[match.b+offset]
-                xb,yb=bounds(x),bounds(y)
-                eligible=(xb and yb and shared[0]<=xb[0]<xb[1]<=shared[1]
-                    and shared[1]<=yb[0]<yb[1]<=b["core_end_s"]
-                    and x.get("boundary_disposition")=="selected_provisional"
-                    and y.get("boundary_disposition")=="selected_provisional")
-                if eligible:
-                    run.append((x,y))
-                else:
-                    flush()
-                    run=[]
-            flush()
-    return result
 
 
 def validate_plan(plan,duration):

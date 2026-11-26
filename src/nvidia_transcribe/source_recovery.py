@@ -104,7 +104,9 @@ def schedule_independent(recording,observations,*,windows,policy):
                     and t["bounds"][1]-t["bounds"][0]>=.65
                     and bounds[0]-.01<=t["bounds"][0]<t["bounds"][1]<=bounds[1]+.01]
         # Prefer an explicit original untimed run over unbound omission.
-        candidates = sorted(relevant,key=lambda t:(t["kind"]!="untimed",t["bounds"]))
+        candidates = ([{"kind":"occurrence","bounds":bounds,"ids":task.get("source_ids",[])}]
+                      if task.get("priority",4)<0 else
+                      sorted(relevant,key=lambda t:(t["kind"]!="untimed",t["bounds"])))
         if not candidates and (task.get("priority",4)<=2 or
                 not any(o.get("utterances") for o in observations
                         if task["task_id"] in o.get("task_ids",[]))):
@@ -129,12 +131,20 @@ def schedule_independent(recording,observations,*,windows,policy):
     task_rank={w["task_id"]:i for i,w in enumerate(observed)}
     task_priority={w["task_id"]:w.get("priority",4) for w in observed}
     proposals.sort(key=lambda t:(
+        min(task_priority[uid] for uid in t["task_ids"])>=0,
         t["kind"]!="untimed",
         min(task_priority[uid] for uid in t["task_ids"]),
         t["kind"]!="omission",
         min(task_rank[uid] for uid in t["task_ids"])))
     for t in proposals:
-        crops = independent_crops(t["bounds"],duration)
+        if min(task_priority[uid] for uid in t["task_ids"])<0:
+            from nvidia_transcribe.source_quality import _crop_windows
+            crops=_crop_windows(t["bounds"],duration)
+        else:
+            crops = independent_crops(t["bounds"],duration)
+        if len(crops)!=2:
+            deferred.append({**t,"state":"deferred","defer_reason":"insufficient_distinct_context"})
+            continue
         cost = sum(b-a for a,b in crops)
         reason = ("insufficient_distinct_context" if crops[0]==crops[1] else
                   "independent_target_budget" if len(admitted)>=policy.max_independent_targets else

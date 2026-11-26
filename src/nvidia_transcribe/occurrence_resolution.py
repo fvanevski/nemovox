@@ -135,18 +135,35 @@ def consolidate_events(events,policy):
     return result,conflicts
 
 
-def resolve_occurrences(recording,events,observations,targets,recovery,policy):
-    cross=cross_model_events(observations,targets,recovery,policy)
+def resolve_occurrences(recording,events,observations,targets,recovery,policy,*,ledger=None,windows=()):
+    targeted=[]
+    independent=recovery.get("observations",[])
+    if ledger is not None:
+        from nvidia_transcribe.targeted_occurrences import adjudicate_sequences, recover_unlocalized_events
+        rows,first=adjudicate_sequences(recording,ledger,windows,observations,targets,independent)
+        rows,second=recover_unlocalized_events({**recording,"utterances":rows},
+                                              windows,observations,targets,independent)
+        targeted=first+second
+        recording={**recording,"utterances":rows}
+        # Special tasks are adjudicated atomically at sequence/event level.
+        # Do not reuse their observations for individual fragment insertion.
+        special={w["task_id"] for w in windows if w.get("priority",4)<0}
+        events=[e for e in events if not special.intersection(e.get("recovery_task_ids",[]))]
+        observations=[o for o in observations if not special.intersection(o.get("task_ids",[]))]
+        blocked={t["target_id"] for t in targets if special.intersection(t["task_ids"])}
+        targets=[t for t in targets if t["target_id"] not in blocked]
+        independent=[o for o in independent if o["id"].rsplit("-",1)[0] not in blocked]
+    cross=cross_model_events(observations,targets,{**recovery,"observations":independent},policy)
     combined,conflicts=consolidate_events([*events,*cross],policy)
     timed,timing_decisions=_recover_untimed(recording,observations,policy)
     rows,decisions=select_source_events(timed,combined,policy)
     rows,independent_decisions=apply_independent(
-        {**recording,"utterances":rows},targets,observations,recovery.get("observations",[]))
-    recovery["decisions"]=independent_decisions
+        {**recording,"utterances":rows},targets,observations,independent)
+    recovery["decisions"]=targeted+independent_decisions
     recovery["cross_model_events"]=cross
     if recovery["status"]=="observed":
         recovery["status"]="partial" if independent_decisions or cross else "unresolved"
-    return rows,[*conflicts,*timing_decisions,*decisions,*independent_decisions]
+    return rows,[*targeted,*conflicts,*timing_decisions,*decisions,*independent_decisions]
 
 
 def resolution_receipts(recording,ledger,rows,decisions,policy):

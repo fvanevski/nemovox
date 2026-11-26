@@ -62,7 +62,7 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
                  for r in (advisory or {}).get("outcomes", [])
                  if r.get("status") == "advisory_only"}
 
-    def add(uid, reason, priority, bounds, chunks=(), refs=(), source_ids=()):
+    def add(uid, reason, priority, bounds, chunks=(), refs=(), source_ids=(), *, whole=False):
         chunks = sorted(set(chunks))
         refs = sorted(set(refs))
         source_ids = sorted(set(source_ids))
@@ -75,7 +75,8 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
                 "task_id":stable_id("recovery", [media_id, uid, reason, None]),
                 "state":"unlocalized", "defer_reason":"no_credible_listening_interval"})
             return
-        for part in _parts(bounds,duration,policy.max_target_seconds):
+        parts=[bounds] if whole and bounds[1]-bounds[0]<=policy.challenge_max_seconds else _parts(bounds,duration,policy.max_target_seconds)
+        for part in parts:
             proposals.append({**evidence, "window":part})
 
     def parent_window(parent):
@@ -87,6 +88,16 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
     rows = recording["utterances"]
     def row_bounds(r):
         return interval((r.get("source_start"),r.get("source_end")),duration)
+
+    from nvidia_transcribe.targeted_occurrences import displaced_sequences, sequence_id, extent
+    for n in displaced_sequences(ledger):
+        earlier,later=extent(n['left_bounds']),extent(n['right_bounds'])
+        if later[1]-later[0]>policy.challenge_max_seconds:
+            continue
+        uid=sequence_id(n)
+        chunks=[n['left_chunk'],n['right_chunk']]
+        add(uid,'sequence_origin',-1,earlier,chunks,n['left_unit_ids'],whole=True)
+        add(uid,'sequence_displacement',-1,later,chunks,n['right_unit_ids'],whole=True)
 
     anchored_runs = []
     i = 0
@@ -238,6 +249,12 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
         if bracket:
             priority=0 if bracket[1]-bracket[0]<=policy.max_target_seconds else 1
             add(uid,"untimed_source_dialogue",priority,padded_window(bracket,duration),chunks,refs,ids)
+            units=[u for r in run for u in r.get("source_words",[])+r.get("source_characters",[])]
+            if (len(run)>=2 and len(units)>=8 and any(u.get("locality_status")=="disputed" for u in units)
+                    and bracket[1]-bracket[0]<policy.max_target_seconds):
+                broad=padded_window(bracket,duration,padding=policy.max_target_seconds*.75)
+                if broad[1]-broad[0]<=policy.challenge_max_seconds:
+                    add(uid,"untimed_event_context",-1,broad,chunks,refs,ids,whole=True)
         else:
             windows = [b for c in chunks if c in by_chunk
                        if (b := interval(parent_window(by_chunk[c]),duration))]
@@ -258,7 +275,8 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
     for p in sorted(proposals,key=lambda p:(p["priority"],p["window"][0],p["window"][1],p["evidence_ids"])):
         a,b = p["window"]
         match = next((w for w in merged
-                      if overlap(w["window"],p["window"]) >= .5*min(b-a,w["window"][1]-w["window"][0])
+                      if w["priority"]>=0 and p["priority"]>=0
+                      and overlap(w["window"],p["window"]) >= .5*min(b-a,w["window"][1]-w["window"][0])
                       and max(b,w["window"][1])-min(a,w["window"][0]) <= policy.max_target_seconds+1e-6
                       # A broad fallback must not inflate a localized task
                       # merely because they overlap. Preserve its own

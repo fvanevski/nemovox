@@ -844,7 +844,7 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
         output_dir=output_dir,policy=policy,lifecycle=lifecycle)
     recovery["deferred_targets"] = independent_deferred
     from nvidia_transcribe.occurrence_resolution import resolve_occurrences, resolution_receipts
-    rows,decisions = resolve_occurrences(recording,events,observations,targets,recovery,policy)
+    rows,decisions = resolve_occurrences(recording,events,observations,targets,recovery,policy,ledger=ledger,windows=windows)
     from nvidia_transcribe.scene_evidence import SceneEvidencePolicy, adjudicate_scene
     if semantic_review:
         rows,scene=adjudicate_scene({**recording,"utterances":rows},observations,

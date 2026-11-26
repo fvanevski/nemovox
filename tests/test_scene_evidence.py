@@ -192,7 +192,7 @@ def test_scene_rejected_response_retained_and_one_correction_per_case():
     good={"action":"retain","candidate_id":"","replace_span":"","meaning":"m",
           "reason":"r","materially_resolved":False,"context_ids":["s"],
           "next_evidence":"none"}
-    bad={**good,"context_ids":["s","s"]}
+    bad={**good,"context_ids":["fake"]}
     class Client:
         def __init__(self):
             self.responses=iter([bad,good,bad])
@@ -207,8 +207,8 @@ def test_scene_rejected_response_retained_and_one_correction_per_case():
     assert result["decision"]==good
     assert case["assessment_recovery_attempts"]==1
     assert case["failed_assessments"][0]["decision"]==bad
-    assert "duplicate_context_ids" in case["failed_assessments"][0]["violations"]
-    assert "duplicate_context_ids" in client.calls[1]["messages"][0]["content"]
+    assert "unknown_context_ids" in case["failed_assessments"][0]["violations"]
+    assert "unknown_context_ids" in client.calls[1]["messages"][0]["content"]
     assert client.calls[0]["messages"][1]==client.calls[1]["messages"][1]
     assert client.calls[0]["response_format"]==client.calls[1]["response_format"]
     with pytest.raises(SceneDecisionError):
@@ -261,3 +261,24 @@ def test_scene_incomplete_generation_not_retried_and_malformed_json_retained():
         assert len(case["failed_assessments"])==calls
         assert case["failed_assessments"][0]["violations"]==[code]
         assert case["failed_assessments"][0]["response"]["choices"][0]["message"]["content"]=="NaN"
+
+
+def test_scene_duplicate_valid_references_normalize_without_retry():
+    import json
+    from nvidia_transcribe.scene_evidence import _decision_schema, assess_case_payload
+    payload={"scene":{"rows":[{"id":"a"},{"id":"b"}]},
+             "acoustic_alternatives":[],"visual_observations":[]}
+    schema=_decision_schema([],[],["a","b"])
+    decision={"action":"retain","candidate_id":"","replace_span":"","meaning":"m",
+              "reason":"r","materially_resolved":False,"context_ids":["a","a"],
+              "next_evidence":"none"}
+    class Client:
+        def complete(self,**kw):
+            return {"choices":[{"finish_reason":"stop","message":{"content":json.dumps(decision)}}]}
+    case={}
+    result=assess_case_payload(Client(),payload,schema,case)
+    assert result["decision"]["context_ids"]==["a"]
+    assert result["normalization"]["original_context_ids"]==["a","a"]
+    assert json.loads(result["response"]["choices"][0]["message"]["content"])==decision
+    assert not case.get("assessment_recovery_attempts")
+    assert not case["failed_assessments"]

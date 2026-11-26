@@ -258,13 +258,22 @@ def assess_payload(client,payload,schema,*,system=SYSTEM,correction_codes=()):
                    "insufficient, select unresolved; do not invent support.")
     parsed,reply=_call(client,system,payload,schema,capture=True)
     codes=decision_violations(parsed,payload,schema)
+    normalization=None
+    if codes==["duplicate_context_ids"]:
+        # A citation list denotes distinct supplied references. Repeated
+        # valid IDs add no evidence; preserve the raw reply and exact list.
+        original=list(parsed["context_ids"])
+        parsed={**parsed,"context_ids":list(dict.fromkeys(original))}
+        normalization={"kind":"deduplicate_context_ids","original_context_ids":original}
+        codes=decision_violations(parsed,payload,schema)
     if codes:
         raise SceneDecisionError({
             "input":payload,"system":system,"schema":schema,"response":reply,
             "decision":parsed,"violations":codes,
         },retryable=True)
     return {"input":payload,"decision":parsed,"response":reply,
-            "schema":schema,"correction_codes":list(correction_codes)}
+            "schema":schema,"correction_codes":list(correction_codes),
+            "normalization":normalization}
 
 
 def assess_case_payload(client,payload,schema,case,*,system=SYSTEM):
