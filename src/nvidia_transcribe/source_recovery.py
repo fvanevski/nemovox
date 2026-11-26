@@ -138,11 +138,33 @@ def schedule_independent(recording,observations,*,windows,policy):
         min(task_priority[uid] for uid in t["task_ids"]),
         t["kind"]!="omission",
         min(task_rank[uid] for uid in t["task_ids"])))
+    failed_targets=sorted((t for t in proposals if t["kind"]=="failed_ctc_core"),
+                          key=lambda t:t["bounds"])
+    def padded_pair(t):
+        a,b=t["bounds"]
+        return [(max(0.,a-.5),min(duration,b+2.)),
+                (max(0.,a-2.),min(duration,b+.5))]
+    # When a wholly failed short recording fits two full passes but not
+    # duplicated padding, prefer full core coverage with staggered crops.
+    # The ordered selector can corroborate across neighboring targets.
+    spare=policy.max_independent_audio_s-2*duration
+    compact=(bool(failed_targets) and len(failed_targets)<=policy.max_independent_targets
+             and all(t["kind"]=="failed_ctc_core" or min(task_priority[u] for u in t["task_ids"])>=0
+                     for t in proposals)
+             and abs(failed_targets[0]["bounds"][0])<1e-6
+             and abs(failed_targets[-1]["bounds"][1]-duration)<1e-6
+             and all(abs(x["bounds"][1]-y["bounds"][0])<1e-6 for x,y in zip(failed_targets,failed_targets[1:]))
+             and spare>0 and sum(b-a for t in failed_targets for a,b in padded_pair(t))>policy.max_independent_audio_s
+             and len(failed_targets)>1)
+    shift=min(.5,spare/2,min((t["bounds"][1]-t["bounds"][0])/4 for t in failed_targets)) if compact else 0.
     for t in proposals:
         if t["kind"]=="failed_ctc_core":
             a,b=t["bounds"]
-            crops=[(max(0.,a-.5),min(duration,b+2.)),
-                   (max(0.,a-2.),min(duration,b+.5))]
+            if compact:
+                shifted=(max(0.,a-shift),min(duration,b+shift if a==0 else b if b==duration else b-shift))
+                crops=[(a,b),shifted]
+            else:
+                crops=padded_pair(t)
         elif min(task_priority[uid] for uid in t["task_ids"])<0:
             from nvidia_transcribe.source_quality import _crop_windows
             crops=_crop_windows(t["bounds"],duration)

@@ -259,7 +259,7 @@ def adjudicate_sequences(recording,ledger,windows,observations,targets,independe
     return rows,decisions
 
 
-def _corroborated_prefix_variant(row,previous,ns,ins,associated,bounds):
+def _corroborated_prefix_variant(row,previous,ns,ins,associated,bounds,native_pool=()):
     """A cross-chunk edge variant may be another hypothesis for the same prefix.
 
     Require an existing shared recognized turn with the immediately preceding
@@ -287,14 +287,39 @@ def _corroborated_prefix_variant(row,previous,ns,ins,associated,bounds):
         return _ratio(tuple("".join(words)),tuple("".join(tokens)))>=.85
     native=[]
     exact_anchor=False
-    for o,x in ns:
-        first=x[0][0]
+    def timed_prefix(first):
         units=first.get("timed_lexical_units",[])[:len(words)]
-        tokens=tuple(u["lex"] for u in units)
-        if (len(tokens)!=len(words) or not resembles(tokens)
+        if (len(units)!=len(words)
                 or abs(units[0]["start"]-rb[0])>.5
                 or abs(units[-1]["end"]-rb[1])>.5):
+            return None
+        return tuple(u["lex"] for u in units)
+    # The broad event pair establishes the event and its prefix locality.
+    # Spelling may disagree. Require actual prefix timing and at least one
+    # exact lexical anchor in each broad observation, not a name edit score.
+    for o,x in ns:
+        tokens=timed_prefix(x[0][0])
+        if not tokens or not any(a==b for a,b in zip(words,tokens)):
+            return None
+    # Other already acquired native crops may resolve the prior prefix
+    # correspondence, without being evidence for the whole exposition.
+    local=[(o,x[0][0]) for o,x in ns]
+    for o in native_pool:
+        if (o.get("integrity",{}).get("status")!="complete"
+                or o.get("integrity",{}).get("finish_reason")!="stop"
+                or not _interior(o,rb)):
             continue
+        local.extend((o,r) for r in o.get("utterances",[])
+                     if _bounds(r) and abs(r["source_start"]-rb[0])<=.5)
+    seen=set()
+    for o,first in local:
+        tokens=timed_prefix(first)
+        if not tokens or not resembles(tokens):
+            continue
+        key=(o["audio_sha256"],first["observation_id"])
+        if key in seen:
+            continue
+        seen.add(key)
         exact_anchor=exact_anchor or sum(a==b for a,b in zip(words,tokens))>=2
         native.append((o,first))
     if not exact_anchor or not _pairs([o for o,r in native]):
@@ -416,7 +441,7 @@ def recover_unlocalized_events(recording,windows,observations,targets,independen
                     if short_edge and any(_contains(x[2][0:max(3,len(words)//3)],_lex(r["source_text"]))
                                           for o,x in ns):
                         continue
-                    variant=(_corroborated_prefix_variant(r,previous,ns,ins,associated,b)
+                    variant=(_corroborated_prefix_variant(r,previous,ns,ins,associated,b,observations)
                              if short_edge and prefix and len(overlaps)==1 else None)
                     if not variant:
                         blocked=True

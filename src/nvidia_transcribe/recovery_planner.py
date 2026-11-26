@@ -108,18 +108,28 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
 
     from nvidia_transcribe.failed_ctc_recovery import failed_ctc_parents
     failed=failed_ctc_parents(ledger)
+    specs=[]
     for chunk,(parent,units) in failed.items():
         core=interval((parent.get("core_start_s"),parent.get("core_end_s")),duration)
-        if not core:
-            continue
         selected=[u["id"] for u in units if u.get("boundary_disposition")=="selected_unlocalized"]
-        if not selected:
+        if not core or not selected:
             continue
-        # Cover the core once instead of repeatedly scanning the full
-        # inference crop for every unlocalized span. The ordinary global
-        # window/audio budgets still limit admission.
         maximum=min(policy.challenge_max_seconds,policy.max_target_seconds*1.5)
-        count=max(1,math.ceil((core[1]-core[0])/maximum))
+        specs.append([chunk,parent,selected,core,max(1,math.ceil((core[1]-core[0])/maximum))])
+    # A wholly failed short recording needs coverage rather than an
+    # arbitrary tail deferral. Consolidate adjacent windows within the
+    # existing challenge ceiling, only if both recognition passes fit.
+    slots=min(policy.max_independent_targets,policy.max_windows,max(6,math.ceil(duration/90.)))
+    if (set(failed)==set(by_chunk) and len(specs)==len(failed)
+            and 2*duration<policy.max_independent_audio_s and len(specs)<=slots):
+        while sum(x[4] for x in specs)>slots:
+            choices=[x for x in specs if x[4]>1
+                     and (x[3][1]-x[3][0])/(x[4]-1)<=policy.challenge_max_seconds]
+            if not choices:
+                break
+            chosen=min(choices,key=lambda x:((x[3][1]-x[3][0])/(x[4]-1),x[0]))
+            chosen[4]-=1
+    for chunk,parent,selected,core,count in specs:
         for i in range(count):
             part=(core[0]+i*(core[1]-core[0])/count,
                   core[0]+(i+1)*(core[1]-core[0])/count)
