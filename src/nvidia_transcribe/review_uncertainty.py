@@ -140,7 +140,7 @@ def _relative_month_anchor(row, original, candidate):
     supported in the current source span, permits this narrow normalization.
     The comparator still judges the actual unmodified translation strings.
     """
-    from nvidia_transcribe.source_quality import _lex, _contains
+    from nvidia_transcribe.semantic_context import _lex, _contains
     evidence=localized_wording_evidence(row)
     if evidence is None:
         return original,candidate

@@ -152,7 +152,8 @@ def build_native_recording(source, language, resource_identity, generation, dura
         "untimed_event_ids": invalid, "clamped_event_ids": clipped,
         "coverage_verified": False, "speaker_scope": "recording_request",
     }
-    result["source_quality"] = {"status": "not_run", "reason": "native_event_candidate_no_lexical_recovery"}
+    from nvidia_transcribe.source_assessment import assess_native_dialogue
+    result["source_quality"] = assess_native_dialogue(result)
     return result
 
 
@@ -298,8 +299,8 @@ def process_moss_media(media_path, *, output_dir, resource, lifecycle,
             tmp.unlink(missing_ok=True)
             wav.unlink(missing_ok=True)
     # Use the existing transcript presentation contract without CTC reconstruction.
-    from nvidia_transcribe.recording import _format_transcript_txt
-    _atomic(transcript, _format_transcript_txt(contract))
+    from nvidia_transcribe.contract import format_recording_transcript
+    _atomic(transcript, format_recording_transcript(contract))
     return {"contract": contract, "contract_path": str(cp), "transcript_path": str(transcript),
             "manifest_path": str(manifest), "native_generation_path": str(raw_path),
             "resume": "reused" if reused else "computed",

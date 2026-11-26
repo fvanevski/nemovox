@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import unicodedata
 from copy import deepcopy
 
 SCHEMA = "nemovox-row-semantic-context/v1"
@@ -182,3 +183,50 @@ def literal_examples(row, glossary, context_rows=()):
             item["id"] = text_digest(json.dumps(item,ensure_ascii=False,sort_keys=True))
             result.append(item)
     return result[:4]
+
+
+# Retained only for literal, previously recorded evidence interpretation.
+SPECIAL_TAG_RE = re.compile(r"<[^<>\\s]+>")
+
+def _is_cjk_char(ch: str) -> bool:
+    if not ch or ch.isspace():
+        return False
+    name = unicodedata.name(ch, "")
+    return name.startswith(("CJK UNIFIED IDEOGRAPH", "CJK COMPATIBILITY IDEOGRAPH"))
+
+
+def split_lexical_units(text: str) -> list[dict[str, str]]:
+    """Split text into lexical units, splitting CJK ideographs individually without whitespace assumption."""
+    cleaned = SPECIAL_TAG_RE.sub(" ", text or "")
+    units: list[dict[str, str]] = []
+    for chunk in cleaned.split():
+        buf: list[str] = []
+        for ch in chunk:
+            if _is_cjk_char(ch):
+                if buf:
+                    units.append({"text": "".join(buf), "unit_type": "word"})
+                    buf.clear()
+                units.append({"text": ch, "unit_type": "character"})
+            else:
+                buf.append(ch)
+        if buf:
+            units.append({"text": "".join(buf), "unit_type": "word"})
+    return units
+
+
+def _lex(text):
+    # Lexical matching establishes corroboration, not a release WER target.
+    result = []
+    for item in split_lexical_units(str(text or "")):
+        key = "".join(c for c in unicodedata.normalize("NFKC", item["text"]).casefold()
+                      if c.isalnum() or unicodedata.category(c).startswith("M"))
+        if key:
+            result.append(key)
+    return tuple(result)
+
+
+def _contains(outer, inner):
+    return bool(inner) and any(outer[i:i + len(inner)] == inner
+                               for i in range(len(outer) - len(inner) + 1))
+
+

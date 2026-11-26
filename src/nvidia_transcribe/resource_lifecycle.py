@@ -44,7 +44,6 @@ class OwnedService:
 
 
 _DEFAULT_UNITS = {
-    "asr_local": OwnedService("nemovox-asr.service", min_free_vram_mb=26000),
     "text_local": OwnedService("nemovox-text-review.service"),
 }
 _UNIT_RE = re.compile(r"^nemovox-[a-zA-Z0-9_.@-]+\.service$")
@@ -136,10 +135,6 @@ def _models_healthy(resource: ModelResource, timeout: float = 3.0) -> bool:
     # subclasses ValueError, but a missing explicit token is never "unhealthy".
     # The selected credential must never be written to status or logs.
     credential = resource.credential()
-    if resource.adapter == "nemotron_ctc" and credential is None:
-        # Match NemotronVLLMClient's legacy VLLM_API_KEY / EMPTY fallback.
-        # A declared api_key_env remains mandatory; text never inherits it.
-        credential = os.environ.get("VLLM_API_KEY") or "EMPTY"
     if credential:
         headers["Authorization"] = "Bearer " + credential
     try:
@@ -361,7 +356,7 @@ class ModelLifecycle:
 
     @contextmanager
     def endpoint(self, resource: ModelResource) -> Iterator[None]:
-        if resource.adapter not in {"nemotron_ctc", "openai_chat"}:
+        if resource.adapter != "openai_chat":
             raise ResourceLifecycleError("unsupported_lifecycle_adapter", resource.adapter)
         with self._lock():
             # A matching already-serving external endpoint is usable but never ours to stop.
@@ -456,48 +451,6 @@ class ModelLifecycle:
             yield
 
 
-
-class _DeferredASRClient:
-    """Keep ASR stopped when every recording chunk can be resumed from cache."""
-
-    def __init__(self, manager: ModelLifecycle, resource: ModelResource, client: object):
-        self.manager = manager
-        self.resource = resource
-        self.client = client
-        self._scope = None
-
-    def __getattr__(self, key: str):
-        # Passive identity reads (model/base_url) must not start vLLM.
-        return getattr(self.client, key)
-
-    def _acquire(self) -> None:
-        if self._scope is None:
-            scope = self.manager.endpoint(self.resource)
-            scope.__enter__()
-            self._scope = scope
-
-    def transcribe(self, *args, **kwargs):
-        self._acquire()
-        return self.client.transcribe(*args, **kwargs)
-
-    def list_models(self, *args, **kwargs):
-        self._acquire()
-        return self.client.list_models(*args, **kwargs)
-
-    def close(self) -> None:
-        if self._scope is not None:
-            scope, self._scope = self._scope, None
-            scope.__exit__(None, None, None)
-
-
-@contextmanager
-def managed_asr_client(manager: ModelLifecycle, resource: ModelResource,
-                       client: object) -> Iterator[_DeferredASRClient]:
-    proxy = _DeferredASRClient(manager, resource, client)
-    try:
-        yield proxy
-    finally:
-        proxy.close()
 
 class _DeferredTextClient:
     """Acquire a text service at the first uncached inference request."""
