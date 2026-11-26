@@ -13,6 +13,7 @@ from typing import Any, Callable, Mapping, Sequence
 
 from nvidia_transcribe.client import NemotronVLLMClient
 from nvidia_transcribe.model_resources import ModelResource
+from nvidia_transcribe.moss_recording import is_moss_contract, process_moss_media, validate_moss_contract
 from nvidia_transcribe.resource_lifecycle import ModelLifecycle, ResourceLifecycleError, managed_asr_client, managed_text_client
 from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
 from nvidia_transcribe.source_quality import SourceQualityPolicy, review_current_source
@@ -138,7 +139,22 @@ def generate_subtitles(
         raise FileNotFoundError(f"Offline re-render requires an existing translated contract: {translated_path}")
     if cfg.source_quality not in ("auto", "on", "off"):
         raise ValueError("Unsupported source quality mode")
-    quality_enabled = (not cfg.re_render_only and media_path is not None and (
+    asr_resource = (lifecycle_resources or {}).get("asr")
+    retained_input = None
+    if recording_contract_path is not None and not cfg.re_render_only:
+        retained_input = json.loads(Path(recording_contract_path).read_text(encoding="utf-8"))
+    moss_source = (not cfg.re_render_only and (is_moss_contract(retained_input)
+        if retained_input is not None else asr_resource is not None and asr_resource.adapter == "moss_events"))
+    if moss_source:
+        if cfg.source_quality == "on":
+            raise ValueError("Native MOSS events do not use the Nemotron lexical recovery policy")
+        if cfg.refinement.profile != "off" or cfg.alignment_fallback != "off" or cfg.speaker_embeddings != "none":
+            raise ValueError("MOSS candidate uses native source events; legacy source rewriting/alignment/embedding options are unsupported")
+        if retained_input is not None:
+            validate_moss_contract(retained_input, media_path=media_path, source_language=cfg.source_language)
+        elif lifecycle is None or asr_client is not None:
+            raise ValueError("Fresh MOSS recording requires a managed local worker resource")
+    quality_enabled = (not moss_source and not cfg.re_render_only and media_path is not None and (
         cfg.source_quality == "on" or (cfg.source_quality == "auto"
         and cfg.translation.backend == "riva" and lifecycle is not None
         and lifecycle_resources is not None)))
@@ -166,7 +182,7 @@ def generate_subtitles(
         rc_input = Path(recording_contract_path)
         if not rc_input.is_file():
             raise FileNotFoundError(f"Recording contract not found: {rc_input}")
-        retained_contract = json.loads(rc_input.read_text(encoding="utf-8"))
+        retained_contract = retained_input
         if not quality_enabled:
             quality = retained_contract.get("source_quality") or {}
             if quality.get("schema") == "nemovox-current-source-quality/v1":
@@ -177,7 +193,7 @@ def generate_subtitles(
                     raise ValueError("Retained canonical source quality identity mismatch")
                 retained_canonical = True
     if (cfg.translation_review.profile != "off"
-            and (quality_enabled or (retained_canonical and lifecycle is not None
+            and (quality_enabled or ((retained_canonical or moss_source) and lifecycle is not None
                  and lifecycle_resources and "translation_review" in lifecycle_resources))):
         cfg = replace(cfg, translation_review=replace(cfg.translation_review,
             wire_protocol="ninfer_messages", thinking_budget=2048, reasoning_effort="xhigh",
@@ -266,38 +282,45 @@ def generate_subtitles(
             m_path = Path(media_path)
             if not m_path.is_file():
                 raise FileNotFoundError(f"Media file not found: {m_path}")
-            _log(f"Stage 1/4: Transcribing media via Nemotron chunked core: {m_path.name}")
-            client = asr_client or NemotronVLLMClient(base_url=cfg.asr_base_url, model=cfg.asr_model,
+            if moss_source:
+                _event("asr", "running", "Recognizing recording-level MOSS dialogue events")
+                asr_res = process_moss_media(m_path, output_dir=out_dir / "asr", resource=asr_resource,
+                    lifecycle=lifecycle, source_language=cfg.source_language,
+                    audio_stream_index=cfg.audio_stream_index, resume=cfg.resume)
+                _event("asr", "complete")
+            else:
+                _log(f"Stage 1/4: Transcribing media via Nemotron chunked core: {m_path.name}")
+                client = asr_client or NemotronVLLMClient(base_url=cfg.asr_base_url, model=cfg.asr_model,
                                                    api_key=cfg.asr_api_key, timeout_s=900.0)
-            with (managed_asr_client(lifecycle, lifecycle_resources["asr"], client)
-                  if lifecycle and lifecycle_resources else nullcontext(client)) as stage_client:
-                asr_res = process_media(
-                    m_path,
-                    output_dir=out_dir / "asr",
-                    client=stage_client,
-                    config=RecordingPipelineConfig(
-                        source_language=cfg.source_language,
-                        mode=cfg.asr_mode,
-                        chunk_seconds=cfg.chunk_seconds,
-                        context_seconds=cfg.context_seconds,
-                        chunk_policy=cfg.chunk_policy,
-                        min_tail_seconds=cfg.min_tail_seconds,
-                        audio_stream_index=cfg.audio_stream_index,
-                        alignment_fallback=cfg.alignment_fallback,
-                        qwen_policy=cfg.qwen_policy,
-                        qwen_device=cfg.qwen_device,
-                        qwen_model_path=cfg.qwen_model_path,
-                        qwen_worker_python=cfg.qwen_worker_python,
-                        qwen_gpu_mode=cfg.qwen_gpu_mode,
-                        qwen_owned_asr_unit=cfg.qwen_owned_asr_unit,
-                        qwen_asr_lease_path=cfg.qwen_asr_lease_path,
-                        speaker_embeddings=cfg.speaker_embeddings,
-                        speaker_embedding_model=cfg.speaker_embedding_model,
-                        asr_resource_fingerprint=cfg.asr_resource_fingerprint,
-                        model_path=cfg.asr_model_path,
-                        resume=cfg.resume,
-                    ),
-                )
+                with (managed_asr_client(lifecycle, lifecycle_resources["asr"], client)
+                      if lifecycle and lifecycle_resources else nullcontext(client)) as stage_client:
+                    asr_res = process_media(
+                        m_path,
+                        output_dir=out_dir / "asr",
+                        client=stage_client,
+                        config=RecordingPipelineConfig(
+                            source_language=cfg.source_language,
+                            mode=cfg.asr_mode,
+                            chunk_seconds=cfg.chunk_seconds,
+                            context_seconds=cfg.context_seconds,
+                            chunk_policy=cfg.chunk_policy,
+                            min_tail_seconds=cfg.min_tail_seconds,
+                            audio_stream_index=cfg.audio_stream_index,
+                            alignment_fallback=cfg.alignment_fallback,
+                            qwen_policy=cfg.qwen_policy,
+                            qwen_device=cfg.qwen_device,
+                            qwen_model_path=cfg.qwen_model_path,
+                            qwen_worker_python=cfg.qwen_worker_python,
+                            qwen_gpu_mode=cfg.qwen_gpu_mode,
+                            qwen_owned_asr_unit=cfg.qwen_owned_asr_unit,
+                            qwen_asr_lease_path=cfg.qwen_asr_lease_path,
+                            speaker_embeddings=cfg.speaker_embeddings,
+                            speaker_embedding_model=cfg.speaker_embedding_model,
+                            asr_resource_fingerprint=cfg.asr_resource_fingerprint,
+                            model_path=cfg.asr_model_path,
+                            resume=cfg.resume,
+                        ),
+                    )
             contract = asr_res["contract"]
             rc_path = Path(asr_res["contract_path"]) if quality_enabled else None
             default_stem = m_path.stem
@@ -337,7 +360,8 @@ def generate_subtitles(
         else:
             _event("source_quality", "skipped",
                    "Using explicitly supplied canonical source: " + contract["source_quality"]["status"]
-                   if retained_canonical else "No current-media quality review requested")
+                   if retained_canonical else ("Native MOSS events: legacy lexical recovery is not applicable"
+                       if moss_source else "No current-media quality review requested"))
         src_lang = cfg.source_language or contract.get("source_language")
         raw_utterances = list(contract.get("utterances") or [])
 

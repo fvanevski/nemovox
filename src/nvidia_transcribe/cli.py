@@ -12,6 +12,7 @@ from nvidia_transcribe.client import InferenceRequestConfig, NemotronVLLMClient
 from nvidia_transcribe.gpu_handoff import ManagedASRBlocked, ManagedASRConfig, recover_pending_managed_asr
 from nvidia_transcribe.media import MediaInspectionError
 from nvidia_transcribe.model_resources import ResourceConfigError, load_model_resources
+from nvidia_transcribe.moss_recording import process_moss_media
 from nvidia_transcribe.resource_lifecycle import ModelLifecycle, ResourceLifecycleError, managed_asr_client
 from nvidia_transcribe.parser import CTCMetadataError
 from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
@@ -134,7 +135,7 @@ def build_parser() -> argparse.ArgumentParser:
     for parser in (t, pm, gs):
         parser.add_argument("--model-resources", default=None,
                             help="Host model-resource JSON path (or NEMOVOX_MODEL_RESOURCES).")
-        parser.add_argument("--asr-resource", default=None, help="Named ASR/CTC model resource.")
+        parser.add_argument("--asr-resource", default=None, help="Named recording recognition resource (Nemotron CTC or MOSS events).")
     for parser in (pm, gs):
         parser.add_argument("--qwen-policy", default="subtitle", choices=["subtitle", "fine"],
                             help="Admit useful untimed subtitle windows by default; fine admits smaller gaps.")
@@ -193,6 +194,8 @@ def main(argv: list[str] | None = None) -> int:
             registry = load_model_resources(args.model_resources)
             asr_resource = registry.resolve(
                 "asr", resource_name=args.asr_resource, endpoint=args.base_url, model=args.model)
+            if asr_resource.adapter == "moss_events" and args.command == "transcribe":
+                raise ResourceConfigError("MOSS recording events use process-media (transcribe is the native CTC diagnostic command)")
             if args.command in ("process-media", "generate-subtitles"):
                 qwen_resource = registry.resolve(
                     "forced_alignment", require_local_paths=(args.alignment_fallback == "qwen" and
@@ -273,6 +276,21 @@ def main(argv: list[str] | None = None) -> int:
             Path(args.out_json).write_text(json.dumps(result["contract"], ensure_ascii=False, indent=2), encoding="utf-8")
         else:
             print(json.dumps(result["contract"], ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "process-media" and asr_resource.adapter == "moss_events":
+        try:
+            if args.model_path or args.alignment_fallback != "off" or args.speaker_embeddings != "none" or args.mode != "speaker":
+                raise ValueError("MOSS uses native speaker events; CTC checkpoint, alignment and speaker embedding overrides are not supported")
+            out = process_moss_media(args.media, output_dir=args.output_dir, resource=asr_resource,
+                lifecycle=ModelLifecycle(), source_language=args.source_language,
+                audio_stream_index=args.audio_stream, resume=not args.fresh)
+        except (OSError, ValueError, RuntimeError) as exc:
+            print(json.dumps({"status": "RESOURCE_BLOCKED" if isinstance(exc, ResourceLifecycleError) else "ERROR",
+                              "reason": exc.status if isinstance(exc, ResourceLifecycleError) else None,
+                              "error": str(exc)}, indent=2), file=sys.stderr)
+            return 1
+        print(json.dumps({"status": "OK", **{k:v for k,v in out.items() if k != "contract"}}, ensure_ascii=False, indent=2))
         return 0
 
     if args.command == "process-media":

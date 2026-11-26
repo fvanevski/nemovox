@@ -69,3 +69,12 @@ folder does not change the browser download directory or the CLI runtime.
 ### Independent source evidence
 
 Studio uses the same occurrence-directed source-quality pipeline as the CLI. An optional explicit `source_challenger` resource binding enables bounded cached-model Whisper observations using `whisper_ct2`, CUDA `int8_float16` and the shared lifecycle lease; see [model resource configuration](../docs/model-resources/CONFIGURATION.md). Unavailable or unresolved evidence remains visible in the current job's source-quality report.
+
+### Native MOSS qualification
+
+An isolated Studio instance can select a configured `moss_events` ASR resource
+through its inherited private model-resource registry. Choose an explicit
+source language, speaker mode, and disable legacy refinement, forced alignment
+fallback and speaker embedding. The candidate uses one recording-level request;
+legacy chunk geometry does not control this adapter. The existing Studio
+recording/export/subtitle flow is used; the deployed default is unchanged.

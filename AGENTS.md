@@ -90,3 +90,15 @@ historical evidence documents.
 - Treat `configs/model-resources.example.json` as the public template and `configs/model-resources.local.json` (or `NEMOVOX_MODEL_RESOURCES`) as host-specific configuration. Preserve role/adapter compatibility, deterministic override precedence and credential indirection (`api_key_env`); never silently substitute other model endpoints or CPU devices.
 - Resource selection alone is not lifecycle authority. The CLI/Studio job pipeline MUST automatically acquire and release **explicitly Nemovox-owned** model services under verified unit/resource/endpoint/model identity and cooperative locks. Never stop/evict unrelated GPU services, bypass ownership admission, downgrade device, or download checkpoints. See `docs/model-resources/LIFECYCLE.md`; Qwen's separate managed-ASR handoff remains lease-gated.
 - Keep `README.md`, `web/README.md` and `docs/model-resources/CONFIGURATION.md` consistent with final tested CLI and Studio behavior. Remove superseded aliases and paths when their current use is no longer justified.
+
+## Native event candidate (issue #24)
+
+Coherent meaning-bearing dialogue is the objective. Differential cropping,
+forced alignment, alternate recognition and speaker reconciliation are
+candidate investigative mechanisms, not mandatory fixtures. Do not route MOSS
+native events through the Nemotron CTC lexical recovery policy. The explicitly
+selected `moss_events` recording resource is a qualification candidate, not
+a default-model promotion. It preserves the native single-request speaker
+scope, requires explicit source language, and admits no synthetic word timings.
+Episode-scale behavior must be demonstrated before selecting or retiring the
+existing production path. No automatic smaller-window retry or model fallback.

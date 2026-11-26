@@ -187,3 +187,12 @@ there is no automatic CPU fallback. No universal second transcription or word
 alignment is required. The qualified default is fixed 90-second cores with
 10-second context and a 15-second minimum tail; pause-aware geometry remains
 an explicit option, not a universally superior policy.
+
+### Native MOSS recording candidate
+
+The optional `moss_events` ASR resource is available for bounded #24
+qualification through the existing recording/subtitle commands. It preserves
+native dialogue events and anonymous recording-scoped speakers without
+manufacturing lexical timings. See [model-resource configuration](docs/model-resources/CONFIGURATION.md).
+Nemotron remains the deployed default until episode-scale qualification and
+Central promotion. Source-language selection must be explicit for MOSS.

@@ -276,3 +276,24 @@ Primary recording no longer launches the former automatic per-chunk CTC subinter
 ### Rebuilding the qualified CUDA challenger environment
 
 On the qualified Garuda host CTranslate2 4.9.1 required cuBLAS 12 during actual inference; `/opt/cuda/lib64` exposed CUDA 13. The existing CUDA 12.8 files resolved the issue. Check the actual wheel's `ctranslate2.libs` directory and ELF RPATH with `readelf -d` before recreating links. The qualified targets were `/usr/local/cuda-12.8/targets/x86_64-linux/lib/libcublas.so.12.8.3.14` and `libcublasLt.so.12.8.3.14`; link them as `libcublas.so.12` and `libcublasLt.so.12` in that environment's `ctranslate2.libs` only, without overwriting existing regular files. Revalidate SONAME, real target path, installed cuDNN 9, `uv pip check`, and actual cached-model inference both with `LD_LIBRARY_PATH` unset and with the host's CUDA 13 path. Do not assume a capability probe establishes working inference. Recheck after a wheel/environment rebuild; no system driver changes or model downloads are necessary for this qualified setup. Apply resource changes only through an authorized, reversible host deployment; do not recreate a qualified environment merely to repeat historical setup.
+
+### MOSS native-dialogue candidate
+
+For #24 qualification, add a resource to a private copy of the effective
+configuration (not the deployed registry):
+
+```json
+{"adapter":"moss_events","model":"OpenMOSS-Team/MOSS-Transcribe-Diarize","checkpoint_path":"/absolute/admitted/snapshot","worker_python":"/absolute/isolated/venv/bin/python","device":"cuda:0"}
+```
+
+Bind it to the asr role or select with --asr-resource. No endpoint/model
+CLI overrides, implicit downloads, CPU fallback or CTC diagnostics. Use
+process-media or generate-subtitles with explicit source language. Studio uses
+the same private registry in its child environment. MOSS uses one complete
+recording request, independent of legacy chunk controls, with a duration-scaled
+generation budget and explicit cap failure. Legacy source-quality on, source
+rewriting, alignment fallback and speaker embeddings are not applicable;
+auto source quality reports the native path as not_run, not reviewed. Select
+source language explicitly in Studio. Same-job ASR resume binds input bytes,
+stream, model assets, worker/runtime, adapter and raw generation. No new
+resource default or service deployment until qualified.

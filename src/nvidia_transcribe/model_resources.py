@@ -22,7 +22,7 @@ class ResourceConfigError(ValueError):
 
 # Stage requirements, not model names. Specialized adapters remain distinct.
 ROLE_ADAPTERS: dict[str, frozenset[str]] = {
-    "asr": frozenset({"nemotron_ctc"}),
+    "asr": frozenset({"nemotron_ctc", "moss_events"}),
     "source_challenger": frozenset({"whisper_ct2"}),
     "source_refinement": frozenset({"openai_chat"}),
     "text_translation": frozenset({"openai_chat"}),
@@ -38,6 +38,7 @@ RESOURCE_FIELDS = frozenset({"adapter", "model", "endpoint", "checkpoint_path", 
 _ADAPTER_FIELDS = {
     "nemotron_ctc": frozenset({"adapter", "endpoint", "model", "checkpoint_path", "api_key_env"}),
     "whisper_ct2": frozenset({"adapter", "checkpoint_path", "worker_python", "device"}),
+    "moss_events": frozenset({"adapter", "model", "checkpoint_path", "worker_python", "device"}),
     "openai_chat": frozenset({"adapter", "endpoint", "model", "api_key_env"}),
     "riva_worker": frozenset({"adapter", "checkpoint_path", "worker_python", "device"}),
     "qwen_forced_aligner": frozenset({"adapter", "checkpoint_path", "worker_python", "device"}),
@@ -140,6 +141,9 @@ def _validate_resource(name: str, spec: Mapping[str, Any]) -> ModelResource:
         raise ResourceConfigError(f"Resource {name!r} requires endpoint and served model")
     if adapter in ("riva_worker", "qwen_forced_aligner", "whisper_ct2") and not (spec.get("checkpoint_path") and spec.get("worker_python")):
         raise ResourceConfigError(f"Resource {name!r} requires checkpoint_path and worker_python")
+    if adapter == "moss_events" and not (spec.get("model") and spec.get("checkpoint_path")
+            and spec.get("worker_python") and spec.get("device") == "cuda:0"):
+        raise ResourceConfigError("MOSS requires model, local checkpoint_path, worker_python and explicit cuda:0")
     if adapter == "titanet" and not spec.get("model"):
         raise ResourceConfigError(f"Resource {name!r} requires a model identifier")
     env_name = spec.get("api_key_env")
@@ -176,6 +180,8 @@ class ModelResources:
         resource = self.resources[name]
         if resource.adapter not in ROLE_ADAPTERS[role]:
             raise ResourceConfigError(f"Role {role!r} cannot use {resource.adapter!r} resource {name!r}")
+        if resource.adapter == "moss_events" and (endpoint is not None or model is not None):
+            raise ResourceConfigError("Select a configured MOSS resource instead of endpoint/model overrides")
         updates = {}
         if endpoint is not None:
             updates["endpoint"] = endpoint
@@ -187,7 +193,7 @@ class ModelResources:
             }
             # Changing the served ASR model does not establish that the old
             # checkpoint contains the new model's CTC vocabulary.
-            if role == "asr" and model is not None and model != resource.model:
+            if role == "asr" and resource.adapter == "nemotron_ctc" and model is not None and model != resource.model:
                 fields.pop("checkpoint_path", None)
             resource = _validate_resource(resource.name, {**fields, **updates})
         if require_local_paths:
