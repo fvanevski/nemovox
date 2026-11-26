@@ -90,15 +90,40 @@ def accepted_row_context(row, alternatives, visual):
 def current_row_context(row):
     value = row.get("semantic_context")
     text = row.get("source_text")
-    if (not isinstance(value, dict) or value.get("schema") != SCHEMA
-            or value.get("source_id") != row.get("id") or not isinstance(text, str)
-            or value.get("source_text_sha256") != text_digest(text)
-            or value.get("entity_identity_accepted") is not False
-            or value.get("human_verified") is not False):
+    if not isinstance(text,str):
         return None
-    return {k: deepcopy(value[k]) for k in (
-        "schema", "source_id", "source_text_sha256", "acoustic_support",
-        "visual_literals", "entity_identity_accepted", "human_verified") if k in value}
+    if (isinstance(value,dict) and value.get("schema")==SCHEMA
+            and value.get("source_id")==row.get("id")
+            and value.get("source_text_sha256")==text_digest(text)
+            and value.get("entity_identity_accepted") is False
+            and value.get("human_verified") is False):
+        result={k:deepcopy(value[k]) for k in (
+            "schema","source_id","source_text_sha256","acoustic_support",
+            "visual_literals","entity_identity_accepted","human_verified") if k in value}
+    else:
+        result=None
+    # Recovered-event alternative wording is context, not canonical text,
+    # accepted spelling, speaker identity or permission to invent a name.
+    wording=row.get("source_lineage",{}).get("contextual_wording")
+    if (isinstance(wording,dict) and wording.get("source_id")==row.get("id")
+            and wording.get("source_text_sha256")==text_digest(text)
+            and wording.get("status")=="advisory_model_hypotheses"
+            and wording.get("entity_identity_accepted") is False):
+        alternatives=wording.get("alternatives",[])
+        if (isinstance(alternatives,list) and alternatives
+                and all(isinstance(a,dict) and isinstance(a.get("text"),str)
+                        and a.get("observation_ids")
+                        and isinstance(a.get("audio_sha256"),str)
+                        and re.fullmatch(r"[a-f0-9]{64}",a["audio_sha256"])
+                        and a.get("backend") in ("nemotron","independent_asr")
+                        for a in alternatives)
+                and {a["backend"] for a in alternatives}=={"nemotron","independent_asr"}):
+            if result is None:
+                result={"schema":SCHEMA,"source_id":row["id"],
+                        "source_text_sha256":text_digest(text),"acoustic_support":[],
+                        "visual_literals":[],"entity_identity_accepted":False,"human_verified":False}
+            result["advisory_wording_alternatives"]=deepcopy(alternatives)
+    return result
 
 
 

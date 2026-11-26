@@ -104,3 +104,54 @@ archive hash/size and use a direct conversational handback. Keep the original
 Studio job, archive, owner source and service configuration unchanged. Attach
 the verified private archive to Central. The branch is not review-ready and
 does not authorize promotion, merge or closure.
+
+
+## Successor production qualification
+
+The sealed targeted comparison is reusable as a private counterfactual
+evaluation; it must not be described as a fresh production acquisition.
+Run the successor CPU suite, including tests/test_targeted_occurrences.py,
+and the full CPU repository suite. Run the current production projection
+and selectors over the authenticated comparison archive:
+
+    PYTHONPATH=src:. /workspace/nvidia-transcribe/.venv/bin/python -m scripts.replay_source_robustness --archive "$COMPARISON_ARCHIVE" --sha256 "$COMPARISON_SHA256" --output "$PRIVATE_ROOT/production-replay.json"
+
+Report exact retired source IDs, remaining unresolved fragments, recovered
+event text/bounds, origin lineage and unrelated changes. The known case
+should retire the nine displaced fragments only with positive earlier,
+later and context-removed support; the meaningful exposition should become
+renderable at approximate event bounds. All six historical first scene
+replies should validate after lossless normalization of known duplicate
+IDs. These are hypotheses to check, not required fabricated outputs.
+Do not change thresholds, tests or evidence association to manufacture a pass.
+
+Then, if the CPU/replay gate passes, qualify one fresh normal candidate
+source-quality run on the authenticated original recording/media with the
+current registry and prior job policy. Use the supported CLI/Studio
+continuation entry, a new private output directory, candidate-bound source
+and fresh source-quality identity. Copy the exact immutable recording
+artifacts when required by that entry, not old canonical or downstream
+checkpoints. Do not rerun primary full-episode ASR merely to regenerate
+retained input. The candidate normal scheduler must perform its own real
+acquisitions. Preserve fresh source-quality and canonical output, stage
+costs, Riva/English review and SRT/ASS behavior. Report any real failure
+without substituting the counterfactual replay for the normal route.
+
+Use one independently selected meaningful multilingual clip beyond these
+discovery cases, preferably an already available local Mandarin recording
+with verified identity, containing a genuine repeated phrase or previously
+unrenderable material. Use the existing public pipeline with the same
+normal policy, bounded media (approximately 60–120 s, enough for relevant
+context); compare original and canonical source, real observed evidence,
+rendering and negative controls. Do not require a false occurrence to
+exist in the independent clip, or invent human acoustic truth. If the
+clip fails to exercise a relevant mechanism, record the evidence gap
+rather than claim generalized benefit. Do not launch a broad sweep.
+
+Run applicable repository Studio/API/frontend checks from their documented
+current instructions. Record actual commands, results, candidate identity,
+GPU acquisition/release and total per-stage costs. No deployment, PR or
+GitHub writes. Return one private review archive; if a substantive defect
+blocks qualification, stop affected inference, preserve usable results and
+traceback, and complete unrelated CPU checks. Central owns fixes and final
+review. Do not run the superseded registered GPU comparison again.

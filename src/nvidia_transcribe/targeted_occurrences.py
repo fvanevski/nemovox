@@ -9,6 +9,7 @@ from difflib import SequenceMatcher
 from itertools import combinations
 from nvidia_transcribe.source_quality import _bounds, _lex, _overlap, _contains
 from nvidia_transcribe.source_occurrences import stable_id
+from nvidia_transcribe.semantic_context import text_digest
 
 def displaced_sequences(ledger, *, minimum_units=6):
     """Nominate exact recognized-order matches with disjoint CTC hypotheses.
@@ -341,8 +342,13 @@ def recover_unlocalized_events(recording,windows,observations,targets,independen
                  "audio_sha256":audio,"observation_ids":observation_ids},
              "source_lineage":{"prior_source_ids":sorted(ids),"acoustic_observation_ids":observation_ids,
                  "source_word_timing_accepted":False,
-                 "wording_alternatives":list(dict.fromkeys(" ".join(r["source_text"] for r in x[0])
-                                                           for o,x in support))}}
+                 "contextual_wording":{"source_id":uid,"source_text_sha256":text_digest(g[0]["source_text"]),
+                    "status":"advisory_model_hypotheses","entity_identity_accepted":False,
+                    "alternatives":[{"text":" ".join(r["source_text"] for r in x[0]),
+                        "observation_ids":[r["observation_id"] for r in x[0]],
+                        "audio_sha256":o["audio_sha256"],
+                        "backend":"nemotron" if "utterances" in o else "independent_asr"}
+                        for o,x in support]}}}
         for key in ("source_unit_ids","recognized_turn_ids","occurrence_span_ids"):
             row[key]=sorted({v for r in origins for v in r.get(key,[])})
         rows=[r for r in rows if r["id"] not in ids]

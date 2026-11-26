@@ -208,7 +208,13 @@ def _observe(client, media, crop, root, index):
         capture_ctc_timestamps=True, source_offset_s=a,
         apply_loop_guardrail=False,
     ))
-    raw = result["raw_response"]
+    return project_acoustic_observation(result["raw_response"],wav_sha,crop,media.source_language,
+        actual=actual,model=result["contract"].get("model_provenance", {}).get("served_model"))
+
+
+def project_acoustic_observation(raw,wav_sha,crop,language,*,actual,model):
+    """Project a raw authenticated response identically for live work and replay."""
+    a,b=crop
     audit = audit_asr_generation(raw)
     raw_text = ((raw.get("choices") or [{}])[0].get("message") or {}).get("content")
     source_lex = _lex(raw_text)
@@ -216,7 +222,7 @@ def _observe(client, media, crop, root, index):
     # not the unaudited direct transcript projection.
     from nvidia_transcribe.acoustic_observations import reconstruct_acoustic_observation
     reconstructed, inventory = reconstruct_acoustic_observation(
-        raw, audio_sha256=wav_sha, crop=crop, language=media.source_language)
+        raw, audio_sha256=wav_sha, crop=crop, language=language)
     rows = []
     rejected = []
     if audit["status"] == "complete" and audit["finish_reason"] == "stop":
@@ -248,7 +254,7 @@ def _observe(client, media, crop, root, index):
                 rejected.append(u)
     return {"crop": crop, "audio_sha256": wav_sha, "actual_audio_s": actual,
             "raw_response_sha256": _digest(raw),
-            "model": result["contract"].get("model_provenance", {}).get("served_model"),
+            "model": model,
             "integrity": audit, "utterances": rows, "rejected_utterances": rejected,
             "occurrence_inventory": inventory, "raw_response": raw}
 
