@@ -162,7 +162,7 @@ def resolve_occurrences(recording,events,observations,targets,recovery,policy,*,
     recovery["decisions"]=targeted+independent_decisions
     recovery["cross_model_events"]=cross
     if recovery["status"]=="observed":
-        recovery["status"]="partial" if independent_decisions or cross else "unresolved"
+        recovery["status"]="partial" if independent_decisions or cross or targeted else "unresolved"
     return rows,[*targeted,*conflicts,*timing_decisions,*decisions,*independent_decisions]
 
 
@@ -195,6 +195,14 @@ def resolution_receipts(recording,ledger,rows,decisions,policy):
                     str(row.get("source_quality_status","")).startswith("unresolved")
                     or row.get("source_semantic_resolution")=="partial"
                     else "represented_provisional")
+            elif refs and not context and any(
+                    d["status"]=="retired_displaced_context_hypothesis"
+                    and refs<=set(d.get("source_unit_ids",[])) for d in decisions):
+                d=next(d for d in decisions if d["status"]=="retired_displaced_context_hypothesis"
+                       and refs<=set(d.get("source_unit_ids",[])))
+                receipt["status"]="retired_displaced_context_hypothesis"
+                receipt["canonical_source_ids"]=d["retained_source_ids"]
+                receipt["supporting_observation_ids"]=d["observations"]
             elif refs and not context and missing:
                 # Whole-event cross-model corroboration can support a
                 # partially timed row without establishing individual

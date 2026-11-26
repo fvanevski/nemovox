@@ -7,7 +7,6 @@ must be judged separately from these model observations.
 from __future__ import annotations
 
 import argparse
-from difflib import SequenceMatcher
 import hashlib
 import json
 import os

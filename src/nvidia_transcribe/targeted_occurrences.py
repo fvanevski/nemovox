@@ -171,6 +171,8 @@ def adjudicate_sequences(recording,ledger,windows,observations,targets,independe
         old,new=extent(n["left_bounds"]),extent(n["right_bounds"])
         a,b,ta=_bound_observations(uid,"sequence_origin",windows,observations,targets,independent)
         c,d,tb=_bound_observations(uid,"sequence_displacement",windows,observations,targets,independent)
+        arms=[o for o in c if tb.intersection(o.get("context_removed_task_ids",[]))]
+        c=[o for o in c if o not in arms]
         # Earlier event must be positively present in both model families.
         positive=[(o,_unique_match(o,"utterances",old,words,.90)) for o in a]
         positive=[(o,g) for o,g in positive if g]
@@ -199,6 +201,9 @@ def adjudicate_sequences(recording,ledger,windows,observations,targets,independe
                     return False
             return True
         native_competing=[o for o in c if competes(o,"utterances")]
+        valid_arms=[o for o in arms if o.get("integrity",{}).get("status")=="complete"
+                    and o.get("integrity",{}).get("finish_reason")=="stop"
+                    and competes(o,"utterances")]
         independent_competing=[o for o in d if competes(o,"rows")]
         receipt={"sequence_id":uid,"source_ids":[r["id"] for r in later],
                  "retained_source_ids":[r["id"] for r in earlier],
@@ -207,16 +212,18 @@ def adjudicate_sequences(recording,ledger,windows,observations,targets,independe
         # Do not selectively ignore an observation supporting a later repeat.
         if (not positive or not _pairs([o for o,g in corroboration])
                 or not native_competing or not _pairs(independent_competing)
+                or not valid_arms or len(valid_arms)!=len(arms)
                 or len(native_competing)!=len(c) or len(independent_competing)!=len(d)):
             decisions.append({**receipt,"status":"unresolved_displaced_sequence"})
             continue
-        support=[o for o,g in positive+corroboration]+native_competing+independent_competing
+        support=[o for o,g in positive+corroboration]+native_competing+independent_competing+valid_arms
         receipt.update(status="retired_displaced_context_hypothesis",
                        observations=sorted({r["observation_id"] for o in support
                                             for r in o.get("utterances",o.get("rows",[]))}),
                        audio_sha256=sorted({o["audio_sha256"] for o in support}),
                        independent_observation_ids=sorted({o["id"] for o in b+d}),
-                       source_unit_ids=n["right_unit_ids"])
+                       source_unit_ids=n["right_unit_ids"],
+                       context_removed_audio_sha256=sorted({o["audio_sha256"] for o in valid_arms}))
         # Retain the complete prior hypotheses, not their invalid timing as
         # if it were verified word timing at the earlier location.
         anchor=earlier[0]
@@ -310,7 +317,7 @@ def recover_unlocalized_events(recording,windows,observations,targets,independen
             continue
         candidates.sort(key=lambda x:(-len(x[3]),x[1]))
         g,b,words,associated,overlaps,ns,ins=candidates[0]
-        if any({r["id"] for r in x[3]}!={r["id"] for r in associated}
+        if any(not {r["id"] for r in x[3]}<={r["id"] for r in associated}
                or abs(x[1][0]-b[0])>2 or abs(x[1][1]-b[1])>2
                or _ratio(x[2],words)<.8 for x in candidates[1:]):
             continue

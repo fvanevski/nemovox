@@ -745,6 +745,19 @@ def acquire_acoustic_evidence(recording, media, windows, *, asr_scope, output_di
                     continue
                 pair = [observe(c,task) for c in crops]
                 task["state"] = "observed"
+                if task.get("priority",4)<0:
+                    # Atomic targeted adjudication consumes these primary
+                    # observations directly. No per-fragment extra contexts.
+                    arm=task.get("context_removed_crop")
+                    if arm:
+                        if within_budget([arm]):
+                            observed=observe(arm,task)
+                            observed["context_removed_task_ids"]=sorted(set(
+                                observed.get("context_removed_task_ids",[])+[task["task_id"]]))
+                            task["context_comparison_state"]="observed"
+                        else:
+                            task["context_comparison_state"]="deferred_audio_or_wall_budget"
+                    continue
                 selected = corroborated_events(*pair,task["window"],policy.timing_tolerance_s)
                 jobs.append((task,pair,selected))
             for task,pair,selected in jobs:
@@ -860,7 +873,7 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
     discovery_deferred = request.get("deferred_by_budget", 0)
     occurrence_receipts = resolution_receipts(recording,ledger,rows,decisions,policy)
     pending_spans = sorted(r["occurrence_span_id"] for r in occurrence_receipts
-                           if r["status"] != "represented_provisional")
+                           if r["status"] not in ("represented_provisional","retired_displaced_context_hypothesis"))
     task_receipts = []
     for task in [*windows,*deferred]:
         ids = set(task["evidence_ids"])

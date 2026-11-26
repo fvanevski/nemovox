@@ -98,6 +98,13 @@ def plan_recovery_windows(recording, ledger, request, advisory, policy):
         chunks=[n['left_chunk'],n['right_chunk']]
         add(uid,'sequence_origin',-1,earlier,chunks,n['left_unit_ids'],whole=True)
         add(uid,'sequence_displacement',-1,later,chunks,n['right_unit_ids'],whole=True)
+        # A conditional full-core observation excludes the suspect earlier
+        # context while preserving the right edge. It consumes the normal
+        # acoustic audio/time budget, not another window slot.
+        parent=by_chunk[n['right_chunk']]
+        core=interval((parent.get("core_start_s"),parent.get("infer_end_s")),duration)
+        if core and earlier[1]<=core[0] and core[0]<=later[0]<later[1]<=core[1]:
+            proposals[-1]["context_removed_crop"]=core
 
     anchored_runs = []
     i = 0
