@@ -228,5 +228,3 @@ def _lex(text):
 def _contains(outer, inner):
     return bool(inner) and any(outer[i:i + len(inner)] == inner
                                for i in range(len(outer) - len(inner) + 1))
-
-
