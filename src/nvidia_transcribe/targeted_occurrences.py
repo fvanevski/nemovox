@@ -202,9 +202,20 @@ def adjudicate_sequences(recording,ledger,windows,observations,targets,independe
                     return False
             return True
         native_competing=[o for o in c if competes(o,"utterances")]
-        valid_arms=[o for o in arms if o.get("integrity",{}).get("status")=="complete"
+        def contrast(o):
+            raw=o.get("raw_response",{})
+            content=((raw.get("choices") or [{}])[0].get("message") or {}).get("content")
+            return (o.get("integrity",{}).get("status")=="complete"
                     and o.get("integrity",{}).get("finish_reason")=="stop"
-                    and competes(o,"utterances")]
+                    and any(w["task_id"] in tb and w.get("context_removed_crop")
+                            and tuple(o["crop"])==tuple(w["context_removed_crop"]) for w in windows)
+                    and _interior(o,new) and not _overlap(o["crop"],old)
+                    and isinstance(content,str) and bool(_lex(content))
+                    and _longest(words,_lex(content))<6)
+        # This arm establishes the change in raw generation. Its CTC
+        # locality is not an additional timing authority; separate local
+        # crops must establish competing speech at the suspect locality.
+        valid_arms=[o for o in arms if contrast(o)]
         independent_competing=[o for o in d if competes(o,"rows")]
         receipt={"sequence_id":uid,"source_ids":[r["id"] for r in later],
                  "retained_source_ids":[r["id"] for r in earlier],
@@ -297,6 +308,12 @@ def recover_unlocalized_events(recording,windows,observations,targets,independen
                     last=blocks[-1].b+blocks[-1].size
                 if len(associated)<2:
                     continue
+                turns=[set(r.get("recognized_turn_ids",[])) for r in associated]
+                if (any(turns) and not set.intersection(*turns)) or (
+                        not any(turns) and len({r.get("speaker_id") for r in associated})!=1):
+                    # No reconstruction of an independently observed
+                    # event may silently collapse distinct recognized turns.
+                    continue
                 indices=[originals.index(r) for r in associated]
                 if indices!=list(range(indices[0],indices[-1]+1)):
                     continue
@@ -330,7 +347,8 @@ def recover_unlocalized_events(recording,windows,observations,targets,independen
         uid=associated[0]["id"]
         row={**associated[0],"source_text":g[0]["source_text"],
              "source_start":b[0],"source_end":b[1],"speaker_id":"SPK_UNK",
-             "speaker_identity_accepted":False,"source_turn_id":uid,"source_turn_ids":[uid],
+             "speaker_identity_accepted":False,"local_speaker_id":None,"raw_speaker_tag":None,
+             "source_turn_id":uid,"source_turn_ids":[uid],
              "source_occurrence_ids":[uid],"source_words":[],"source_characters":[],
              "unit_count":0,"timed_unit_count":0,"untimed_unit_count":0,"timing_gaps":[],
              "alignment_status":"corroborated_model_event_bounds",
@@ -339,7 +357,9 @@ def recover_unlocalized_events(recording,windows,observations,targets,independen
              "prior_source_hypotheses":origins,
              "timestamp_provenance":{"backend":"separate_acoustic_contexts",
                  "timing_status":"approximate","human_verified":False,"word_timing_verified":False,
-                 "audio_sha256":audio,"observation_ids":observation_ids},
+                 "audio_sha256":audio,"observation_ids":observation_ids,
+                 "raw_response_sha256":sorted({o["raw_response_sha256"] for o,x in ns
+                                                if o.get("raw_response_sha256")})},
              "source_lineage":{"prior_source_ids":sorted(ids),"acoustic_observation_ids":observation_ids,
                  "source_word_timing_accepted":False,
                  "contextual_wording":{"source_id":uid,"source_text_sha256":text_digest(g[0]["source_text"]),

@@ -155,3 +155,28 @@ GitHub writes. Return one private review archive; if a substantive defect
 blocks qualification, stop affected inference, preserve usable results and
 traceback, and complete unrelated CPU checks. Central owns fixes and final
 review. Do not run the superseded registered GPU comparison again.
+
+
+The successor qualification supersedes the earlier registered acoustic and
+scene comparison execution instructions on this branch. Preserve both sealed
+input archives; do not rerun that earlier campaign. The context-removed
+request is a raw-generation contrast. It is not used as a timed-row
+authority if its CTC projection is rejected. Local positive competing
+speech and independent observations are still required for retirement.
+
+For the full French downstream continuation, the currently inspected CLI
+supports the following invocation (bind all paths to verified host values;
+run from the candidate root, using the actual existing lifecycle environment).
+Use a unique output path and do not supply a sidecar/export destination:
+
+    PYTHONPATH=src:. /workspace/nvidia-transcribe/.venv/bin/python -m nvidia_transcribe.cli generate-subtitles "$MEDIA" --recording-contract "$RECORDING_CONTRACT" --source-quality on --output-dir "$PRIVATE_ROOT/french" --source-language fr --target-language en --audio-stream 0 --chunk-policy fixed --chunk-seconds 90 --context-seconds 10 --speaker-embeddings none --alignment-fallback off --refinement off --translator riva --translation-review balanced --style natural --formats srt,ass --ass-layout standard --ass-max-lanes 3 --model-resources "$RESOURCE_CONFIG"
+
+Use the original job's immutable authenticated recording artifacts; no
+copy of the historical source-quality checkpoint or downstream checkpoint.
+Omit --glossary (baseline empty); do not enable condensation. Verify the
+actual loaded candidate source and exact source/media resource bindings.
+Use native CLI help/AGENTS.md to resolve entrypoint issues if necessary.
+If the normal continuation cannot consume the authenticated recording
+without a source change, report the precise blocker before rerunning
+full primary ASR. The full Studio wall-time comparison is not valid for
+this continuation; compare source-quality/subtitle stages separately.

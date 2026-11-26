@@ -51,6 +51,8 @@ def fixture():
             observation("native-b",[33,40],[alt],"utterances","late"),
             observation("native-arm",[20,65],[alt],"utterances","late")]
     native[-1]["context_removed_task_ids"]=["late"]
+    native[-1]["raw_response"]={"choices":[{"message":{"content":alt["source_text"]}}]}
+    windows[1]["context_removed_crop"]=[20,65]
     targets=[{"target_id":k,"task_ids":[k]} for k in ("early","late")]
     ind=[observation(k+"-"+str(i),crop,[r],"rows",k)
          for k,r,crops in (("early",left,([14,21],[13,22])),
@@ -89,7 +91,7 @@ def test_scheduler_preserves_complete_sequence_as_shared_bounded_tasks():
     windows,_=plan_recovery_windows(rec,ledger,{"cases":[]},None,SourceQualityPolicy())
     pair=[w for w in windows if w["reason"].startswith("sequence_")]
     assert len(pair)==2
-    assert pair[1]["context_removed_crop"]==(20.,65.)
+    assert next(w for w in pair if w["reason"]=="sequence_displacement")["context_removed_crop"]==(20.,65.)
     assert set(pair[0]["source_ids"]+pair[1]["source_ids"])=={"left","right"}
 
 
@@ -120,3 +122,11 @@ def test_broad_event_recovery_preserves_unknown_voice_and_original_lineage():
     # Unrelated overlapping timed dialogue is not consumed.
     rec["utterances"].insert(3,row("overlap","Unrelated interjection",15,16,2))
     assert not recover_unlocalized_events(rec,[window],native,targets,ind)[1]
+
+
+def test_core_contrast_is_generation_evidence_not_ctc_locality():
+    inputs=fixture()
+    inputs[3][-1]["utterances"]=[]  # rejected core CTC projection
+    assert len(adjudicate_sequences(*inputs)[0])==1
+    inputs[3][-1]["raw_response"]["choices"][0]["message"]["content"]=inputs[0]["utterances"][0]["source_text"]
+    assert len(adjudicate_sequences(*inputs)[0])==2
