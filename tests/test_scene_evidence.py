@@ -178,3 +178,59 @@ def test_visual_description_and_branding_are_not_dialogue_captions():
     assert observation("dialogue_caption","Bonjour",uncertainty="blurred")["caption"]==""
     assert observation("dialogue_caption","Bonjour")["caption"]=="Bonjour"
     assert observation("entity_label","Nadia")["visible_text"]=="Nadia"
+
+
+def test_scene_rejected_response_retained_and_one_correction_per_case():
+    import json
+    import pytest
+    from nvidia_transcribe.scene_evidence import (
+        _decision_schema, assess_case_payload, SceneDecisionError,
+    )
+    payload={"scene":{"rows":[{"id":"s"}]},
+             "acoustic_alternatives":[{"id":"current"}],"visual_observations":[]}
+    schema=_decision_schema(["current"],[],["s"])
+    good={"action":"retain","candidate_id":"","replace_span":"","meaning":"m",
+          "reason":"r","materially_resolved":False,"context_ids":["s"],
+          "next_evidence":"none"}
+    bad={**good,"context_ids":["s","s"]}
+    class Client:
+        def __init__(self):
+            self.responses=iter([bad,good,bad])
+            self.calls=[]
+        def complete(self,**kw):
+            self.calls.append(kw)
+            return {"choices":[{"finish_reason":"stop","message":{
+                "content":json.dumps(next(self.responses))}}]}
+    client=Client()
+    case={}
+    result=assess_case_payload(client,payload,schema,case)
+    assert result["decision"]==good
+    assert case["assessment_recovery_attempts"]==1
+    assert case["failed_assessments"][0]["decision"]==bad
+    assert "duplicate_context_ids" in case["failed_assessments"][0]["violations"]
+    assert "duplicate_context_ids" in client.calls[1]["messages"][0]["content"]
+    assert client.calls[0]["messages"][1]==client.calls[1]["messages"][1]
+    assert client.calls[0]["response_format"]==client.calls[1]["response_format"]
+    with pytest.raises(SceneDecisionError):
+        assess_case_payload(client,payload,schema,case)
+    assert len(client.calls)==3
+    assert len(case["failed_assessments"])==2
+
+
+def test_scene_bad_references_and_malformed_types_fail_without_selection():
+    from nvidia_transcribe.scene_evidence import _decision_schema, decision_violations
+    payload={"scene":{"rows":[{"id":"s"}]},
+             "acoustic_alternatives":[{"id":"a"}],
+             "visual_observations":[{"id":"f","caption":"text"}]}
+    schema=_decision_schema(["a"],["f"],["s"])
+    good={"action":"acoustic","candidate_id":"a","replace_span":"","meaning":"m",
+          "reason":"r","materially_resolved":True,"context_ids":["s"],
+          "next_evidence":"none"}
+    assert not decision_violations(good,payload,schema)
+    assert "acoustic_candidate_reference" in decision_violations(
+        {**good,"candidate_id":"f"},payload,schema)
+    assert "context_id_type" in decision_violations({**good,"context_ids":[{}]},payload,schema)
+    assert "unknown_context_ids" in decision_violations({**good,"context_ids":["fake"]},payload,schema)
+    assert "materially_resolved_type" in decision_violations(
+        {**good,"materially_resolved":"true"},payload,schema)
+    assert decision_violations([],payload,schema)==["decision_not_object"]

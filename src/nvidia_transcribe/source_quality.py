@@ -935,7 +935,7 @@ def review_current_source(recording, *, recording_path, media_path, output_dir,
     return {**recording, "utterances": rows, "source_quality": {
         k: (compact_recording_context(v) if k == "recording_context" else
             {**v,"decisions":[{key:value for key,value in case.items()
-                               if key not in ("assessments","vision_response")} for case in v["decisions"]]}
+                               if key not in ("assessments","failed_assessments","vision_response")} for case in v["decisions"]]}
             if k=="scene_evidence" else v)
         for k, v in report.items() if k != "acoustic_observations"
     }}, report

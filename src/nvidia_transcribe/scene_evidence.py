@@ -133,7 +133,16 @@ def audio_candidates(row, rows, observations, independent, tolerance=1.25, *, in
     return result
 
 
-def _call(client,system,payload,schema,*,parts=None):
+class SceneDecisionError(ValueError):
+    """A rejected model observation, retained only in the private report."""
+
+    def __init__(self, receipt, *, retryable=False):
+        self.receipt = receipt
+        self.retryable = retryable
+        super().__init__("Invalid scene decision: " + ", ".join(receipt["violations"]))
+
+
+def _call(client,system,payload,schema,*,parts=None,capture=False):
     content=json.dumps(payload,ensure_ascii=False)
     if parts is not None:
         content=[{"type":"text","text":content},*parts]
@@ -144,11 +153,24 @@ def _call(client,system,payload,schema,*,parts=None):
                           thinking_budget=2048,reasoning_effort="xhigh",
                           strict_reasoning_effort=True,temperature=0.,
                           response_format={"type":"json_schema","schema":schema})
-    choice=reply["choices"][0]
-    if choice["finish_reason"]!="stop":
-        raise ValueError("Incomplete scene assessment: "+
-            json.dumps(reply.get("_client_request_diagnostics",{}),ensure_ascii=False))
-    return json.loads(choice["message"]["content"]),reply
+    def rejected(code, *, retryable=False):
+        return SceneDecisionError({
+            "input":payload, "system":system, "schema":schema,
+            "response":reply, "decision":None, "violations":[code],
+        }, retryable=retryable)
+
+    try:
+        choice=reply["choices"][0]
+        if choice["finish_reason"]!="stop":
+            if capture:
+                raise rejected("incomplete_generation")
+            raise ValueError("Incomplete scene assessment: "+
+                json.dumps(reply.get("_client_request_diagnostics",{}),ensure_ascii=False))
+        return json.loads(choice["message"]["content"]),reply
+    except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
+        if capture:
+            raise rejected("malformed_response",retryable=True) from exc
+        raise
 
 
 def _decision_schema(candidate_ids,caption_ids,context_ids):
@@ -186,7 +208,81 @@ SYSTEM = (
 )
 
 
-def assess(client,recording,row,alternatives,policy,visual=None,radius=None,nominations=()):
+def decision_violations(parsed, payload, schema):
+    """Validate literal response references and shape without adjudicating truth."""
+    if not isinstance(parsed,dict):
+        return ["decision_not_object"]
+    properties=schema["properties"]
+    codes=[]
+    if set(parsed)!=set(schema["required"]):
+        codes.append("decision_fields")
+    for key in ("candidate_id","replace_span","meaning","reason"):
+        if not isinstance(parsed.get(key),str):
+            codes.append(key+"_type")
+    if not isinstance(parsed.get("materially_resolved"),bool):
+        codes.append("materially_resolved_type")
+    for key in ("action","next_evidence","candidate_id"):
+        if parsed.get(key) not in properties[key]["enum"]:
+            codes.append(key+"_reference_or_value")
+    action=parsed.get("action")
+    candidate=parsed.get("candidate_id")
+    if action=="acoustic" and candidate not in [a["id"] for a in payload["acoustic_alternatives"]]:
+        codes.append("acoustic_candidate_reference")
+    if action=="caption" and candidate not in [f["id"] for f in payload["visual_observations"] if f.get("caption")]:
+        codes.append("caption_candidate_reference")
+    refs=parsed.get("context_ids")
+    if not isinstance(refs,list):
+        codes.append("context_ids_type")
+    else:
+        if len(refs)>properties["context_ids"]["maxItems"]:
+            codes.append("context_ids_limit")
+        if not all(isinstance(ref,str) for ref in refs):
+            codes.append("context_id_type")
+        else:
+            if len(set(refs))!=len(refs):
+                codes.append("duplicate_context_ids")
+            if not set(refs)<={r["id"] for r in payload["scene"]["rows"]}:
+                codes.append("unknown_context_ids")
+    return codes
+
+
+def assess_payload(client,payload,schema,*,system=SYSTEM,correction_codes=()):
+    if correction_codes:
+        system += (" Your previous decision was rejected for these structural "
+                   "violations: " + ", ".join(correction_codes) +
+                   ". Return a complete fresh object using only the supplied "
+                   "references. Do not repeat context IDs. If evidence is "
+                   "insufficient, select unresolved; do not invent support.")
+    parsed,reply=_call(client,system,payload,schema,capture=True)
+    codes=decision_violations(parsed,payload,schema)
+    if codes:
+        raise SceneDecisionError({
+            "input":payload,"system":system,"schema":schema,"response":reply,
+            "decision":parsed,"violations":codes,
+        },retryable=True)
+    return {"input":payload,"decision":parsed,"response":reply,
+            "schema":schema,"correction_codes":list(correction_codes)}
+
+
+def assess_case_payload(client,payload,schema,case,*,system=SYSTEM):
+    """At most one structural correction per scene case, across all stages."""
+    rejected=case.setdefault("failed_assessments",[])
+    try:
+        return assess_payload(client,payload,schema,system=system)
+    except SceneDecisionError as exc:
+        rejected.append(exc.receipt)
+        if not exc.retryable or case.get("assessment_recovery_attempts",0):
+            raise
+        case["assessment_recovery_attempts"]=1
+        codes=exc.receipt["violations"]
+    try:
+        return assess_payload(client,payload,schema,system=system,correction_codes=codes)
+    except SceneDecisionError as exc:
+        rejected.append(exc.receipt)
+        raise
+
+
+def assess(client,recording,row,alternatives,policy,visual=None,radius=None,nominations=(),case=None):
     context=scene_context(recording,_bounds(row),radius or policy.initial_context_s,
                           policy.context_char_budget)
     captions=[f for f in (visual or []) if f.get("caption")]
@@ -198,18 +294,11 @@ def assess(client,recording,row,alternatives,policy,visual=None,radius=None,nomi
              "scene":context,"acoustic_alternatives":alternatives,
              "advisory_nominations":list(nominations),
              "visual_observations":visual or []}
-    parsed,reply=_call(client,SYSTEM,payload,_decision_schema(
-        [x["id"] for x in alternatives],[x["id"] for x in captions],
-        [x["id"] for x in context["rows"]]))
-    if (not isinstance(parsed.get("materially_resolved"),bool)
-            or parsed.get("action") not in ("retain","acoustic","caption","unresolved")
-            or parsed.get("next_evidence") not in ("none","larger_context","visual","acoustic","alignment")
-            or not isinstance(parsed.get("context_ids"),list)
-            or len(parsed["context_ids"])>min(8,len(context["rows"]))
-            or len(set(parsed["context_ids"]))!=len(parsed["context_ids"])
-            or not set(parsed["context_ids"])<={x["id"] for x in context["rows"]}|{""}):
-        raise ValueError("Invalid scene decision")
-    return {"input":payload,"decision":parsed,"response":reply}
+    schema=_decision_schema([x["id"] for x in alternatives],
+        [x["id"] for x in captions],[x["id"] for x in context["rows"]])
+    if case is None:
+        return assess_payload(client,payload,schema)
+    return assess_case_payload(client,payload,schema,case)
 
 
 def caption_patch(text,old_span,caption,alternatives=()):
@@ -422,17 +511,18 @@ def adjudicate_scene(recording,observations,independent,media,text_scope,output_
     with text_scope() as client:
         for row,alternatives,_,nominated in cases[:policy.max_cases]:
             case={"source_id":row["id"],"nominations":nominated,
-                  "assessments":[],"visual":[],"applied":False}
+                  "assessments":[],"failed_assessments":[],"assessment_recovery_attempts":0,
+                  "visual":[],"applied":False}
             report["decisions"].append(case)
             try:
-                initial=assess(client,recording,row,alternatives,policy,nominations=nominated)
+                initial=assess(client,recording,row,alternatives,policy,nominations=nominated,case=case)
                 case["assessments"].append(initial)
                 current=initial
                 d=current["decision"]
                 if (not d["materially_resolved"] and d["next_evidence"]=="larger_context"
                         and policy.maximum_context_s>policy.initial_context_s):
                     expanded=assess(client,recording,row,alternatives,policy,
-                                    radius=policy.maximum_context_s,nominations=nominated)
+                                    radius=policy.maximum_context_s,nominations=nominated,case=case)
                     case["assessments"].append(expanded)
                     current=expanded
                     d=current["decision"]
@@ -455,7 +545,7 @@ def adjudicate_scene(recording,observations,independent,media,text_scope,output_
                 case["vision_response"]=reply
                 if visual:
                     fused=assess(client,recording,row,alternatives,policy,visual,
-                                 radius=policy.maximum_context_s,nominations=nominated)
+                                 radius=policy.maximum_context_s,nominations=nominated,case=case)
                     case["assessments"].append(fused)
                     case["applied"]=apply_decision(row,fused,alternatives,visual)
                     case["outcome"]=("partial" if case["applied"] and
