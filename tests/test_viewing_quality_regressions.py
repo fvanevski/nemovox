@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from nvidia_transcribe.cli import build_parser
-from nvidia_transcribe.refinement import GlossaryConfig, RefinementConfig, refine_utterances_with_swiftu
+from nvidia_transcribe.refinement import GlossaryConfig, RefinementConfig, refine_utterances_with_text_model
 from nvidia_transcribe.subtitle_pipeline import SubtitlePipelineConfig, generate_subtitles
 from nvidia_transcribe.subtitles import (
     SubtitleConfig,
@@ -19,7 +19,7 @@ from nvidia_transcribe.subtitles import (
 )
 from nvidia_transcribe.translation import (
     TranslationConfig,
-    condense_high_cps_cues_with_swiftu,
+    condense_high_cps_cues_with_text_model,
     translate_utterances,
 )
 from nvidia_transcribe.utterances import audit_and_reconstruct_contract, reconstruct_speaker_utterances
@@ -132,7 +132,7 @@ def test_b_cache_correctness_invalidation_selective_reuse_and_rerender(tmp_path:
 
     # 1. Cold run: 3 batches each
     c1 = _CallTrackingClient(_ref_resp)
-    out1, sum1 = refine_utterances_with_swiftu(base_utts, source_language="fr", config=rcfg, text_client=c1, checkpoint_path=ref_ckpt)
+    out1, sum1 = refine_utterances_with_text_model(base_utts, source_language="fr", config=rcfg, text_client=c1, checkpoint_path=ref_ckpt)
     assert len(c1.calls) == 3
 
     tc1 = _CallTrackingClient(_tr_resp)
@@ -141,7 +141,7 @@ def test_b_cache_correctness_invalidation_selective_reuse_and_rerender(tmp_path:
 
     # 2. Identical rerun: 100% cache hit -> 0 API calls
     c2 = _CallTrackingClient(_ref_resp)
-    out2, sum2 = refine_utterances_with_swiftu(base_utts, source_language="fr", config=rcfg, text_client=c2, checkpoint_path=ref_ckpt)
+    out2, sum2 = refine_utterances_with_text_model(base_utts, source_language="fr", config=rcfg, text_client=c2, checkpoint_path=ref_ckpt)
     assert len(c2.calls) == 0 and sum2["cache_hits"] == 6
 
     tc2 = _CallTrackingClient(_tr_resp)
@@ -152,7 +152,7 @@ def test_b_cache_correctness_invalidation_selective_reuse_and_rerender(tmp_path:
     edited_utts = [{**u} for u in base_utts]
     edited_utts[1]["source_text"] = "Nouveau texte un !"
     c3 = _CallTrackingClient(_ref_resp)
-    out3, sum3 = refine_utterances_with_swiftu(edited_utts, source_language="fr", config=rcfg, text_client=c3, checkpoint_path=ref_ckpt)
+    out3, sum3 = refine_utterances_with_text_model(edited_utts, source_language="fr", config=rcfg, text_client=c3, checkpoint_path=ref_ckpt)
     assert len(c3.calls) == 2
     assert out3[1]["refined_text"] == "Nouveau texte un !"
     assert sum3["cache_hits"] == 2
@@ -164,7 +164,7 @@ def test_b_cache_correctness_invalidation_selective_reuse_and_rerender(tmp_path:
 
     # 4. Changed glossary / style invalidates
     c4 = _CallTrackingClient(_ref_resp)
-    _, sum4 = refine_utterances_with_swiftu(edited_utts, source_language="fr", config=rcfg, glossary=GlossaryConfig(characters=("Esteban",)), text_client=c4, checkpoint_path=ref_ckpt)
+    _, sum4 = refine_utterances_with_text_model(edited_utts, source_language="fr", config=rcfg, glossary=GlossaryConfig(characters=("Esteban",)), text_client=c4, checkpoint_path=ref_ckpt)
     assert len(c4.calls) == 3
 
     tc4 = _CallTrackingClient(_tr_resp)
@@ -290,7 +290,7 @@ def test_c3_selective_condensation_keeps_uncondensed_text(tmp_path: Path) -> Non
             ]
         }
     )
-    out, summary = condense_high_cps_cues_with_swiftu(utts, source_language="zh", cps_threshold=25.0, text_client=client, checkpoint_path=tmp_path / "cond.ckpt.json")
+    out, summary = condense_high_cps_cues_with_text_model(utts, source_language="zh", cps_threshold=25.0, text_client=client, checkpoint_path=tmp_path / "cond.ckpt.json")
     assert summary["candidate_count"] == 1
     assert summary["condensed_count"] == 1
     assert len(client.calls) == 1
