@@ -53,14 +53,6 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     app.state.runner.executor.shutdown(wait=False, cancel_futures=True)
 
 
-def test_chunk_policy_option_is_explicit_and_backwards_compatible():
-    assert Options().chunk_policy == "fixed"
-    assert Options(chunk_policy="pause_aware").chunk_policy == "pause_aware"
-    from pydantic import ValidationError
-    with pytest.raises(ValidationError):
-        Options(chunk_policy="not-a-policy")
-
-
 def test_health_and_media_roots(client):
     c, media, _secret, _ = client
     assert c.get("/api/health").json()["status"] == "ok"
@@ -73,7 +65,7 @@ def test_path_traversal_is_denied(client):
     c, _media, secret, _ = client
     assert c.get("/api/media", params={"path": str(secret)}).status_code == 403
     assert c.post("/api/jobs", json={"source": {"kind": "path", "value": str(secret / "private.webm")},
-                                      "task": "transcription"}).status_code == 403
+                                      "task": "transcription", "options": {"source_language": "en"}}).status_code == 403
 
 
 def test_job_submission_and_preview(client):
@@ -138,7 +130,7 @@ def test_invalid_options_and_bad_url(client):
     }).status_code == 422
     assert c.post("/api/jobs", json={
         "source": {"kind": "url", "value": "http://127.0.0.1:8000/admin"},
-        "task": "transcription",
+        "task": "transcription", "options": {"source_language": "en"},
     }).status_code == 422
 
 
@@ -161,7 +153,7 @@ def test_upload_and_extension_rejection(client):
     assert uploaded.parent == settings.upload_root.resolve()
     assert payload["size_bytes"] == len(b"synthetic-webm-bytes")
 
-    sub = c.post("/api/jobs", json={"source": {"kind": "upload", "value": str(uploaded)}, "task": "transcription"})
+    sub = c.post("/api/jobs", json={"source": {"kind": "upload", "value": str(uploaded)}, "task": "transcription", "options": {"source_language": "en"}})
     assert sub.status_code == 202
 
 
@@ -267,7 +259,7 @@ def test_cancel_process_group_and_env_forwarding(tmp_path: Path, monkeypatch: py
     app = create_app(settings)
     try:
         with TestClient(app) as c:
-            res = c.post("/api/jobs", json={"source": {"kind": "path", "value": str(clip)}, "task": "transcription"})
+            res = c.post("/api/jobs", json={"source": {"kind": "path", "value": str(clip)}, "task": "transcription", "options": {"source_language": "en"}})
             assert res.status_code == 202
             job_id = res.json()["id"]
 
@@ -450,7 +442,7 @@ def test_cancel_and_completion_have_serialized_terminal_state(client):
     def new_running_job():
         response = c.post("/api/jobs", json={
             "source": {"kind": "contract", "value": str(media / "recording.contract.json")},
-            "task": "transcription",
+            "task": "transcription", "options": {"source_language": "en"},
         })
         assert response.status_code == 202
         job_id = response.json()["id"]
@@ -494,10 +486,10 @@ def test_audio_inspection_authorization_and_stream_index_validation(client, monk
     assert c.post("/api/media/inspect", json={
         "kind": "contract", "value": str(media / "recording.contract.json")}).status_code == 422
     allowed = c.post("/api/jobs", json={
-        "source": source, "task": "transcription", "options": {"audio_stream": 1}})
+        "source": source, "task": "transcription", "options": {"source_language": "fr", "audio_stream": 1}})
     assert allowed.status_code == 202, allowed.text
     rejected = c.post("/api/jobs", json={
-        "source": source, "task": "transcription", "options": {"audio_stream": 2}})
+        "source": source, "task": "transcription", "options": {"source_language": "fr", "audio_stream": 2}})
     assert rejected.status_code == 422
 
 
@@ -702,12 +694,19 @@ def test_normal_api_defaults_match_cli_and_preserve_explicit_backend_choice():
     from nvidia_transcribe.studio_api import Options
     defaults=Options()
     assert (defaults.translator,defaults.translation_review)==("riva","balanced")
-    assert (defaults.chunk_policy,defaults.chunk_seconds,defaults.context_seconds)==("fixed",90,10)
-    assert defaults.refinement=="off" and defaults.alignment_fallback=="off"
-    assert defaults.speaker_embeddings=="none" and not defaults.condense_high_cps
+    assert defaults.source_language == "auto"
+    assert defaults.refinement == "off" and not defaults.condense_high_cps
+    assert not {"chunk_policy","chunk_seconds","context_seconds","alignment_fallback","speaker_embeddings","asr_mode"}.intersection(defaults.model_dump())
     assert Options(translator="openai_chat").translation_review=="off"
     from pydantic import ValidationError
     with pytest.raises(ValidationError):
         Options(translator="swiftu")
     assert Options(translator="openai_chat",translation_review="balanced").translation_review=="balanced"
     assert Options(translation_review="off").translation_review=="off"
+
+def test_new_media_requires_explicit_language(client):
+    c, media, _, _ = client
+    source = {"kind": "path", "value": str(media / "sample.webm")}
+    rejected = c.post("/api/jobs", json={"source": source, "task": "transcription"})
+    assert rejected.status_code == 422
+    assert "language" in rejected.json()["detail"].lower()

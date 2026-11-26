@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "nvidia-transcribe"
 version = "0.1.0"
-description = "Standalone development and evaluation harness for NVIDIA Nemotron 3.5 Transcribe 30B-A4B NVFP4"
+description = "Local speaker-attributed multilingual dialogue and English subtitle generation"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -30,5 +30,5 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
-    "gpu: tests requiring a live GPU/vLLM server with the Nemotron checkpoint",
+    "gpu: tests requiring live GPU model inference",
 ]

@@ -910,8 +910,6 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
                     raise HTTPException(422, str(exc)) from exc
                 if request.options.audio_stream >= len(tracks):
                     raise HTTPException(422, "Selected audio track is not present in this file.")
-        if request.source.kind != "contract" and normalize_language_code(request.options.source_language) is None:
-            raise HTTPException(422, "Select the actual spoken language for recording recognition.")
         if request.source.kind == "url" and request.options.audio_stream != 0:
             raise HTTPException(422, "Remote audio tracks are unknown until download; use track 0.")
         plan = request.export
@@ -935,6 +933,8 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
                 load_model_resources().resolve("riva_translation", require_local_paths=True)
             except ResourceConfigError as exc:
                 raise HTTPException(422, f"Dedicated Riva translation is not available: {exc}") from exc
+        if request.source.kind != "contract" and normalize_language_code(request.options.source_language) is None:
+            raise HTTPException(422, "Select the actual spoken language for recording recognition.")
         return runner.submit(request, source)
 
     @app.get("/api/job-history")

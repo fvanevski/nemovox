@@ -21,6 +21,8 @@ def _finite(v):
 
 def _intervals(items, duration):
     """Validate and union positive intervals; preserve overlap semantics."""
+    if not isinstance(items, (list, tuple)):
+        raise ValueError("Activity intervals must be a list")
     spans = []
     for pair in items:
         if not isinstance(pair, (list, tuple)) or len(pair) != 2:
