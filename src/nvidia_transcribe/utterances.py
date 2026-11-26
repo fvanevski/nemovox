@@ -70,7 +70,7 @@ def apply_validation_overlay(
             suppressed_count += 1
             continue
 
-        # 2. Coarse timing recovery or relocation of misaligned CTC bounds
+        # 2. Explicit operator timing correction
         new_s = ent.get("proposed_start_s") if "proposed_start_s" in ent else ent.get("source_start")
         new_e = ent.get("proposed_end_s") if "proposed_end_s" in ent else ent.get("source_end")
         if new_s is not None and new_e is not None:

@@ -565,7 +565,7 @@ export default function App() {
             <div className="mt-5"><Toggle title="Optional extra condensation pass (advanced)" detail="Disabled by default. Enables a second English text-model pass only for overly dense cues; otherwise one contextual review pass is used."
               value={options.condense_high_cps} onChange={v => option("condense_high_cps", v)}/></div>
           </section>}
-          <section className="panel p-6">
+          {task === "subtitles" && <section className="panel p-6">
             <button onClick={() => setAdvanced(v => !v)} className="flex w-full items-center justify-between text-left">
               <div className="flex items-center gap-3"><Settings2 size={19} className="text-teal-300"/>
                 <span className="text-sm font-semibold">Advanced subtitle settings</span></div>
@@ -576,11 +576,12 @@ export default function App() {
                 <option value={2}>Two</option><option value={3}>Three</option>
               </Select></Field>}
             </div>}
-          </section>
+          </section>}
           <div className="flex flex-wrap justify-between gap-3">
             <button className="btn btn-secondary" onClick={() => setStep("media")}><ChevronLeft size={16}/> Back</button>
             <button className="btn btn-primary" onClick={start}
               disabled={!ready || submit.isPending || !audioValid ||
+                (selectedSource?.kind !== "contract" && options.source_language === "auto") ||
                 (task !== "transcription" && options.translator === "riva" && !englishOnly &&
                  translationBackends.data?.riva.configured !== true)}>
               {submit.isPending ? <LoaderCircle className="animate-spin" size={16}/> : <Play size={16}/>}

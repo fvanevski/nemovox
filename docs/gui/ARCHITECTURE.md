@@ -7,17 +7,15 @@ For development and review, use the live repository source and exact Git branch/
 ## Processing boundary
 
 React/Vite Studio → FastAPI local HTTP → one-job subprocess worker → existing Nemovox Python CLI:
-process-media (original recording contract and occurrence ledger) → generate-subtitles
-(recording context, occurrence-directed source-quality assessment and selective
-acoustic/visual evidence → canonical source with explicit uncertainty → Riva
-primary machine translation → balanced contextual English review with comparative
-validation → SRT/ASS). Original ASR remains intact. Legacy CLI text-only source
-rewriting is a separate explicit route, incompatible with current source quality;
-direct text-model translation and extra cue condensation are explicit options.
+process-media (MOSS native recording dialogue events and geometry assessment) → generate-subtitles
+(Riva primary translation → balanced contextual English review with comparative
+validation → SRT/ASS). Original speech observations remain intact. Explicit imported-contract
+source refinement, direct text-model translation and extra cue condensation are separate options.
+Optional acoustic activity assessment is a CLI-only investigative resource, not an implicit stage.
 
 There must be only ONE owner of ASR, diarization, translation, text refinement and subtitle rendering: the existing Python source modules. The web layer only validates and configures requests, submits CLI jobs, retrieves output contracts, and visualizes results.
 
-Use a separate HTTP Studio environment and NEMOVOX_CLI_PYTHON to invoke the model-compatible interpreter. Do not import vLLM into the web process. The CLI worker automatically starts/releases only exactly identified Nemovox-owned model units; never restart unrelated external services. See [lifecycle contract](../model-resources/LIFECYCLE.md).
+Use a separate HTTP Studio environment and NEMOVOX_CLI_PYTHON to invoke the model-compatible interpreter. Do not import model worker runtimes into the web process. The CLI worker automatically starts/releases only exactly identified Nemovox-owned model units; never restart unrelated external services. See [lifecycle contract](../model-resources/LIFECYCLE.md).
 
 ## HTTP endpoints
 
@@ -49,7 +47,7 @@ Media browsing is limited to explicit roots, without arbitrary host-path executi
 ## UX
 
 - Media & task: browse host paths, upload from browser, remote URL, source language, task.
-- Configure: detailed accessible in-menu and selected-option explanations for ASR, English translation review and style. Local source audio choices are dynamically probed and validated against the selected file; URL audio tracks are unknown until download. Dedicated Riva primary translation and selective English text-model post-edit appear as distinct steps. Current-media Riva jobs automatically use current-source quality; legacy text-only source rewriting is absent from Studio. Fixed 90-second cores, 10-second context, balanced review, and optional Qwen/TitaNet/extra condensation off are the normal defaults. Example glossaries are off by default and show names/terms/context when chosen. Resource identities and role bindings remain host-configured.
+- Configure: choose actual spoken language for new media and an actual audio-only track for local media; imported contracts may supply their own language. The MOSS worker handles a recording-level request, without chunk/alignment/embedding controls. Dedicated Riva and optional English review are separate stages. Glossaries are optional, extra condensation defaults off, and model resources remain host-configured.
 - Process & preview: progress/history, output file access, synchronized dialogue search/click-to-seek, browser JASSUB where available, HTML overlay fallback.
 
 Design aims for a contemporary media workstation, not a generic enterprise dashboard: clear typography, progressive disclosure, dark subdued palette, responsive controls, easily accessible task state.

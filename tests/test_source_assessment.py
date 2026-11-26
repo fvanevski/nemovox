@@ -73,3 +73,48 @@ def test_cli_geometry_requires_no_worker_or_registry(tmp_path, monkeypatch):
     out = tmp_path/"out"
     assert cli.main(["assess-source","--recording-contract",str(c),"--output-dir",str(out)]) == 0
     assert json.loads((out/"source-quality.json").read_text())["scope"] == "geometry_only"
+
+
+def test_activity_resume_requires_bound_audio_and_unchanged_receipt(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from nvidia_transcribe import speech_activity as sa
+    from nvidia_transcribe.media import compute_file_sha256
+    c = contract()
+    media = tmp_path / "episode.wav"
+    media.write_bytes(b"original-media")
+    c["source"].update(content_sha256=compute_file_sha256(media), selected_audio_stream=0)
+    pcm = tmp_path / "decoded.wav"
+    pcm.write_bytes(b"decoded-audio")
+    c["native_dialogue"]["audio_sha256"] = compute_file_sha256(pcm)
+    identity = {"model": "admitted"}
+    monkeypatch.setattr(sa, "_identity", lambda r: identity)
+    monkeypatch.setattr(sa, "probe_media", lambda *a, **k: SimpleNamespace(path=str(media), duration_s=30))
+    def decode(*a, **kw):
+        kw["out_wav"].write_bytes(pcm.read_bytes())
+        return 30
+    monkeypatch.setattr(sa, "extract_wav_segment", decode)
+    calls = []
+    def run(resource, *args, **kwargs):
+        from pathlib import Path
+        calls.append("detect")
+        Path(args[args.index("--output")+1]).write_text(json.dumps({
+            "device":"cpu","duration_s":30,
+            "event_intervals":{"speech":[[14,16]],"singing":[],"music":[]}}))
+    monkeypatch.setattr(sa,"_run_worker",run)
+    resource = SimpleNamespace(checkpoint_path=str(tmp_path))
+    kwargs = dict(media_path=media, resource=resource, output_dir=tmp_path/"report")
+    first, status = sa.assess_recording_activity(c, **kwargs)
+    assert status == "computed_activity"
+    second, status = sa.assess_recording_activity(c, **kwargs)
+    assert status == "reused_activity" and first == second and calls == ["detect"]
+    receipt = kwargs["output_dir"]/"speech-activity.raw.json"
+    data = json.loads(receipt.read_text())
+    data["activity"]["event_intervals"]["speech"] = []
+    receipt.write_text(json.dumps(data))
+    with pytest.raises(ValueError,match="identity mismatch"):
+        sa.assess_recording_activity(c, **kwargs)
+    assert calls == ["detect"]
+    c["native_dialogue"]["audio_sha256"] = "not-the-audio"
+    with pytest.raises(ValueError,match="Decoded audio"):
+        sa.assess_recording_activity(c, **kwargs)
+    assert calls == ["detect"]

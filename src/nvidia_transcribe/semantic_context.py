@@ -186,7 +186,7 @@ def literal_examples(row, glossary, context_rows=()):
 
 
 # Retained only for literal, previously recorded evidence interpretation.
-SPECIAL_TAG_RE = re.compile(r"<[^<>\\s]+>")
+SPECIAL_TAG_RE = re.compile(r"<[^<>\s]+>")
 
 def _is_cjk_char(ch: str) -> bool:
     if not ch or ch.isspace():

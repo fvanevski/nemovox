@@ -23,7 +23,7 @@ def manager(tmp_path):
 def _unit(*, active=False, name="text_local", valid=True):
     return {
         "LoadState": "loaded",
-        "FragmentPath": "/home/operator/.config/systemd/user/nemovox-text_resource.service",
+        "FragmentPath": "/home/operator/.config/systemd/user/nemovox-text-review.service",
         "Environment": (
             "NEMOVOX_MANAGED_RESOURCE=1 NEMOVOX_RESOURCE_NAME=" + name
             + " NEMOVOX_RESOURCE_MODEL=chat"
@@ -35,7 +35,7 @@ def _unit(*, active=False, name="text_local", valid=True):
 
 
 
-def test_asr_explicit_credential_overrides_legacy_fallback(text_resource, monkeypatch):
+def test_text_explicit_credential_overrides_legacy_fallback(text_resource, monkeypatch):
     from dataclasses import replace
 
     monkeypatch.setenv("VLLM_API_KEY", "legacy-token")
@@ -84,7 +84,7 @@ def test_legacy_asr_token_does_not_leak_to_text_readiness(monkeypatch):
     assert seen == [None]
 
 
-def test_missing_explicit_asr_token_remains_fail_closed(text_resource, monkeypatch):
+def test_missing_explicit_text_token_remains_fail_closed(text_resource, monkeypatch):
     from dataclasses import replace
     from nvidia_transcribe.model_resources import ResourceConfigError
 
@@ -134,7 +134,7 @@ def test_readiness_network_error_still_reports_unavailable(text_resource, monkey
 
 def test_default_ownership_configuration_and_json_override(tmp_path):
     defaults = lifecycle._service_config()
-    assert defaults["text_local"].unit == "nemovox-text_resource.service"
+    assert set(defaults) == {"text_local"}
     assert defaults["text_local"].unit == "nemovox-text-review.service"
     config = tmp_path / "lifecycle.json"
     config.write_text(json.dumps({
@@ -151,8 +151,8 @@ def test_default_ownership_configuration_and_json_override(tmp_path):
     {"version": 3, "services": {}},
     {"version": 1, "services": []},
     {"version": 1, "services": {"text_local": {"unit": "unrelated.service"}}},
-    {"version": 1, "services": {"text_local": {"unit": "nemovox-text_resource.service", "startup_timeout_s": 0}}},
-    {"version": 1, "services": {"text_local": {"unit": "nemovox-text_resource.service", "device": "cpu"}}},
+    {"version": 1, "services": {"text_local": {"unit": "nemovox-text-review.service", "startup_timeout_s": 0}}},
+    {"version": 1, "services": {"text_local": {"unit": "nemovox-text-review.service", "device": "cpu"}}},
 ])
 def test_invalid_config_fails_closed(tmp_path, document):
     config = tmp_path / "invalid.json"
@@ -184,7 +184,7 @@ def test_missing_or_unowned_unit_never_starts(manager, text_resource, monkeypatc
     assert attempted == []
 
 
-def test_owned_asr_started_and_released_around_one_stage(manager, text_resource, monkeypatch):
+def test_owned_text_started_and_released_around_one_stage(manager, text_resource, monkeypatch):
     monkeypatch.setattr(lifecycle, "_free_vram_mb", lambda: 31000)
     state = {"active": False}
     transitions = []
@@ -198,9 +198,9 @@ def test_owned_asr_started_and_released_around_one_stage(manager, text_resource,
     monkeypatch.setattr(lifecycle, "_systemctl", systemctl)
     with manager.endpoint(text_resource):
         assert state["active"] is True
-        assert transitions == [("start", "nemovox-text_resource.service")]
+        assert transitions == [("start", "nemovox-text-review.service")]
     assert state["active"] is False
-    assert transitions[-1] == ("stop", "nemovox-text_resource.service")
+    assert transitions[-1] == ("stop", "nemovox-text-review.service")
 
 
 def test_active_owned_unit_with_live_other_client_is_not_stopped(manager, text_resource, monkeypatch):
@@ -387,16 +387,16 @@ def test_reconcile_idle_owned_reclaims_only_exact_abandoned_unit(manager, text_r
     monkeypatch.setattr(lifecycle, "_unit", unit)
     monkeypatch.setattr(lifecycle, "_external_clients", lambda _: False)
     monkeypatch.setattr(lifecycle, "_service_config",
-                        lambda _: {"text_local": lifecycle.OwnedService("nemovox-text_resource.service")})
+                        lambda _: {"text_local": lifecycle.OwnedService("nemovox-text-review.service")})
 
     def command(*args):
         calls.append(args)
-        assert args == ("stop", "nemovox-text_resource.service")
+        assert args == ("stop", "nemovox-text-review.service")
         state["active"] = False
         return ""
     monkeypatch.setattr(lifecycle, "_systemctl", command)
     assert manager.reconcile_idle_owned(resources={"text_local": text_resource}) == {"text_local": "recovered"}
-    assert calls == [("stop", "nemovox-text_resource.service")]
+    assert calls == [("stop", "nemovox-text-review.service")]
     assert manager.reconcile_idle_owned(resources={"text_local": text_resource}) == {"text_local": "inactive"}
 
 
@@ -405,7 +405,7 @@ def test_reconcile_refuses_unowned_or_mismatched_model_units(manager, text_resou
     monkeypatch.setattr(lifecycle, "_unit", lambda _: _unit(valid=False, active=True))
     monkeypatch.setattr(lifecycle, "_systemctl", lambda *args: attempts.append(args))
     monkeypatch.setattr(lifecycle, "_service_config",
-                        lambda _: {"text_local": lifecycle.OwnedService("nemovox-text_resource.service")})
+                        lambda _: {"text_local": lifecycle.OwnedService("nemovox-text-review.service")})
     assert manager.reconcile_idle_owned(resources={"text_local": text_resource})["text_local"] == "unowned_or_identity_mismatch"
     assert attempts == []
 
@@ -421,7 +421,7 @@ def test_reconcile_respects_external_live_clients(manager, text_resource, monkey
     monkeypatch.setattr(lifecycle, "_external_clients", lambda _: True)
     monkeypatch.setattr(lifecycle, "_systemctl", lambda *args: attempts.append(args))
     monkeypatch.setattr(lifecycle, "_service_config",
-                        lambda _: {"text_local": lifecycle.OwnedService("nemovox-text_resource.service")})
+                        lambda _: {"text_local": lifecycle.OwnedService("nemovox-text-review.service")})
     assert manager.reconcile_idle_owned(resources={"text_local": text_resource})["text_local"] == "active_clients"
     assert attempts == []
 
@@ -448,7 +448,7 @@ def test_reconcile_requires_verified_unit_invocation_identity(manager, text_reso
     monkeypatch.setattr(lifecycle, "_external_clients", lambda _: False)
     monkeypatch.setattr(lifecycle, "_systemctl", lambda *args: events.append(args))
     monkeypatch.setattr(lifecycle, "_service_config",
-                        lambda _: {"text_local": lifecycle.OwnedService("nemovox-text_resource.service")})
+                        lambda _: {"text_local": lifecycle.OwnedService("nemovox-text-review.service")})
     assert manager.reconcile_idle_owned(resources={"text_local": text_resource})["text_local"] == "unit_identity_unavailable"
     assert events == []
 
