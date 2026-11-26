@@ -234,3 +234,30 @@ def test_scene_bad_references_and_malformed_types_fail_without_selection():
     assert "materially_resolved_type" in decision_violations(
         {**good,"materially_resolved":"true"},payload,schema)
     assert decision_violations([],payload,schema)==["decision_not_object"]
+
+
+def test_scene_incomplete_generation_not_retried_and_malformed_json_retained():
+    import pytest
+    from nvidia_transcribe.scene_evidence import (
+        _decision_schema, assess_case_payload, SceneDecisionError,
+    )
+    payload={"scene":{"rows":[]},"acoustic_alternatives":[],"visual_observations":[]}
+    schema=_decision_schema([],[],[])
+    class Client:
+        def __init__(self,reason):
+            self.reason=reason
+            self.calls=0
+        def complete(self,**kw):
+            self.calls+=1
+            return {"choices":[{"finish_reason":self.reason,
+                                "message":{"content":"NaN"}}]}
+    for reason,calls,code in (("length",1,"incomplete_generation"),
+                              ("stop",2,"malformed_response")):
+        client=Client(reason)
+        case={}
+        with pytest.raises(SceneDecisionError):
+            assess_case_payload(client,payload,schema,case)
+        assert client.calls==calls
+        assert len(case["failed_assessments"])==calls
+        assert case["failed_assessments"][0]["violations"]==[code]
+        assert case["failed_assessments"][0]["response"]["choices"][0]["message"]["content"]=="NaN"

@@ -13,6 +13,7 @@ import json
 import os
 from pathlib import Path, PurePosixPath
 import re
+import shutil
 import tarfile
 import time
 
@@ -199,20 +200,23 @@ def acoustic(args,root,data,plan,registry):
     for idx in plan.get("primary_chunks",[]):
         c=chunks[idx]
         work.extend([
-            (f"chunk-{idx}-baseline",[c["infer_start_s"],c["infer_end_s"]],c["wav_sha256"]),
-            (f"chunk-{idx}-no-left-context",[c["core_start_s"],c["infer_end_s"]],None),
+            (f"chunk-{idx}-baseline",[c["infer_start_s"],c["infer_end_s"]],c["wav_sha256"],c.get("wav_path")),
+            (f"chunk-{idx}-no-left-context",[c["core_start_s"],c["infer_end_s"]],None,None),
         ])
-    work.extend((p["id"],p["bounds"],None) for p in plan.get("local_probes",[]))
-    if (len({name for name,_,_ in work})!=len(work)
-            or sum(b-a for _,(a,b),_ in work)>600):
+    work.extend((p["id"],p["bounds"],None,None) for p in plan.get("local_probes",[]))
+    if (len({name for name,_,_,_ in work})!=len(work)
+            or sum(b-a for _,(a,b),_,_ in work)>600):
         raise ValueError("Native experiment budget or identity conflict")
     inputs=root/"inputs"
     inputs.mkdir()
     prepared=[]
-    for name,(lo,hi),expected in work:
+    for name,(lo,hi),expected,retained in work:
         wav=inputs/(name+".wav")
-        extract_wav_segment(media.path,start_s=lo,duration_s=hi-lo,out_wav=wav,
-                            audio_stream_index=media.selected_audio_stream)
+        if retained and Path(retained).is_file() and sha(retained)==expected:
+            shutil.copyfile(retained,wav)
+        else:
+            extract_wav_segment(media.path,start_s=lo,duration_s=hi-lo,out_wav=wav,
+                                audio_stream_index=media.selected_audio_stream)
         duration,digest=validate_wav_file(wav)
         if abs(duration-(hi-lo))>.1 or (expected and digest!=expected):
             raise ValueError("Native crop does not match registered input: "+name)

@@ -32,3 +32,75 @@ off GitHub. Return a single private handback with immutable source and input
 identities, observed positive/negative results, costs, and resource restoration.
 Remove this diagnostic driver and obsolete controls when successor mechanisms
 have been selected and qualified, unless a current useful purpose remains.
+
+
+## Local execution contract
+
+The kickoff supplies the exact candidate commit, original archive identity,
+and private crop plan. Use an authorized Build or equivalent host supervisor
+with normal permissions. GPU-heavy execution requires a remote-backed coding
+agent or an operator-established free-capacity run; a GPU-backed local coding
+agent may do only CPU preparation until the operator frees capacity through
+the normal admission path. Do not change global harness settings or stop an
+unrelated service.
+
+From the owner workspace, authenticate the origin and current source; use
+native Git or the documented RTK raw proxy if the actual harness requires it.
+Fetch only refs/heads/issue/24; prove FETCH_HEAD equals the supplied full
+candidate SHA, then prove the exact object is a commit and create a fresh
+detached worktree at it. Do not switch or modify the owner checkout.
+Check the complete base-to-candidate diff inventory and cleanliness.
+Use a fresh private root with mode 0700 under outputs/handbacks, with the
+private plan and archive outside the worktree.
+
+Run from the candidate root, with the owner interpreter and candidate imports:
+
+    PYTHONPATH=src:. /workspace/nvidia-transcribe/.venv/bin/python -m compileall -q src/nvidia_transcribe scripts/evaluate_source_robustness.py
+    PYTHONPATH=src:. /workspace/nvidia-transcribe/.venv/bin/python -m pytest -q tests/test_source_robustness_evaluation.py tests/test_scene_evidence.py tests/test_source_quality.py tests/test_occurrence_recovery.py tests/test_source_recovery.py -m "not gpu"
+
+Verify nvidia_transcribe and scripts imports resolve under the candidate root.
+Save actual commands, exits and unfiltered failure evidence. Use git diff
+--check on the full base-to-candidate delta, not just an empty worktree diff.
+Do not change expected results or weaken validation. Resolve path, interpreter,
+resource-config and invocation problems using the actual existing interfaces.
+Substantive defects return to Central with native evidence.
+
+Bind ARCHIVE, ARCHIVE_SHA256, PRIVATE_ROOT, PLAN_PATH and RESOURCE_CONFIG to
+the kickoff/actual existing host paths. PRIVATE_ROOT must exist; each phase
+output subdirectory must not yet exist.
+
+    PYTHONPATH=src:. /workspace/nvidia-transcribe/.venv/bin/python -m scripts.evaluate_source_robustness --phase replay --archive "$ARCHIVE" --archive-sha256 "$ARCHIVE_SHA256" --output-dir "$PRIVATE_ROOT/replay"
+
+Record candidate nominations and existing task coverage at each screening
+length; compare against the sealed observed raw sequence, not a desired
+subtitle string. No required positive correction count.
+
+For GPU work, record GPU/process/owned-resource identities and effective
+resource/lifecycle config fingerprints before/after. Keep the actual
+historical resource binding when available. Verify Nemotron modelopt_mixed
+and native CTC, existing cached CUDA Whisper, and native Messages text route.
+Report mismatches explicitly; do not silently substitute model or device.
+
+    PYTHONPATH=src:. /workspace/nvidia-transcribe/.venv/bin/python -m scripts.evaluate_source_robustness --phase acoustic --archive "$ARCHIVE" --archive-sha256 "$ARCHIVE_SHA256" --plan "$PLAN_PATH" --model-resources "$RESOURCE_CONFIG" --output-dir "$PRIVATE_ROOT/acoustic"
+    PYTHONPATH=src:. /workspace/nvidia-transcribe/.venv/bin/python -m scripts.evaluate_source_robustness --phase scene --archive "$ARCHIVE" --archive-sha256 "$ARCHIVE_SHA256" --model-resources "$RESOURCE_CONFIG" --output-dir "$PRIVATE_ROOT/scene"
+
+If the authenticated original media has moved, use --media with the exact
+matching file. A fresh private result root is mandatory for any retry. Retain
+prior partial receipts. Do not replay successful model operations solely to
+repair a reporting error. If acoustic inference is blocked, finish CPU
+evidence and any independently admissible scene phase; report the blocked
+scope. No new model downloads, no unrelated service changes, no full episode,
+no broad geometry sweep. Keep actual GPU work separate from local-model
+coding inference. No deployment, source semantic edits, GitHub writes or PR.
+
+Return one private tar.gz containing the plan, tested commit/tree and actual
+imports, focused test output, replay nominations, native raw responses and
+reconstructions, independent observations, scene decisions/rejected receipts,
+comparison report, resource/time/VRAM/cleanup evidence, missing or failed
+steps, and command-shape friction. Exclude whole WAV collections (retain
+hashes/crop bounds), original media, weights, credentials and unrelated
+logs. Verify every included member against a manifest, verify the final
+archive hash/size and use a direct conversational handback. Keep the original
+Studio job, archive, owner source and service configuration unchanged. Attach
+the verified private archive to Central. The branch is not review-ready and
+does not authorize promotion, merge or closure.

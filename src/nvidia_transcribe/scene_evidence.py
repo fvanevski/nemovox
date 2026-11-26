@@ -166,7 +166,10 @@ def _call(client,system,payload,schema,*,parts=None,capture=False):
                 raise rejected("incomplete_generation")
             raise ValueError("Incomplete scene assessment: "+
                 json.dumps(reply.get("_client_request_diagnostics",{}),ensure_ascii=False))
-        return json.loads(choice["message"]["content"]),reply
+        def reject_constant(value):
+            raise json.JSONDecodeError("Nonfinite JSON constant",value,0)
+        options={"parse_constant":reject_constant} if capture else {}
+        return json.loads(choice["message"]["content"],**options),reply
     except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
         if capture:
             raise rejected("malformed_response",retryable=True) from exc
