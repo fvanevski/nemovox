@@ -1,4 +1,4 @@
-# Automatic model-resource acquisition (Issue #10)
+# Automatic model-resource acquisition
 
 ## Contract and ownership
 
@@ -66,8 +66,10 @@ The manager serializes local model stages through a file lock
 (`~/.local/state/nemovox/model-lifecycle.lock` by default, override via
 `NEMOVOX_LIFECYCLE_LOCK`). It opens resources at the stage that requires
 them: ASR for transcription; Riva's isolated worker for uncached MT; text model
-**lazily** on the first uncached refinement/legacy translation/review/optional
-condensation request. Unit readiness requires `/v1/models` advertising
+**lazily** on an uncached recording-context, source-adjudication or English-review
+request (or an explicitly selected legacy refinement/translation/condensation
+request). The independent Whisper CUDA worker, when configured and admitted,
+uses a separate shared-lease scope between served model phases. Unit readiness requires `/v1/models` advertising
 the exact selected ID; port openness alone is insufficient. For Nemotron ASR,
 health readiness and inference use the **same** credentials: if the ASR
 resource explicitly declares `api_key_env`, that environment variable is
@@ -87,10 +89,12 @@ application. The Riva CUDA worker needs a bounded free-VRAM admission check.
 When no model call is needed (English source contract, cached text pass, or
 offline rerender), no service is started.
 
-This is a **candidate implementation**, not proof of live completeness.
-The scope still needs deterministic and real-host verification of cancellation,
-SIGTERM/SIGKILL recovery, service contention, exact ASR CTC middleware,
-measured VRAM, repeated job reuse, and real foreign-language translation.
+The normal foreign-language workflow, stage acquisition/release and cache-only
+continuation/rerender were exercised on the deployed PR #21 source. See the
+[acceptance record](https://github.com/fvanevski/nemovox/issues/19#issuecomment-7178926236).
+That qualification is not proof of every cancellation, crash, contention or
+capacity scenario on every host; retain the targeted controls below for changes
+affecting those boundaries.
 
 ## Status and failure interpretation
 
@@ -108,14 +112,17 @@ measured VRAM, repeated job reuse, and real foreign-language translation.
 
 ## Validation and deployment gate
 
-The PR must not be merged or issue #10 closed based only on static tests or
-synthetic English contract jobs. With managed ASR and review units initially
-**stopped**, run a real small French or other supported foreign-language
-Studio job through ASR→Riva→English review to SRT/ASS, then a direct CLI job.
-Prove exact model/CTC and host process identity, finite resource transition
-times, cancellation/recovery, GPU reservations, output semantics, reuse, and
-that unrelated GPU services remain unchanged. Publish sanitized evidence
-on GitHub and revalidate again after promoting a reviewed/merged source.
+For changes affecting the live lifecycle or public inference route, qualify the
+affected behavior, not just static tests or synthetic English contract jobs.
+With owned managed ASR and review units initially **stopped**, a bounded real
+foreign-language Studio job exercises ASR, source quality, selective evidence,
+Riva, English review and SRT/ASS; a fresh CLI continuation checks reuse. Record
+exact model/CTC and process identity, stage transitions, memory, output
+semantics and unrelated service preservation. Exercise cancellation/recovery
+and contention controls when those boundaries change, and revalidate affected
+behavior after authorized promotion. Publish sanitized receipts and keep
+private artifacts local. Documentation-only changes do not require another
+inference campaign when implementation and configuration identity are proven.
 
 ## Recovery after an unclean model-worker exit
 
@@ -146,4 +153,4 @@ while external clients are connected or when unit markers change.
 
 ### Independent Whisper CUDA phase
 
-The explicitly configured `whisper_ct2` challenger acquires the same CUDA worker lease as Riva/Qwen, only after the managed acoustic endpoint scope exits. Owned ASR and text units must retain `stop_after_stage: true` for sequential resource release. The worker uses one subprocess for the bounded batch; its exit releases its CUDA context before the later scene/text phase. Capacity denial remains explicit rather than falling back to CPU or stopping an external process. The initial admission threshold is the existing 8500 MiB worker minimum, subject to measured host qualification.
+The explicitly configured `whisper_ct2` challenger acquires the same CUDA worker lease as Riva/Qwen, only after the managed acoustic endpoint scope exits. Owned ASR and text units must retain `stop_after_stage: true` for sequential resource release. The worker uses one subprocess for the bounded batch; its exit releases its CUDA context before the later scene/text phase. Capacity denial remains explicit rather than falling back to CPU or stopping an external process. The initial admission threshold is the existing 8500 MiB worker minimum, subject to the measured capacity of the actual host.

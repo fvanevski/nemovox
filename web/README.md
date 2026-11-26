@@ -32,17 +32,17 @@ npm run dev
 
 Then open http://127.0.0.1:5173. The frontend proxies /api to the Python backend. A production build (npm run build) is served by the same backend from web/dist.
 
-Studio delegates automatic acquisition/release of verified Nemovox-owned ASR and English-review services to the same CLI lifecycle manager used by direct CLI commands; the HTTP/web process does not itself run inference or change external services. One-time host provisioning of the owned services is documented in [model lifecycle configuration](../docs/model-resources/LIFECYCLE.md). Studio uses existing CLI stages with **Riva-Translate for primary translation** and a separate configured OpenAI-compatible text model (e.g. SwiftU/NInfer) for **English translation review only**. The original source ASR is not text-corrected before translation. The default Riva binding requests `cuda:0`, without silently falling back to CPU. Verify model availability and GPU headroom on the host; the UI reports only configured checkpoint/worker file availability, not a successful inference session. Export `NEMOVOX_MODEL_RESOURCES` before starting Studio; resource identities are configured on the host rather than selected by a model marketplace in the UI. See [resource configuration](../docs/model-resources/CONFIGURATION.md).
+Studio delegates automatic acquisition/release of verified Nemovox-owned ASR and English-review services to the same CLI lifecycle manager used by direct CLI commands; the HTTP/web process does not itself run inference or change external services. One-time host provisioning of the owned services is documented in [model lifecycle configuration](../docs/model-resources/LIFECYCLE.md). Studio uses existing CLI stages with **Riva-Translate for primary translation** and a separately configured NInfer Messages-compatible text resource for **recording context, bounded source-quality adjudication and English review**. Original ASR observations are retained; canonical source may change only with positive source evidence. Legacy text-only source rewriting is not part of Studio's normal workflow. The default Riva binding requests `cuda:0`, without silently falling back to CPU. Verify model availability and GPU headroom on the host; the UI reports only configured checkpoint/worker file availability, not a successful inference session. Export `NEMOVOX_MODEL_RESOURCES` before starting Studio; resource identities are configured on the host rather than selected by a model marketplace in the UI. See [resource configuration](../docs/model-resources/CONFIGURATION.md).
 
 FFmpeg/ffprobe are required for media processing; yt-dlp is required for remote/YouTube URLs. All model weights continue under /workspace/models.
 
 ## Three tabs
 
 1. Media & task: host directory browsing, browser file upload, remote URL, language choice, transcription/translation/subtitle tasks.
-2. Configure: accessible explanations for ASR/English-review/style settings; **actual FFprobe audio tracks for a local selected file** (not hard-coded 0–3 choices); dedicated Riva translation followed by optional context-aware English post-edit; descriptive optional glossary previews; ASS layout and speaker/alignment settings. The shipped GUI selects Riva, has no source-language correction control, and disables optional extra condensation by default.
+2. Configure: accessible explanations for ASR/English-review/style settings; **actual FFprobe audio tracks for a local selected file** (not hard-coded 0–3 choices); dedicated Riva translation followed by optional context-aware English post-edit; descriptive optional glossary previews; ASS layout and speaker/alignment settings. The shipped GUI selects Riva and balanced review, fixed 90/10 geometry, speaker-attributed ASR, and no optional TitaNet, Qwen or extra condensation. Current-media Riva jobs automatically use source quality; there is no legacy text-only source-rewriting control.
 3. Process & preview: job status/history, logs, video where browser-compatible, synchronized cues, ASS preview and downloads.
 
-## Expected limitations of this foundation
+## Current limitations
 
 - The app indexes new Studio jobs. Historical CLI outputs are not yet automatically included in the GUI job library.
 - Selected local/uploaded media are inspected for real audio-only stream indices. Remote URL tracks cannot be shown before download, so track 0 is used. A preexisting recording contract needs no audio track selection.
@@ -54,7 +54,9 @@ FFmpeg/ffprobe are required for media processing; yt-dlp is required for remote/
 - The frontend uses Radix Tabs and styled semantic controls. Host-side shadcn component generation is supported by `components.json` but is not required for running Studio.
 - Remote ingestion is intended for a trusted local operator. Keep the API bound to loopback; it is not ready for public deployment.
 
-Current architecture: [Studio architecture](../docs/gui/ARCHITECTURE.md). The original [Antigravity integration handoff](../docs/gui/ANTIGRAVITY_HANDOFF.md) is historical and should not override current source.
+Current operation: [subtitle workflow](../docs/gui/SUBTITLE_WORKFLOW.md),
+[Studio architecture](../docs/gui/ARCHITECTURE.md) and
+[deployed acceptance](https://github.com/fvanevski/nemovox/issues/19#issuecomment-7178926236).
 
 
 ## Host output destinations and retained job records
@@ -66,4 +68,4 @@ folder does not change the browser download directory or the CLI runtime.
 
 ### Independent source evidence
 
-Studio uses the same occurrence-directed source-quality pipeline as the CLI. An optional explicit `source_challenger` resource binding enables bounded cached CPU Whisper observations; see [model resource configuration](../docs/model-resources/CONFIGURATION.md). Unavailable or unresolved evidence remains visible in the current job's source-quality report.
+Studio uses the same occurrence-directed source-quality pipeline as the CLI. An optional explicit `source_challenger` resource binding enables bounded cached-model Whisper observations using `whisper_ct2`, CUDA `int8_float16` and the shared lifecycle lease; see [model resource configuration](../docs/model-resources/CONFIGURATION.md). Unavailable or unresolved evidence remains visible in the current job's source-quality report.

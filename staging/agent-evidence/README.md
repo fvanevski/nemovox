@@ -1,18 +1,33 @@
 # Local-agent evidence staging
 
-Evidence must be published on dedicated GitHub evidence branches, not in main.
+These are sanitized qualification records, not required inputs to the normal
+subtitle workflow or a deployment controller. Retain original identities
+while the records support [#16](https://github.com/fvanevski/nemovox/issues/16)
+and its completed implementation reviews:
 
-Recommended GUI handback layout:
+- [#17 / #18, PR #20](https://github.com/fvanevski/nemovox/pull/20): raw
+  occurrence inventory, disposition and geometry, recovery scheduling and
+  resolution, untagged timing and regression qualification.
+- [#19, PR #21](https://github.com/fvanevski/nemovox/pull/21): recording
+  context, CUDA challenger, semantic translation, final integration and
+  review-boundary/anchor qualification.
+- [Merged-main deployment acceptance](https://github.com/fvanevski/nemovox/issues/19#issuecomment-7178926236):
+  authenticated private archive and sanitized final disposition.
 
-~~~text
-staging/agent-evidence/gui-foundation-20261121/
-    gui-foundation-evidence.tar.gz
-    manifest.json
-    HANDback.md
-    test-results.md
-    browser-review.md
-~~~
+Do not use old handbacks as instructions for a new job or as proof of changed
+source, model or host state. The current operator guides are
+[README](../../README.md), [Studio](../../web/README.md),
+[resource configuration](../../docs/model-resources/CONFIGURATION.md) and
+[lifecycle](../../docs/model-resources/LIFECYCLE.md). Historical qualification
+protocols and evaluation reports are evidence, not alternate normal paths.
+Do not delete evidence needed for an open gate; remove demonstrably obsolete
+material when its current consumers and evidentiary purpose have been adjudicated
+under [AGENTS.md](../../AGENTS.md).
 
-This repository is PUBLIC. Publish synthetic-only screenshots/fixtures, source diffs and sanitized test evidence. Never publish copyrighted media, derived TV/anime transcripts, credentials, model weights or private host logs. Keep individual archives small, ideally below 20-25 MiB. Force-add only the approved tar.gz with git add -f because the root .gitignore excludes archives.
-
-Return full branch SHAs, branch links, artifact path, byte size and SHA256 for central independent review. Do not merge evidence archives to main.
+For future work, return a private self-contained evidence archive with a payload
+manifest and size/SHA-256. Publish only a sanitized issue/PR receipt unless the
+governing task explicitly authorizes a bounded evidence branch or carrier.
+Never publish copyrighted media, private dialogue, credentials, model weights,
+raw host logs containing secrets or private archives. Do not merge a private
+archive into main or create extra evidence commits merely to report a post-merge
+acceptance result.
