@@ -43,7 +43,7 @@ in the current job's source-quality report. No historical dossier is needed.
 
 ## Key Capabilities
 
-- **Single-Clip & Chunked Recording ASR:** Transcribe short clips (`transcribe`) or full-length audio/video recordings (`process-media`) with chunk-overlap boundary reconciliation, CTC word/character timestamp extraction, optional sub-interval recovery, and resumable manifests.
+- **Single-Clip & Chunked Recording ASR:** Transcribe short clips (`transcribe`) or full-length audio/video recordings (`process-media`) with chunk-overlap boundary reconciliation, CTC word/character timestamp extraction, explicit unresolved timing, and resumable manifests.
 - **Speaker Tracking & Contracts:** Reconstruct per-speaker utterances across overlapping streams, reconcile speakers across chunks, and emit structured JSON contracts (`recording.contract.json`) that preserve verbatim source Unicode text and honest timestamp provenance without fabricating missing timings.
 - **ASR → current-source quality → Riva → English review:** Preserve original ASR observations, then select acoustically corroborated current source events before dedicated translation. Bounded NInfer Messages reasoning prioritizes review; lightweight English postediting is separate and preserves original MT. CLI and Studio share the pipeline. `--source-quality off` explicitly skips acoustic review; a recording contract without original media cannot be acoustically reviewed.
 - **Post-Processing & Export (`generate-subtitles`):** Render `SRT` and multi-lane `ASS` subtitles (`Main`, `Top`, `TopAlt`), optional hardsub-clearing layout (`--ass-layout raised_main`), explicit optional high-CPS condensation (`--condense-high-cps`, disabled by default in Studio to avoid a second English text-model pass), reversible review overlays (`--validation-overlay`), and zero-inference CPU re-rendering (`--re-render`).
@@ -119,17 +119,17 @@ nvidia-transcribe generate-subtitles episode.webm \
   --translator riva --translation-review balanced \
   --style natural
 
-# Legacy compatibility: direct OpenAI-compatible text-model primary translation
+# Alternative: direct OpenAI-compatible text-model primary translation
 # remains an explicit CLI choice, without the new Riva post-edit stage.
 # nvidia-transcribe generate-subtitles --recording-contract ... --output-dir ... --translator openai_chat
 
-# 5. Fast CPU-only re-render (no GPU/LLM calls) with optional review overlay
+# 5. Fast CPU-only re-render (no GPU/LLM calls); an optional operator-authored
+# --validation-overlay may be supplied separately.
 nvidia-transcribe generate-subtitles \
   --output-dir outputs/episode_subs \
   --source-language zh \
   --ass-layout raised_main \
   --ass-margin-v 150 \
-  --validation-overlay configs/overlays/zh_ep166_validation.json \
   --re-render
 ```
 
@@ -139,14 +139,13 @@ nvidia-transcribe generate-subtitles \
 
 - **`src/nvidia_transcribe/`** — Core package:
   - *ASR & media:* `checkpoint.py`, `client.py`, `prompts.py`, `media.py`, `chunking.py`, `parser.py`, `recording.py`
-  - *Alignment & speakers:* `alignment.py`, `qwen_aligner.py`, `speakers.py`, `scene_diarization.py`, `utterances.py`, `contract.py`, `metrics.py`
+  - *Alignment & speakers:* `alignment.py`, `qwen_aligner.py`, `speakers.py`, `utterances.py`, `contract.py`, `metrics.py`
   - *Resource resolution and lifecycle:* `model_resources.py` (validated role/resource mappings) and `resource_lifecycle.py` (exact-owned model service acquisition, GPU admission and release)
   - *Refinement, translation & output:* `refinement.py`, `translation.py`, `translation_review.py`, `subtitles.py`, `subtitle_pipeline.py`, `cli.py`
-- **`configs/`** — Example model-resource JSON (`model-resources.example.json`), server/runtime templates (`*.env.example`), domain glossaries, and validation overlays.
+- **`configs/`** — Example model-resource JSON (`model-resources.example.json`), server/runtime templates (`*.env.example`), and domain glossaries. Operator-authored validation overlays are optional inputs.
 - **`scripts/`** — vLLM server launcher (`start_vllm_server.sh`), evaluation runners, and evidence packagers.
 - **`tests/`** — CPU unit/regression suite (`-m "not gpu"`) and gated GPU markers (`-m gpu`).
-- **`experiments/`** — Modular bakeoff, reliability, and viewing-quality harness scripts.
-- **`evaluations/`** — Architecture notes, benchmarks, comparison metrics, and validation reports across development milestones.
+- **`staging/agent-evidence/`** — Retained qualification records; not runtime inputs. See the [evidence index](staging/agent-evidence/README.md) for historical development material.
 - **`outputs/`** *(Git-ignored)* — Local runtime artifacts, audio chunks, transcripts, subtitle tracks, logs, and evidence archives.
 
 ---
@@ -156,7 +155,7 @@ nvidia-transcribe generate-subtitles \
 CPU tests are decoupled from live GPU/model endpoints:
 
 ```bash
-python -m compileall -q src scripts tests experiments
+python -m compileall -q src scripts tests
 PYTHONPATH=src:. .venv/bin/python -m pytest -q -m "not gpu"
 PYTHONPATH=src:. .venv-studio/bin/python -m pytest -q \
   tests/test_studio_api.py tests/test_studio_export_api.py tests/test_studio_exports.py

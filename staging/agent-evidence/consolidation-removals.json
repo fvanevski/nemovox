@@ -1,0 +1,35 @@
+{
+  "schema": "nemovox-consolidation-removals/v1",
+  "audited_commit": "9c2331c0d031a096c267f7fe9d230119db72b2b8",
+  "audited_tree": "6a4effdbd72d91539e095dcb85504eb9fa03c739",
+  "private_inventory_sha256": "91a592da9641f34cb9db583f0ba9573c42169ce97c9e8dc0e9c8f3b6218e214c",
+  "prefixes": {
+    "docs/alignment/": 4,
+    "evaluations/": 82,
+    "staging/issue5/": 43,
+    "staging/issue7/": 41,
+    "staging/issue10/": 70,
+    "staging/issue12/": 66,
+    "experiments/": 23,
+    "configs/overlays/": 2
+  },
+  "individual_paths": [
+    "docs/gui/ANTIGRAVITY_HANDOFF.md",
+    "docs/gui/ISSUE2_CODEX_ARTIFACT_URL_REMEDIATION.md",
+    "docs/gui/ISSUE2_CODEX_UI_REMEDIATION.md",
+    "docs/gui/ISSUE2_LOCAL_INTEGRATION.md",
+    "docs/model-resources/ISSUE5_LOCAL_INTEGRATION.md",
+    "scripts/package_chunked_evidence.py",
+    "scripts/package_evidence.py",
+    "scripts/run_chunked_evaluation.py",
+    "scripts/run_evaluation.py",
+    "scripts/test_pyannote_subtitle_compat.py",
+    "src/nvidia_transcribe/scene_diarization.py",
+    "tests/test_scene_diarization.py"
+  ],
+  "expected_count": 343,
+  "expected_bytes": 2122313,
+  "canonical_identity_format": "sort paths ascending; each line UTF-8 mode + space + blob_sha + space + path + LF",
+  "canonical_identity_sha256": "9c39b6a72c1cc22703bd4ac41ce278f4bb319cf33e69bd078ea61df38aff2ce2",
+  "note": "Remove exact audited objects only after matching the full manifest and verifying surviving active consumers. Retain current #16 evidence, optional Qwen/TitaNet, generic text workflows and overlay support. Historical issue #9 evidence preserved at immutable audited commit. Mechanical deletion only; no new semantic cleanup delegated."
+}

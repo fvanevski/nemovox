@@ -436,7 +436,7 @@ def test_explicit_legacy_source_refinement_and_rerender_without_asr(tmp_path: Pa
 
 
 def test_retired_translation_backend_is_rejected_before_inference():
-    with pytest.raises(ValueError, match="Unsupported translation backend"):
+    with pytest.raises(ValueError, match="Unsupported translator backend"):
         translate_utterances(
             [{"id": "u", "source_text": "Bonjour"}],
             source_language="fr", config=TranslationConfig(backend="swiftu"),

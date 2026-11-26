@@ -133,9 +133,8 @@ The effective precedence is:
 3. Environment overrides of **built-in** resources.
 4. Explicit CLI arguments for the invoked command.
 
-For built-in `text_local`, the legacy `SWIFTU_BASE_URL` / `SWIFTU_MODEL`
-override JSON defaults, while `TEXT_BASE_URL` / `TEXT_MODEL` override
-the legacy env values. `ASR_BASE_URL` / `ASR_MODEL` similarly override
+For built-in `text_local`, `TEXT_BASE_URL` / `TEXT_MODEL` override
+JSON defaults. `ASR_BASE_URL` / `ASR_MODEL` similarly override
 built-in `asr_local`. These environment variables do not silently rewrite
 new, independently named resources.
 
@@ -176,12 +175,7 @@ over `NEMOVOX_MODEL_RESOURCES` for the config-file location.
 
 ## Compatibility and migration
 
-- `--swiftu-url` and `--swiftu-model` remain aliases of `--text-url`
-  and `--text-model`. Their semantics explicitly apply to **all text roles**
-  for that invocation.
-- `--translator swiftu` and the prior SwiftU-named Python function exports
-  remain compatibility aliases. Prefer `--translator openai_chat` and generic
-  text-inference names in new integrations.
+- Use `--text-url`, `--text-model`, `TEXT_BASE_URL`, and `TEXT_MODEL` for generic text resources. The CLI flags apply to all text roles for that invocation. Use `--translator openai_chat` for explicit direct text-model translation. Retired SwiftU-specific selectors and Python function aliases are unsupported; retired environment settings fail explicitly rather than silently selecting another endpoint.
 - The `transcribe` single-clip command now resolves the same `asr` role as
   recording ASR, so its **unqualified default** is the role's local served ID at
   `http://127.0.0.1:8190/v1`. Previously the single-clip parser alone used
@@ -209,7 +203,7 @@ a compatible NInfer Messages endpoint, not merely a Chat Completions URL.
 ## Validation, caches, and safety
 
 ```bash
-python -m compileall -q src scripts tests experiments
+python -m compileall -q src scripts tests
 PYTHONPATH=src:. .venv/bin/python -m pytest -q -m "not gpu"
 PYTHONPATH=src:. .venv-studio/bin/python -m pytest -q \
   tests/test_studio_api.py tests/test_studio_export_api.py tests/test_studio_exports.py
@@ -277,7 +271,7 @@ Install the dedicated worker dependencies using the checked-in `requirements-cha
 
 Merge these entries into the existing version-1 configuration; do not replace unrelated roles. Worker execution uses CUDA int8_float16 and local-files-only admission. The former `whisper_cpu` adapter is unsupported. If migrating an older host configuration, change only the challenger adapter and device, preserving its authenticated checkpoint and worker paths. The worker uses the shared ModelLifecycle CUDA lease after owned Nemotron and text stages have released their scopes. No CPU fallback, CUDA visibility override, unrelated service eviction or alternate checkpoint is allowed. A blocked lease, unsupported CUDA compute type, loader failure, or mismatched actual device receipt leaves explicit unresolved evidence. Qualify CUDA library availability and actual worker execution on a new or changed host; the deployed PR #21 job exercised this CUDA path. Earlier CPU evidence does not establish CUDA readiness. Missing or unusable resources are explicit unresolved/error outcomes, not silent model substitution. The source-quality report distinguishes admitted tasks, acquisition receipts, resource deferral, occurrence resolutions and unresolved candidates. Qwen remains optional timing-only work; it cannot supply independent recognition of submitted wording.
 
-Primary recording no longer launches the former automatic per-chunk CTC subinterval recovery. CTC errors preserve recognized text, explicit unresolved timing and native observations for the shared scheduler; optional Qwen uses the audited admission path. The former `process-media --no-subinterval-recovery` switch is therefore removed. Direct low-level alignment experiments can still use the explicit helper independently of the normal recording workflow. Current-media source quality requires the original recording contract and its occurrence ledger to match their completed-run manifest digests; regenerate incompatible retained recordings before acoustic review. Offline re-rendering of a translated contract is unaffected.
+Primary recording no longer launches the former automatic per-chunk CTC subinterval recovery. CTC errors preserve recognized text, explicit unresolved timing and native observations for the shared scheduler; optional Qwen uses the audited admission path. The former automatic native retry callback and its switch have been removed. Localized Qwen audio extraction and occurrence-directed acoustic recovery remain supported. Current-media source quality requires the original recording contract and its occurrence ledger to match their completed-run manifest digests; regenerate incompatible retained recordings before acoustic review. Offline re-rendering of a translated contract is unaffected.
 
 ### Rebuilding the qualified CUDA challenger environment
 

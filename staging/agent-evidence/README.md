@@ -31,3 +31,7 @@ Never publish copyrighted media, private dialogue, credentials, model weights,
 raw host logs containing secrets or private archives. Do not merge a private
 archive into main or create extra evidence commits merely to report a post-merge
 acceptance result.
+
+## Retired development material
+
+The pre-consolidation tree [`9c2331c0d031a096c267f7fe9d230119db72b2b8`](https://github.com/fvanevski/nemovox/tree/9c2331c0d031a096c267f7fe9d230119db72b2b8) preserves the superseded experiment runners, evaluation reports, overlays, issue-era handoffs and closed-issue staging packets. They are historical evidence, not supported operating instructions. For [renderer/readability issue #9](https://github.com/fvanevski/nemovox/issues/9), the immutable [viewing-quality](https://github.com/fvanevski/nemovox/tree/9c2331c0d031a096c267f7fe9d230119db72b2b8/evaluations/viewing-quality) and [viewing-led validation](https://github.com/fvanevski/nemovox/tree/9c2331c0d031a096c267f7fe9d230119db72b2b8/evaluations/viewing-led-validation) reports remain available as historical comparison inputs, not current renderer qualification. Current #16 evidence and replay tools remain in the active tree.

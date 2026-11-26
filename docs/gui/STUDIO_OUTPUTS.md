@@ -1,4 +1,4 @@
-# Studio output destinations, exports, progress, logs and history (Issue #12)
+# Studio output destinations, exports, progress, logs and history
 
 This is a **local, single-user** Studio. The directory selected in the browser
 is a **host filesystem directory**, not a browser download destination. The
@@ -59,14 +59,8 @@ copying the full log, and exposes the complete downloadable log. Job history
 is paginated beyond the legacy recent-50 response; older job artifacts and
 logs remain available while their job-specific directories are retained.
 
-## Compatibility and operational checks
+## Operational behavior
 
-Older Studio API callers without an export plan remain valid and retain only
-internal artifacts. Direct CLI commands keep their established output-dir and
-inference behavior. A production source update must be reviewed and accepted
-separately; do not replace the running Studio merely by cloning this branch.
-
-Tests to run in a clean exact-head source: focused export/API/CLI progress
-regressions, full non-GPU pytest, frontend Vitest/TypeScript/Vite build; then
-short isolated Studio HTTP/Chromium tests, one real French Riva CUDA job if
-safe under the canonical lease, cleanup and a source-bound evidence handback.
+An omitted export plan retains internal artifacts only. Direct CLI commands
+keep their output-directory and inference behavior. See the current
+[Studio workflow](SUBTITLE_WORKFLOW.md) and [lifecycle guide](../model-resources/LIFECYCLE.md).
