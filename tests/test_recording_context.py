@@ -183,6 +183,8 @@ def test_normal_source_quality_runs_context_before_shared_acoustic_planner(tmp_p
     native = Native(lambda req,n: (answer(req,[proposal("polarity","a",[("a","ne sais pas")])]),
                                     "end_turn", USAGE))
     order = []
+    expected_ledger = ledger
+    acquired_windows = []
     @contextmanager
     def text_scope():
         order.append("text_enter")
@@ -195,19 +197,27 @@ def test_normal_source_quality_runs_context_before_shared_acoustic_planner(tmp_p
         assert order == ["text_enter","text_exit"]
         assert any("semantic_occurrence_request" in w["reasons"] and "a" in w["source_ids"]
                    for w in windows)
+        acquired_windows.append(windows)
         order.append("acoustic")
         return [],[],[],{"extra_contexts":0}
     monkeypatch.setattr(quality,"acquire_acoustic_evidence",acquire)
     monkeypatch.setattr(source_recovery,"schedule_independent",lambda *a,**k:([],[]))
     monkeypatch.setattr(source_recovery,"acquire_independent_evidence",
                         lambda *a,**k:{"observations":[],"decisions":[],"errors":[],"status":"not_needed"})
-    monkeypatch.setattr(occurrence_resolution,"resolve_occurrences",lambda r,*a:(r["utterances"],[]))
+    def resolve(recording, events, observations, targets, recovery, policy, *, ledger, windows):
+        assert order == ["text_enter","text_exit","acoustic"]
+        assert ledger is expected_ledger
+        assert len(acquired_windows) == 1 and windows is acquired_windows[0]
+        assert not events and not observations and not targets
+        order.append("resolve")
+        return recording["utterances"], []
+    monkeypatch.setattr(occurrence_resolution,"resolve_occurrences",resolve)
     monkeypatch.setattr(occurrence_resolution,"resolution_receipts",lambda *a:[])
     monkeypatch.setattr(scene_evidence,"adjudicate_scene",lambda r,*a:(r["utterances"],
         {"errors":[],"deferred_source_ids":[],"decisions":[]}))
     canonical, report = quality.review_current_source(rec,recording_path=tmp_path/"recording.contract.json",
         media_path=tmp_path/"media.wav",output_dir=tmp_path,text_scope=text_scope,asr_scope=None)
-    assert order == ["text_enter","text_exit","acoustic"]
+    assert order == ["text_enter","text_exit","acoustic","resolve"]
     assert rec == before and canonical["utterances"] == before["utterances"]
     assert report["recording_context"]["proposals"][0]["kind"] == "polarity"
     assert report["status"] == "partial"  # nomination is not semantic resolution
