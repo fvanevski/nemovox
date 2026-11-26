@@ -304,7 +304,12 @@ def ambiguous_local_events(recording, sources, windows, observations, targets, i
             and o.get("integrity",{}).get("status")=="complete"
             and o.get("integrity",{}).get("finish_reason")=="stop"]
     rows=[r for r in recording["utterances"] if r["id"] in sources]
+    timed_units={u for r in timed_rows if _bounds(r) for u in r.get("source_unit_ids",[])}
     unresolved={r["id"] for r in timed_rows if not _bounds(r)}
+    # A residual fragment retaining its parent's ID does not prove that
+    # the whole original hypothesis is unclaimed.
+    unresolved={r["id"] for r in rows if r["id"] in unresolved
+                and not timed_units.intersection(r.get("source_unit_ids",[]))}
     minimum=6 if recording["source_language"].startswith(("zh","ja")) else 4
     tol=policy.timing_tolerance_s
     def groups(o):
