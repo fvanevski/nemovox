@@ -23,6 +23,7 @@ import urllib.request
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
+from pathlib import Path
 from typing import Iterator, Mapping
 
 from nvidia_transcribe.model_resources import ModelResource
@@ -200,6 +201,13 @@ class ModelLifecycle:
 
     def inspect(self, resource: ModelResource) -> dict[str, str | bool]:
         """Read-only status for Studio; never starts/stops or loads any model."""
+        if resource.adapter == "moss_events":
+            installed = (Path(resource.checkpoint_path or "").is_dir()
+                         and Path(resource.checkpoint_path or "", "config.json").is_file()
+                         and bool(resource.worker_python) and Path(resource.worker_python).is_file())
+            # This is availability, not proof of runtime or GPU admission.
+            return {"state": "startable_local_worker" if installed else "worker_unavailable",
+                    "ready": False, "managed": True, "startable": installed}
         healthy = _models_healthy(resource)
         settings = self.services.get(resource.name)
         if not settings:

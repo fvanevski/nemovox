@@ -12,7 +12,8 @@ from nvidia_transcribe.model_resources import ModelResources, ResourceConfigErro
 
 def generation(text, count=120):
     return {"text": text, "generated_tokens": count, "max_new_tokens": 4096,
-            "prompt_len": 200, "max_input_tokens": 131072}
+            "prompt_len": 200, "max_input_tokens": 131072,
+            "device": "cuda:0", "dtype": "torch.bfloat16"}
 
 
 def build(text):
@@ -110,3 +111,54 @@ def test_checkpoint_reuses_and_refuses_modified_generation(tmp_path, monkeypatch
     with pytest.raises(ValueError, match="identity mismatch"):
         moss.process_moss_media(media_path, **options)
     assert calls == ["lease", "inference"]
+
+
+def test_native_repetitions_and_short_turns_are_not_legacy_ctc_fragments():
+    from nvidia_transcribe.translation import cleanup_mandarin_fragments, _apply_safe_adjacent_regrouping
+    c = build("[1][S01]好[2][2.1][S01]好[3][3.1][S02]了[4]")
+    rows = c["utterances"]
+    for r in rows:
+        r["translated_text"] = "Yes"
+        r["_grouped_with_prev"] = True
+    assert _apply_safe_adjacent_regrouping(rows) == 0
+    assert cleanup_mandarin_fragments(rows, source_language="zh") == 0
+    assert all(r["translated_text"] == "Yes" for r in rows)
+
+
+def test_worker_status_is_not_endpoint_health(tmp_path, monkeypatch):
+    from nvidia_transcribe.resource_lifecycle import ModelLifecycle
+    from nvidia_transcribe import resource_lifecycle
+    (tmp_path / "config.json").write_text("{}")
+    worker = tmp_path / "python"
+    worker.touch()
+    resource = _validate_resource("moss_local", {"adapter":"moss_events", "model":"MOSS",
+        "checkpoint_path":str(tmp_path), "worker_python":str(worker), "device":"cuda:0"})
+    monkeypatch.setattr(resource_lifecycle, "_models_healthy", lambda _: pytest.fail("endpoint probe"))
+    assert ModelLifecycle().inspect(resource) == {"state":"startable_local_worker",
+        "ready":False, "managed":True, "startable":True}
+
+
+def test_native_recording_continuation_uses_event_contract_and_no_lexical_review(tmp_path, monkeypatch):
+    from nvidia_transcribe import subtitle_pipeline as pipeline
+    from nvidia_transcribe.translation import TranslationConfig
+    from nvidia_transcribe.translation_review import TranslationReviewConfig
+    c = build("[1][S01]Bonjour[3][5][S02]Salut[7]")
+    c["source_language"] = "fr"
+    for r in c["utterances"]:
+        r["source_language"] = "fr"
+    path = tmp_path / "recording.contract.json"
+    path.write_text(json.dumps(c))
+    monkeypatch.setattr(pipeline, "review_current_source", lambda *a, **k: pytest.fail("lexical review"))
+    monkeypatch.setattr(pipeline, "process_media", lambda *a, **k: pytest.fail("Nemotron ASR"))
+    cfg = pipeline.SubtitlePipelineConfig(source_language="fr",
+        translation=TranslationConfig(backend="none"),
+        translation_review=TranslationReviewConfig(profile="off"), episode_stem="clip")
+    meta = pipeline.generate_subtitles(recording_contract_path=path, output_dir=tmp_path / "subtitles", config=cfg)
+    translated = json.loads(Path(meta["files"]["translated_contract"]).read_text())
+    assert [r["source_text"] for r in translated["utterances"]] == ["Bonjour", "Salut"]
+    assert translated["native_dialogue"]["event_count"] == 2
+    assert meta["source_quality"]["status"] == "not_run"
+    from dataclasses import replace
+    with pytest.raises(ValueError, match="lexical recovery"):
+        pipeline.generate_subtitles(recording_contract_path=path,
+            output_dir=tmp_path / "reject", config=replace(cfg, source_quality="on"))

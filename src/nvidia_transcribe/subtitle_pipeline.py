@@ -161,6 +161,8 @@ def generate_subtitles(
     if cfg.source_quality == "on" and not cfg.re_render_only and not media_path:
         raise ValueError("Source quality requires the original media")
     if quality_enabled:
+        if asr_resource is not None and asr_resource.adapter != "nemotron_ctc":
+            raise ValueError("Legacy lexical quality review requires a native CTC resource")
         if lifecycle is None or not lifecycle_resources or not {"asr", "translation_review"} <= lifecycle_resources.keys():
             raise ValueError("Source quality requires managed ASR and NInfer review resources")
         if cfg.refinement.profile != "off":
@@ -362,7 +364,7 @@ def generate_subtitles(
                    "Using explicitly supplied canonical source: " + contract["source_quality"]["status"]
                    if retained_canonical else ("Native MOSS events: legacy lexical recovery is not applicable"
                        if moss_source else "No current-media quality review requested"))
-        src_lang = cfg.source_language or contract.get("source_language")
+        src_lang = contract.get("source_language") if moss_source else cfg.source_language or contract.get("source_language")
         raw_utterances = list(contract.get("utterances") or [])
 
         # The ordinary path preserves the ASR transcript unchanged. The

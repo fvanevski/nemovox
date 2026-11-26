@@ -283,6 +283,11 @@ def _dedup_internal_trailing_clause(text: str) -> str:
     return out
 
 
+def _native_dialogue_event(row: dict[str, Any]) -> bool:
+    """Native observed segments are not CTC fragments or inferred duplicates."""
+    return (row.get("timestamp_provenance") or {}).get("backend") == "moss_events"
+
+
 def cleanup_mandarin_fragments(
     utterances: list[dict[str, Any]],
     *,
@@ -301,7 +306,7 @@ def cleanup_mandarin_fragments(
     is_en_target = (target_language or "en").strip().lower().startswith("en")
     n = len(utterances)
     for i, u in enumerate(utterances):
-        if u.get("merged_into"):
+        if u.get("merged_into") or _native_dialogue_event(u):
             continue
         src = str(u.get("refined_text") or u.get("source_text") or "").strip()
         src_cjk = _CJK_CHAR_RE.findall(src)
@@ -379,7 +384,7 @@ def _apply_safe_adjacent_regrouping(out_utts: list[dict[str, Any]]) -> int:
         # A text model must not erase a separately observed occurrence.
         # Even within a span, disjoint recognized units can contain a
         # genuine repeated clause; do not perform text dedup over them.
-        if (any(row.get("source_occurrence_ids") or row.get("occurrence_span_ids")
+        if (any(_native_dialogue_event(row) or row.get("source_occurrence_ids") or row.get("occurrence_span_ids")
                 or row.get("source_unit_ids") for row in (anchor, u))
                 or ((anc_source_ids or cur_source_ids)
                     and set(anc_source_ids) != set(cur_source_ids))):
@@ -475,7 +480,7 @@ def translate_utterances(
     gl = glossary or GlossaryConfig()
     trans_cfg_sig = {
         "prompt_version": _TRANSLATION_PROMPT_VERSION,
-        "occurrence_regrouping_contract": "bound-occurrence/v1",
+        "occurrence_regrouping_contract": "bound-occurrence/v2",
         "backend": cfg.backend,
         "model": cfg.model,
         "endpoint": cfg.base_url,
@@ -660,7 +665,7 @@ def translate_utterances(
             return
         allow_grp = cfg.allow_adjacent_regrouping if allow_regrouping_override is None else allow_regrouping_override
         targets = [out_utts[i] for i in indices]
-        if any(u.get("source_unit_ids") or u.get("source_occurrence_ids")
+        if any(_native_dialogue_event(u) or u.get("source_unit_ids") or u.get("source_occurrence_ids")
                or u.get("occurrence_span_ids") for u in targets):
             # Bound observations have individual translation ownership.
             # Avoid requesting merged/empty translations that must be repaired.

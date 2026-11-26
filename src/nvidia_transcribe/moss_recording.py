@@ -257,6 +257,7 @@ def process_moss_media(media_path, *, output_dir, resource, lifecycle,
         manifest.unlink(missing_ok=True)
         cp.unlink(missing_ok=True)
         transcript.unlink(missing_ok=True)
+        raw_path.unlink(missing_ok=True)
         wav = out / "recording.wav"
         tmp = out / ".native-dialogue.worker.json"
         tmp.unlink(missing_ok=True)
@@ -281,6 +282,10 @@ def process_moss_media(media_path, *, output_dir, resource, lifecycle,
                 raise ValueError("Recording input changed during inference")
             generation = _read(tmp)
             _atomic(raw_path, _encode(generation))  # preserve even a rejected generation
+            if generation.get("device") != "cuda:0" or generation.get("dtype") != "torch.bfloat16":
+                raise ValueError("MOSS worker device/dtype receipt mismatch")
+            if _resource_identity(resource) != identity:
+                raise ValueError("MOSS runtime or checkpoint changed during inference")
             if generation.get("max_new_tokens") != _token_budget(duration):
                 raise ValueError("MOSS generation budget mismatch")
             contract = build_native_recording(source, language, identity, generation, duration, audio_sha)

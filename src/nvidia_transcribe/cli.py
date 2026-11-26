@@ -290,7 +290,14 @@ def main(argv: list[str] | None = None) -> int:
                               "reason": exc.status if isinstance(exc, ResourceLifecycleError) else None,
                               "error": str(exc)}, indent=2), file=sys.stderr)
             return 1
-        print(json.dumps({"status": "OK", **{k:v for k,v in out.items() if k != "contract"}}, ensure_ascii=False, indent=2))
+        c = out["contract"]
+        print(json.dumps({"status": "OK", **{k:v for k,v in out.items() if k != "contract"},
+                          "source_language": c["source_language"],
+                          "language_provenance": c["language_provenance"],
+                          "duration_s": c["source"]["duration_s"],
+                          "chunk_count": c["processing"]["chunk_count"],
+                          "utterance_count": len(c["utterances"]), "speaker_count": len(c["speakers"]),
+                          "warnings": c["processing_warnings"]}, ensure_ascii=False, indent=2))
         return 0
 
     if args.command == "process-media":
