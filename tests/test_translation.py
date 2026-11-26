@@ -166,7 +166,7 @@ def test_translate_utterances_preserves_ids_glossary_and_never_merges_distinct_s
     out, summary = translate_utterances(
         utts,
         source_language="fr",
-        config=TranslationConfig(backend="swiftu", style="natural", batch_size=6),
+        config=TranslationConfig(backend="openai_chat", style="natural", batch_size=6),
         glossary=GlossaryConfig(characters=("Esteban", "Zia"), terms=("double medallion",)),
         text_client=stub,
     )
@@ -259,10 +259,9 @@ def test_translate_vetoed_regrouping_never_leaves_untranslated_source_orphan(bou
     assert "merged_into" not in out[1]
 
 
-@pytest.mark.parametrize("backend", ["openai_chat", "swiftu"])
 @pytest.mark.parametrize("reply_kind", ["ok", "request_error", "missing_id"])
 def test_subtitle_translation_stage_reports_fallback_errors_without_aborting(
-    tmp_path: Path, backend: str, reply_kind: str,
+    tmp_path: Path, reply_kind: str,
 ) -> None:
     """A completed render must not disguise a degraded translation stage."""
     contract = tmp_path / "recording.contract.json"
@@ -294,7 +293,7 @@ def test_subtitle_translation_stage_reports_fallback_errors_without_aborting(
         recording_contract_path=contract,
         output_dir=output,
         config=SubtitlePipelineConfig(
-            translation=TranslationConfig(backend=backend, batch_size=1),
+            translation=TranslationConfig(backend="openai_chat", batch_size=1),
             formats=("srt",),
         ),
         text_client=_StubTranslationClient([reply]),
@@ -340,7 +339,7 @@ def test_explicit_legacy_source_refinement_and_rerender_without_asr(tmp_path: Pa
             "--refinement",
             "balanced",
             "--translator",
-            "swiftu",
+            "openai_chat",
             "--style",
             "natural",
             "--formats",
@@ -348,7 +347,7 @@ def test_explicit_legacy_source_refinement_and_rerender_without_asr(tmp_path: Pa
         ]
     )
     assert args.refinement == "balanced"
-    assert args.translator == "swiftu"
+    assert args.translator == "openai_chat"
 
     contract = {
         "schema_version": "nemotron-recording-contract/v1",
@@ -434,3 +433,12 @@ def test_explicit_legacy_source_refinement_and_rerender_without_asr(tmp_path: Pa
     )
     assert meta_re["refinement"]["status"] == "reused_translated_contract"
     assert len(stub.calls) == 2
+
+
+def test_retired_translation_backend_is_rejected_before_inference():
+    with pytest.raises(ValueError, match="Unsupported translator backend"):
+        translate_utterances(
+            [{"id": "u", "source_text": "Bonjour"}],
+            source_language="fr", config=TranslationConfig(backend="swiftu"),
+            text_client=object(),
+        )

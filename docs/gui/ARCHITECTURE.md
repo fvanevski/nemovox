@@ -7,7 +7,13 @@ For development and review, use the live repository source and exact Git branch/
 ## Processing boundary
 
 React/Vite Studio → FastAPI local HTTP → one-job subprocess worker → existing Nemovox Python CLI:
-process-media (recording.contract.json) → generate-subtitles (unchanged ASR transcript → Riva primary machine translation → selective contextual English post-edit → SRT/ASS). Legacy CLI source-language correction, direct text-model translation and extra cue condensation remain explicit opt-ins.
+process-media (original recording contract and occurrence ledger) → generate-subtitles
+(recording context, occurrence-directed source-quality assessment and selective
+acoustic/visual evidence → canonical source with explicit uncertainty → Riva
+primary machine translation → balanced contextual English review with comparative
+validation → SRT/ASS). Original ASR remains intact. Legacy CLI text-only source
+rewriting is a separate explicit route, incompatible with current source quality;
+direct text-model translation and extra cue condensation are explicit options.
 
 There must be only ONE owner of ASR, diarization, translation, text refinement and subtitle rendering: the existing Python source modules. The web layer only validates and configures requests, submits CLI jobs, retrieves output contracts, and visualizes results.
 
@@ -43,7 +49,7 @@ Media browsing is limited to explicit roots, without arbitrary host-path executi
 ## UX
 
 - Media & task: browse host paths, upload from browser, remote URL, source language, task.
-- Configure: detailed accessible in-menu and selected-option explanations for ASR, English translation review and style. Local source audio choices are dynamically probed and validated against the selected file; URL audio tracks are unknown until download. Dedicated Riva primary translation and selective English text-model post-edit appear as distinct steps. Source-language refinement is absent from Studio; extra condensation is off by default. Example glossaries are off by default and show names/terms/context when chosen. Resource identities and role bindings remain host-configured.
+- Configure: detailed accessible in-menu and selected-option explanations for ASR, English translation review and style. Local source audio choices are dynamically probed and validated against the selected file; URL audio tracks are unknown until download. Dedicated Riva primary translation and selective English text-model post-edit appear as distinct steps. Current-media Riva jobs automatically use current-source quality; legacy text-only source rewriting is absent from Studio. Fixed 90-second cores, 10-second context, balanced review, and optional Qwen/TitaNet/extra condensation off are the normal defaults. Example glossaries are off by default and show names/terms/context when chosen. Resource identities and role bindings remain host-configured.
 - Process & preview: progress/history, output file access, synchronized dialogue search/click-to-seek, browser JASSUB where available, HTML overlay fallback.
 
 Design aims for a contemporary media workstation, not a generic enterprise dashboard: clear typography, progressive disclosure, dark subdued palette, responsive controls, easily accessible task state.

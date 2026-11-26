@@ -77,72 +77,35 @@ def test_ctc_oov_chinese_failure_preserves_text_and_diarization_without_fabricat
     assert "".join(u["text"] for u in rec["units"]) == "钙、钾等元素属于金属"
 
 
-def test_partial_subinterval_recovery_recovers_non_oov_window() -> None:
-    def fake_sub(ws: float, we: float):
-        if ws < 5.0:
-            return "<spk:0> Bonjour", {
-                "words": [{"word": "Bonjour", "start": 0.2, "end": 0.7, "speaker": "0"}],
-                "diarization": [{"speaker": 0, "start": 0.1, "end": 0.8}],
-                "speaker_tag_to_diarization_speaker": {"0": 0},
-                "error": None,
-            }
-        return "<spk:0> Merci", {
-            "words": [{"word": "Merci", "start": 0.3, "end": 0.8, "speaker": "0"}],
-            "diarization": [{"speaker": 0, "start": 0.2, "end": 0.9}],
-            "speaker_tag_to_diarization_speaker": {"0": 0},
-            "error": None,
-        }
-
+def test_native_ctc_preserves_distinct_valid_observation_times() -> None:
     rec = recover_chunk_alignment(
         raw_text="<spk:0> Bonjour Merci",
-        ctc_payload={
-            "words": [],
-            "diarization": [{"speaker": 0, "start": 1.0, "end": 2.0}, {"speaker": 0, "start": 8.0, "end": 9.0}],
-            "speaker_tag_to_diarization_speaker": {},
-            "error": "alignment_failed",
-        },
-        source_offset_s=0.0,
-        chunk_index=0,
-        subinterval_runner=fake_sub,
+        ctc_payload={"words": [
+            {"word": "Bonjour", "start": 1.0, "end": 2.0, "speaker": "0"},
+            {"word": "Merci", "start": 8.0, "end": 9.0, "speaker": "0"},
+        ]},
+        source_offset_s=0.0, chunk_index=0, model_path=None,
     )
-    assert rec["alignment_status"] == "subinterval_ctc_recovered"
+    assert rec["alignment_status"] == "ctc_aligned"
     assert [u["text"] for u in rec["units"]] == ["Bonjour", "Merci"]
-    assert rec["units"][0]["start"] == 0.85  # sub_start(1.0 - 0.35 pad = 0.65) + 0.2
+    assert [u["start"] for u in rec["units"]] == [1.0, 8.0]
+    assert not rec["diagnostic"]["recovery_attempted"]
 
 
-def test_partial_subinterval_recovery_isolates_oov_window() -> None:
-    def fake_sub(ws: float, we: float):
-        if ws < 5.0:
-            return "<spk:0> 你好。", {
-                "words": [{"word": "你", "start": 0.1, "end": 0.3, "speaker": "0"}, {"word": "好。", "start": 0.3, "end": 0.5, "speaker": "0"}],
-                "diarization": [{"speaker": 0, "start": 0.05, "end": 0.6}],
-                "speaker_tag_to_diarization_speaker": {"0": 0},
-                "error": None,
-            }
-        return "<spk:0> 钾金属。", {
-            "words": [],
-            "diarization": [{"speaker": 0, "start": 0.1, "end": 0.8}],
-            "speaker_tag_to_diarization_speaker": {},
-            "error": "alignment_failed",
-        }
-
+def test_partial_native_ctc_preserves_oov_and_usable_neighbors() -> None:
     rec = recover_chunk_alignment(
         raw_text="<spk:0> 你好。钾金属。",
-        ctc_payload={
-            "words": [],
-            "diarization": [{"speaker": 0, "start": 1.0, "end": 2.0}, {"speaker": 0, "start": 8.0, "end": 9.0}],
-            "speaker_tag_to_diarization_speaker": {},
-            "error": "alignment_failed",
-        },
-        source_offset_s=0.0,
-        chunk_index=0,
-        subinterval_runner=fake_sub,
+        ctc_payload={"words": [
+            {"word": "你", "start": 1.0, "end": 1.2, "speaker": "0"},
+            {"word": "好。", "start": 1.2, "end": 1.4, "speaker": "0"},
+        ]},
+        source_offset_s=0.0, chunk_index=0, model_path=None,
     )
-    assert rec["alignment_status"] == "partial_subinterval_recovery"
-    assert rec["diagnostic"]["recovered_units"] == 2
-    assert rec["diagnostic"]["untimed_units"] == 3  # 钾 金 属。
-    assert rec["units"][0]["valid_timing"] is True
-    assert rec["units"][2]["valid_timing"] is False and rec["units"][2]["start"] is None
+    assert rec["alignment_status"] == "partial"
+    assert rec["diagnostic"]["untimed_units"] == 3
+    assert [u["text"] for u in rec["units"]] == ["你", "好。", "钾", "金", "属。"]
+    assert [u["valid_timing"] for u in rec["units"]] == [True, True, False, False, False]
+    assert all(u["start"] is None for u in rec["units"][2:])
 
 
 def test_cross_chunk_speaker_reconciliation_aba_and_collisions() -> None:

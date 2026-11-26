@@ -55,52 +55,24 @@ def test_a1_same_speaker_repeated_words_and_untimed_preservation() -> None:
     assert [u["text"] for u in merged] == ["non", "non", "钾"]
 
 
-# --- A2: Lexical substitution during CTC subinterval recovery ---
+# --- A2: Native timing observations cannot rewrite the recognized spine ---
 
-def test_a2_subinterval_recovery_never_substitutes_proper_nouns_or_inserts_text() -> None:
-    # Original ASR heard "Koumlar" & "Nat'cal"; subinterval ASR altered to "Kumla", dropped "est", inserted "extra".
-    def diverging_sub(ws: float, we: float):
-        if ws < 5.0:
-            return "<spk:0> Cité de Kumla extra", {
-                "words": [
-                    {"word": "Cité", "start": 0.1, "end": 0.3, "speaker": "0"},
-                    {"word": "de", "start": 0.3, "end": 0.4, "speaker": "0"},
-                    {"word": "Kumla", "start": 0.4, "end": 0.8, "speaker": "0"},
-                    {"word": "extra", "start": 0.8, "end": 1.0, "speaker": "0"},
-                ],
-                "diarization": [{"speaker": 0, "start": 0.1, "end": 1.0}],
-                "speaker_tag_to_diarization_speaker": {"0": 0},
-                "error": None,
-            }
-        return "<spk:0> Nat'cal", {
-            "words": [{"word": "Nat'cal", "start": 0.1, "end": 0.5, "speaker": "0"}],
-            "diarization": [{"speaker": 0, "start": 0.1, "end": 0.6}],
-            "speaker_tag_to_diarization_speaker": {"0": 0},
-            "error": None,
-        }
-
+def test_native_timing_observations_never_substitute_proper_nouns_or_insert_text() -> None:
     rec = recover_chunk_alignment(
         raw_text="<spk:0> Cité de Koumlar est Nat'cal",
-        ctc_payload={
-            "words": [],
-            "diarization": [{"speaker": 0, "start": 1.0, "end": 2.0}, {"speaker": 0, "start": 8.0, "end": 9.0}],
-            "speaker_tag_to_diarization_speaker": {},
-            "error": "alignment_failed",
-        },
-        source_offset_s=0.0,
-        chunk_index=0,
-        subinterval_runner=diverging_sub,
+        ctc_payload={"words": [
+            {"word": word, "start": float(i + 1), "end": i + 1.2, "speaker": "0"}
+            for i, word in enumerate(["Cité", "de", "Kumla", "extra", "Nat'cal"])
+        ]},
+        source_offset_s=0.0, chunk_index=0, model_path=None,
     )
-    # Exact original text sequence MUST remain intact; "Kumla" and "extra" MUST NOT appear in units!
     assert [u["text"] for u in rec["units"]] == ["Cité", "de", "Koumlar", "est", "Nat'cal"]
-    assert rec["units"][0]["valid_timing"] is True
-    assert rec["units"][1]["valid_timing"] is True
-    assert rec["units"][2]["valid_timing"] is False and rec["units"][2]["start"] is None  # Koumlar kept untimed
-    assert rec["units"][3]["valid_timing"] is False and rec["units"][3]["start"] is None  # est kept untimed
-    assert rec["units"][4]["valid_timing"] is True
-    assert rec["alignment_status"] == "partial_subinterval_recovery"
-    diff = rec["diagnostic"]["hypothesis_diff"]
-    assert len(diff["substitutions"]) == 1  # Koumlar -> Kumla + extra
+    assert [u["valid_timing"] for u in rec["units"]] == [True, True, False, False, True]
+    assert all(rec["units"][i]["start"] is None for i in (2, 3))
+    assert rec["alignment_status"] == "partial"
+    observations = rec["diagnostic"]["native_ctc_observations"]
+    assert [o["raw_word"]["word"] for o in observations] == ["Cité", "de", "Kumla", "extra", "Nat'cal"]
+    assert all("source_unit_index" not in observations[i] for i in (2, 3))
 
 
 # --- A3 & A4: Timed/untimed ordering & accurate partial-timing status ---

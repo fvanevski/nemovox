@@ -37,7 +37,7 @@ from nvidia_transcribe.prompts import (
 )
 from nvidia_transcribe.qwen_aligner import QwenAlignerConfig, QwenForcedAlignerAdapter
 from nvidia_transcribe.recording import RecordingPipelineConfig, process_media
-from nvidia_transcribe.refinement import GlossaryConfig, RefinementConfig, load_glossary, refine_utterances_with_swiftu
+from nvidia_transcribe.refinement import GlossaryConfig, RefinementConfig, load_glossary, refine_utterances_with_text_model
 from nvidia_transcribe.subtitle_pipeline import SubtitlePipelineConfig, generate_subtitles
 from nvidia_transcribe.subtitles import SubtitleConfig, SubtitleCue, assign_subtitle_lanes, build_display_cues, render_subtitles
 from nvidia_transcribe.translation import TranslationConfig, translate_utterances

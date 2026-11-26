@@ -10,11 +10,9 @@ from nvidia_transcribe import cli
 from nvidia_transcribe.model_resources import load_model_resources
 from nvidia_transcribe.refinement import (
     OpenAIChatTextClient, RefinementConfig, refine_utterances_with_text_model,
-    refine_utterances_with_swiftu,
 )
 from nvidia_transcribe.translation import (
     TranslationConfig, translate_utterances, condense_high_cps_cues_with_text_model,
-    condense_high_cps_cues_with_swiftu,
 )
 
 
@@ -65,22 +63,34 @@ def test_cli_distinct_text_resources_and_specialized_adapter_settings(tmp_path, 
     assert cfg.speaker_embedding_model == "titanet_small"
 
 
-def test_cli_legacy_swiftu_options_and_backend_are_compatible(tmp_path, monkeypatch):
+def test_cli_generic_text_options_override_all_text_roles(tmp_path, monkeypatch):
     captured = {}
     monkeypatch.setattr(cli, "generate_subtitles", lambda *args, **kw:
                         captured.setdefault("cfg", kw["config"]) and {"ok": True})
     status = cli.main([
         "generate-subtitles", "--recording-contract", "none",
-        "--output-dir", str(tmp_path / "out"), "--translator", "swiftu",
-        "--swiftu-url", "http://localhost:9201/v1", "--swiftu-model", "legacy-text",
+        "--output-dir", str(tmp_path / "out"), "--translator", "openai_chat",
+        "--text-url", "http://localhost:9201/v1", "--text-model", "override-text",
     ])
     assert status == 0
     cfg = captured["cfg"]
-    assert cfg.translation.backend == "swiftu"
-    assert cfg.refinement.model == cfg.translation.model == cfg.condensation.model == "legacy-text"
+    assert cfg.translation.backend == "openai_chat"
+    assert cfg.refinement.model == cfg.translation.model == cfg.condensation.model == "override-text"
     assert cfg.refinement.base_url == cfg.translation.base_url == cfg.condensation.base_url == "http://localhost:9201/v1"
-    assert refine_utterances_with_swiftu is refine_utterances_with_text_model
-    assert condense_high_cps_cues_with_swiftu is condense_high_cps_cues_with_text_model
+
+
+@pytest.mark.parametrize("retired", [
+    ["--translator", "swiftu"],
+    ["--swiftu-url", "http://localhost:9201/v1"],
+    ["--swiftu-model", "old-model"],
+])
+def test_cli_rejects_retired_text_aliases(tmp_path, retired):
+    with pytest.raises(SystemExit) as error:
+        cli.build_parser().parse_args([
+            "generate-subtitles", "--recording-contract", "none",
+            "--output-dir", str(tmp_path / "out"), *retired,
+        ])
+    assert error.value.code == 2
 
 
 def test_cli_invalid_bindings_fail_before_pipeline(tmp_path, monkeypatch, capsys):

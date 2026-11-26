@@ -61,12 +61,12 @@ fields:
 
 | Field | Meaning |
 |---|---|
-| `adapter` | One of `nemotron_ctc`, `openai_chat`, `riva_worker`, `qwen_forced_aligner`, `titanet` |
+| `adapter` | One of `nemotron_ctc`, `openai_chat`, `riva_worker`, `whisper_ct2`, `qwen_forced_aligner`, `titanet` |
 | `endpoint` | HTTP(S) base URL, e.g. `http://127.0.0.1:8001/v1`; required for served ASR/text models |
 | `model` | Served model ID for ASR/text, or NeMo model name for speaker embedding |
 | `checkpoint_path` | Local model checkpoint/directory for applicable adapters |
-| `worker_python` | Python interpreter path for Riva/Qwen worker processes |
-| `device` | Adapter-specific execution target: Qwen `cuda:0` or explicit `cpu`; shipped Riva `cuda:0` (explicit `cpu` or `auto` supported as opt-in and may be slower); TitaNet `cpu` only |
+| `worker_python` | Python interpreter path for Riva, Whisper and Qwen worker processes |
+| `device` | Adapter-specific execution target: Qwen `cuda:0` or explicit `cpu`; shipped Riva `cuda:0` (explicit `cpu` or `auto` supported as opt-in and may be slower); Whisper `cuda:0` only; TitaNet `cpu` only |
 | `api_key_env` | Environment **variable name** holding a token, never the token value |
 
 Example: keep the current SwiftU/NInfer binding for correction, but assign
@@ -101,9 +101,11 @@ services. A compatible endpoint must be available or startable by the job-owned 
 their built-in bindings unless overridden. The `resources` object merges
 settings into shipped named resources or defines new resources; `roles` binds
 each functional task to a resource name. All roles are validated at load time.
-The `openai_chat` adapter expects OpenAI-compatible `/chat/completions` and
-structured text responses; mere server reachability does not prove model
-quality or JSON behavior.
+The `openai_chat` adapter supports OpenAI-compatible `/chat/completions` for
+explicit text-model routes. Current-media source quality and its English review
+use the NInfer Messages wire protocol; the selected endpoint must support that
+protocol and structured responses. Mere server reachability does not establish
+model quality or JSON behavior.
 
 For an authenticated endpoint, use e.g. `"api_key_env": "TEXT_API_TOKEN"`
 on the chosen resource and set `TEXT_API_TOKEN` securely in the execution
@@ -131,9 +133,8 @@ The effective precedence is:
 3. Environment overrides of **built-in** resources.
 4. Explicit CLI arguments for the invoked command.
 
-For built-in `text_local`, the legacy `SWIFTU_BASE_URL` / `SWIFTU_MODEL`
-override JSON defaults, while `TEXT_BASE_URL` / `TEXT_MODEL` override
-the legacy env values. `ASR_BASE_URL` / `ASR_MODEL` similarly override
+For built-in `text_local`, `TEXT_BASE_URL` / `TEXT_MODEL` override
+JSON defaults. `ASR_BASE_URL` / `ASR_MODEL` similarly override
 built-in `asr_local`. These environment variables do not silently rewrite
 new, independently named resources.
 
@@ -174,12 +175,7 @@ over `NEMOVOX_MODEL_RESOURCES` for the config-file location.
 
 ## Compatibility and migration
 
-- `--swiftu-url` and `--swiftu-model` remain aliases of `--text-url`
-  and `--text-model`. Their semantics explicitly apply to **all text roles**
-  for that invocation.
-- `--translator swiftu` and the prior SwiftU-named Python function exports
-  remain compatibility aliases. Prefer `--translator openai_chat` and generic
-  text-inference names in new integrations.
+- Use `--text-url`, `--text-model`, `TEXT_BASE_URL`, and `TEXT_MODEL` for generic text resources. The CLI flags apply to all text roles for that invocation. Use `--translator openai_chat` for explicit direct text-model translation. Retired SwiftU-specific selectors and Python function aliases are unsupported; retired environment settings fail explicitly rather than silently selecting another endpoint.
 - The `transcribe` single-clip command now resolves the same `asr` role as
   recording ASR, so its **unqualified default** is the role's local served ID at
   `http://127.0.0.1:8190/v1`. Previously the single-clip parser alone used
@@ -207,8 +203,10 @@ a compatible NInfer Messages endpoint, not merely a Chat Completions URL.
 ## Validation, caches, and safety
 
 ```bash
-python -m compileall -q src tests experiments
-pytest -q -m "not gpu"
+python -m compileall -q src scripts tests
+PYTHONPATH=src:. .venv/bin/python -m pytest -q -m "not gpu"
+PYTHONPATH=src:. .venv-studio/bin/python -m pytest -q \
+  tests/test_studio_api.py tests/test_studio_export_api.py tests/test_studio_exports.py
 cd web && npm test && npm run build
 ```
 
@@ -244,12 +242,12 @@ Reading configuration never starts, stops, loads, unloads or downloads a model. 
 managed-ASR flow still requires explicit ownership/lease admission. Do not
 use production/private media for smoke testing without authorization.
 
-**Verification boundary:** Issue #7 implementation has no host qualification
-at the time of authoring. Prior issue #5 test results are tied to their earlier
-exact source and do not verify these changes. Fresh CPU/TypeScript/UI tests
-and bounded host checks are required. Live ASR/Riva/text inference is UNVERIFIED
-until safely exercised on the actual configured host without interrupting
-shared GPU processes.
+**Verification boundary:** The integrated normal path, including live ASR,
+CUDA challenger, Riva and native Messages review, was qualified on the deployed
+PR #21 source; see the [acceptance record](https://github.com/fvanevski/nemovox/issues/19#issuecomment-7178926236).
+A different source, configuration, worker environment or model requires
+qualification of the affected behavior. Do not treat historical receipts or
+path-only readiness as proof of inference on a changed host.
 
 ## Optional independent acoustic challenger
 
@@ -269,12 +267,12 @@ The shared source-quality scheduler can request bounded independent faster-whisp
 }
 ```
 
-Install the dedicated worker dependencies using the checked-in `requirements-challenger.txt` with a supported Python (the qualified host used 3.12.14). For example, after creating or selecting the dedicated environment, run `uv pip install --python /workspace/nvidia-transcribe/.venv-challenger/bin/python -r requirements-challenger.txt` and `uv pip check --python /workspace/nvidia-transcribe/.venv-challenger/bin/python`. Do not install these into another project's environment. The PyAV pin is intentional: the observed faster-whisper 1.2.1 invocation failed with av 19.0.2 because its audio decoder passed the removed `metadata_errors` argument; av 18.0.0 passed the actual CPU control. This is a tested dependency combination, not a claim about all future releases.
+Install the dedicated worker dependencies using the checked-in `requirements-challenger.txt` with a supported Python (the qualified host used 3.12.14). For example, after creating or selecting the dedicated environment, run `uv pip install --python /workspace/nvidia-transcribe/.venv-challenger/bin/python -r requirements-challenger.txt` and `uv pip check --python /workspace/nvidia-transcribe/.venv-challenger/bin/python`. Do not install these into another project's environment. The PyAV pin is intentional: the observed faster-whisper 1.2.1 invocation failed with av 19.0.2 because its audio decoder passed the removed `metadata_errors` argument; av 18.0.0 passed the original CPU control and subsequent deployed CUDA qualification. This is a tested dependency combination, not a claim about all future releases.
 
-Merge these entries into the existing version-1 configuration; do not replace unrelated roles. Worker execution uses CUDA int8_float16 and local-files-only admission. The previous whisper_cpu adapter is superseded; change only the configured challenger adapter and device, preserving its local checkpoint and worker paths. The worker uses the shared ModelLifecycle CUDA lease after owned Nemotron and text stages have released their scopes. No CPU fallback, CUDA visibility override, unrelated service eviction or alternate checkpoint is allowed. A blocked lease, unsupported CUDA compute type, loader failure, or mismatched actual device receipt leaves explicit unresolved evidence. Qualify CUDA library availability and the real worker on the installed host before promotion; prior CPU evidence is not CUDA qualification. Missing or unusable resources are explicit unresolved/error outcomes, not silent model substitution. The source-quality report distinguishes admitted tasks, acquisition receipts, resource deferral, occurrence resolutions and unresolved candidates. Qwen remains optional timing-only work; it cannot supply independent recognition of submitted wording.
+Merge these entries into the existing version-1 configuration; do not replace unrelated roles. Worker execution uses CUDA int8_float16 and local-files-only admission. The former `whisper_cpu` adapter is unsupported. If migrating an older host configuration, change only the challenger adapter and device, preserving its authenticated checkpoint and worker paths. The worker uses the shared ModelLifecycle CUDA lease after owned Nemotron and text stages have released their scopes. No CPU fallback, CUDA visibility override, unrelated service eviction or alternate checkpoint is allowed. A blocked lease, unsupported CUDA compute type, loader failure, or mismatched actual device receipt leaves explicit unresolved evidence. Qualify CUDA library availability and actual worker execution on a new or changed host; the deployed PR #21 job exercised this CUDA path. Earlier CPU evidence does not establish CUDA readiness. Missing or unusable resources are explicit unresolved/error outcomes, not silent model substitution. The source-quality report distinguishes admitted tasks, acquisition receipts, resource deferral, occurrence resolutions and unresolved candidates. Qwen remains optional timing-only work; it cannot supply independent recognition of submitted wording.
 
-Primary recording no longer launches the former automatic per-chunk CTC subinterval recovery. CTC errors preserve recognized text, explicit unresolved timing and native observations for the shared scheduler; optional Qwen uses the audited admission path. The former `process-media --no-subinterval-recovery` switch is therefore removed. Direct low-level alignment experiments can still use the explicit helper independently of the normal recording workflow. Current-media source quality requires the original recording contract and its occurrence ledger to match their completed-run manifest digests; regenerate incompatible retained recordings before acoustic review. Offline re-rendering of a translated contract is unaffected.
+Primary recording no longer launches the former automatic per-chunk CTC subinterval recovery. CTC errors preserve recognized text, explicit unresolved timing and native observations for the shared scheduler; optional Qwen uses the audited admission path. The former automatic native retry callback and its switch have been removed. Localized Qwen audio extraction and occurrence-directed acoustic recovery remain supported. Current-media source quality requires the original recording contract and its occurrence ledger to match their completed-run manifest digests; regenerate incompatible retained recordings before acoustic review. Offline re-rendering of a translated contract is unaffected.
 
 ### Rebuilding the qualified CUDA challenger environment
 
-On the qualified Garuda host CTranslate2 4.9.1 required cuBLAS 12 during actual inference; `/opt/cuda/lib64` exposed CUDA 13. The existing CUDA 12.8 files resolved the issue. Check the actual wheel's `ctranslate2.libs` directory and ELF RPATH with `readelf -d` before recreating links. The qualified targets were `/usr/local/cuda-12.8/targets/x86_64-linux/lib/libcublas.so.12.8.3.14` and `libcublasLt.so.12.8.3.14`; link them as `libcublas.so.12` and `libcublasLt.so.12` in that environment's `ctranslate2.libs` only, without overwriting existing regular files. Revalidate SONAME, real target path, installed cuDNN 9, `uv pip check`, and actual cached-model inference both with `LD_LIBRARY_PATH` unset and with the host's CUDA 13 path. Do not assume a capability probe establishes working inference. Recheck after a wheel/environment rebuild; no system driver changes or model downloads are necessary for this qualified setup. Migrate the active resource JSON only at authorized merged-main deployment.
+On the qualified Garuda host CTranslate2 4.9.1 required cuBLAS 12 during actual inference; `/opt/cuda/lib64` exposed CUDA 13. The existing CUDA 12.8 files resolved the issue. Check the actual wheel's `ctranslate2.libs` directory and ELF RPATH with `readelf -d` before recreating links. The qualified targets were `/usr/local/cuda-12.8/targets/x86_64-linux/lib/libcublas.so.12.8.3.14` and `libcublasLt.so.12.8.3.14`; link them as `libcublas.so.12` and `libcublasLt.so.12` in that environment's `ctranslate2.libs` only, without overwriting existing regular files. Revalidate SONAME, real target path, installed cuDNN 9, `uv pip check`, and actual cached-model inference both with `LD_LIBRARY_PATH` unset and with the host's CUDA 13 path. Do not assume a capability probe establishes working inference. Recheck after a wheel/environment rebuild; no system driver changes or model downloads are necessary for this qualified setup. Apply resource changes only through an authorized, reversible host deployment; do not recreate a qualified environment merely to repeat historical setup.

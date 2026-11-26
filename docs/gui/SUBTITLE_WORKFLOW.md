@@ -1,11 +1,18 @@
 # Subtitle task configuration: behavior and host boundaries
 
-The current shared CLI/Studio implementation is subject to fresh host qualification.
+The shared CLI/Studio workflow was exercised in a fresh merged-main Studio job
+with current-source quality, CUDA challenger, Riva, balanced English review,
+exact-input continuation and offline rerender. See the
+[deployed acceptance record](https://github.com/fvanevski/nemovox/issues/19#issuecomment-7178926236).
+This is bounded host-specific qualification, not a guarantee for every recording.
 
 ## Processing sequence
 
 1. **ASR:** Preserve the original audio-bound ASR observations and timing.
-2. **Current-source quality:** Triage material ambiguity, obtain bounded NInfer Messages advice, and selectively acquire separate audio contexts. Only positively corroborated source events can change canonical source; competing occurrences remain unresolved rather than being silently deleted.
+2. **Current-source quality:** Generate recording-context hypotheses, validate their literal evidence references,
+   triage material ambiguity and selectively acquire separate audio contexts.
+   An explicitly configured `whisper_ct2` CUDA worker supplies independent acoustic
+   observations; visual observations may ground relevant visible literals, not spoken words. Only positively corroborated source events can change canonical source; competing occurrences remain unresolved rather than being silently deleted.
 3. **Dedicated translation:** Riva receives canonical source text. Missing or invalid worker results fail visibly.
 4. **Contextual English review:** Review primary translations against canonical source and nearby context; preserve original MT, important meaning and polarity. Use bounded NInfer Messages in current-source quality jobs.
 5. **Render SRT/ASS:** Existing rendering; optional additional condensation is off by default.
@@ -62,8 +69,10 @@ Default Riva resource: local
 configured Python interpreter for its worker. The host should set appropriate
 paths in ignored \`configs/model-resources.local.json\`. The shipped Riva
 device is explicit \`cuda:0\`: no automatic CPU downgrade; an operator may
-explicitly configure CPU/auto if desired. An OpenAI-compatible text model is
-required for English translation review. Optional legacy source refinement and extra condensation require a compatible text endpoint only when explicitly enabled.
+explicitly configure CPU/auto if desired. An NInfer Messages-compatible text model is
+required for current-media source quality and contextual English review.
+Legacy text-only source refinement is not part of the normal Studio route. Extra
+condensation is off unless explicitly enabled.
 
 The Studio readiness UI checks that Riva checkpoint/worker paths exist; that
 is **not proof** of load success, language support, speed, quality or available

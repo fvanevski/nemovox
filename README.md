@@ -12,7 +12,10 @@ Superseded code, fixtures, schemas, configuration and development evidence
 should be removed rather than maintained for backward compatibility. New
 acceptance evidence must be generated with the current code, configuration
 and model resources. The development contract in [AGENTS.md](AGENTS.md)
-governs this transition. Current implementation requires fresh host qualification.
+governs this transition. The occurrence-centered subtitle workflow was qualified
+on the deployed Garuda host at the merged PR #21 source; see the
+[acceptance record](https://github.com/fvanevski/nemovox/issues/19#issuecomment-7178926236).
+That evidence is specific to the tested source, host configuration and models.
 
 ### Subtitle quality objective
 
@@ -40,7 +43,7 @@ in the current job's source-quality report. No historical dossier is needed.
 
 ## Key Capabilities
 
-- **Single-Clip & Chunked Recording ASR:** Transcribe short clips (`transcribe`) or full-length audio/video recordings (`process-media`) with chunk-overlap boundary reconciliation, CTC word/character timestamp extraction, optional sub-interval recovery, and resumable manifests.
+- **Single-Clip & Chunked Recording ASR:** Transcribe short clips (`transcribe`) or full-length audio/video recordings (`process-media`) with chunk-overlap boundary reconciliation, CTC word/character timestamp extraction, explicit unresolved timing, and resumable manifests.
 - **Speaker Tracking & Contracts:** Reconstruct per-speaker utterances across overlapping streams, reconcile speakers across chunks, and emit structured JSON contracts (`recording.contract.json`) that preserve verbatim source Unicode text and honest timestamp provenance without fabricating missing timings.
 - **ASR → current-source quality → Riva → English review:** Preserve original ASR observations, then select acoustically corroborated current source events before dedicated translation. Bounded NInfer Messages reasoning prioritizes review; lightweight English postediting is separate and preserves original MT. CLI and Studio share the pipeline. `--source-quality off` explicitly skips acoustic review; a recording contract without original media cannot be acoustically reviewed.
 - **Post-Processing & Export (`generate-subtitles`):** Render `SRT` and multi-lane `ASS` subtitles (`Main`, `Top`, `TopAlt`), optional hardsub-clearing layout (`--ass-layout raised_main`), explicit optional high-CPS condensation (`--condense-high-cps`, disabled by default in Studio to avoid a second English text-model pass), reversible review overlays (`--validation-overlay`), and zero-inference CPU re-rendering (`--re-render`).
@@ -52,7 +55,9 @@ in the current job's source-quality report. No historical dossier is needed.
 ### Requirements
 - Python `>= 3.12` (see [`pyproject.toml`](pyproject.toml))
 - `ffmpeg` and `ffprobe` on `PATH` for media inspection, chunk extraction, and preview rendering
-- For live ASR: an available `vLLM` server with `nemo_speechlm` CTC timestamp middleware. For the Studio's normal English subtitle workflow: a **locally installed Riva-Translate checkpoint and worker interpreter** and an OpenAI-compatible text endpoint for **one selective English review pass**. Source correction and additional condensation are off by default. Mere path presence does not guarantee model compatibility or sufficient GPU memory.
+- For live ASR: an available `vLLM` server with `nemo_speechlm` CTC timestamp middleware. For the Studio's normal English subtitle workflow: a **locally installed Riva-Translate checkpoint and worker interpreter** and a text endpoint supporting **NInfer Messages** for recording context, selective
+source-quality adjudication and balanced English review. Legacy text-only source
+rewriting and additional condensation are off by default. Mere path presence does not guarantee model compatibility or sufficient GPU memory.
 
 ### Installation
 
@@ -75,7 +80,7 @@ export NEMOVOX_MODEL_RESOURCES="$PWD/configs/model-resources.local.json"
 # Optional: source a locally reviewed .env for per-resource overrides.
 ```
 
-The resource file binds functional roles (ASR, **dedicated Riva translation and English translation review**, optional legacy source refinement/condensation, alignment, embeddings) to installed local resources. The shipped `text_local` binding points to the existing SwiftU/NInfer host endpoint for selective English post-editing. The CLI and Studio use the same resolver and default to dedicated Riva translation and balanced English review in their normal subtitle workflow. See [model-resource configuration](docs/model-resources/CONFIGURATION.md) and the [Studio subtitle workflow guide](docs/gui/SUBTITLE_WORKFLOW.md). Reading this configuration never starts inference services.
+The resource file binds functional roles (ASR, **dedicated Riva translation and English translation review**, optional legacy source refinement/condensation, alignment, embeddings) to installed local resources. The shipped `text_local` binding points to the existing SwiftU/NInfer host endpoint for current-source context/adjudication and selective English post-editing. The CLI and Studio use the same resolver and default to dedicated Riva translation and balanced English review in their normal subtitle workflow. See [model-resource configuration](docs/model-resources/CONFIGURATION.md) and the [Studio subtitle workflow guide](docs/gui/SUBTITLE_WORKFLOW.md). Reading this configuration never starts inference services.
 
 For automatic per-job ASR/reviewer service acquisition, provision the explicitly owned user-systemd units once (not per job) and configure `NEMOVOX_LIFECYCLE_CONFIG` as described in [model lifecycle](docs/model-resources/LIFECYCLE.md). The CLI/Studio then starts and releases required owned resources automatically. The following standalone launcher remains available for explicit diagnostics:
 
@@ -114,17 +119,17 @@ nvidia-transcribe generate-subtitles episode.webm \
   --translator riva --translation-review balanced \
   --style natural
 
-# Legacy compatibility: direct OpenAI-compatible text-model primary translation
+# Alternative: direct OpenAI-compatible text-model primary translation
 # remains an explicit CLI choice, without the new Riva post-edit stage.
 # nvidia-transcribe generate-subtitles --recording-contract ... --output-dir ... --translator openai_chat
 
-# 5. Fast CPU-only re-render (no GPU/LLM calls) with optional review overlay
+# 5. Fast CPU-only re-render (no GPU/LLM calls); an optional operator-authored
+# --validation-overlay may be supplied separately.
 nvidia-transcribe generate-subtitles \
   --output-dir outputs/episode_subs \
   --source-language zh \
   --ass-layout raised_main \
   --ass-margin-v 150 \
-  --validation-overlay configs/overlays/zh_ep166_validation.json \
   --re-render
 ```
 
@@ -134,14 +139,13 @@ nvidia-transcribe generate-subtitles \
 
 - **`src/nvidia_transcribe/`** — Core package:
   - *ASR & media:* `checkpoint.py`, `client.py`, `prompts.py`, `media.py`, `chunking.py`, `parser.py`, `recording.py`
-  - *Alignment & speakers:* `alignment.py`, `qwen_aligner.py`, `speakers.py`, `scene_diarization.py`, `utterances.py`, `contract.py`, `metrics.py`
+  - *Alignment & speakers:* `alignment.py`, `qwen_aligner.py`, `speakers.py`, `utterances.py`, `contract.py`, `metrics.py`
   - *Resource resolution and lifecycle:* `model_resources.py` (validated role/resource mappings) and `resource_lifecycle.py` (exact-owned model service acquisition, GPU admission and release)
   - *Refinement, translation & output:* `refinement.py`, `translation.py`, `translation_review.py`, `subtitles.py`, `subtitle_pipeline.py`, `cli.py`
-- **`configs/`** — Example model-resource JSON (`model-resources.example.json`), server/runtime templates (`*.env.example`), domain glossaries, and validation overlays.
+- **`configs/`** — Example model-resource JSON (`model-resources.example.json`), server/runtime templates (`*.env.example`), and domain glossaries. Operator-authored validation overlays are optional inputs.
 - **`scripts/`** — vLLM server launcher (`start_vllm_server.sh`), evaluation runners, and evidence packagers.
 - **`tests/`** — CPU unit/regression suite (`-m "not gpu"`) and gated GPU markers (`-m gpu`).
-- **`experiments/`** — Modular bakeoff, reliability, and viewing-quality harness scripts.
-- **`evaluations/`** — Architecture notes, benchmarks, comparison metrics, and validation reports across development milestones.
+- **`staging/agent-evidence/`** — Retained qualification records; not runtime inputs. See the [evidence index](staging/agent-evidence/README.md) for historical development material.
 - **`outputs/`** *(Git-ignored)* — Local runtime artifacts, audio chunks, transcripts, subtitle tracks, logs, and evidence archives.
 
 ---
@@ -151,8 +155,10 @@ nvidia-transcribe generate-subtitles \
 CPU tests are decoupled from live GPU/model endpoints:
 
 ```bash
-python -m compileall -q src tests experiments
-pytest -q -m "not gpu"
+python -m compileall -q src scripts tests
+PYTHONPATH=src:. .venv/bin/python -m pytest -q -m "not gpu"
+PYTHONPATH=src:. .venv-studio/bin/python -m pytest -q \
+  tests/test_studio_api.py tests/test_studio_export_api.py tests/test_studio_exports.py
 cd web && npm test && npm run build
 ```
 
@@ -173,4 +179,11 @@ The normal CLI and Studio path uses existing ASR speaker tags and reconciliation
 
 ### Occurrence-directed source recovery
 
-Current-source quality consumes the recognized-turn/occurrence ledger, schedules bounded localized acoustic observations and preserves explicit unresolved alternatives. Configure the optional CPU `source_challenger` role as described in [model resource configuration](docs/model-resources/CONFIGURATION.md) to enable independent faster-whisper evidence. No universal second transcription or word alignment is required. Fixed and pause-aware primary geometry options remain unchanged pending integrated qualification.
+Current-source quality consumes the recognized-turn/occurrence ledger, schedules bounded localized acoustic observations and preserves explicit unresolved alternatives. Configure the optional `source_challenger` role with `whisper_ct2` on `cuda:0`
+using a dedicated worker environment and an existing cached CTranslate2 checkpoint;
+see [model resource configuration](docs/model-resources/CONFIGURATION.md).
+The independent worker uses CUDA `int8_float16` under the shared lifecycle lease;
+there is no automatic CPU fallback. No universal second transcription or word
+alignment is required. The qualified default is fixed 90-second cores with
+10-second context and a 15-second minimum tail; pause-aware geometry remains
+an explicit option, not a universally superior policy.

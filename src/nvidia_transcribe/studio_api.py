@@ -155,7 +155,7 @@ class Options(BaseModel):
     speaker_embeddings: Literal["titanet", "none"] = "none"
     alignment_fallback: Literal["off", "qwen"] = "off"
     refinement: Literal["off", "conservative", "balanced", "expressive"] = "off"
-    translator: Literal["openai_chat", "swiftu", "riva", "none"] = "riva"
+    translator: Literal["openai_chat", "riva", "none"] = "riva"
     translation_review: Literal["off", "conservative", "balanced", "expressive"] = "balanced"
 
     @model_validator(mode="before")

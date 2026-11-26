@@ -104,7 +104,7 @@ def test_subtitles_imported_contract_has_source_exports(live, tmp_path: Path, mo
     response = client.post("/api/jobs", json={
         "source": {"kind": "contract", "value": str(contract)},
         "task": "subtitles",
-        "options": {"translator": "swiftu", "translation_review": "off"},
+        "options": {"translator": "openai_chat", "translation_review": "off"},
         "export": {"destination": str(root),
                    "artifacts": ["source_transcript", "recording_contract"]},
     })
@@ -161,7 +161,7 @@ def test_imported_contract_processing_keeps_adjacent_reconstruction_sidecars(
     response = client.post("/api/jobs", json={
         "source": {"kind": "contract", "value": str(original)},
         "task": task,
-        "options": {"translator": "swiftu", "translation_review": "off"},
+        "options": {"translator": "openai_chat", "translation_review": "off"},
         "export": {"destination": str(root),
                    "artifacts": ["recording_contract", "source_transcript"]},
     })

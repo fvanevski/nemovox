@@ -1,8 +1,0 @@
-{
-  "document": "docs/model-resources/CONFIGURATION.md",
-  "matches_qwen_device_rule": true,
-  "matches_riva_device_rule": true,
-  "matches_titanet_cpu_only_rule": true,
-  "matches_adapter_allowed_fields_validation": true,
-  "blocking_discrepancies": []
-}
