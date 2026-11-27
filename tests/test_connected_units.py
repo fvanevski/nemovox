@@ -49,15 +49,13 @@ class Review:
         if "target_utterances" in payload:
             body = {"reviews": [{"utterance_id": t["utterance_id"],
                 "corrected_text": self.proposals[t["utterance_id"]], "reason": "fixture source meaning",
-                "discourse_terms": [], "evidence_request": {"kind":"none","reference_id":"","question":"","reason":"fixture text sufficient"}}
+                "discourse_terms": [], "evidence_request": {"kind":"none","reference_id":"","question":"","reason":"fixture text sufficient","focus":"none"}}
                 for t in payload["target_utterances"]]}
         else:
-            body = {"decisions": [{"utterance_id": c["utterance_id"],
-                "choice": "original" if c["utterance_id"] in self.reject else "proposal",
-                "reason": "fixture comparison"} for c in payload["comparisons"]]
-                + [{"utterance_id": c["utterance_id"],
-                    "choice": "original" if self.reject_joint else "proposal",
-                    "reason": "fixture complete allocation comparison"} for c in payload["passage_checks"]]}
+            body = {"decisions": {c["key"]: {
+                "choice": "original" if (self.reject_joint if c["atomic"] else c["target_ids"][0] in self.reject) else "proposal",
+                "reason": "fixture complete allocation comparison" if c["atomic"] else "fixture comparison"}
+                for c in payload["comparisons"]}}
         return {"choices": [{"finish_reason": "stop", "message": {"content": json.dumps(body)}}]}
 
 
@@ -105,8 +103,9 @@ def test_cjk_hypothesis_never_replaces_observed_boundaries():
     targets = client.calls[0]["target_utterances"]
     assert [t["source_text"] for t in targets] == ["那不是他", "老师，这"]
     assert targets[0]["connected_hypothesis"]["joint_mt"] == "That is not his teacher."
-    assert not client.calls[1]["comparisons"]
-    assert client.calls[1]["passage_checks"][0]["atomic_connected_allocation"]
+    assert len(client.calls[1]["comparisons"])==1
+    assert client.calls[1]["comparisons"][0]["atomic"] is True
+    assert client.calls[1]["comparisons"][0]["target_ids"]==[r["id"] for r in rows]
     bad = deepcopy(rows)
     bad[1]["source_text"] = "changed"
     with pytest.raises(ValueError, match="membership"):
@@ -132,8 +131,8 @@ def test_atomic_acceptance_does_not_revert_unrelated_units_and_resumes(tmp_path)
     assert out[2]["translation_unit"] != out[3]["translation_unit"]
     assert [r["machine_translated_text"] for r in out] == [r["machine_translated_text"] for r in rows]
     comparison = client.calls[1]
-    assert {c["utterance_id"] for c in comparison["comparisons"]} == {rows[2]["id"], rows[3]["id"]}
-    assert comparison["passage_checks"][0]["target_ids"] == [rows[0]["id"], rows[1]["id"]]
+    assert {c["target_ids"][0] for c in comparison["comparisons"] if not c["atomic"]} == {rows[2]["id"], rows[3]["id"]}
+    assert [c["target_ids"] for c in comparison["comparisons"] if c["atomic"]] == [[rows[0]["id"], rows[1]["id"]]]
     replay_client = Review({})
     replay, result = review(rows, replay_client, checkpoint_path=ckpt)
     assert not replay_client.calls and replay == out and result["cache_hits"] == len(rows)
