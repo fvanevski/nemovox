@@ -696,7 +696,8 @@ def review_translated_utterances(
                         except (ProposalDecisionError, KeyError, TypeError, ValueError):
                             valid_hit = False
                         evidence = item.get("supplementary_observation")
-                        request = item.get("evidence_request") or {}
+                        request = item.get("evidence_request")
+                        request = request if isinstance(request,dict) else {}
                         if request.get("kind") != "none" and (not isinstance(evidence,dict)
                                 or evidence.get("request") != {k:request.get(k) for k in ("kind","reference_id","question")}):
                             valid_hit = False

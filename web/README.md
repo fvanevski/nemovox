@@ -7,3 +7,5 @@ The backend is the repository's FastAPI Studio service (nvidia_transcribe.studio
 The normal Riva translation and bounded English review settings, glossary selection, preview, export and ASS presentation controls remain available.
 
 Studio's managed native reviewer receives recording-wide context and may acquire targeted visual/acoustic observations from the admitted job media. Visual inspection inherits the translation review resource unless the host registry binds `visual_inspection` separately. Contract-only imports remain text-based unless original media is explicitly admitted by the workflow. See the model-resource configuration documentation.
+
+The shared native workflow records explicit evidence-need decisions and advisory recurring terminology, and can use source-language captions as competing wording observations without altering the original dialogue record.
