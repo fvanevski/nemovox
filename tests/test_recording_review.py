@@ -835,3 +835,181 @@ def test_invalid_legacy_checkpoint_nomination_fails_closed(tmp_path):
     assert report["status"]=="completed_with_errors"
     assert any("unknown_evidence_reference" in e for e in report["errors"])
     assert p2.requests==[] and report["supplementary_proposal_errors"]==[]
+
+
+def visual_fixture(tmp_path, monkeypatch, rows, client):
+    """Real provider with only frame extraction and model transport replaced."""
+    from nvidia_transcribe import review_evidence
+    media = tmp_path / "visual-fixture.mkv"
+    media.write_bytes(b"authenticated fixture media")
+    resource = load_model_resources(environ={}).resolve("translation_review")
+    monkeypatch.setattr(review_evidence.subprocess, "run",
+        lambda *a, **kw: SimpleNamespace(stdout=b"\xff\xd8\xfftest-frame"))
+    return ReviewEvidenceProvider(media_path=media,
+        contract={"utterances":rows,
+            "source":{"content_sha256":hashlib.sha256(media.read_bytes()).hexdigest()},
+            "native_dialogue":{"decoded_duration_s":60},"source_language":"zh"},
+        lifecycle=None,review_resource=resource,visual_resource=resource,
+        acoustic_resource=None,review_client=client)
+
+
+def caption_only_body():
+    return {"observations":[], "visible_text":[{
+        "frame_ids":["frame-2"], "literal_text":"杯子", "text_kind":"dialogue_caption",
+        "language":"zh", "uncertainty":""}]}
+
+
+class FixtureVision:
+    def __init__(self, body=None, error=None):
+        self.body = body
+        self.error = error
+        self.calls = []
+    def complete(self, **kw):
+        self.calls.append(kw)
+        if self.error is not None:
+            raise self.error
+        return reply(self.body)
+    def close(self):
+        pytest.fail("shared visual resource must not switch")
+
+
+@pytest.mark.parametrize("status", [400, 401, 403, 404, 422, 408, 429, 500, 503, None])
+def test_visual_http_failure_respects_shared_retry_policy(tmp_path, monkeypatch, status):
+    import httpx
+    from nvidia_transcribe.review_execution import retryable_review_transport
+    rows = [row(0,"杯子。","Cup.",start=1,end=2),
+            row(1,"走吧。","Go.",start=20,end=21)]
+    uid = rows[0]["id"]
+    request = httpx.Request("POST","http://127.0.0.1:8001/v1/messages")
+    error = (httpx.HTTPStatusError("fixture status",request=request,
+                response=httpx.Response(status,request=request))
+             if status is not None else httpx.ReadTimeout("fixture timeout",request=request))
+    retryable = status in (408,429,500,503,None)
+    assert retryable_review_transport(error) is retryable
+    vision = FixtureVision(error=error)
+    provider = visual_fixture(tmp_path,monkeypatch,rows,vision)
+    def propose(t,p):
+        if t["utterance_id"] != uid:
+            return {"corrected_text":"Let's go."}
+        if "supplementary_observations" in p:
+            caption, = p["supplementary_observations"][0]["visible_text"]
+            return {"corrected_text":"The cup.","caption_evidence_ids":[caption["caption_id"]]}
+        return {"corrected_text":"The object.","evidence_request":{
+            **evidence_request(uid),"focus":"text"}}
+    cp = tmp_path/"progress.json"
+    cfg = config(batch_size=1)
+    old,report = run(rows,Model(propose),cfg=cfg,evidence_provider=provider,checkpoint_path=cp)
+    assert len(vision.calls)==1 and provider.cache=={}
+    assert old[0]["translated_text"]=="Cup."
+    assert old[1]["translated_text"]=="Let's go."
+    if retryable:
+        assert report["status"]=="completed_with_deferred_evidence"
+        assert report["errors"]==[]
+        assert old[0]["translation_review_evidence"]["status"]=="acquisition_failed"
+        assert old[0]["translation_review_evidence"].get("http_status")==status
+        assert report["supplementary_proposal_errors"]==[
+            {"target_id":uid,"reason":"unresolved_evidence_acquisition"}]
+    else:
+        assert report["status"]=="completed_with_errors"
+        assert any("HTTPStatusError" in reason for reason in report["errors"])
+        assert report["supplementary_proposal_errors"]==[]
+        assert old[0]["translation_review_status"]=="review_error_preserved_machine_translation"
+        assert "translation_review_evidence" not in old[0]
+        record=next(w["record"] for w in json.loads(cp.read_text())["records"].values()
+                    if uid in (w["record"]["entries"] or {}))
+        assert "supplementary_observation" not in record["entries"][uid]
+    # Corrected endpoint (or recovered transient service) can finish the
+    # admitted proposal; no successful downstream work is reopened.
+    next_vision = FixtureVision(caption_only_body())
+    next_provider = visual_fixture(tmp_path,monkeypatch,rows,next_vision)
+    model=Model(propose)
+    new,receipt=run(rows,model,cfg=cfg,evidence_provider=next_provider,checkpoint_path=cp)
+    assert receipt["status"]=="completed" and receipt["cache_hits"]==1
+    assert receipt["api_calls"]==2 and len(next_vision.calls)==1
+    assert new[1]==old[1] and new[0]["translated_text"]=="The cup."
+    assert len(model.calls[0]["target_utterances"])==1
+    assert "supplementary_observations" in model.calls[0]
+    assert ids(model.calls[1])==[uid]
+
+
+def test_caption_only_real_provider_refinement_and_durable_reuse(tmp_path,monkeypatch):
+    rows=[row(0,"大人打不过。","The adults cannot win.",start=1,end=2)]
+    uid=rows[0]["id"]
+    body=caption_only_body()
+    body["visible_text"][0]["literal_text"]="打又打不过"
+    vision=FixtureVision(body)
+    provider=visual_fixture(tmp_path,monkeypatch,rows,vision)
+    def propose(t,p):
+        if "supplementary_observations" in p:
+            obs,=p["supplementary_observations"]
+            assert obs["observations"]==[]
+            caption,=obs["visible_text"]
+            assert caption["related_occurrence_ids"]==[uid]
+            assert caption["source_language_match"] is True
+            return {"corrected_text":"I can't even beat him.","caption_evidence_ids":[caption["caption_id"]]}
+        return {"corrected_text":"My lord cannot win.","evidence_request":{
+            **evidence_request(uid),"focus":"text"}}
+    def compare(p,kw):
+        obs,=p["supplementary_observations"]
+        caption,=obs["visible_text"]
+        assert p["caption_interpretations"][0]["caption_ids"]==[caption["caption_id"]]
+        assert obs["observations"]==[]
+        return decisions(p)
+    cp=tmp_path/"progress.json"
+    out,report=run(rows,Model(propose,compare),evidence_provider=provider,checkpoint_path=cp)
+    assert report["status"]=="completed" and report["api_calls"]==3
+    assert out[0]["source_text"]==rows[0]["source_text"]
+    assert out[0]["machine_translated_text"]==rows[0]["machine_translated_text"]
+    assert out[0]["translated_text"]=="I can't even beat him."
+    obs=out[0]["translation_review_evidence"]
+    assert obs["status"]=="observed" and obs["observations"]==[]
+    assert report["scene_observations"]==[]
+    caption,=obs["visible_text"]
+    assert caption["frame_sha256"]==[obs["frames"][1]["sha256"]]
+    assert caption["reference_occurrence_id"]==uid
+    assert caption["independently_confirmed"] is False
+    assert obs["observation_sha256"]==digest({k:obs[k] for k in ("frames","observations","visible_text","focus")})
+    assert out[0]["translation_review_caption_interpretation"]["status"]=="selected_interpretation"
+    assert provider.collect(uid,obs["request"])==obs and len(vision.calls)==1
+    no_vision=FixtureVision(error=AssertionError("unexpected vision inference"))
+    p2=visual_fixture(tmp_path,monkeypatch,rows,no_vision)
+    again,receipt=run(rows,Model(lambda t,p:pytest.fail("unexpected text inference")),
+        evidence_provider=p2,checkpoint_path=cp)
+    assert again==out and receipt["api_calls"]==0 and receipt["cache_hits"]==1
+    assert receipt["review_execution"]["checkpoint_acquisition_reuses"]==1
+    assert receipt["review_execution"]["provider_requests"]==0
+    assert p2.collect(uid,obs["request"])==obs and no_vision.calls==[]
+
+
+@pytest.mark.parametrize("case",["both_empty","bad_scene","bad_caption","blank_caption",
+    "wrong_collection_type","too_many_scenes","too_many_captions"])
+def test_visual_collections_reject_empty_or_malformed_evidence(tmp_path,monkeypatch,case):
+    rows=[row(0,"杯子。","Cup.",start=1,end=2)]
+    uid=rows[0]["id"]
+    body=caption_only_body()
+    scene={"frame_ids":["frame-2"],"category":"environment","description":"A cup.",
+           "interpretation":"","uncertainty":""}
+    if case=="both_empty":
+        body["visible_text"]=[]
+    elif case=="bad_scene":
+        body["observations"]=[{**scene,"frame_ids":["forged"]}]
+    elif case=="bad_caption":
+        body["observations"]=[scene]
+        body["visible_text"][0]["frame_ids"]=["forged"]
+    elif case=="blank_caption":
+        body["visible_text"][0]["literal_text"]=" "
+    elif case=="wrong_collection_type":
+        body["observations"]={}
+    elif case=="too_many_scenes":
+        body["observations"]=[scene]*13
+    else:
+        body["visible_text"]*=17
+    vision=FixtureVision(body)
+    provider=visual_fixture(tmp_path,monkeypatch,rows,vision)
+    request={k:v for k,v in evidence_request(uid).items() if k!="reason"}
+    request["focus"]="text"
+    obs=provider.collect(uid,request)
+    assert obs["status"]=="acquisition_failed"
+    assert obs["error_type"]=="ValueError"
+    assert "observation_sha256" not in obs and provider.cache=={}
+    assert len(vision.calls)==1

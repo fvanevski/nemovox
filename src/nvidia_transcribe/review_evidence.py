@@ -20,7 +20,7 @@ from nvidia_transcribe.moss_recording import process_moss_media
 from nvidia_transcribe.ninfer_messages_client import image_content_block
 from nvidia_transcribe.resource_lifecycle import managed_text_client, ResourceLifecycleError
 from nvidia_transcribe.recording_context import digest
-from nvidia_transcribe.review_execution import visual_digest
+from nvidia_transcribe.review_execution import visual_digest, retryable_review_transport
 
 
 _POLICY = "adaptive-media-observations/v3"
@@ -149,10 +149,16 @@ class ReviewEvidenceProvider:
             # Ownership/lease restoration failures are not ordinary missing
             # semantic evidence. Let the normal pipeline fail visibly.
             raise
-        except (OSError, ValueError, RuntimeError, subprocess.SubprocessError, httpx.HTTPError, KeyError, IndexError, TypeError) as exc:
+        except httpx.HTTPError as exc:
+            # Match the text-review transport policy. A bad request or
+            # authentication/configuration error is not deferred evidence.
+            if not retryable_review_transport(exc):
+                raise
             result = {"status": "acquisition_failed", "error_type": type(exc).__name__}
-            if isinstance(exc,httpx.HTTPStatusError):
-                result["http_status"]=exc.response.status_code
+            if isinstance(exc, httpx.HTTPStatusError):
+                result["http_status"] = exc.response.status_code
+        except (OSError, ValueError, RuntimeError, subprocess.SubprocessError, KeyError, IndexError, TypeError) as exc:
+            result = {"status": "acquisition_failed", "error_type": type(exc).__name__}
         finally:
             self.telemetry[kind+"_elapsed_s"] += time.perf_counter()-started
         if result["status"] == "observed":
@@ -238,8 +244,8 @@ class ReviewEvidenceProvider:
             raise ValueError("Invalid visual observation envelope")
         observations = parsed["observations"]
         ids = {f["id"] for f in frames}
-        if not isinstance(observations, list) or not 1 <= len(observations) <= 12:
-            raise ValueError("Missing or excessive observations")
+        if not isinstance(observations, list) or len(observations) > 12:
+            raise ValueError("Invalid or excessive observations")
         by_frame = {f["id"]: f for f in frames}
         def associations(frame_ids):
             return [uid for uid,row in self.rows.items()
@@ -297,6 +303,11 @@ class ReviewEvidenceProvider:
             record["caption_id"] = "visible-" + digest({"media":self.media_sha, "record":record})
             if record not in text_records:
                 text_records.append(record)
+        # Either evidence channel may be independently useful. Do not
+        # invent a scene description to admit literal, frame-bound text;
+        # equally, two empty collections are not a successful observation.
+        if not scene_records and not text_records:
+            raise ValueError("No visual evidence returned")
         body = {"frames":frames, "observations":scene_records, "visible_text":text_records, "focus":focus}
         return {"status": "observed", "kind": "visual", **body,
                 "model_receipt": response.get("_client_request_diagnostics", {}),

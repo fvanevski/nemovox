@@ -10,10 +10,20 @@ from copy import deepcopy
 import json
 from pathlib import Path
 
+import httpx
+
 from nvidia_transcribe.recording_context import digest
 
 
 SCHEMA = "native-review-progress/v1"
+
+
+def retryable_review_transport(exc):
+    """Shared policy for text review and supplementary acquisition transport."""
+    if isinstance(exc, httpx.HTTPStatusError):
+        status = exc.response.status_code
+        return status in (408, 429) or 500 <= status <= 599
+    return isinstance(exc, httpx.TransportError)
 
 
 class ReviewProgress:

@@ -24,7 +24,8 @@ from nvidia_transcribe.review_uncertainty import current_uncertainty, uncertaint
 from nvidia_transcribe import connected_units
 from nvidia_transcribe.recording_context import RecordingContext, digest, relevant_terms, supported_terms
 from nvidia_transcribe.review_execution import (ReviewProgress, scene_projection, observed_scenes,
-    visual_digest, comparison_messages as keyed_messages, keyed_decisions)
+    visual_digest, comparison_messages as keyed_messages, keyed_decisions,
+    retryable_review_transport)
 
 VALID_REVIEW_PROFILES = ("off", "conservative", "balanced", "expressive")
 VALID_REVIEW_STYLES = ("natural", "literal", "expressive")
@@ -265,11 +266,6 @@ def _check_acquisition_outcome(observation):
     return status
 
 
-def _retryable_review_transport(exc):
-    return (isinstance(exc,httpx.TransportError) or isinstance(exc,httpx.HTTPStatusError)
-            and (exc.response.status_code in (408,429) or 500<=exc.response.status_code<=599))
-
-
 def _evidence_request(item):
     return {k:item["evidence_request"][k] for k in ("kind","reference_id","question","focus")}
 
@@ -352,7 +348,7 @@ def _supplemented_proposals(client, provider, messages, wire, cfg, targets, entr
                 response=client.complete(messages=alternate,max_tokens=cfg.max_tokens,temperature=cfg.temperature,
                     **{**wire,"response_format":{"type":"json_schema","schema":schema}})
             except httpx.HTTPError as exc:
-                if not _retryable_review_transport(exc):
+                if not retryable_review_transport(exc):
                     raise
                 # This is an attempted transport, not a model answer.
                 response={"transport_error":{"type":type(exc).__name__,"reason":str(exc)[:500]}}
@@ -502,7 +498,7 @@ def _native_comparisons(client, messages, verdict_ids, individual_ids, passage_c
                 response_format={"type":"json_schema","schema":schema},thinking_budget=1024,
                 reasoning_effort="xhigh",strict_reasoning_effort=True,stop_on_whitespace_loop=True)
         except httpx.HTTPError as exc:
-            if not _retryable_review_transport(exc):
+            if not retryable_review_transport(exc):
                 raise
             response={"transport_error":{"type":type(exc).__name__,"reason":str(exc)[:500]}}
         attempts=response.get("_client_request_diagnostics",{}).get("completion_attempts",[])
