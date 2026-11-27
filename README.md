@@ -1,6 +1,6 @@
 # NemoVox
 
-Local, recording-level multilingual dialogue recognition and English subtitle generation. MOSS preserves native timed speaker-attributed events. Riva provides initial English translation, with optional bounded contextual review and SRT/ASS rendering. No implicit model downloads, forced word alignment, or cross-window speaker stitching.
+Local, recording-level multilingual dialogue recognition and English subtitle generation. MOSS preserves native timed speaker-attributed events. Riva provides initial English translation, with optional bounded contextual review and SRT/ASS rendering. With managed native contextual review enabled, bounded connected Riva alternatives are adjudicated against the original occurrence boundaries and independent MT; selected English allocations retain source IDs and timing. No implicit model downloads, forced word alignment, or cross-window speaker stitching.
 
 ## Configure
 
