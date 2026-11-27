@@ -301,6 +301,7 @@ def _supplemented_proposals(client, provider, messages, wire, cfg, targets, entr
             payload["read_only_other_proposals"]=[{"id":t["utterance_id"],"source":t["source_text"],
                 "english":entries[t["utterance_id"]]["corrected_text"]} for t in targets if t["utterance_id"] not in ids]
             alternate[-1]["content"]=json.dumps(payload,ensure_ascii=False,separators=(",",":"))
+            alternate[0]["content"]=alternate[0]["content"].split("For EACH target return evidence_request",1)[0]
             alternate[0]["content"]+=(
                 " Reconsider ONLY these targets using actual visual and acoustic observations. "
                 "Separate visible descriptions from tentative interpretations; scene observations may "
@@ -382,15 +383,43 @@ def _validate_progress_entries(entries, targets, state, provider):
             raise ValueError("Native progress proposal mismatch")
         obs=item.get("supplementary_observation")
         if obs is not None:
-            if (provider is None or obs.get("provider")!=provider.identity or obs.get("target_id")!=uid
+            if (not isinstance(obs,dict) or provider is None or obs.get("provider")!=provider.identity or obs.get("target_id")!=uid
                     or obs.get("request")!=_evidence_request(item)
                     or (obs.get("kind")=="visual" and obs.get("status")=="observed"
-                        and obs.get("observation_sha256")!=visual_digest(obs))):
+                        and obs.get("observation_sha256")!=visual_digest(obs))
+                    or (obs.get("kind")=="acoustic" and obs.get("status")=="observed"
+                        and obs.get("observation_sha256")!=digest({k:obs.get(k) for k in ("crop_offset_s","requested_crop_end_s","crop_sha256","observations","native_dialogue","model_receipt")}))):
                 raise ValueError("Native progress evidence mismatch")
         if "caption_evidence_ids" in item and _caption_references(item,uid,receipts)!=item.get("caption_observations_used"):
             raise ValueError("Native progress caption mismatch")
-        if item.get("supplement_request_sha256") not in (None,*state["requests"].keys()):
-            raise ValueError("Native progress supplementary request missing")
+        initial_ref=state.get("proposal_request_sha256")
+        initial_request=state["requests"].get(initial_ref)
+        if not isinstance(initial_request,dict) or digest(initial_request)!=initial_ref:
+            raise ValueError("Native progress initial request missing")
+        initial_payload=json.loads(initial_request["messages"][-1]["content"])
+        initial=_native_proposals({"choices":initial_request["response"]},targets,
+            initial_payload.get("response_keys"),require_advisory=True,allow_evidence=provider is not None)[uid]
+        if item["evidence_request"]!=initial["evidence_request"]:
+            raise ValueError("Native progress initial nomination mismatch")
+        if item.get("supplement_request_sha256"):
+            ref=item["supplement_request_sha256"]
+            request=state["requests"].get(ref)
+            if not isinstance(request,dict) or digest(request)!=ref or request.get("stage")!="evidence_proposal":
+                raise ValueError("Native progress supplementary request missing")
+            payload=json.loads(request["messages"][-1]["content"])
+            owned={x["utterance_id"] for x in payload["target_utterances"]}
+            revised=_native_proposals({"choices":request["response"]},
+                [x for x in targets if x["utterance_id"] in owned],supplemented=True)[uid]
+            if (any(item.get(k)!=v for k,v in revised.items())
+                    or item.get("initial_proposal")!={k:initial[k] for k in ("corrected_text","reason")}):
+                raise ValueError("Native progress supplementary allocation mismatch")
+        elif any(item.get(k)!=v for k,v in initial.items()):
+            raise ValueError("Native progress initial allocation mismatch")
+        if (item.get("supplement_done") and item["evidence_request"]["kind"]!="none"
+                and (not isinstance(obs,dict) or obs.get("status") not in _TERMINAL_EVIDENCE)):
+            raise ValueError("Native progress acquisition incomplete")
+        if obs and obs.get("status")=="observed" and callable(getattr(provider,"restore",None)):
+            provider.restore(obs)
         if item.get("comparison_request_sha256"):
             ref=item["comparison_request_sha256"]
             record=state["requests"].get(ref)
@@ -553,7 +582,7 @@ def _native_proposals(reply,targets,aliases=None, *, require_advisory=False, all
     return entries
 
 
-def _keyed_proposal(client,messages,ids,wire,cfg):
+def _keyed_proposal(client,messages,ids,wire,cfg,*,record_request=None):
     """One alternate response geometry; exact source and canonical IDs remain."""
     aliases={f"r{i+1:02d}":uid for i,uid in enumerate(ids)}
     item={"type":"object","properties":{"corrected_text":{"type":"string"},
@@ -577,6 +606,8 @@ def _keyed_proposal(client,messages,ids,wire,cfg):
         "Do not emit utterance IDs in values.")
     reply=client.complete(messages=alternate,max_tokens=cfg.max_tokens,temperature=cfg.temperature,
         **{**wire,"response_format":{"type":"json_schema","schema":schema}})
+    if record_request is not None:
+        record_request(alternate,schema,reply)
     return reply,aliases
 
 
@@ -764,6 +795,7 @@ def review_translated_utterances(
         signature.update(wire_protocol=cfg.wire_protocol, thinking_budget=cfg.thinking_budget)
     if native_review:
         signature.update(recording_context_sha256=recording_context.identity,
+                         selected_occurrences_sha256=digest(sorted(selected)),
                          context_mode=cfg.context_mode, context_max_bytes=cfg.context_max_bytes,
                          evidence_provider=evidence_provider.identity if evidence_provider else None,
                          evidence_budget=cfg.max_evidence_requests_per_batch)
@@ -1038,7 +1070,7 @@ def review_translated_utterances(
                         messages=messages, max_tokens=cfg.max_tokens, temperature=cfg.temperature, **wire,
                     )
                     if native_review:
-                        progress.request(state,"proposal",messages,wire["response_format"]["schema"],response)
+                        state["proposal_request_sha256"]=progress.request(state,"proposal",messages,wire["response_format"]["schema"],response)
                     native_attempts.extend({"stage":"proposal", **x} for x in
                         response.get("_client_request_diagnostics",{}).get("completion_attempts",[]))
                     retries=max(0,len(response.get("_client_request_diagnostics",{}).get("completion_attempts",[]))-1)
@@ -1063,7 +1095,10 @@ def review_translated_utterances(
                             receipt={"target_ids":ids,"initial_rejected_response":_failure_receipt(response,str(exc))}
                             proposal_recoveries.append(receipt)
                             calls+=1
-                            alternate,aliases=_keyed_proposal(client,messages,ids,wire,cfg)
+                            def capture_keyed(msg,schema,reply):
+                                state["proposal_request_sha256"]=progress.request(state,"proposal_recovery",msg,schema,reply)
+                            alternate,aliases=_keyed_proposal(client,messages,ids,wire,cfg,
+                                record_request=capture_keyed if native_review else None)
                             attempts=alternate.get("_client_request_diagnostics",{}).get("completion_attempts",[])
                             native_attempts.extend({"stage":"proposal_recovery",**x} for x in attempts)
                             extra=max(0,len(attempts)-1)
@@ -1100,9 +1135,11 @@ def review_translated_utterances(
                         if set(entries)!=set(ids):
                             raise ValueError("Incomplete review IDs")
                     if native_review:
-                        if evidence_provider is None:
-                            for item in entries.values():
-                                item["supplement_done"]=True
+                        for group in _owned_groups(partitions,start,end):
+                            members=[entries[all_ids[i]] for i in group]
+                            if evidence_provider is None or all(x["evidence_request"]["kind"]=="none" for x in members):
+                                for item in members:
+                                    item["supplement_done"]=True
                         progress.entries(state,entries)
                 if native_review and evidence_provider is not None:
                     responses=_supplemented_proposals(client,evidence_provider,messages,wire,cfg,targets,entries,
@@ -1424,9 +1461,7 @@ def review_translated_utterances(
                 changed_count += 1
             reviewed_count += 1
         if native_review:
-            for group in partitions:
-                if not all(start <= i < end for i in group):
-                    continue
+            for group in _owned_groups(partitions,start,end):
                 if not all(out[i].get("translation_review_status") in ("corrected", "unchanged") for i in group):
                     continue
                 joined = " ".join(out[i]["translated_text"] for i in group)

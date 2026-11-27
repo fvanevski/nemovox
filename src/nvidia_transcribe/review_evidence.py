@@ -20,6 +20,7 @@ from nvidia_transcribe.moss_recording import process_moss_media
 from nvidia_transcribe.ninfer_messages_client import image_content_block
 from nvidia_transcribe.resource_lifecycle import managed_text_client, ResourceLifecycleError
 from nvidia_transcribe.recording_context import digest
+from nvidia_transcribe.review_execution import visual_digest
 
 
 _POLICY = "adaptive-media-observations/v3"
@@ -155,6 +156,23 @@ class ReviewEvidenceProvider:
                 raise ValueError("Adaptive evidence media changed during acquisition")
             self.cache[key] = result
         return {**base, **result}
+
+    def restore(self, receipt):
+        """Restore an exact successful acquisition for another matching request."""
+        if receipt.get("status")!="observed" or receipt.get("provider")!=self.identity:
+            return
+        request=receipt["request"]
+        row=self.rows.get(request["reference_id"])
+        if row is None:
+            raise ValueError("Unknown retained evidence reference")
+        s,e=row.get("source_start"),row.get("source_end")
+        key=digest({"request":request,"provider":self.identity,"interval":[s,e]})
+        if receipt.get("kind")=="visual" and receipt.get("observation_sha256")!=visual_digest(receipt):
+            raise ValueError("Retained visual evidence digest mismatch")
+        result={k:v for k,v in receipt.items() if k not in ("target_id","request","provider")}
+        if key in self.cache and self.cache[key]!=result:
+            raise ValueError("Conflicting retained evidence for exact request")
+        self.cache[key]=result
 
     def _visual(self, s, e, question, reference_id, focus):
         if self.visual_resource is None:
@@ -304,7 +322,8 @@ class ReviewEvidenceProvider:
                              "absolute_interval": [lo+row["source_start"], lo+row["source_end"]]
                              if row["source_start"] is not None else [None, None]}
                             for row in crop["utterances"]]
-            return {"status": "observed", "kind": "acoustic", "crop_offset_s": lo,
-                    "requested_crop_end_s": hi, "crop_sha256": crop_sha,
-                    "observations": observations, "model_receipt": crop["model_provenance"],
-                    "native_dialogue": crop["native_dialogue"], "independently_confirmed": False}
+            body={"crop_offset_s":lo,"requested_crop_end_s":hi,"crop_sha256":crop_sha,
+                  "observations":observations,"model_receipt":crop["model_provenance"],
+                  "native_dialogue":crop["native_dialogue"]}
+            return {"status":"observed","kind":"acoustic",**body,
+                    "observation_sha256":digest(body),"independently_confirmed":False}

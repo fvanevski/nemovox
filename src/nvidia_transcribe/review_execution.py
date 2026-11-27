@@ -147,7 +147,6 @@ def comparison_messages(messages, ids, *, recovery=False):
     by_id={v:k for k,v in aliases.items()}
     # Exact detailed rows once, including connected alternatives and source
     # uncertainty. Other rows are read-only; no redundant joined strings.
-    rows=data["complete_target_passage"]
     decisions=[]
     owned=set()
     for item in data["comparisons"]:
@@ -173,6 +172,12 @@ def comparison_messages(messages, ids, *, recovery=False):
     data["supplementary_observations"]=[{k:v for k,v in x.items() if k not in
         ("model_receipt","provider")} for x in data["supplementary_observations"]]
     alternate[-1]["content"]=json.dumps(data,ensure_ascii=False,separators=(",",":"))
+    alternate[0]["content"]=alternate[0]["content"].replace(
+        "Return one decision per supplied row AND passage ID.","").replace(
+        "For each passage_checks ID","For each atomic comparison key").replace(
+        "Inspect source_occurrences separately","Inspect constituent complete_target_passage rows separately").replace(
+        "Return only supplied verdict IDs.","").replace(
+        "For an atomic_connected_allocation passage","For a comparison with atomic=true")
     alternate[0]["content"]+=(
         " RESPONSE CONTRACT: comparisons contains the only requested short keys. "
         "Use complete_target_passage rows in target_ids order to read exact source, primary and proposal; "
