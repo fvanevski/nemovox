@@ -120,7 +120,19 @@ def main():
                 replay,receipt=review_translated_utterances(rows,source_language=contract["source_language"],
                     config=cfg,text_client=client,evidence_provider=provider,target_utterance_ids=selected,
                     checkpoint_path=root/"review.checkpoint.json",resume=True)
-                write(root/"resume.json",{"equal_rows":replay==revised,"summary":receipt})
+                pending=set(summary["deferred_comparison_ids"])|{x["target_id"] for x in summary.get("supplementary_proposal_errors",[])}
+                # Complete the original unfinished atomic units only.
+                for group in connected_units.groups(rows):
+                    if any(rows[i]["id"] in pending for i in group):
+                        pending.update(rows[i]["id"] for i in group)
+                changed=[a["id"] for a,b in zip(revised,replay) if a!=b]
+                unexpected=[uid for uid in changed if uid not in pending]
+                write(root/"resumed.contract.json",{**contract,"utterances":replay,"translation_review":receipt})
+                write(root/"resume.json",{"equal_rows":replay==revised,"summary":receipt,
+                    "original_pending_unit_ids":sorted(pending),"changed_row_ids":changed,
+                    "unexpected_changed_row_ids":unexpected})
+                if unexpected:
+                    raise RuntimeError("Continuation altered completed allocations: "+",".join(unexpected))
         for kind,index,question in (("visual",args.probe_visual,args.probe_question),
                                    ("acoustic",args.probe_acoustic,"Re-observe spoken wording.")):
             if index is None:

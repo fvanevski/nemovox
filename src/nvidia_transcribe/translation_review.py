@@ -451,7 +451,7 @@ def _validate_progress_entries(entries, targets, state, provider):
 def _native_comparisons(client, messages, verdict_ids, individual_ids, passage_checks,
                         entries, cfg, progress, state, native_attempts, recoveries):
     """First keyed batch, then smaller keyed groups, never accept partial JSON."""
-    counts={"calls":0,"comparative":0,"retries":0}
+    counts={"calls":0,"comparative":0,"retries":0,"initial":0,"recovery":0}
     def owned(decision):
         passage=next((p for p in passage_checks if p["utterance_id"]==decision),None)
         return ([uid for uid in passage["target_ids"] if entries[uid]["changed"]] if passage else [decision])
@@ -467,6 +467,7 @@ def _native_comparisons(client, messages, verdict_ids, individual_ids, passage_c
         native_attempts.extend({"stage":stage,**a} for a in attempts)
         counts["calls"]+=max(1,len(attempts))
         counts["comparative"]+=1
+        counts["recovery" if recovery else "initial"]+=1
         counts["retries"]+=max(0,len(attempts)-1)
         ref=progress.request(state,stage,alternate,schema,response)
         receipt={"target_ids":[uid for d in ids for uid in owned(d)],"required_verdict_ids":ids,
@@ -773,7 +774,8 @@ def review_translated_utterances(
         raise ValueError("Invalid per-batch evidence budget")
     discourse_ledger = []
     scene_ledger = []
-    execution_telemetry={"checkpoint_acquisition_reuses":0,"provider_requests":0,"proposal_reuses":0}
+    execution_telemetry={"checkpoint_acquisition_reuses":0,"provider_requests":0,"proposal_reuses":0,
+                         "initial_comparison_requests":0,"recovery_comparison_requests":0,"evidence_refinement_requests":0}
     provider_start=dict(getattr(evidence_provider,"telemetry",{}))
     context_receipts = []
     evidence_receipts = []
@@ -1148,6 +1150,7 @@ def review_translated_utterances(
                         attempts=supplement.get("_client_request_diagnostics",{}).get("completion_attempts",[])
                         native_attempts.extend({"stage":"evidence_proposal",**x} for x in attempts)
                         calls+=max(1,len(attempts))
+                        execution_telemetry["evidence_refinement_requests"]+=1
                         completion_retries+=max(0,len(attempts)-1)
                 if cfg.wire_protocol == "ninfer_messages":
                     # Only changed proposals need a second, comparative
@@ -1254,6 +1257,8 @@ def review_translated_utterances(
                             calls+=counts["calls"]
                             comparative_calls+=counts["comparative"]
                             completion_retries+=counts["retries"]
+                            execution_telemetry["initial_comparison_requests"]+=counts["initial"]
+                            execution_telemetry["recovery_comparison_requests"]+=counts["recovery"]
                         else:
                             calls+=1
                             comparative_calls+=1

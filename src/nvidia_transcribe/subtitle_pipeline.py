@@ -92,6 +92,28 @@ def _format_utterance_transcript_lines(utterances: Sequence[dict[str, Any]], key
     return "\n".join(lines) + ("\n" if lines else "")
 
 
+def validate_deferred_review(rows, review, translation):
+    """A deferred stage may render only complete preserved primary allocations."""
+    if review.get("status") not in ("completed_with_deferred_comparisons","completed_with_deferred_evidence"):
+        return
+    comparison=set(review.get("deferred_comparison_ids") or [])
+    evidence={x["target_id"] for x in review.get("supplementary_proposal_errors",[])}
+    def uid(row):
+        return str(row.get("utterance_id") or row.get("id"))
+    observed_comparison={uid(r) for r in rows if r.get("translation_review_status")==
+                         "review_deferred_comparative_preserved_machine_translation"}
+    observed_evidence={uid(r) for r in rows if r.get("translation_review_status")==
+                       "review_deferred_evidence_preserved_machine_translation"}
+    pending=comparison|evidence
+    if (not pending or comparison&evidence or comparison!=observed_comparison
+            or evidence!=observed_evidence or translation.get("errors")
+            or review.get("reviewed",0)+len(pending)!=len(rows)
+            or any(not str(r.get("machine_translated_text") or "").strip()
+                   or (uid(r) in pending and r.get("translated_text")!=r.get("machine_translated_text"))
+                   for r in rows)):
+        raise RuntimeError("Deferred comparative review lacks complete preserved primary MT")
+
+
 def generate_subtitles(
     media_path: str | Path | None = None,
     *,
@@ -219,9 +241,10 @@ def generate_subtitles(
         condense_summary: dict[str, Any] = {"status": "reused_translated_contract"}
         review_summary: dict[str, Any] = {"status": "reused_translated_contract"}
         retained_review = translated_contract.get("translation_review") or {}
-        if retained_review.get("status") == "completed_with_deferred_comparisons":
+        if retained_review.get("status") in ("completed_with_deferred_comparisons","completed_with_deferred_evidence"):
             review_summary["retained_review_status"] = retained_review["status"]
-            review_summary["deferred_comparison_ids"] = retained_review["deferred_comparison_ids"]
+            review_summary["deferred_comparison_ids"] = retained_review.get("deferred_comparison_ids",[])
+            review_summary["supplementary_proposal_errors"] = retained_review.get("supplementary_proposal_errors",[])
         elif retained_review.get("status") == "completed_with_errors":
             salvage_review_error = True
             if cfg.validation_overlay_path is not None:
@@ -379,18 +402,7 @@ def generate_subtitles(
                     resume=cfg.resume_translation_review,
                     **({"evidence_provider": evidence_provider} if evidence_provider is not None else {}),
                 )
-            if review_summary.get("status") == "completed_with_deferred_comparisons":
-                deferred = set(review_summary.get("deferred_comparison_ids") or [])
-                observed = {str(u.get("utterance_id") or u.get("id")) for u in translated_utts
-                            if u.get("translation_review_status") ==
-                            "review_deferred_comparative_preserved_machine_translation"}
-                if (not deferred or deferred != observed or trans_summary.get("errors")
-                        or review_summary.get("reviewed", 0) + len(deferred) != len(translated_utts)
-                        or any(not str(u.get("machine_translated_text") or "").strip()
-                               or (str(u.get("utterance_id") or u.get("id")) in deferred
-                                   and u.get("translated_text") != u.get("machine_translated_text"))
-                               for u in translated_utts)):
-                    raise RuntimeError("Deferred comparative review lacks complete preserved primary MT")
+            validate_deferred_review(translated_utts,review_summary,trans_summary)
             _event("review",
                    "skipped" if review_summary.get("status") == "disabled" else
                    "failed" if review_summary.get("status") == "completed_with_errors" else "complete",
