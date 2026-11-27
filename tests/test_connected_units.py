@@ -48,7 +48,8 @@ class Review:
         self.calls.append(payload)
         if "target_utterances" in payload:
             body = {"reviews": [{"utterance_id": t["utterance_id"],
-                "corrected_text": self.proposals[t["utterance_id"]], "reason": "fixture source meaning"}
+                "corrected_text": self.proposals[t["utterance_id"]], "reason": "fixture source meaning",
+                "discourse_terms": [], "evidence_request": {"kind":"none","reference_id":"","question":"","reason":"fixture text sufficient"}}
                 for t in payload["target_utterances"]]}
         else:
             body = {"decisions": [{"utterance_id": c["utterance_id"],

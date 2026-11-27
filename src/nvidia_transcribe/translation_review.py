@@ -656,6 +656,7 @@ def review_translated_utterances(
             context_receipts.append({"target_ids": all_ids[start:end], "sha256": digest(global_context),
                 "representation": global_context["representation"], "coverage": global_context["coverage"],
                 "included_occurrences": global_context.get("included_occurrences"),
+                "advisory_discourse_terms": terms,
                 "utf8_bytes": len(json.dumps(global_context, ensure_ascii=False, separators=(",", ":")).encode())})
         key = hashlib.sha256(json.dumps(
             {"config": signature, "before": before, "targets": targets, "after": after,

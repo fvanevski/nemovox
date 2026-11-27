@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from nvidia_transcribe.recording_context import RecordingContext, supported_terms
+from nvidia_transcribe.recording_context import RecordingContext, supported_terms, digest
 from nvidia_transcribe.review_evidence import ReviewEvidenceProvider
 from nvidia_transcribe.model_resources import load_model_resources
 from nvidia_transcribe import connected_units
@@ -50,7 +50,13 @@ class Model:
         p = json.loads(messages[-1]["content"])
         self.calls.append(p)
         if "target_utterances" in p:
+            schema=kwargs["response_format"]["schema"]["properties"]["reviews"]["items"]
+            assert "discourse_terms" in schema["required"]
+            supplemented="supplementary_observations" in p
+            assert ("caption_evidence_ids" if supplemented else "evidence_request") in schema["required"]
             return reply({"reviews":[{"utterance_id":t["utterance_id"], "reason":"source evidence",
+                "discourse_terms":[], **({"caption_evidence_ids":[]} if supplemented else {
+                    "evidence_request":{"kind":"none","reference_id":"","question":"","reason":"text sufficient"}}),
                 **self.propose(t,p)} for t in p["target_utterances"]]})
         if self.compare:
             return self.compare(p,kwargs)
@@ -116,7 +122,8 @@ def test_advisory_term_only_after_valid_accepted_source_citations():
     out,report=run(rows,client,cfg=config(batch_size=1))
     assert report["status"]=="completed"
     assert report["discourse_terms"][0]["reference_ids"] == [rows[1]["id"]]
-    assert client.calls[2]["advisory_discourse_terms"] == report["discourse_terms"]
+    assert client.calls[2]["advisory_discourse_terms"] == [{**report["discourse_terms"][0],
+        "accepted_target_ids":[rows[0]["id"]]}]
     assert out[0]["translation_review_discourse_terms"]
     invalid={"corrected_text":"Ming Emperor","discourse_terms":[
         {"source":"明皇","english":"Ming Emperor","reference_ids":["missing"]}]}
@@ -150,13 +157,15 @@ def test_conditional_evidence_refines_only_nominated_atomic_unit_and_replays(tmp
         result={"corrected_text":t["source_text"] if uid!=rows[2]["id"] else "All right."}
         if uid==rows[1]["id"]:
             result["evidence_request"]={"kind":"visual","reference_id":rows[1]["id"],
-                                        "question":"What object is indicated?"}
+                                        "question":"What object is indicated?","reason":"Object reference ambiguous."}
         return result
     client=Model(propose)
     cp=tmp_path/"review.json"
     out,report=run(rows,client,evidence_provider=p,checkpoint_path=cp)
     assert report["status"]=="completed"
     assert len(p.requests)==1 and len(client.calls)==3
+    assert [x["kind"] for x in report["evidence_assessments"]]==["none","visual","none"]
+    assert out[1]["translation_review_initial_proposal"]["corrected_text"]==rows[1]["source_text"]
     assert [t["utterance_id"] for t in client.calls[1]["target_utterances"]]==[r["id"] for r in rows[:2]]
     assert client.calls[2]["supplementary_observations"][0]["status"]=="observed"
     assert out[1]["translated_text"]=="that cup."
@@ -223,14 +232,16 @@ def test_shared_vision_submits_frame_hashes_without_switch(tmp_path,monkeypatch)
         def complete(self,**kw):
             captured.append(kw)
             return reply({"observations":[{"frame_ids":["frame-1"],
-                          "description":"A cup","uncertainty":"None visible"}]})
+                          "description":"A cup","uncertainty":"None visible"}],
+                          "visible_text":[{"frame_ids":["frame-2"],"literal_text":"杯子",
+                              "text_kind":"dialogue_caption","language":"zh","uncertainty":""}]})
         def close(self):
             raise AssertionError("shared resource must not switch")
     monkeypatch.setattr(review_evidence.subprocess,"run",
         lambda *a,**k: SimpleNamespace(stdout=b"\xff\xd8\xfftest-frame"))
     p=ReviewEvidenceProvider(media_path=media,contract={"utterances":rows,
         "source":{"content_sha256":hashlib.sha256(media.read_bytes()).hexdigest()},
-        "native_dialogue":{"decoded_duration_s":10}},lifecycle=None,
+        "native_dialogue":{"decoded_duration_s":10},"source_language":"zh"},lifecycle=None,
         review_resource=resource,visual_resource=resource,acoustic_resource=None,review_client=Vision())
     request={"kind":"visual","reference_id":rows[0]["id"],"question":"What is visible?"}
     result=p.collect(rows[0]["id"],request)
@@ -239,6 +250,11 @@ def test_shared_vision_submits_frame_hashes_without_switch(tmp_path,monkeypatch)
     assert all(len(f["sha256"])==64 for f in result["frames"])
     assert len([b for b in captured[0]["messages"][1]["content"] if b["type"]=="image"])==len(result["frames"])
     assert captured[0]["reasoning_effort"]=="xhigh"
+    caption,=result["visible_text"]
+    assert caption["literal_text"]=="杯子" and caption["source_language_match"] is True
+    assert caption["related_occurrence_ids"]==[rows[0]["id"]]
+    assert caption["frame_sha256"]==[result["frames"][1]["sha256"]]
+    assert result["observation_sha256"]==digest({k:result[k] for k in ("frames","observations","visible_text")})
     assert p.collect(rows[0]["id"],request)==result and len(captured)==1
 
 
@@ -262,7 +278,7 @@ def test_distinct_visual_resource_releases_review_before_acquisition(tmp_path,mo
         def complete(self,**kw):
             events.append("vision_request")
             return reply({"observations":[{"frame_ids":["frame-1"],
-                          "description":"A cup","uncertainty":""}]})
+                          "description":"A cup","uncertainty":""}],"visible_text":[]})
     @contextmanager
     def managed(manager,resource,**kw):
         assert resource==vision and kw["wire_protocol"]=="ninfer_messages"
@@ -318,3 +334,113 @@ def test_acoustic_crop_preserves_observations_and_original_stream(tmp_path,monke
     assert result["observations"][0]["absolute_interval"]==[3,4]
     assert events==["crop","review_released","recognize"]
     assert rows[0]["source_text"]=="甲"
+
+
+def test_explicit_advisory_decisions_are_required_in_direct_and_keyed_proposals():
+    from nvidia_transcribe.translation_review import _native_proposals, ProposalDecisionError
+    target={"utterance_id":"u","machine_translation":"A"}
+    base={"utterance_id":"u","corrected_text":"B","reason":"meaning"}
+    none={"kind":"none","reference_id":"","question":"","reason":"text sufficient"}
+    for item in (base,{**base,"discourse_terms":[]},{**base,"evidence_request":none},
+                 {**base,"discourse_terms":[],"evidence_request":{**none,"reference_id":"u"}}):
+        with pytest.raises(ProposalDecisionError):
+            _native_proposals(reply({"reviews":[item]}),[target],require_advisory=True)
+    item={**base,"discourse_terms":[],"evidence_request":none}
+    result=_native_proposals(reply({"reviews":[item]}),[target],require_advisory=True)
+    assert result["u"]["evidence_request"]==none
+    keyed={k:v for k,v in item.items() if k!="utterance_id"}
+    with pytest.raises(ProposalDecisionError):
+        _native_proposals(reply({"reviews":{"r01":{k:v for k,v in keyed.items() if k!="evidence_request"}}}),
+                          [target],{"r01":"u"},require_advisory=True)
+    assert _native_proposals(reply({"reviews":{"r01":keyed}}),[target],{"r01":"u"},
+                             require_advisory=True)==result
+    visual={**item,"evidence_request":{"kind":"visual","reference_id":"u","question":"Read caption",
+                                      "reason":"Ambiguous source"}}
+    with pytest.raises(ProposalDecisionError):
+        _native_proposals(reply({"reviews":[visual]}),[target],require_advisory=True,allow_evidence=False)
+
+
+def test_explicit_none_avoids_acquisition_and_extra_calls():
+    rows=[row(0,"十一。","Eleven.")]
+    p=Provider()
+    out,report=run(rows,Model(lambda t,p:{"corrected_text":"Eleven."}),evidence_provider=p)
+    assert report["status"]=="completed" and report["api_calls"]==1
+    assert report["evidence_assessments"][0]["kind"]=="none"
+    assert report["discourse_assessments"]==[{"target_id":rows[0]["id"],"nominated":[]}]
+    assert p.requests==[] and out[0]["translated_text"]=="Eleven."
+
+
+@pytest.mark.parametrize("reject", [False,True])
+def test_caption_interpretation_is_bound_to_source_and_comparative_selection(tmp_path,reject):
+    rows=[row(0,"大人打不过。","The adults cannot beat us."),row(1,"走吧。","Let's go.")]
+    class CaptionProvider(Provider):
+        def collect(self,uid,request):
+            self.requests.append((uid,request))
+            body={"frames":[{"id":"frame-1","sha256":"a"*64}],
+                  "observations":[{"description":"A character speaks."}],
+                  "visible_text":[{"caption_id":"visible-test","literal_text":"打又打不过",
+                      "text_kind":"dialogue_caption","source_language_match":True,
+                      "frame_ids":["frame-1"],"related_occurrence_ids":[uid],
+                      "independently_confirmed":False}]}
+            return {"target_id":uid,"request":request,"provider":self.identity,
+                "status":"observed","kind":"visual",**body,"observation_sha256":digest(body)}
+    p=CaptionProvider()
+    def propose(t,payload):
+        if t["utterance_id"]==rows[1]["id"]:
+            return {"corrected_text":"Let's go."}
+        if "supplementary_observations" in payload:
+            return {"corrected_text":"I can't even beat him.","caption_evidence_ids":["visible-test"]}
+        return {"corrected_text":"My lord cannot win.",
+                "evidence_request":{"kind":"visual","reference_id":rows[0]["id"],
+                "question":"What literal dialogue caption is visible?","reason":"Possible homophone error."}}
+    def compare(payload,kw):
+        assert payload["caption_interpretations"][0]["caption_ids"]==["visible-test"]
+        assert payload["supplementary_observations"][0]["visible_text"][0]["literal_text"]=="打又打不过"
+        return reply({"decisions":[{"utterance_id":rows[0]["id"],"choice":"original" if reject else "proposal",
+                                    "reason":"comparison fixture"}]})
+    cp=tmp_path/"review.json"
+    client=Model(propose,compare)
+    out,report=run(rows,client,evidence_provider=p,checkpoint_path=cp)
+    assert report["status"]=="completed"
+    assert out[0]["source_text"]==rows[0]["source_text"]
+    assert out[0]["machine_translated_text"]==rows[0]["machine_translated_text"]
+    interpretation=out[0]["translation_review_caption_interpretation"]
+    assert interpretation["canonical_source_changed"] is False
+    assert interpretation["status"]==("proposed_not_selected" if reject else "selected_interpretation")
+    assert out[0]["translated_text"]==(rows[0]["translated_text"] if reject else "I can't even beat him.")
+    assert out[0]["translation_review_initial_proposal"]["corrected_text"]=="My lord cannot win."
+    assert out[1]["translated_text"]==rows[1]["translated_text"]
+    replay=Model(propose,compare)
+    again,summary=run(rows,replay,evidence_provider=p,checkpoint_path=cp)
+    assert not replay.calls and len(p.requests)==1 and again==out
+    assert summary["cache_hits"]==2
+
+
+def test_caption_references_reject_wrong_occurrence_wrong_language_and_logo():
+    from nvidia_transcribe.translation_review import _caption_references, ProposalDecisionError
+    caption={"caption_id":"v1","text_kind":"dialogue_caption","source_language_match":True,
+             "related_occurrence_ids":["u1"]}
+    item={"caption_evidence_ids":["v1"]}
+    for c in ({**caption,"related_occurrence_ids":["u2"]},
+              {**caption,"source_language_match":False},
+              {**caption,"text_kind":"other_text"}):
+        with pytest.raises(ProposalDecisionError):
+            _caption_references(item,"u1",[{"kind":"visual","status":"observed","visible_text":[c]}])
+    assert _caption_references(item,"u1",[{"kind":"visual","status":"observed","visible_text":[caption]}])==[caption]
+
+
+def test_rejected_term_never_enters_later_batches():
+    rows=[row(0,"明皇来了。","Emperor came."),row(1,"明皇走了。","Emperor left.")]
+    def propose(t,p):
+        if t["utterance_id"]==rows[0]["id"]:
+            return {"corrected_text":"Bright Emperor came.","discourse_terms":[
+                {"source":"明皇","english":"Bright Emperor","reference_ids":[rows[1]["id"]]}]}
+        assert p["advisory_discourse_terms"]==[]
+        return {"corrected_text":"Emperor left."}
+    def compare(p,kw):
+        return reply({"decisions":[{"utterance_id":rows[0]["id"],"choice":"original","reason":"not supported"}]})
+    out,report=run(rows,Model(propose,compare),cfg=config(batch_size=1))
+    assert report["status"]=="completed"
+    assert report["discourse_terms"]==[]
+    assert report["discourse_assessments"][0]["nominated"]
+    assert not out[0].get("translation_review_discourse_terms")
