@@ -19,10 +19,11 @@ from nvidia_transcribe.refinement import GlossaryConfig, OpenAIChatTextClient
 from nvidia_transcribe.semantic_context import current_row_context, literal_examples, text_digest
 from nvidia_transcribe.review_uncertainty import current_uncertainty, uncertainty_veto
 from nvidia_transcribe import connected_units
+from nvidia_transcribe.recording_context import RecordingContext, digest, relevant_terms, supported_terms
 
 VALID_REVIEW_PROFILES = ("off", "conservative", "balanced", "expressive")
 VALID_REVIEW_STYLES = ("natural", "literal", "expressive")
-_PROMPT_VERSION = "mt_postedit_v11_connected_allocations"
+_PROMPT_VERSION = "mt_postedit_v12_recording_context"
 _SCHEMA = {
     "type": "json_schema",
     "json_schema": {
@@ -73,6 +74,9 @@ class TranslationReviewConfig:
     reasoning_effort: str | None = "low"
     wire_protocol: str = "openai_chat"
     thinking_budget: int | None = None
+    context_mode: str = "bilingual"
+    context_max_bytes: int = 160000
+    max_evidence_requests_per_batch: int = 3
 
 
 def _uid(u: dict[str, Any], i: int) -> str:
@@ -182,6 +186,20 @@ def _passage_checks(targets, entries):
     return result
 
 
+_ADVISORY_PROPERTIES = {
+    "discourse_terms": {"type": "array", "maxItems": 4, "items": {
+        "type": "object", "properties": {
+            "source": {"type": "string"}, "english": {"type": "string"},
+            "reference_ids": {"type": "array", "minItems": 1, "maxItems": 4,
+                              "items": {"type": "string"}}},
+        "required": ["source", "english", "reference_ids"], "additionalProperties": False}},
+    "evidence_request": {"type": "object", "properties": {
+        "kind": {"type": "string", "enum": ["visual", "acoustic"]},
+        "reference_id": {"type": "string"}, "question": {"type": "string"}},
+        "required": ["kind", "reference_id", "question"], "additionalProperties": False},
+}
+
+
 class ProposalDecisionError(ValueError):
     """A complete proposal cannot be associated with its exact target rows."""
 
@@ -209,7 +227,8 @@ def _native_proposals(reply,targets,aliases=None):
     if aliases is not None:
         if not isinstance(values,dict) or set(values)!=set(aliases):
             raise ProposalDecisionError("invalid_keyed_proposal_ids")
-        if any(not isinstance(v,dict) or set(v)!={"corrected_text","reason"} for v in values.values()):
+        if any(not isinstance(v,dict) or not {"corrected_text","reason"} <= set(v)
+               or set(v)-{"corrected_text","reason",*(_ADVISORY_PROPERTIES)} for v in values.values()):
             raise ProposalDecisionError("invalid_keyed_proposal_shape")
         values=[{"utterance_id":aliases[k],**v} for k,v in values.items()]
     if not isinstance(values,list):
@@ -217,7 +236,8 @@ def _native_proposals(reply,targets,aliases=None):
     originals={t["utterance_id"]:t["machine_translation"] for t in targets}
     entries={}
     for index,item in enumerate(values):
-        if not isinstance(item,dict) or set(item)!={"utterance_id","corrected_text","reason"}:
+        if (not isinstance(item,dict) or not {"utterance_id","corrected_text","reason"} <= set(item)
+                or set(item)-{"utterance_id","corrected_text","reason",*(_ADVISORY_PROPERTIES)}):
             raise ProposalDecisionError(f"invalid_proposal_shape:{index}")
         uid=item["utterance_id"]
         if not isinstance(uid,str) or uid not in originals:
@@ -228,6 +248,10 @@ def _native_proposals(reply,targets,aliases=None):
         if (not isinstance(candidate,str) or not candidate.strip()
                 or not isinstance(item["reason"],str)):
             raise ProposalDecisionError(f"invalid_proposal_text:{index}")
+        if "discourse_terms" in item and (not isinstance(item["discourse_terms"],list) or len(item["discourse_terms"]) > 4):
+            raise ProposalDecisionError(f"invalid_discourse_terms:{index}")
+        if "evidence_request" in item and not isinstance(item["evidence_request"],dict):
+            raise ProposalDecisionError(f"invalid_evidence_request:{index}")
         entries[uid]={**item,"changed":candidate.strip()!=originals[uid].strip()}
     if set(entries)!=set(originals):
         raise ProposalDecisionError("missing_proposal_ids")
@@ -240,6 +264,9 @@ def _keyed_proposal(client,messages,ids,wire,cfg):
     item={"type":"object","properties":{"corrected_text":{"type":"string"},
           "reason":{"type":"string"}},"required":["corrected_text","reason"],
           "additionalProperties":False}
+    if "recording_context" in json.loads(messages[-1]["content"]):
+        original_item = wire["response_format"]["schema"]["properties"]["reviews"]["items"]
+        item["properties"].update({k:v for k,v in original_item["properties"].items() if k in _ADVISORY_PROPERTIES})
     schema={"type":"object","properties":{"reviews":{"type":"object",
         "properties":{key:item for key in aliases},"required":list(aliases),
         "additionalProperties":False}},"required":["reviews"],"additionalProperties":False}
@@ -368,6 +395,7 @@ def review_translated_utterances(
     checkpoint_path: str | Path | None = None,
     resume: bool = True,
     target_utterance_ids: set[str] | None = None,
+    evidence_provider: Any = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Review primary translations with contextual evidence, never retranslate source."""
     cfg = config or TranslationReviewConfig()
@@ -412,6 +440,13 @@ def review_translated_utterances(
         return [u if all_ids[i] in selected else {**utterances[i]} for i, u in enumerate(out)], {
             "status": "disabled", "profile": "off", "reviewed": 0, "changed": 0}
     gl = glossary or GlossaryConfig()
+    recording_context = RecordingContext(out, cfg.context_mode, cfg.context_max_bytes) if native_review else None
+    if type(cfg.max_evidence_requests_per_batch) is not int or not 0 <= cfg.max_evidence_requests_per_batch <= 12:
+        raise ValueError("Invalid per-batch evidence budget")
+    discourse_ledger = []
+    context_receipts = []
+    evidence_receipts = []
+    source_entries = {_uid(u, i): _entry(u, i) for i, u in enumerate(out)}
     signature = {
         "version": _PROMPT_VERSION, "profile": cfg.profile, "style": cfg.style,
         "source_language": source_language, "target_language": cfg.target_language,
@@ -424,6 +459,11 @@ def review_translated_utterances(
     }
     if cfg.wire_protocol != "openai_chat":
         signature.update(wire_protocol=cfg.wire_protocol, thinking_budget=cfg.thinking_budget)
+    if native_review:
+        signature.update(recording_context_sha256=recording_context.identity,
+                         context_mode=cfg.context_mode, context_max_bytes=cfg.context_max_bytes,
+                         evidence_provider=evidence_provider.identity if evidence_provider else None,
+                         evidence_budget=cfg.max_evidence_requests_per_batch)
     ckpt = Path(checkpoint_path) if checkpoint_path else None
     cached: dict[str, dict[str, Any]] = {}
     if resume and ckpt and ckpt.is_file():
@@ -494,8 +534,16 @@ def review_translated_utterances(
         before = [_entry(out[i], i) for i in range(max(0, start - cfg.context_utterances_before), start)]
         targets = [_entry(out[i], i) for i in range(start, end)]
         after = [_entry(out[i], i) for i in range(end, min(n, end + cfg.context_utterances_after))]
+        global_context = recording_context.for_targets(start, end) if native_review else None
+        terms = relevant_terms(discourse_ledger, targets) if native_review else []
+        if native_review:
+            context_receipts.append({"target_ids": all_ids[start:end], "sha256": digest(global_context),
+                "representation": global_context["representation"], "coverage": global_context["coverage"],
+                "included_occurrences": global_context.get("included_occurrences"),
+                "utf8_bytes": len(json.dumps(global_context, ensure_ascii=False, separators=(",", ":")).encode())})
         key = hashlib.sha256(json.dumps(
-            {"config": signature, "before": before, "targets": targets, "after": after},
+            {"config": signature, "before": before, "targets": targets, "after": after,
+             "recording_context": global_context, "discourse_terms": terms},
             ensure_ascii=False, sort_keys=True,
         ).encode("utf-8")).hexdigest()
         ids = [_uid(out[i], i) for i in range(start, end)]
@@ -529,6 +577,7 @@ def review_translated_utterances(
                     del cached[key]
         if entries is None:
             payload = {
+                **({"recording_context": global_context, "advisory_discourse_terms": terms} if native_review else {}),
                 "glossary_characters": list(gl.characters), "glossary_terms": list(gl.terms),
                 "series_notes": gl.notes,
                 "operator_translation_examples":list({ex["id"]:ex for i in range(start,end)
@@ -573,6 +622,10 @@ def review_translated_utterances(
                     item_schema=direct_schema["properties"]["reviews"]["items"]
                     del item_schema["properties"]["changed"]
                     item_schema["required"].remove("changed")
+                    if native_review:
+                        item_schema["properties"].update(_ADVISORY_PROPERTIES)
+                        if evidence_provider is None:
+                            item_schema["properties"].pop("evidence_request")
                     def source_only(seq):
                         return [{k:v for k,v in row.items() if k!="machine_translation"} for row in seq]
                     source_payload={**payload,"context_before":source_only(before),
@@ -620,7 +673,16 @@ def review_translated_utterances(
                             "across its constituent IDs without duplicating or omitting meaning; preserve independent "
                             "sentences and forms of address. Never transfer text across different candidate blocks. "
                             "Treat nearby repeated source names and literal operator examples as discourse evidence, "
-                            "not proof of an unobserved identity; retain uncertainty and consistent supported terminology."
+                            "not proof of an unobserved identity; retain uncertainty and consistent supported terminology. "
+                            "The recording_context is read-only provisional bilingual or English dialogue, not ground truth. "
+                            "Use earlier AND later dialogue for referents and scene meaning; check original source for facts. "
+                            "For recurring names or terms, optionally provide discourse_terms with an exact source literal, "
+                            "the English rendering in your proposal, and IDs of other occurrences containing that literal. "
+                            "Advisory terms are not mandatory substitutions; distinguish contextual senses. "
+                            + ("If a material ambiguity could be resolved by an observation, optionally provide evidence_request "
+                               "with kind visual or acoustic, reference_id of a real relevant timed occurrence, and a specific "
+                               "neutral observational question. Do not request evidence for ordinary lexical corrections. "
+                               if evidence_provider is not None else "")
                         )
                     direct_schema["properties"]["reviews"]["minItems"] = len(ids)
                     direct_schema["properties"]["reviews"]["maxItems"] = len(ids)
@@ -744,7 +806,10 @@ def review_translated_utterances(
                              "If uncertain about an idiom's meaning, choose original. "
                              "Do not invent a third translation. Return one decision per supplied row AND passage ID."},
                             {"role": "user", "content": json.dumps({
-                                "source_language": source_language, "context_before": before,
+                                **({"recording_context": global_context, "advisory_discourse_terms": terms,
+                                     "supplementary_observations": [item["supplementary_observation"] for item in entries.values()
+                                         if "supplementary_observation" in item]} if native_review else {}),
+                                 "source_language": source_language, "context_before": before,
                                 "operator_translation_examples":payload["operator_translation_examples"],
                                 "comparisons": comparisons, "context_after": after,
                                 "passage_checks":passage_checks,
@@ -935,6 +1000,25 @@ def review_translated_utterances(
                 out[i]["translated_text"] = candidate.strip()
                 changed_count += 1
             reviewed_count += 1
+        if native_review:
+            for group in partitions:
+                if not all(start <= i < end for i in group):
+                    continue
+                if not all(out[i].get("translation_review_status") in ("corrected", "unchanged") for i in group):
+                    continue
+                joined = " ".join(out[i]["translated_text"] for i in group)
+                original_joined = " ".join(out[i]["machine_translated_text"] for i in group)
+                if _bad_joined_direction(joined) and not _bad_joined_direction(original_joined):
+                    continue
+                for i in group:
+                    uid = all_ids[i]
+                    item = entries[uid]
+                    accepted = supported_terms(item, source_entries[uid], source_entries)
+                    for term in accepted:
+                        if term not in discourse_ledger:
+                            discourse_ledger.append(term)
+                    if accepted:
+                        out[i]["translation_review_discourse_terms"] = accepted
         if ckpt and valid_for_cache and key not in cached:
             cached[key] = entries
             ckpt.parent.mkdir(parents=True, exist_ok=True)
@@ -1028,6 +1112,9 @@ def review_translated_utterances(
             "jointly_adjudicated_count": len({r["translation_unit"]["unit_id"] for r in out
                 if (r.get("translation_unit") or {}).get("selection") == "jointly_adjudicated"})}
            if native_review else {}),
+        **({"recording_context_sha256": recording_context.identity,
+            "recording_context_receipts": context_receipts, "discourse_terms": discourse_ledger,
+            "supplementary_evidence": evidence_receipts} if native_review else {}),
         "joined_passage_rejections": passage_rejections,
         "unresolved_source_rejections":uncertainty_rejections,
         "direction_grammar_rejections":direction_rejections,
