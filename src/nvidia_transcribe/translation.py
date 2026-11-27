@@ -943,6 +943,7 @@ def condense_high_cps_cues_with_text_model(
     candidates: list[tuple[int, float, int]] = []
     for i, u in enumerate(out_utts):
         if (u.get("merged_into") or u.get("fragment_suppressed")
+                or str(u.get("translation_review_status") or "").startswith("review_deferred_")
                 or len((u.get("translation_unit") or {}).get("constituents", [])) > 1):
             continue  # never shorten one fragment of an atomic allocation
         s, e = u.get("source_start"), u.get("source_end")

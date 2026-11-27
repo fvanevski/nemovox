@@ -242,6 +242,7 @@ def generate_subtitles(
         review_summary: dict[str, Any] = {"status": "reused_translated_contract"}
         retained_review = translated_contract.get("translation_review") or {}
         if retained_review.get("status") in ("completed_with_deferred_comparisons","completed_with_deferred_evidence"):
+            validate_deferred_review(translated_contract["utterances"],retained_review,translated_contract.get("translation") or {})
             review_summary["retained_review_status"] = retained_review["status"]
             review_summary["deferred_comparison_ids"] = retained_review.get("deferred_comparison_ids",[])
             review_summary["supplementary_proposal_errors"] = retained_review.get("supplementary_proposal_errors",[])
