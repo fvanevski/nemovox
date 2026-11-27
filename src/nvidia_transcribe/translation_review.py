@@ -10,6 +10,7 @@ import json
 import re
 import time
 from dataclasses import dataclass
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -20,10 +21,12 @@ from nvidia_transcribe.semantic_context import current_row_context, literal_exam
 from nvidia_transcribe.review_uncertainty import current_uncertainty, uncertainty_veto
 from nvidia_transcribe import connected_units
 from nvidia_transcribe.recording_context import RecordingContext, digest, relevant_terms, supported_terms
+from nvidia_transcribe.review_execution import (ReviewProgress, scene_projection, observed_scenes,
+    visual_digest, comparison_messages as keyed_messages, keyed_decisions)
 
 VALID_REVIEW_PROFILES = ("off", "conservative", "balanced", "expressive")
 VALID_REVIEW_STYLES = ("natural", "literal", "expressive")
-_PROMPT_VERSION = "mt_postedit_v13_explicit_evidence_decisions"
+_PROMPT_VERSION = "mt_postedit_v14_resumable_scene_review"
 _SCHEMA = {
     "type": "json_schema",
     "json_schema": {
@@ -195,8 +198,9 @@ _ADVISORY_PROPERTIES = {
         "required": ["source", "english", "reference_ids"], "additionalProperties": False}},
     "evidence_request": {"type": "object", "properties": {
         "kind": {"type": "string", "enum": ["none", "visual", "acoustic"]},
-        "reference_id": {"type": "string"}, "question": {"type": "string"}, "reason": {"type": "string"}},
-        "required": ["kind", "reference_id", "question", "reason"], "additionalProperties": False},
+        "reference_id": {"type": "string"}, "question": {"type": "string"}, "reason": {"type": "string"},
+        "focus": {"type":"string","enum":["none","scene","speech_activity","interaction","text"]}},
+        "required": ["kind", "reference_id", "question", "reason", "focus"], "additionalProperties": False},
 }
 
 
@@ -206,11 +210,14 @@ def _advisory_decision(item, *, allow_evidence):
     request = item.get("evidence_request")
     if not isinstance(terms, list) or len(terms) > 4:
         raise ProposalDecisionError("missing_or_invalid_discourse_collection")
-    if (not isinstance(request, dict) or set(request) != {"kind","reference_id","question","reason"}
+    if (not isinstance(request, dict) or set(request) != {"kind","reference_id","question","reason","focus"}
             or request["kind"] not in ("none","visual","acoustic")
             or not all(isinstance(request[k], str) for k in ("reference_id","question","reason"))
             or not 1 <= len(request["reason"].strip()) <= 500):
         raise ProposalDecisionError("missing_or_invalid_evidence_assessment")
+    if (request["kind"]=="visual" and request["focus"] not in ("scene","speech_activity","interaction","text")
+            or request["kind"]!="visual" and request["focus"]!="none"):
+        raise ProposalDecisionError("invalid_evidence_focus")
     if request["kind"] == "none":
         if request["reference_id"] or request["question"]:
             raise ProposalDecisionError("none_evidence_assessment_has_request")
@@ -234,75 +241,252 @@ def _caption_references(item, uid, receipts):
     return [available[ref] for ref in refs]
 
 
-def _supplemented_proposals(client, provider, messages, wire, cfg, targets, entries, partitions, start):
-    """Acquire only nominated observations and reconsider affected whole units."""
-    receipts = []
-    affected = set()
-    count = 0
-    for offset, target in enumerate(targets):
-        uid = target["utterance_id"]
-        decision = entries[uid]["evidence_request"]
-        if decision["kind"] == "none":
+_TERMINAL_EVIDENCE = {"observed","media_unavailable","reference_untimed"}
+
+
+def _evidence_request(item):
+    return {k:item["evidence_request"][k] for k in ("kind","reference_id","question","focus")}
+
+
+def _owned_groups(partitions,start,end):
+    return [g for g in partitions if start<=g[0] and g[-1]<end]
+
+
+def _supplemented_proposals(client, provider, messages, wire, cfg, targets, entries,
+                            partitions, start, progress, state, telemetry):
+    """Persist acquisitions before refining; retry only incomplete atomic units."""
+    count=0
+    responses=[]
+    for group in _owned_groups(partitions,start,start+len(targets)):
+        subset=[targets[i-start] for i in group]
+        ids=[t["utterance_id"] for t in subset]
+        if all(entries[uid].get("supplement_done") for uid in ids):
             continue
-        request = {k:decision[k] for k in ("kind","reference_id","question")}
-        if count >= cfg.max_evidence_requests_per_batch:
-            receipt = {"target_id": uid, "request": request, "status": "batch_budget_exhausted"}
+        receipts=[]
+        waiting=False
+        for uid in ids:
+            item=entries[uid]
+            decision=item["evidence_request"]
+            if decision["kind"]=="none":
+                continue
+            request=_evidence_request(item)
+            prior=item.get("supplementary_observation")
+            if isinstance(prior,dict) and prior.get("status") in _TERMINAL_EVIDENCE:
+                observation=prior
+                telemetry["checkpoint_acquisition_reuses"]+=1
+            elif count>=cfg.max_evidence_requests_per_batch:
+                observation={"target_id":uid,"request":request,"provider":provider.identity,
+                             "status":"batch_budget_exhausted"}
+            else:
+                count+=1
+                observation=provider.collect(uid,request)
+                telemetry["provider_requests"]+=1
+            item["supplementary_observation"]=observation
+            receipts.append(observation)
+            if observation["status"] not in _TERMINAL_EVIDENCE:
+                waiting=True
+            progress.entries(state,entries)
+        observed=any(r["status"]=="observed" for r in receipts)
+        error=None
+        if waiting:
+            error="unresolved_evidence_acquisition"
+        elif observed:
+            alternate=[dict(m) for m in messages]
+            payload=json.loads(alternate[-1]["content"])
+            payload["target_utterances"]=[t for t in payload["target_utterances"] if t["utterance_id"] in ids]
+            payload["supplementary_observations"]=[{k:v for k,v in r.items() if k not in ("model_receipt","provider")}
+                                                   for r in receipts]
+            payload["initial_affected_proposals"]=[{"id":uid,"english":entries[uid]["corrected_text"],
+                                                      "reason":entries[uid]["reason"]} for uid in ids]
+            payload["read_only_other_proposals"]=[{"id":t["utterance_id"],"source":t["source_text"],
+                "english":entries[t["utterance_id"]]["corrected_text"]} for t in targets if t["utterance_id"] not in ids]
+            alternate[-1]["content"]=json.dumps(payload,ensure_ascii=False,separators=(",",":"))
+            alternate[0]["content"]+=(
+                " Reconsider ONLY these targets using actual visual and acoustic observations. "
+                "Separate visible descriptions from tentative interpretations; scene observations may "
+                "disambiguate participants, actions, addressees, objects, affect and chronology, not prove "
+                "speaker identity, hidden motives, exact speech boundaries or phonemes. "
+                "Compare literal dialogue captions with original ASR; captions may be paraphrased, offset "
+                "or incorrect. Cite exact associated caption IDs only if used to support the interpretation. "
+                "Keep the canonical source immutable. Return discourse_terms and caption_evidence_ids "
+                "(empty if none); do NOT return an evidence_request. No further acquisition.")
+            schema=deepcopy(wire["response_format"]["schema"])
+            items=schema["properties"]["reviews"]
+            items["minItems"]=items["maxItems"]=len(subset)
+            spec=items["items"]
+            spec["properties"]["utterance_id"]["enum"]=ids
+            spec["properties"].pop("evidence_request",None)
+            spec["required"].remove("evidence_request")
+            spec["properties"]["caption_evidence_ids"]={"type":"array","maxItems":8,"items":{"type":"string"}}
+            spec["required"].append("caption_evidence_ids")
+            response=client.complete(messages=alternate,max_tokens=cfg.max_tokens,temperature=cfg.temperature,
+                **{**wire,"response_format":{"type":"json_schema","schema":schema}})
+            responses.append(response)
+            ref=progress.request(state,"evidence_proposal",alternate,schema,response)
+            try:
+                if (response.get("choices") or [{}])[0].get("finish_reason")!="stop":
+                    raise ProposalDecisionError("incomplete_supplemented_proposal")
+                replacements=_native_proposals(response,subset,supplemented=True)
+                for uid,item in replacements.items():
+                    _caption_references(item,uid,receipts)
+            except ProposalDecisionError as exc:
+                error=str(exc)
+            else:
+                for uid,item in replacements.items():
+                    previous=entries[uid]
+                    item["evidence_request"]=previous["evidence_request"]
+                    item["initial_proposal"]={k:previous[k] for k in ("corrected_text","reason")}
+                    item["caption_observations_used"]=_caption_references(item,uid,receipts)
+                    item["supplement_request_sha256"]=ref
+                    if "supplementary_observation" in previous:
+                        item["supplementary_observation"]=previous["supplementary_observation"]
+                    entries[uid]=item
+        for uid in ids:
+            if error:
+                entries[uid]["supplement_error"]=error
+            else:
+                entries[uid].pop("supplement_error",None)
+                entries[uid]["supplement_done"]=True
+        progress.entries(state,entries)
+    return responses
+
+
+def _completed_unit(ids, entries, state):
+    """A unit is reusable only if all required stages and exact decisions exist."""
+    if any(uid not in entries for uid in ids):
+        return False
+    for uid in ids:
+        item=entries[uid]
+        if item.get("supplement_error") or not item.get("supplement_done") or item.get("deferred_comparison"):
+            return False
+        if item.get("changed") and not item.get("comparison_request_sha256"):
+            return False
+    return True
+
+
+def _validate_progress_entries(entries, targets, state, provider):
+    """Reject corrupted or mismatched stage records; never manufacture decisions."""
+    ids=[t["utterance_id"] for t in targets]
+    if set(entries)!=set(ids):
+        raise ValueError("Native review progress occurrence mismatch")
+    receipts=[item["supplementary_observation"] for item in entries.values()
+              if isinstance(item.get("supplementary_observation"),dict)]
+    passages=_passage_checks(targets,entries)
+    for t in targets:
+        uid=t["utterance_id"]
+        item=entries[uid]
+        _advisory_decision(item,allow_evidence=provider is not None)
+        if (not isinstance(item.get("corrected_text"),str) or not item["corrected_text"].strip()
+                or item.get("changed")!=(item["corrected_text"].strip()!=t["machine_translation"].strip())
+                or not isinstance(item.get("reason"),str)):
+            raise ValueError("Native progress proposal mismatch")
+        obs=item.get("supplementary_observation")
+        if obs is not None:
+            if (provider is None or obs.get("provider")!=provider.identity or obs.get("target_id")!=uid
+                    or obs.get("request")!=_evidence_request(item)
+                    or (obs.get("kind")=="visual" and obs.get("status")=="observed"
+                        and obs.get("observation_sha256")!=visual_digest(obs))):
+                raise ValueError("Native progress evidence mismatch")
+        if "caption_evidence_ids" in item and _caption_references(item,uid,receipts)!=item.get("caption_observations_used"):
+            raise ValueError("Native progress caption mismatch")
+        if item.get("supplement_request_sha256") not in (None,*state["requests"].keys()):
+            raise ValueError("Native progress supplementary request missing")
+        if item.get("comparison_request_sha256"):
+            ref=item["comparison_request_sha256"]
+            record=state["requests"].get(ref)
+            if not isinstance(record,dict) or digest(record)!=ref or record.get("stage") not in ("comparison","comparison_recovery"):
+                raise ValueError("Native progress comparison request missing")
+            payload=json.loads(record["messages"][-1]["content"])
+            # Resolve aliases from the exact request's owned rows, not a new ledger.
+            by_id={}
+            for decision in payload["comparisons"]:
+                members=decision["target_ids"]
+                canonical=("passage:"+text_digest(json.dumps(members)) if decision["atomic"] else members[0])
+                by_id[decision["key"]]=canonical
+            decisions=keyed_decisions({"choices":record["response"]},by_id)
+            passage=next((p for p in passages if uid in p["target_ids"]),None)
+            decision=decisions.get(passage["utterance_id"] if passage else uid)
+            if decision is None:
+                raise ValueError("Native progress decision ownership mismatch")
+            expected={**decision,"utterance_id":uid,"atomic_verdict_id":passage["utterance_id"]} if passage else decision
+            if item.get("comparative_review")!=expected or (passage and item.get("passage_review")!={**passage,"verdict":decision}):
+                raise ValueError("Native progress comparative receipt mismatch")
+            stored={row["utterance_id"]:row for row in payload["complete_target_passage"]}
+            for member in (passage["target_ids"] if passage else [uid]):
+                if (stored[member]["proposed_translation"]!=entries[member]["corrected_text"]
+                        or stored[member]["source_text"]!=next(x["source_text"] for x in targets if x["utterance_id"]==member)
+                        or stored[member]["machine_translation"]!=next(x["machine_translation"] for x in targets if x["utterance_id"]==member)):
+                    raise ValueError("Native progress comparison allocation mismatch")
+
+
+def _native_comparisons(client, messages, verdict_ids, individual_ids, passage_checks,
+                        entries, cfg, progress, state, native_attempts, recoveries):
+    """First keyed batch, then smaller keyed groups, never accept partial JSON."""
+    counts={"calls":0,"comparative":0,"retries":0}
+    def owned(decision):
+        passage=next((p for p in passage_checks if p["utterance_id"]==decision),None)
+        return ([uid for uid in passage["target_ids"] if entries[uid]["changed"]] if passage else [decision])
+    pending=[d for d in verdict_ids if not any(entries[uid].get("supplement_error") for uid in owned(d))
+             and not all(entries[uid].get("comparison_request_sha256") for uid in owned(d))]
+    def attempt(ids,recovery=False):
+        alternate,aliases,schema=keyed_messages(messages,ids,recovery=recovery)
+        response=client.complete(messages=alternate,max_tokens=cfg.max_tokens,temperature=0.,
+            response_format={"type":"json_schema","schema":schema},thinking_budget=1024,
+            reasoning_effort="xhigh",strict_reasoning_effort=True,stop_on_whitespace_loop=True)
+        attempts=response.get("_client_request_diagnostics",{}).get("completion_attempts",[])
+        stage="comparison_recovery" if recovery else "comparison"
+        native_attempts.extend({"stage":stage,**a} for a in attempts)
+        counts["calls"]+=max(1,len(attempts))
+        counts["comparative"]+=1
+        counts["retries"]+=max(0,len(attempts)-1)
+        ref=progress.request(state,stage,alternate,schema,response)
+        receipt={"target_ids":[uid for d in ids for uid in owned(d)],"required_verdict_ids":ids,
+                 "request_sha256":ref,"response_keys":aliases}
+        if recovery:
+            recoveries.append(receipt)
+        try:
+            decisions=keyed_decisions(response,aliases)
+        except (ValueError,TypeError,KeyError,IndexError) as exc:
+            receipt.update(outcome="invalid",rejected_response=_failure_receipt(response,str(exc)))
+            if not recovery:
+                recoveries.append(receipt)
+            progress.entries(state,entries)
+            return False,receipt
+        for d,decision in decisions.items():
+            passage=next((p for p in passage_checks if p["utterance_id"]==d),None)
+            for uid in owned(d):
+                item=entries[uid]
+                item.pop("deferred_comparison",None)
+                item["comparison_request_sha256"]=ref
+                item["comparative_review"]={**decision,"utterance_id":uid,"atomic_verdict_id":d} if passage else decision
+                if passage:
+                    item["passage_review"]={**passage,"verdict":decision}
+                if recovery:
+                    item["comparison_recovery"]={**receipt,"outcome":"complete"}
+        receipt["outcome"]="complete"
+        progress.entries(state,entries)
+        return True,receipt
+    def recover(ids):
+        ok,receipt=attempt(ids,True)
+        if ok:
+            return
+        if len(ids)>1:
+            mid=len(ids)//2
+            recover(ids[:mid])
+            recover(ids[mid:])
         else:
-            count += 1
-            receipt = provider.collect(uid, request)
-        receipts.append(receipt)
-        if receipt["status"] == "observed":
-            for group in partitions:
-                if start + offset in group:
-                    affected.update(targets[i-start]["utterance_id"] for i in group)
-                    break
-    if not affected:
-        return receipts, None, None
-    subset = [t for t in targets if t["utterance_id"] in affected]
-    alternate = [dict(m) for m in messages]
-    payload = json.loads(alternate[-1]["content"])
-    payload["target_utterances"] = [t for t in payload["target_utterances"]
-                                    if t["utterance_id"] in affected]
-    payload["supplementary_observations"] = receipts
-    payload["initial_affected_proposals"] = [{"id":t["utterance_id"], "english":entries[t["utterance_id"]]["corrected_text"],
-        "reason":entries[t["utterance_id"]]["reason"]} for t in subset]
-    payload["read_only_other_proposals"] = [{"id": t["utterance_id"], "source": t["source_text"],
-         "english": entries[t["utterance_id"]]["corrected_text"]} for t in targets
-         if t["utterance_id"] not in affected]
-    alternate[-1]["content"] = json.dumps(payload, ensure_ascii=False)
-    alternate[0]["content"] += (" Reconsider only these exact target allocations in light of the supplied "
-        "observations. Visual observations do not establish speech or identity. Acoustic alternatives "
-        "are fallible same-model crop observations, not canonical changes. Compare literal dialogue_caption "
-        "observations with original ASR, including plausible homophone errors. Captions may be paraphrased, "
-        "offset or incorrect. A caption linked to a target by requested seek is a competing wording observation, "
-        "not established speech or exact timing. Where materially more plausible, translate its supported meaning "
-        "and cite the exact caption_id in caption_evidence_ids; otherwise return []. Never transfer caption words "
-        "from a different occurrence as if spoken here. Explain why the proposed interpretation is supported. "
-        "No further evidence requests; return the original required discourse_terms collection and caption_evidence_ids.")
-    schema = json.loads(json.dumps(wire["response_format"]["schema"]))
-    items = schema["properties"]["reviews"]
-    items["minItems"] = items["maxItems"] = len(subset)
-    item_schema = items["items"]
-    item_schema["properties"].pop("evidence_request", None)
-    item_schema["required"].remove("evidence_request")
-    item_schema["properties"]["caption_evidence_ids"] = {"type":"array","maxItems":8,"items":{"type":"string"}}
-    item_schema["required"].append("caption_evidence_ids")
-    response = client.complete(messages=alternate, max_tokens=cfg.max_tokens,
-        temperature=cfg.temperature, **{**wire, "response_format": {"type": "json_schema", "schema": schema}})
-    if (response.get("choices") or [{}])[0].get("finish_reason") != "stop":
-        return receipts, response, "incomplete_supplemented_proposal"
-    try:
-        replacements = _native_proposals(response, subset, supplemented=True)
-        for uid,item in replacements.items():
-            _caption_references(item, uid, receipts)
-    except ProposalDecisionError as exc:
-        return receipts, response, str(exc)
-    for uid, item in replacements.items():
-        item["evidence_request"] = entries[uid]["evidence_request"]
-        item["initial_proposal"] = {k:entries[uid][k] for k in ("corrected_text","reason")}
-        item["caption_observations_used"] = _caption_references(item, uid, receipts)
-        entries[uid] = item
-    return receipts, response, None
+            for uid in owned(ids[0]):
+                entries[uid]["deferred_comparison"]={**receipt,"outcome":"deferred_preserved_primary"}
+            progress.entries(state,entries)
+    if pending:
+        ok,_=attempt(pending)
+        if not ok:
+            # First recovery batches contain at most four decisions, not
+            # an immediate N-call fan-out. Bisect only failing groups.
+            width=min(4,max(1,(len(pending)+1)//2))
+            for i in range(0,len(pending),width):
+                recover(pending[i:i+width])
+    return counts
 
 
 class ProposalDecisionError(ValueError):
@@ -557,6 +741,9 @@ def review_translated_utterances(
     if type(cfg.max_evidence_requests_per_batch) is not int or not 0 <= cfg.max_evidence_requests_per_batch <= 12:
         raise ValueError("Invalid per-batch evidence budget")
     discourse_ledger = []
+    scene_ledger = []
+    execution_telemetry={"checkpoint_acquisition_reuses":0,"provider_requests":0,"proposal_reuses":0}
+    provider_start=dict(getattr(evidence_provider,"telemetry",{}))
     context_receipts = []
     evidence_receipts = []
     evidence_assessments = []
@@ -581,8 +768,9 @@ def review_translated_utterances(
                          evidence_provider=evidence_provider.identity if evidence_provider else None,
                          evidence_budget=cfg.max_evidence_requests_per_batch)
     ckpt = Path(checkpoint_path) if checkpoint_path else None
+    progress=ReviewProgress(ckpt,resume) if native_review else None
     cached: dict[str, dict[str, Any]] = {}
-    if resume and ckpt and ckpt.is_file():
+    if not native_review and resume and ckpt and ckpt.is_file():
         try:
             document = json.loads(ckpt.read_text(encoding="utf-8"))
             if document.get("schema") == "translation_review/v1" and isinstance(document.get("items"), dict):
@@ -652,22 +840,34 @@ def review_translated_utterances(
         after = [_entry(out[i], i) for i in range(end, min(n, end + cfg.context_utterances_after))]
         global_context = recording_context.for_targets(start, end) if native_review else None
         terms = relevant_terms(discourse_ledger, targets) if native_review else []
+        scenes = scene_projection(scene_ledger, targets) if native_review else []
+        state=None
         if native_review:
+            base={"config":signature,"before":before,"targets":targets,"after":after,"recording_context":global_context}
+            state=progress.admit(base,terms,scenes)
+            if state["split"]:
+                subdivide(start,end,range_index,"checkpointed_proposal_split")
+                continue
+            terms=state["snapshot"]["discourse_terms"]
+            scenes=state["snapshot"]["scene_observations"]
             context_receipts.append({"target_ids": all_ids[start:end], "sha256": digest(global_context),
                 "representation": global_context["representation"], "coverage": global_context["coverage"],
                 "included_occurrences": global_context.get("included_occurrences"),
-                "advisory_discourse_terms": terms,
+                "advisory_discourse_terms": terms, "advisory_scene_observations":scenes,
+                "inference_context_sha256":state["context_sha256"],
                 "utf8_bytes": len(json.dumps(global_context, ensure_ascii=False, separators=(",", ":")).encode())})
         key = hashlib.sha256(json.dumps(
             {"config": signature, "before": before, "targets": targets, "after": after,
              "recording_context": global_context, "discourse_terms": terms},
             ensure_ascii=False, sort_keys=True,
         ).encode("utf-8")).hexdigest()
+        if native_review:
+            key=state["context_sha256"]
         ids = [_uid(out[i], i) for i in range(start, end)]
         if len(set(ids)) != len(ids):
             raise ValueError("Duplicate utterance IDs in translation post-edit batch")
         entries: dict[str, dict[str, Any]] | None = None
-        if key in cached and isinstance(cached[key], dict):
+        if not native_review and key in cached and isinstance(cached[key], dict):
             hit = cached[key]
             if set(hit) == set(ids) and all(isinstance(x, dict) for x in hit.values()):
                 valid_hit=True
@@ -685,30 +885,6 @@ def review_translated_utterances(
                                         valid_hit=False
                     except (TypeError,KeyError,AttributeError):
                         valid_hit=False
-                if native_review and valid_hit:
-                    cached_evidence = [item["supplementary_observation"] for item in hit.values()
-                        if isinstance(item.get("supplementary_observation"),dict)]
-                    for uid, item in hit.items():
-                        try:
-                            _advisory_decision(item, allow_evidence=evidence_provider is not None)
-                            if "caption_evidence_ids" in item and _caption_references(item,uid,cached_evidence) != item.get("caption_observations_used"):
-                                valid_hit = False
-                        except (ProposalDecisionError, KeyError, TypeError, ValueError):
-                            valid_hit = False
-                        evidence = item.get("supplementary_observation")
-                        request = item.get("evidence_request")
-                        request = request if isinstance(request,dict) else {}
-                        if request.get("kind") != "none" and (not isinstance(evidence,dict)
-                                or evidence.get("request") != {k:request.get(k) for k in ("kind","reference_id","question")}):
-                            valid_hit = False
-                        if evidence is not None and (not isinstance(evidence, dict)
-                                or evidence.get("target_id") != uid or evidence_provider is None
-                                or evidence.get("provider") != evidence_provider.identity
-                                or (evidence.get("kind") == "visual" and evidence.get("status") == "observed"
-                                    and evidence.get("observation_sha256") != digest({k:evidence.get(k) for k in ("frames","observations","visible_text")}))):
-                            valid_hit = False
-                        if item.get("supplement_error") or item.get("deferred_comparison"):
-                            valid_hit = False
                 if valid_hit:
                     entries = hit
                     hits += len(ids)
@@ -718,7 +894,8 @@ def review_translated_utterances(
                     del cached[key]
         if entries is None:
             payload = {
-                **({"recording_context": global_context, "advisory_discourse_terms": terms} if native_review else {}),
+                **({"recording_context": global_context, "advisory_discourse_terms": terms,
+                    "advisory_scene_observations":scenes} if native_review else {}),
                 "glossary_characters": list(gl.characters), "glossary_terms": list(gl.terms),
                 "series_notes": gl.notes,
                 "operator_translation_examples":list({ex["id"]:ex for i in range(start,end)
@@ -752,7 +929,6 @@ def review_translated_utterances(
                 {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
             ]
             try:
-                calls += 1
                 wire = {"response_format": _SCHEMA if cfg.use_json_schema else None}
                 if cfg.wire_protocol == "ninfer_messages":
                     from copy import deepcopy
@@ -822,7 +998,9 @@ def review_translated_utterances(
                             "Return discourse_terms with exact source literals, the English rendering in your proposal, "
                             "and IDs of other occurrences containing the literal. Return [] if none is supported. "
                             "Reuse supported advisory interpretations for the same sense; distinguish contextual senses, "
-                            "do not invent identities or blindly substitute. "
+                            "do not invent identities or blindly substitute. Prior advisory scene observations are "
+                            "nearby visual evidence, not proof of continuing scene, speech or identity. Reuse when "
+                            "they answer the current uncertainty; avoid redundant acquisitions. "
                             "For EACH target return evidence_request with kind, reference_id, question and a concise reason. "
                             + ("Choose none only after considering whether the source observation itself may be wrong. "
                                "Look for anomalous grammar, suspicious near-homophones, incongruous classifiers, honorifics, "
@@ -830,9 +1008,12 @@ def review_translated_utterances(
                                "translation of faulty ASR is not proof of correct wording. Visual inspection can read "
                                "on-screen source-language captions as well as scene actions; choose visual when such evidence "
                                "could resolve material uncertainty, acoustic when re-observing speech is more discriminating. "
+                               "For uncertain referents, roles, actions or apparent speaker, prefer scene evidence over "
+                               "repeating clear acoustic wording. Visual focus is scene, speech_activity (mouth/beak activity), "
+                               "interaction (gestures/actions), or text (captions/labels); otherwise focus is none. "
                                "For visual/acoustic specify a real relevant timed occurrence ID and a neutral observational question. "
-                               "For none use empty reference_id and question, with reason. Do not investigate routine lexical corrections. "
-                               if evidence_provider is not None else "Acquisition is disabled: return kind none with empty reference_id and question and reason. ")
+                               "For none use empty reference_id and question, focus none, with reason. Do not investigate routine lexical corrections. "
+                               if evidence_provider is not None else "Acquisition is disabled: return kind none with empty reference_id and question, focus none and reason. ")
                         )
                     direct_schema["properties"]["reviews"]["minItems"] = len(ids)
                     direct_schema["properties"]["reviews"]["maxItems"] = len(ids)
@@ -842,79 +1023,95 @@ def review_translated_utterances(
                             "strict_reasoning_effort": True}
                     if cfg.max_tokens<QUALITY_RETRY_TOKENS:
                         wire["retry_max_tokens"]=QUALITY_RETRY_TOKENS
-                response = client.complete(
-                    messages=messages, max_tokens=cfg.max_tokens, temperature=cfg.temperature, **wire,
-                )
-                native_attempts.extend({"stage":"proposal", **x} for x in
-                    response.get("_client_request_diagnostics",{}).get("completion_attempts",[]))
-                retries=max(0,len(response.get("_client_request_diagnostics",{}).get("completion_attempts",[]))-1)
-                calls+=retries
-                completion_retries+=retries
-                choice = (response.get("choices") or [{}])[0]
-                raw = str((choice.get("message") or {}).get("content") or "")
-                if cfg.wire_protocol == "ninfer_messages":
-                    if _native_output_exhausted(response) and split_points(start,end):
-                        subdivide(start,end,range_index,"proposal")
-                        continue
-                    if choice.get("finish_reason") != "stop":
-                        raise ValueError("Incomplete bounded Messages postedit: "+
-                            json.dumps(response.get("_client_request_diagnostics",{}),ensure_ascii=False))
-                    try:
-                        entries=_native_proposals(response,targets,require_advisory=native_review,
-                            allow_evidence=evidence_provider is not None)
-                    except ProposalDecisionError as exc:
-                        receipt={"target_ids":ids,"initial_rejected_response":_failure_receipt(response,str(exc))}
-                        proposal_recoveries.append(receipt)
-                        calls+=1
-                        alternate,aliases=_keyed_proposal(client,messages,ids,wire,cfg)
-                        attempts=alternate.get("_client_request_diagnostics",{}).get("completion_attempts",[])
-                        native_attempts.extend({"stage":"proposal_recovery",**x} for x in attempts)
-                        extra=max(0,len(attempts)-1)
-                        calls+=extra
-                        completion_retries+=extra
-                        receipt["response_keys"]=aliases
-                        if (alternate.get("choices") or [{}])[0].get("finish_reason")!="stop":
-                            receipt["alternate_rejected_response"]=_failure_receipt(alternate,"incomplete_keyed_proposal")
-                            raise ProposalDecisionError("incomplete_keyed_proposal")
-                        try:
-                            entries=_native_proposals(alternate,targets,aliases,require_advisory=native_review,
-                                allow_evidence=evidence_provider is not None)
-                        except ProposalDecisionError as rejected:
-                            receipt["alternate_rejected_response"]=_failure_receipt(alternate,str(rejected))
-                            raise
-                        receipt["outcome"]="complete"
-                        receipt["alternate_diagnostics"]=alternate.get("_client_request_diagnostics",{})
+                if native_review and state["entries"] is not None:
+                    entries=deepcopy(state["entries"])
+                    _validate_progress_entries(entries,targets,state,evidence_provider)
+                    hits+=sum(len(group) for group in _owned_groups(partitions,start,end)
+                              if _completed_unit([all_ids[i] for i in group],entries,state))
+                    execution_telemetry["proposal_reuses"]+=len(ids)
+                    execution_telemetry["checkpoint_acquisition_reuses"]+=sum(
+                        bool(item.get("supplement_done") and (item.get("supplementary_observation") or {}).get("status")=="observed")
+                        for item in entries.values())
                 else:
-                    first = raw.find("{")
-                    if first < 0:
-                        raise ValueError("Missing JSON response")
-                    parsed, _ = json.JSONDecoder().raw_decode(raw[first:])
-                    reviews = parsed.get("reviews") if isinstance(parsed, dict) else None
-                    if not isinstance(reviews, list):
-                        raise ValueError("Missing reviews array")
-                    entries = {}
-                    for item in reviews:
-                        if not isinstance(item, dict) or not isinstance(item.get("utterance_id"), str):
-                            raise ValueError("Invalid review item")
-                        uid=item["utterance_id"]
-                        if uid not in ids or uid in entries:
-                            raise ValueError("Unexpected or duplicate utterance ID")
-                        entries[uid]=item
-                    if set(entries)!=set(ids):
-                        raise ValueError("Incomplete review IDs")
+                    calls += 1
+                    response = client.complete(
+                        messages=messages, max_tokens=cfg.max_tokens, temperature=cfg.temperature, **wire,
+                    )
+                    if native_review:
+                        progress.request(state,"proposal",messages,wire["response_format"]["schema"],response)
+                    native_attempts.extend({"stage":"proposal", **x} for x in
+                        response.get("_client_request_diagnostics",{}).get("completion_attempts",[]))
+                    retries=max(0,len(response.get("_client_request_diagnostics",{}).get("completion_attempts",[]))-1)
+                    calls+=retries
+                    completion_retries+=retries
+                    choice = (response.get("choices") or [{}])[0]
+                    raw = str((choice.get("message") or {}).get("content") or "")
+                    if cfg.wire_protocol == "ninfer_messages":
+                        if _native_output_exhausted(response) and split_points(start,end):
+                            if native_review:
+                                state["split"]=True
+                                progress.save()
+                            subdivide(start,end,range_index,"proposal")
+                            continue
+                        if choice.get("finish_reason") != "stop":
+                            raise ValueError("Incomplete bounded Messages postedit: "+
+                                json.dumps(response.get("_client_request_diagnostics",{}),ensure_ascii=False))
+                        try:
+                            entries=_native_proposals(response,targets,require_advisory=native_review,
+                                allow_evidence=evidence_provider is not None)
+                        except ProposalDecisionError as exc:
+                            receipt={"target_ids":ids,"initial_rejected_response":_failure_receipt(response,str(exc))}
+                            proposal_recoveries.append(receipt)
+                            calls+=1
+                            alternate,aliases=_keyed_proposal(client,messages,ids,wire,cfg)
+                            attempts=alternate.get("_client_request_diagnostics",{}).get("completion_attempts",[])
+                            native_attempts.extend({"stage":"proposal_recovery",**x} for x in attempts)
+                            extra=max(0,len(attempts)-1)
+                            calls+=extra
+                            completion_retries+=extra
+                            receipt["response_keys"]=aliases
+                            if (alternate.get("choices") or [{}])[0].get("finish_reason")!="stop":
+                                receipt["alternate_rejected_response"]=_failure_receipt(alternate,"incomplete_keyed_proposal")
+                                raise ProposalDecisionError("incomplete_keyed_proposal")
+                            try:
+                                entries=_native_proposals(alternate,targets,aliases,require_advisory=native_review,
+                                    allow_evidence=evidence_provider is not None)
+                            except ProposalDecisionError as rejected:
+                                receipt["alternate_rejected_response"]=_failure_receipt(alternate,str(rejected))
+                                raise
+                            receipt["outcome"]="complete"
+                            receipt["alternate_diagnostics"]=alternate.get("_client_request_diagnostics",{})
+                    else:
+                        first = raw.find("{")
+                        if first < 0:
+                            raise ValueError("Missing JSON response")
+                        parsed, _ = json.JSONDecoder().raw_decode(raw[first:])
+                        reviews = parsed.get("reviews") if isinstance(parsed, dict) else None
+                        if not isinstance(reviews, list):
+                            raise ValueError("Missing reviews array")
+                        entries = {}
+                        for item in reviews:
+                            if not isinstance(item, dict) or not isinstance(item.get("utterance_id"), str):
+                                raise ValueError("Invalid review item")
+                            uid=item["utterance_id"]
+                            if uid not in ids or uid in entries:
+                                raise ValueError("Unexpected or duplicate utterance ID")
+                            entries[uid]=item
+                        if set(entries)!=set(ids):
+                            raise ValueError("Incomplete review IDs")
+                    if native_review:
+                        if evidence_provider is None:
+                            for item in entries.values():
+                                item["supplement_done"]=True
+                        progress.entries(state,entries)
                 if native_review and evidence_provider is not None:
-                    observations, supplement, supplement_error = _supplemented_proposals(
-                        client, evidence_provider, messages, wire, cfg, targets, entries, partitions, start)
-                    if supplement is not None:
-                        attempts = supplement.get("_client_request_diagnostics", {}).get("completion_attempts", [])
-                        native_attempts.extend({"stage": "evidence_proposal", **x} for x in attempts)
-                        calls += max(1, len(attempts))
-                        completion_retries += max(0, len(attempts)-1)
-                    for observation in observations:
-                        entries[observation["target_id"]]["supplementary_observation"] = observation
-                    if supplement_error:
-                        for item in entries.values():
-                            item["supplement_error"] = supplement_error
+                    responses=_supplemented_proposals(client,evidence_provider,messages,wire,cfg,targets,entries,
+                        partitions,start,progress,state,execution_telemetry)
+                    for supplement in responses:
+                        attempts=supplement.get("_client_request_diagnostics",{}).get("completion_attempts",[])
+                        native_attempts.extend({"stage":"evidence_proposal",**x} for x in attempts)
+                        calls+=max(1,len(attempts))
+                        completion_retries+=max(0,len(attempts)-1)
                 if cfg.wire_protocol == "ninfer_messages":
                     # Only changed proposals need a second, comparative
                     # judgment. Same-model reasoning is a quality check,
@@ -945,8 +1142,6 @@ def review_translated_utterances(
                                               "required": ["utterance_id", "choice", "reason"],
                                               "additionalProperties": False}}},
                             "required": ["decisions"], "additionalProperties": False}
-                        calls += 1
-                        comparative_calls += 1
                         comparison_messages = [
                             {"role": "system", "content":
                              "Adjudicate competing English subtitle translations using the source dialogue "
@@ -972,6 +1167,7 @@ def review_translated_utterances(
                              "Do not invent a third translation. Return one decision per supplied row AND passage ID."},
                             {"role": "user", "content": json.dumps({
                                 **({"recording_context": global_context, "advisory_discourse_terms": terms,
+                                     "advisory_scene_observations":scenes,
                                      "supplementary_observations": [item["supplementary_observation"] for item in entries.values()
                                          if "supplementary_observation" in item],
                                      "caption_interpretations": [{"id":uid,"caption_ids":item["caption_evidence_ids"],
@@ -983,8 +1179,7 @@ def review_translated_utterances(
                                     if native_review else {}),
                                 "comparisons": comparisons, "context_after": after,
                                 "passage_checks":passage_checks,
-                                "complete_target_passage":[({k:t[k] for k in ("utterance_id","source_text","machine_translation")}
-                                     if native_review else t) | {"proposed_translation":entries[t["utterance_id"]]["corrected_text"]}
+                                "complete_target_passage":[{**t,"proposed_translation":entries[t["utterance_id"]]["corrected_text"]}
                                                            for t in targets],
                                 **({} if native_review else {"joined_primary_passage":" ".join(t["machine_translation"] for t in targets),
                                 "joined_candidate_passage":" ".join(entries[t["utterance_id"]]["corrected_text"] for t in targets)})}, ensure_ascii=False, separators=(",", ":"))}
@@ -1016,141 +1211,107 @@ def review_translated_utterances(
                                 "supports it; do not presume captions prove speech or permit unsupported changes. "
                                 "Give a specific source-grounded reason for EACH decision. Return only supplied verdict IDs."
                             )
-                        verdict = client.complete(messages=comparison_messages,
-                            max_tokens=cfg.max_tokens, temperature=0.0,
-                            response_format={"type": "json_schema", "schema": schema},
-                            thinking_budget=1024, reasoning_effort="xhigh", strict_reasoning_effort=True,
-                            stop_on_whitespace_loop=True,
-                            **({"retry_max_tokens":QUALITY_RETRY_TOKENS} if cfg.max_tokens<QUALITY_RETRY_TOKENS else {}))
-                        native_attempts.extend({"stage":"comparison", **x} for x in
-                            verdict.get("_client_request_diagnostics",{}).get("completion_attempts",[]))
-                        retries=max(0,len(verdict.get("_client_request_diagnostics",{}).get("completion_attempts",[]))-1)
-                        calls+=retries
-                        completion_retries+=retries
-                        result = (verdict.get("choices") or [{}])[0]
-                        recovery_reason=None
-                        if (_native_output_exhausted(verdict)
-                                and runaway_whitespace(str((result.get("message") or {}).get("content") or ""))):
-                            recovery_reason="runaway_output_whitespace"
-                        elif _native_output_exhausted(verdict) and not native_review and split_points(start,end):
-                            subdivide(start,end,range_index,"comparison")
-                            continue
-                        elif _native_output_exhausted(verdict):
-                            # A single target cannot be subdivided further.
-                            # Preserve its proposal and evidence for the same
-                            # bounded compact comparison used for malformed replies.
-                            recovery_reason="terminal_comparative_output_exhausted"
-                        elif result.get("finish_reason")!="stop":
-                            raise ValueError("Incomplete comparative review: "+
-                                json.dumps(verdict.get("_client_request_diagnostics",{}),ensure_ascii=False))
+                        if native_review:
+                            counts=_native_comparisons(client,comparison_messages,verdict_ids,individual_ids,passage_checks,
+                                entries,cfg,progress,state,native_attempts,comparison_recoveries)
+                            calls+=counts["calls"]
+                            comparative_calls+=counts["comparative"]
+                            completion_retries+=counts["retries"]
                         else:
-                            try:
-                                by_id=_standard_decisions(verdict,verdict_ids)
-                            except ComparativeDecisionError as exc:
-                                recovery_reason=str(exc)
-                        if recovery_reason is not None and native_review:
-                            by_id = {}
-                            # Preserve proposals. Recover at exact decision ownership boundaries.
-                            for decision_id in verdict_ids:
-                                passage = next((p for p in passage_checks if p["utterance_id"] == decision_id), None)
-                                owned = [uid for uid in (passage["target_ids"] if passage else [decision_id])
-                                         if uid in changed_ids]
-                                receipt = {"target_ids": owned, "required_verdict_ids": [decision_id],
-                                    "reason": recovery_reason, "initial_rejected_response": _failure_receipt(verdict, recovery_reason)}
-                                comparison_recoveries.append(receipt)
-                                reduced = [dict(m) for m in comparison_messages]
-                                data = json.loads(reduced[-1]["content"])
-                                data["comparisons"] = [c for c in data["comparisons"] if c["utterance_id"] == decision_id]
-                                data["passage_checks"] = [p for p in data["passage_checks"] if p["utterance_id"] == decision_id]
-                                related_ids = passage["target_ids"] if passage else owned
-                                data["caption_interpretations"] = [x for x in data["caption_interpretations"] if x["id"] in related_ids]
-                                cited = {ref for x in data["caption_interpretations"] for ref in x["caption_ids"]}
-                                data["supplementary_observations"] = [x for x in data["supplementary_observations"]
-                                    if x.get("target_id") in related_ids or any(v["caption_id"] in cited for v in x.get("visible_text", []))]
-                                reduced[-1]["content"] = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
-                                reduced[0]["content"] += " Recover exactly one owned verdict. Other dialogue is read-only context."
-                                isolated, tokens = _compact_comparison(client, reduced, [decision_id], cfg.max_tokens)
-                                attempts = isolated.get("_client_request_diagnostics", {}).get("completion_attempts", [])
-                                native_attempts.extend({"stage":"comparison_recovery", **x} for x in attempts)
-                                calls += max(1, len(attempts))
-                                comparative_calls += 1
-                                completion_retries += max(0, len(attempts)-1)
-                                receipt["compact"] = isolated.get("_client_request_diagnostics", {})
-                                if ((isolated.get("choices") or [{}])[0].get("finish_reason") != "stop"
-                                        and not _native_output_exhausted(isolated)):
-                                    raise ValueError("Incomplete isolated comparative response")
-                                try:
-                                    decision, = _parse_compact_comparison(isolated, tokens, [decision_id])
-                                except (ValueError, TypeError, KeyError, IndexError) as exc:
-                                    receipt["compact_rejected_response"] = _failure_receipt(isolated, str(exc))
-                                    receipt["outcome"] = "deferred_preserved_primary"
-                                    for uid in owned:
-                                        entries[uid]["deferred_comparison"] = receipt
-                                else:
-                                    by_id[decision_id] = decision
-                                    receipt["outcome"] = "complete"
-                                    for uid in owned:
-                                        entries[uid]["comparison_recovery"] = receipt
-                        elif recovery_reason is not None:
-                            receipt={"target_ids":list(changed_ids),"required_verdict_ids":list(verdict_ids),
-                                     "reason":recovery_reason,
-                                     "initial":verdict.get("_client_request_diagnostics",{}),
-                                     "initial_rejected_response":_failure_receipt(verdict,recovery_reason)}
-                            comparison_recoveries.append(receipt)
                             calls+=1
                             comparative_calls+=1
-                            # Same exact source, candidate, neighbors and passage IDs.
-                            # Transport/lifecycle exceptions propagate as errors.
-                            compact,tokens=_compact_comparison(client,comparison_messages,verdict_ids,cfg.max_tokens)
-                            attempts=compact.get("_client_request_diagnostics",{}).get("completion_attempts",[])
-                            native_attempts.extend({"stage":"comparison_recovery",**x} for x in attempts)
-                            extra=max(0,len(attempts)-1)
-                            calls+=extra
-                            completion_retries+=extra
-                            receipt["compact"]=compact.get("_client_request_diagnostics",{})
-                            compact_failure=None
-                            if _native_output_exhausted(compact):
-                                compact_failure="compact_output_exhausted"
-                            elif (compact.get("choices") or [{}])[0].get("finish_reason")=="stop":
+                            verdict = client.complete(messages=comparison_messages,
+                                max_tokens=cfg.max_tokens, temperature=0.0,
+                                response_format={"type": "json_schema", "schema": schema},
+                                thinking_budget=1024, reasoning_effort="xhigh", strict_reasoning_effort=True,
+                                stop_on_whitespace_loop=True,
+                                **({"retry_max_tokens":QUALITY_RETRY_TOKENS} if cfg.max_tokens<QUALITY_RETRY_TOKENS else {}))
+                            native_attempts.extend({"stage":"comparison", **x} for x in
+                                verdict.get("_client_request_diagnostics",{}).get("completion_attempts",[]))
+                            retries=max(0,len(verdict.get("_client_request_diagnostics",{}).get("completion_attempts",[]))-1)
+                            calls+=retries
+                            completion_retries+=retries
+                            result = (verdict.get("choices") or [{}])[0]
+                            recovery_reason=None
+                            if (_native_output_exhausted(verdict)
+                                    and runaway_whitespace(str((result.get("message") or {}).get("content") or ""))):
+                                recovery_reason="runaway_output_whitespace"
+                            elif _native_output_exhausted(verdict) and not native_review and split_points(start,end):
+                                subdivide(start,end,range_index,"comparison")
+                                continue
+                            elif _native_output_exhausted(verdict):
+                                # A single target cannot be subdivided further.
+                                # Preserve its proposal and evidence for the same
+                                # bounded compact comparison used for malformed replies.
+                                recovery_reason="terminal_comparative_output_exhausted"
+                            elif result.get("finish_reason")!="stop":
+                                raise ValueError("Incomplete comparative review: "+
+                                    json.dumps(verdict.get("_client_request_diagnostics",{}),ensure_ascii=False))
+                            else:
                                 try:
-                                    decisions=_parse_compact_comparison(compact,tokens,verdict_ids)
-                                except (ValueError,TypeError,KeyError,IndexError) as exc:
-                                    compact_failure=f"invalid_compact_decision:{type(exc).__name__}:{exc}"
-                            else:
-                                raise ValueError("Incomplete compact comparative response")
-                            if compact_failure is not None:
-                                receipt["compact_rejected_response"]=_failure_receipt(compact,compact_failure)
-                                if not all(t["machine_translation"].strip() for t in targets):
-                                    raise ValueError("Cannot defer comparative review without complete primary MT")
-                                receipt["outcome"]="deferred_preserved_primary"
-                                for uid in changed_ids:
-                                    entries[uid]["deferred_comparison"]=receipt
-                                by_id={}
-                            else:
-                                by_id={d["utterance_id"]:d for d in decisions}
-                                receipt["outcome"]="complete"
-                                for uid in changed_ids:
-                                    entries[uid]["comparison_recovery"]=receipt
-                        if not all("deferred_comparison" in entries[uid] for uid in changed_ids):
-                            expected = {uid for uid in individual_ids if "deferred_comparison" not in entries[uid]}
-                            expected.update(p["utterance_id"] for p in passage_checks
-                                if any(uid in changed_ids and "deferred_comparison" not in entries[uid] for uid in p["target_ids"]))
-                            if set(by_id) != expected:
-                                raise ValueError("Missing comparative review decisions")
-                            for uid in individual_ids:
-                                if uid in by_id:
-                                    entries[uid]["comparative_review"] = by_id[uid]
-                            for passage in passage_checks:
-                                if passage["utterance_id"] not in by_id:
-                                    continue
-                                verdict=by_id[passage["utterance_id"]]
-                                for uid in passage["target_ids"]:
-                                    if uid in changed_ids:
-                                        entries[uid]["passage_review"]={**passage,"verdict":verdict}
-                                        if passage.get("atomic_connected_allocation"):
-                                            entries[uid]["comparative_review"] = {
-                                                **verdict, "utterance_id": uid,
-                                                "atomic_verdict_id": passage["utterance_id"]}
+                                    by_id=_standard_decisions(verdict,verdict_ids)
+                                except ComparativeDecisionError as exc:
+                                    recovery_reason=str(exc)
+                            if recovery_reason is not None:
+                                receipt={"target_ids":list(changed_ids),"required_verdict_ids":list(verdict_ids),
+                                         "reason":recovery_reason,
+                                         "initial":verdict.get("_client_request_diagnostics",{}),
+                                         "initial_rejected_response":_failure_receipt(verdict,recovery_reason)}
+                                comparison_recoveries.append(receipt)
+                                calls+=1
+                                comparative_calls+=1
+                                # Same exact source, candidate, neighbors and passage IDs.
+                                # Transport/lifecycle exceptions propagate as errors.
+                                compact,tokens=_compact_comparison(client,comparison_messages,verdict_ids,cfg.max_tokens)
+                                attempts=compact.get("_client_request_diagnostics",{}).get("completion_attempts",[])
+                                native_attempts.extend({"stage":"comparison_recovery",**x} for x in attempts)
+                                extra=max(0,len(attempts)-1)
+                                calls+=extra
+                                completion_retries+=extra
+                                receipt["compact"]=compact.get("_client_request_diagnostics",{})
+                                compact_failure=None
+                                if _native_output_exhausted(compact):
+                                    compact_failure="compact_output_exhausted"
+                                elif (compact.get("choices") or [{}])[0].get("finish_reason")=="stop":
+                                    try:
+                                        decisions=_parse_compact_comparison(compact,tokens,verdict_ids)
+                                    except (ValueError,TypeError,KeyError,IndexError) as exc:
+                                        compact_failure=f"invalid_compact_decision:{type(exc).__name__}:{exc}"
+                                else:
+                                    raise ValueError("Incomplete compact comparative response")
+                                if compact_failure is not None:
+                                    receipt["compact_rejected_response"]=_failure_receipt(compact,compact_failure)
+                                    if not all(t["machine_translation"].strip() for t in targets):
+                                        raise ValueError("Cannot defer comparative review without complete primary MT")
+                                    receipt["outcome"]="deferred_preserved_primary"
+                                    for uid in changed_ids:
+                                        entries[uid]["deferred_comparison"]=receipt
+                                    by_id={}
+                                else:
+                                    by_id={d["utterance_id"]:d for d in decisions}
+                                    receipt["outcome"]="complete"
+                                    for uid in changed_ids:
+                                        entries[uid]["comparison_recovery"]=receipt
+                            if not all("deferred_comparison" in entries[uid] for uid in changed_ids):
+                                expected = {uid for uid in individual_ids if "deferred_comparison" not in entries[uid]}
+                                expected.update(p["utterance_id"] for p in passage_checks
+                                    if any(uid in changed_ids and "deferred_comparison" not in entries[uid] for uid in p["target_ids"]))
+                                if set(by_id) != expected:
+                                    raise ValueError("Missing comparative review decisions")
+                                for uid in individual_ids:
+                                    if uid in by_id:
+                                        entries[uid]["comparative_review"] = by_id[uid]
+                                for passage in passage_checks:
+                                    if passage["utterance_id"] not in by_id:
+                                        continue
+                                    verdict=by_id[passage["utterance_id"]]
+                                    for uid in passage["target_ids"]:
+                                        if uid in changed_ids:
+                                            entries[uid]["passage_review"]={**passage,"verdict":verdict}
+                                            if passage.get("atomic_connected_allocation"):
+                                                entries[uid]["comparative_review"] = {
+                                                    **verdict, "utterance_id": uid,
+                                                    "atomic_verdict_id": passage["utterance_id"]}
             except Exception as exc:
                 if isinstance(exc, ResourceLifecycleError):
                     # Do not repeatedly attempt a blocked model acquisition on
@@ -1181,12 +1342,17 @@ def review_translated_utterances(
                 observation = item["supplementary_observation"]
                 out[i]["translation_review_evidence"] = observation
                 evidence_receipts.append(observation)
+                for scene in observed_scenes(observation):
+                    if scene not in scene_ledger:
+                        scene_ledger.append(scene)
                 if observation.get("status") not in ("observed", "media_unavailable", "reference_untimed"):
                     valid_for_cache = False
             if item.get("supplement_error"):
                 supplementary_proposal_errors.append({"target_id": uid, "reason": item["supplement_error"]})
                 out[i]["translation_review_evidence_error"] = item["supplement_error"]
+                out[i]["translation_review_status"]="review_deferred_evidence_preserved_machine_translation"
                 valid_for_cache = False
+                continue
             candidate = item.get("corrected_text")
             changed = item.get("changed")
             if (not isinstance(candidate, str) or not isinstance(changed, bool)
@@ -1285,7 +1451,7 @@ def review_translated_utterances(
                             discourse_ledger.append(term)
                     if accepted:
                         out[i]["translation_review_discourse_terms"] = accepted
-        if ckpt and valid_for_cache and key not in cached:
+        if not native_review and ckpt and valid_for_cache and key not in cached:
             cached[key] = entries
             ckpt.parent.mkdir(parents=True, exist_ok=True)
             tmp = ckpt.with_suffix(".tmp")
@@ -1376,7 +1542,8 @@ def review_translated_utterances(
         out = [u if all_ids[i] in selected else {**utterances[i]} for i, u in enumerate(out)]
     return out, {
         "status": ("completed_with_errors" if errors else
-                   "completed_with_deferred_comparisons" if deferred_comparison_ids else "completed"),
+                   "completed_with_deferred_comparisons" if deferred_comparison_ids else
+                   "completed_with_deferred_evidence" if supplementary_proposal_errors else "completed"),
         "profile": cfg.profile, "style": cfg.style,
         "resource_fingerprint": cfg.resource_fingerprint,
         "reviewed": reviewed_count, "changed": changed_count,
@@ -1391,6 +1558,9 @@ def review_translated_utterances(
         **({"recording_context_sha256": recording_context.identity,
             "recording_context_receipts": context_receipts, "discourse_terms": discourse_ledger,
             "evidence_assessments": evidence_assessments,
+            "scene_observations":scene_ledger,
+            "review_execution":{**execution_telemetry,**{k:v-provider_start.get(k,0)
+                for k,v in getattr(evidence_provider,"telemetry",{}).items()}},
             "discourse_assessments": discourse_receipts,
             "supplementary_evidence": evidence_receipts,
             "supplementary_evidence_unresolved_count": sum(x.get("status") != "observed" for x in evidence_receipts),
