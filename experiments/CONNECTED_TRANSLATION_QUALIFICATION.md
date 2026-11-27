@@ -128,10 +128,58 @@ promotion or production deployment. Stop after the comparative campaign,
 not after every case. Central will adjudicate the selected mechanism and
 implement the production successor on the same branch.
 
-Return COMMAND_SHAPE_FRICTION even when none:
-encountered=yes/no; COMMANDS_MATCH_HANDOFF=yes/no; events=[] if none.
-For each material event record requested_shape, effective_shape, tool,
-workdir, rewrite_provenance, event_kind, execution_effect, raw bounded
-diagnostic, replacement_shape, retry/result and remaining impact. Distinguish
-pre-execution rejection, interface discovery, execution failure, guard
-annotation and successful recovery. Never bypass a live guard.
+## Tool routing and handback schema
+
+Use Serena for bounded symbol/interface navigation if needed; Probe only
+for supplemental extraction, RTK for routine noisy output only when it
+preserves evidence, native Git/host commands for exact identity, failure
+logs and resource evidence. OpenViking is historical context only, never
+the authority for current source or host state; do not store private job
+evidence there. Use the actual harness permissions, not historical V1
+admission commands.
+
+For a newly fetched candidate, run the following steps separately from the
+owner repository before creating the isolated worktree:
+  git fetch origin refs/heads/issue/25
+  git rev-parse FETCH_HEAD
+  git cat-file -t "$TARGET_SHA"
+  git worktree add --detach "$PRIVATE_ROOT/worktree" "$TARGET_SHA"
+Use TARGET_SHA from the exact Central kickoff; require FETCH_HEAD equality
+and object type commit before worktree creation. Read the actual worktree
+identity with native git and execute commands with that workdir. If the live
+guard rejects a shape, honor the documented correction or report blocked.
+No overwrite/reset/clean of any existing workspace.
+
+Riva and text review run sequentially. Review uses one managed client per
+invocation; when two arms have exactly identical primary rows within the
+same case, an explicitly identified review receipt is reused rather than
+repeating the same call. Count incremental cost only once. If the agent's
+own model/lease prevents real inference, finish CPU and plan work and
+prepare the exact post-exit commands with real private paths, authenticated
+resources and selected windows, for operator execution using the same
+candidate. Do not launch GPU inference in a conflicting active harness or
+declare GPU acceptance from CPU results.
+
+Return the following canonical friction ledger even when empty:
+
+COMMAND_SHAPE_FRICTION:
+  encountered=no
+  events: []
+  omitted_sensitive_values=no
+
+For each material event set encountered=yes and record:
+  - scenario=<bounded scenario key>
+    requested_shape=<sanitized submitted invocation>
+    effective_shape=<actual shape|same-as-requested|unknown>
+    rewrite_provenance=<none|rtk_opencode_hook|shell_or_alias|other_harness_hook|unknown>
+    event_kind=<pre_execution_rejection|execution_failure|successful_recovery|guard_annotation|harness_rewrite|runtime_misbinding|interface_discovery|other>
+    execution_effect=<not_executed|executed_failed|executed_succeeded|recovered_after_retry|unknown>
+    correction_or_annotation=<bounded actual diagnostic>
+    replacement_shape=<corrected shape|none>
+    recipe_reference=<GHDEV-10 recipe key|none>
+    resource_reference=<plugin/repository resource|none>
+    contract_conflict=<yes|no|uncertain>
+    durable_gap_candidate=<yes|no|uncertain>
+Set omitted_sensitive_values truthfully. Separately return
+COMMANDS_MATCH_HANDOFF=yes/no. Preserve failures and successful recoveries,
+even when the substantive result is positive. Never bypass a live guard.

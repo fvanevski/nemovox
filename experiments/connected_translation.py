@@ -305,11 +305,10 @@ def main():
         wire_protocol="ninfer_messages", thinking_budget=2048, reasoning_effort="xhigh",
         max_tokens=max(4096, QUALITY_COMPLETION_TOKENS), timeout_s=max(180, QUALITY_TIMEOUT_S),
     )
+    outputs = []
     for i, case in enumerate(plan["cases"]):
         arms = {"normal": case["normal"],
                 **{name: case["variants"][name]["units"] for name in VARIANTS}}
-        # Persist all primary outputs and the matched equal-example controls
-        # before starting review, so a review failure cannot erase MT evidence.
         for arm, units in arms.items():
             out = args.output / f"case-{i+1}-{arm}"
             out.mkdir(mode=0o700)
@@ -320,30 +319,43 @@ def main():
                  "joined": translated[u["request_id"]],
                  "separate": [translated[k] for k in u.get("matched_constituent_requests", [])]}
                 for u in units])
-        if args.primary_only:
-            continue
-        for arm, units in arms.items():
-            out = args.output / f"case-{i+1}-{arm}"
-            primary = json.loads((out / "primary.json").read_text())
-            started = time.monotonic()
-            with managed_text_client(lifecycle, review, timeout_s=cfg.timeout_s,
-                                     reasoning_effort=cfg.reasoning_effort,
-                                     wire_protocol=cfg.wire_protocol) as client:
+            result = render_subtitles(
+                {"source": contract["source"], "utterances": primary},
+                output_dir=out, episode_stem="primary",
+            )
+            write(out / "primary-render.json", result)
+            outputs.append((i, out, primary))
+    if args.primary_only:
+        return
+    # One owned service acquisition for the review campaign, after the Riva
+    # worker has exited. Identical arms within a case need not be re-reviewed.
+    completed = {}
+    with managed_text_client(lifecycle, review, timeout_s=cfg.timeout_s,
+                             reasoning_effort=cfg.reasoning_effort,
+                             wire_protocol=cfg.wire_protocol) as client:
+        for i, out, primary in outputs:
+            key = (i, digest(primary))
+            if key in completed:
+                original, reviewed, summary = completed[key]
+                summary = {**summary, "experiment_reused_from": original.name,
+                           "experiment_incremental_review_s": 0.0}
+            else:
+                started = time.monotonic()
                 reviewed, summary = review_translated_utterances(
                     primary, source_language=plan["language"], config=cfg, glossary=glossary,
                     text_client=TraceClient(client, out / "review-requests.jsonl"), resume=False)
+                summary = {**summary, "experiment_incremental_review_s": time.monotonic()-started}
+                if summary.get("status") not in ("completed_with_errors", "completed_with_deferred_comparisons"):
+                    completed[key] = (out, reviewed, summary)
             if [r["id"] for r in reviewed] != [r["id"] for r in primary]:
                 raise ValueError("Review changed unit identity/order")
             write(out / "reviewed.json", reviewed)
-            write(out / "review-summary.json", {"elapsed_s": time.monotonic()-started, **summary})
-            # Compare real display behavior without writing a source contract
-            # or promoting these provisional units into normal Studio jobs.
-            for stage, projected in (("primary", primary), ("reviewed", reviewed)):
-                result = render_subtitles(
-                    {"source": contract["source"], "utterances": projected},
-                    output_dir=out, episode_stem=stage,
-                )
-                write(out / f"{stage}-render.json", result)
+            write(out / "review-summary.json", summary)
+            result = render_subtitles(
+                {"source": contract["source"], "utterances": reviewed},
+                output_dir=out, episode_stem="reviewed",
+            )
+            write(out / "reviewed-render.json", result)
 
 
 if __name__ == "__main__":
