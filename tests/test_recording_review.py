@@ -238,6 +238,7 @@ def test_shared_vision_submits_frame_hashes_without_switch(tmp_path,monkeypatch)
     assert len(result["frames"])>=3
     assert all(len(f["sha256"])==64 for f in result["frames"])
     assert len([b for b in captured[0]["messages"][1]["content"] if b["type"]=="image"])==len(result["frames"])
+    assert captured[0]["reasoning_effort"]=="xhigh"
     assert p.collect(rows[0]["id"],request)==result and len(captured)==1
 
 

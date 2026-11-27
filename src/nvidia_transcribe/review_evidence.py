@@ -140,7 +140,7 @@ class ReviewEvidenceProvider:
             {"role": "user", "content": [{"type": "text", "text": question}, *blocks]}]
         def inspect(client):
             return client.complete(messages=messages, max_tokens=self.visual_thinking_budget+2048,
-                temperature=0.0, thinking_budget=self.visual_thinking_budget, reasoning_effort="high",
+                temperature=0.0, thinking_budget=self.visual_thinking_budget, reasoning_effort="xhigh",
                 strict_reasoning_effort=True,
                 response_format={"type": "json_schema", "schema": _VISUAL_SCHEMA})
         if self.visual_resource.fingerprint() == self.review_resource.fingerprint():
