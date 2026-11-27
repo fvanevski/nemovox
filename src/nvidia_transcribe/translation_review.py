@@ -713,7 +713,7 @@ def review_translated_utterances(
                             "Source-caption evidence may support a span but not an uncertain remainder. "
                             "Return one nonempty candidate and a concise source-grounded meaning explanation per target ID. "
                             "Neighboring rows are read-only context. Return corrected_text and reason, not a changed flag.")},
-                        {"role":"user","content":json.dumps(source_payload,ensure_ascii=False)}]
+                        {"role":"user","content":json.dumps(source_payload,ensure_ascii=False,separators=(",", ":"))}]
                     if native_review:
                         messages[0]["content"] += (
                             " Native occurrence boundaries are evidence, not punctuation. "
@@ -880,12 +880,21 @@ def review_translated_utterances(
                                 "operator_translation_examples":payload["operator_translation_examples"],
                                 "comparisons": comparisons, "context_after": after,
                                 "passage_checks":passage_checks,
-                                "complete_target_passage":[{**t,"proposed_translation":entries[t["utterance_id"]]["corrected_text"]}
+                                "complete_target_passage":[({k:t[k] for k in ("utterance_id","source_text","machine_translation")}
+                                     if native_review else t) | {"proposed_translation":entries[t["utterance_id"]]["corrected_text"]}
                                                            for t in targets],
-                                "joined_primary_passage":" ".join(t["machine_translation"] for t in targets),
-                                "joined_candidate_passage":" ".join(entries[t["utterance_id"]]["corrected_text"] for t in targets)}, ensure_ascii=False)}
+                                **({} if native_review else {"joined_primary_passage":" ".join(t["machine_translation"] for t in targets),
+                                "joined_candidate_passage":" ".join(entries[t["utterance_id"]]["corrected_text"] for t in targets)})}, ensure_ascii=False, separators=(",", ":"))}
                         ]
                         if native_review:
+                            comparison_messages[0]["content"] = comparison_messages[0]["content"].replace(
+                                "If both are deficient or evidence is inconclusive, choose original.",
+                                "If evidence is inconclusive choose original; if both are imperfect, choose the materially "
+                                "more faithful candidate unless it introduces a material error.").replace(
+                                "A passage proposal must be coherent as actually concatenated, not just better than broken primary MT.",
+                                "Judge coherence across the real continuation boundaries; a minor display imperfection must "
+                                "not veto a material semantic correction.").replace(
+                                "readability anywhere in the cue.", "material loss of readability across the complete allocation.")
                             comparison_messages[0]["content"] += (
                                 " For an atomic_connected_allocation passage, decide the complete exact "
                                 "proposal versus the complete independent primary allocation, not individual "
@@ -895,7 +904,11 @@ def review_translated_utterances(
                                 "omits a name, destroys repetition, invents an interruption completion or "
                                 "moves independent dialogue between occurrences. Check full meaning and "
                                 "chronological display allocation. Accept only if the exact whole proposal is "
-                                "better supported and introduces no material error. Return only supplied verdict IDs."
+                                "better supported and introduces no material error. A lowercase continuation or punctuation "
+                                "across a real connected boundary is not a semantic error. Prioritize factual quantities, "
+                                "participants, polarity, honorifics, names and idioms above display-fragment style. "
+                                "Read recording_context, advisory terms and supplementary observations as fallible evidence. "
+                                "Give a specific source-grounded reason for EACH decision. Return only supplied verdict IDs."
                             )
                         verdict = client.complete(messages=comparison_messages,
                             max_tokens=cfg.max_tokens, temperature=0.0,
@@ -913,7 +926,7 @@ def review_translated_utterances(
                         if (_native_output_exhausted(verdict)
                                 and runaway_whitespace(str((result.get("message") or {}).get("content") or ""))):
                             recovery_reason="runaway_output_whitespace"
-                        elif _native_output_exhausted(verdict) and split_points(start,end):
+                        elif _native_output_exhausted(verdict) and not native_review and split_points(start,end):
                             subdivide(start,end,range_index,"comparison")
                             continue
                         elif _native_output_exhausted(verdict):
@@ -929,7 +942,47 @@ def review_translated_utterances(
                                 by_id=_standard_decisions(verdict,verdict_ids)
                             except ComparativeDecisionError as exc:
                                 recovery_reason=str(exc)
-                        if recovery_reason is not None:
+                        if recovery_reason is not None and native_review:
+                            by_id = {}
+                            # Preserve proposals. Recover at exact decision ownership boundaries.
+                            for decision_id in verdict_ids:
+                                passage = next((p for p in passage_checks if p["utterance_id"] == decision_id), None)
+                                owned = [uid for uid in (passage["target_ids"] if passage else [decision_id])
+                                         if uid in changed_ids]
+                                receipt = {"target_ids": owned, "required_verdict_ids": [decision_id],
+                                    "reason": recovery_reason, "initial_rejected_response": _failure_receipt(verdict, recovery_reason)}
+                                comparison_recoveries.append(receipt)
+                                reduced = [dict(m) for m in comparison_messages]
+                                data = json.loads(reduced[-1]["content"])
+                                data["comparisons"] = [c for c in data["comparisons"] if c["utterance_id"] == decision_id]
+                                data["passage_checks"] = [p for p in data["passage_checks"] if p["utterance_id"] == decision_id]
+                                data["supplementary_observations"] = [x for x in data["supplementary_observations"]
+                                    if x.get("target_id") in (passage["target_ids"] if passage else owned)]
+                                reduced[-1]["content"] = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+                                reduced[0]["content"] += " Recover exactly one owned verdict. Other dialogue is read-only context."
+                                isolated, tokens = _compact_comparison(client, reduced, [decision_id], cfg.max_tokens)
+                                attempts = isolated.get("_client_request_diagnostics", {}).get("completion_attempts", [])
+                                native_attempts.extend({"stage":"comparison_recovery", **x} for x in attempts)
+                                calls += max(1, len(attempts))
+                                comparative_calls += 1
+                                completion_retries += max(0, len(attempts)-1)
+                                receipt["compact"] = isolated.get("_client_request_diagnostics", {})
+                                if ((isolated.get("choices") or [{}])[0].get("finish_reason") != "stop"
+                                        and not _native_output_exhausted(isolated)):
+                                    raise ValueError("Incomplete isolated comparative response")
+                                try:
+                                    decision, = _parse_compact_comparison(isolated, tokens, [decision_id])
+                                except (ValueError, TypeError, KeyError, IndexError) as exc:
+                                    receipt["compact_rejected_response"] = _failure_receipt(isolated, str(exc))
+                                    receipt["outcome"] = "deferred_preserved_primary"
+                                    for uid in owned:
+                                        entries[uid]["deferred_comparison"] = receipt
+                                else:
+                                    by_id[decision_id] = decision
+                                    receipt["outcome"] = "complete"
+                                    for uid in owned:
+                                        entries[uid]["comparison_recovery"] = receipt
+                        elif recovery_reason is not None:
                             receipt={"target_ids":list(changed_ids),"required_verdict_ids":list(verdict_ids),
                                      "reason":recovery_reason,
                                      "initial":verdict.get("_client_request_diagnostics",{}),
@@ -970,11 +1023,17 @@ def review_translated_utterances(
                                 for uid in changed_ids:
                                     entries[uid]["comparison_recovery"]=receipt
                         if not all("deferred_comparison" in entries[uid] for uid in changed_ids):
-                            if set(by_id) != set(verdict_ids):
+                            expected = {uid for uid in individual_ids if "deferred_comparison" not in entries[uid]}
+                            expected.update(p["utterance_id"] for p in passage_checks
+                                if any(uid in changed_ids and "deferred_comparison" not in entries[uid] for uid in p["target_ids"]))
+                            if set(by_id) != expected:
                                 raise ValueError("Missing comparative review decisions")
                             for uid in individual_ids:
-                                entries[uid]["comparative_review"] = by_id[uid]
+                                if uid in by_id:
+                                    entries[uid]["comparative_review"] = by_id[uid]
                             for passage in passage_checks:
+                                if passage["utterance_id"] not in by_id:
+                                    continue
                                 verdict=by_id[passage["utterance_id"]]
                                 for uid in passage["target_ids"]:
                                     if uid in changed_ids:
