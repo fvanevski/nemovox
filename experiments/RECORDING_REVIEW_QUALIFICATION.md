@@ -1,10 +1,10 @@
-# Efficient, resumable audiovisual semantic review: qualification
+# Final review qualification and promotion handback (CPU only)
 
 ## Authority and scope
 
-Repository fvanevski/nemovox, issue #25 under #23, owner /workspace/nvidia-transcribe, branch issue/25. Exact candidate head, tree and this file blob are supplied in the Central kickoff. Prior qualified-but-operationally-blocked head 8ab0fdc2721ed5f3110c6a5c43cc60ffcf54e9a3, tree ac80b8f2f77a997a434a0674653778792f8a12d5; main 75d8534b3e3ae12ebf2a50dd76c5fd5e8f5b6227. Read AGENTS.md and current issue. Accepted architecture: native MOSS occurrences, Riva primary and connected hypotheses, comprehensive bilingual review (FR/ZH), adaptive acquisition and source-cited discourse, current NInfer shared vision/text role. Previous fresh episode 2060.5s, 140 text calls (74 comparative recovery), 4 deferred comparisons and 11 supplement-error rows; continuation 1200.09s, 120 calls (73 recovery), 90/329 cache hits, 121 changed rows outside reported unfinished set and a new deferred occurrence. Prior comprehensive bilingual reference 750.3s, 71 calls, 13 recovery, zero deferred. These are measured comparators, not universal speed targets.
+Repository fvanevski/nemovox, issue #25 under #23, branch issue/25, owner checkout /workspace/nvidia-transcribe. Exact final candidate HEAD/tree, archived instruction commit/blob and replay verifier blob are supplied in Central kickoff. Prior live-qualified production head 0965afe3f5d829bfdf8ad1e95f34d0e114fbcd0b (tree d3d0a50afbaed953b083bc73fd717f9bd84abef2); main 75d8534b3e3ae12ebf2a50dd76c5fd5e8f5b6227. Read AGENTS.md. Central accepted current semantic architecture and operational performance, with residual limitations. Do not perform another inference campaign.
 
-Central owns all substantive implementation. New native progress records authenticate immutable input and exact admitted discourse/scene snapshot, persist proposals and acquisition before further stages, persist exact keyed comparative decisions and refine only owned complete linguistic units. Completed decisions are not invalidated by newly accumulated advisory context. Ordinary new batches consume current bounded advisory context; continuing admitted batches preserve their actual snapshot. New checkpoint version is clean-forward; do not migrate old v1 cache. General scene observations are categorized, separate direct descriptions/interpretations/uncertainty, frame-bound, task-adaptive sampling, bounded nearby scene reuse. Shared NInfer default retained. No new inference pass for ordinary adequate cues.
+The 7,302,520-byte private archive SHA-256 cacf2df53ad58c724a7d286ab2d165e734421b3fc85430c345480a499e4e4390 proves 333 non-GPU tests, 49 Studio, 14 frontend, full integrated fresh and resume with 70+4 text calls, zero comparison recoveries, 325 complete review rows retained, 4 pending resolved, offline lineage and restoration. Independent Central replay authenticated 78 manifest payload entries, 79 checksum records, 29 progress snapshots, 70 retained requests, 15 retained acquisitions and four new owned requests. The unmodified prior verifier flagged all 325 completed rows because Riva records successful cache reuse as translated_cached instead of translated. Central's narrow verifier correction allows only that exact one-field transition; all other row fields, identities and checkpoint checks remain strict. Production source is unchanged. Central independently replayed the predicate and full archive invariants; this host run executes the actual corrected repository verifier and final tree test suite. Residual semantic limitations are documented, including imperfect nomination/adjudication at ZH 74 and 265, and unqualified live cross-batch scene semantic benefit. No new model or prompt changes.
 
 LOCAL_AGENT_PRIMARY=build
 VALIDATION_ROLE=caller-owned
@@ -13,111 +13,130 @@ SEMANTIC_REMEDIATION=forbidden
 REMOTE_UPDATE=forbidden
 PR_CREATION=forbidden
 DEPLOYMENT=forbidden
+GPU_INFERENCE=forbidden
 
-Use Build-capable local agent, preferably non-competing inference environment for RTX 5090 stages. Native git/gh, pytest, FFmpeg, systemd, GPU and repo-native commands authoritative. Serena for bounded symbol/reference inspection and mechanical repairs; Probe supplemental only; RTK for lossless routine output, raw native output for SHA/diff/failure/lifecycle/GPU; OpenViking not authority for live state and no private evidence/secrets in it. Do not assume historic operational-schema gateway. Allowed: isolated candidate and private scratch, owned model lifecycle, read-only admitted media/contracts, narrowly demonstrated value-preserving mechanical corrections (paths/imports/formatting, actual host interface spelling only when demonstrably equivalent). Preserve exact full diff and local SHA/tree; one bounded mechanical commit if necessary, no push. No semantic refactoring, weakening validation or tests, force-nomination, show-specific hardcoding, new model/serving setup or downloads, CPU fallback, global config changes, source rewrites, external service eviction, media/job mutation, #9 scheduling work, unrelated repository changes, PR/merge/deployment. Never modify /workspace/pyannote or protected Nemotron checkpoint in AGENTS.md. Continue independent tasks when another phase blocks.
+Use a fresh Build-capable agent in the owner repo. Native git/gh, Python/pytest, npm, systemctl and nvidia-smi are authoritative. Serena for narrowly scoped source navigation; Probe only supplemental; RTK only for lossless routine output, raw native output for SHA/diff/actual failures and evidence; OpenViking not authority for mutable state and no private data there. No historical operational-schema gateway assumption. No GPU/model invocation, new model installation, global config mutation, source/media/job mutation, service restart, external service eviction, test weakening or semantic development. Never modify /workspace/pyannote or protected Nemotron checkpoint. No remote publication/PR/merge/deployment; Central owns final review and publication. May resolve genuine environment/command/path problems and equivalent formatting/import mechanics in isolated worktree if essential; any source change must be isolated, explicitly recorded, and requalified, never hidden. Return substantive failure to Central, continue independent checks.
 
-## A. Exact candidate admission and deterministic fault qualification (CPU only)
+## A. Authenticate final candidate and retirement boundary
 
-Use Bash semantics and a literal candidate workdir. Set TARGET_SHA, TARGET_TREE from kickoff. Read owner state before fetch.
+Use Bash semantics, explicit absolute owner and candidate paths. Set TARGET_SHA, TARGET_TREE, REPLAY_SHA, REPLAY_VERIFIER_BLOB, INSTRUCTIONS_BLOB from kickoff. Before fetch inspect owner status/origin. Commands:
 
     cd /workspace/nvidia-transcribe
     git status --short --branch
-    git rev-parse HEAD
+    git rev-parse HEAD HEAD^{tree}
     git remote get-url origin
     git fetch origin refs/heads/issue/25
     test "$(git rev-parse FETCH_HEAD)" = "$TARGET_SHA"
     test "$(git rev-parse "$TARGET_SHA^{tree}")" = "$TARGET_TREE"
+    git merge-base --is-ancestor "$REPLAY_SHA" "$TARGET_SHA"
+    test "$(git rev-parse "$REPLAY_SHA:experiments/RECORDING_REVIEW_QUALIFICATION.md")" = "$INSTRUCTIONS_BLOB"
+    test "$(git rev-parse "$REPLAY_SHA:experiments/verify_review_continuation.py")" = "$REPLAY_VERIFIER_BLOB"
     umask 077
-    PRIVATE_ROOT=$(mktemp -d /tmp/nemovox-resumable-review.XXXXXXXX)
+    PRIVATE_ROOT=$(mktemp -d /tmp/nemovox-final-review.XXXXXXXX)
     git worktree add --detach "$PRIVATE_ROOT/worktree" "$TARGET_SHA"
     OWNER=/workspace/nvidia-transcribe
     PY="$OWNER/.venv/bin/python"
     STUDIO_PY="$OWNER/.venv-studio/bin/python"
     cd "$PRIVATE_ROOT/worktree"
+    mkdir -p "$PRIVATE_ROOT/evidence/logs" "$PRIVATE_ROOT/replay" "$PRIVATE_ROOT/inputs"
     git status --porcelain=v1
     git rev-parse HEAD HEAD^{tree}
-    mkdir -p "$PRIVATE_ROOT/evidence/logs" "$PRIVATE_ROOT/inputs"
+    git diff --name-status 0965afe3f5d829bfdf8ad1e95f34d0e114fbcd0b HEAD
+    git diff --exit-code 0965afe3f5d829bfdf8ad1e95f34d0e114fbcd0b HEAD -- src tests web configs systemd-user pyproject.toml
+    git ls-tree -r HEAD -- experiments
 
-Verify both interpreter/import identities with PYTHONPATH=src:. from candidate. Do not switch/reset/clean owner. Run raw logs and actual exit codes (set -o pipefail if tee).
+The final candidate must have removed exactly the four development-only paths (RECORDING_REVIEW_QUALIFICATION.md, qualify_recording_review.py, verify_cue_lineage.py, verify_review_continuation.py under experiments/) and changed only README.md outside them relative to qualified head. The historical staging commit retains corrected verification and these instructions, but neither active package nor suite depends on it. No deletion of host files, jobs, evidence archives or old commits. Check surviving tracked consumers with native git grep; an expected no-match exit 1 is success, an actual consumer blocks promotion:
 
-    PYTHONPATH=src:. "$PY" -m pytest tests/test_recording_review.py tests/test_deferred_review.py tests/test_connected_units.py tests/test_translation_review.py tests/test_model_resources.py tests/test_resource_integration.py tests/test_resource_lifecycle.py -m 'not gpu'
-    PYTHONPATH=src:. "$PY" -m compileall -q src/nvidia_transcribe experiments
+    git grep -n -E 'qualify_recording_review|verify_review_continuation|verify_cue_lineage|RECORDING_REVIEW_QUALIFICATION|experiments/' HEAD -- . ':!README.md'
+
+Inspect any actual match in context; historical references are not active consumers. Do not choose new cleanup targets. Verify import identities for both interpreters from candidate root; nvidia_transcribe package __file__ must point into worktree/src, any root-level scripts imported by suite must resolve there. Record final diff and exact SHA/tree. Confirm owned service and GPU pre/post state without changing it.
+
+## B. Replay the exact retained private evidence (CPU only)
+
+Locate original archive /tmp/nemovox-resumable-review.jxJ6RE1p/nemovox-issue25-resumable-review-qualification-0965afe3.tar.gz or exact relocated copy. Verify byte size 7302520, exact SHA above before extraction. Assign ARCHIVE absolute path. Extract only the needed files, never arbitrary tar contents:
+
+    git show "$REPLAY_SHA:experiments/verify_review_continuation.py" > "$PRIVATE_ROOT/replay/verify_review_continuation.py"
+    git show "$REPLAY_SHA:experiments/verify_cue_lineage.py" > "$PRIVATE_ROOT/replay/verify_cue_lineage.py"
+    test "$(git hash-object "$PRIVATE_ROOT/replay/verify_review_continuation.py")" = "$REPLAY_VERIFIER_BLOB"
+    for phase in zh-fresh zh-resumed; do
+        mkdir -p "$PRIVATE_ROOT/inputs/$phase"
+        for name in translated.contract.json translation-review.checkpoint.json subtitles.metadata.json; do
+            tar -xOf "$ARCHIVE" "./$phase/$name" > "$PRIVATE_ROOT/inputs/$phase/$name" || exit 1
+        done
+    done
+    tar -xOf "$ARCHIVE" ./MANIFEST.json > "$PRIVATE_ROOT/inputs/MANIFEST.json"
+    PYTHONPATH=src:. "$PY" - "$PRIVATE_ROOT/inputs" <<'PYTHON'
+    import hashlib,json,sys
+    from pathlib import Path
+    root=Path(sys.argv[1])
+    records={x["path"].removeprefix("./"):x for x in json.loads((root/"MANIFEST.json").read_text())["files"]}
+    for phase in ("zh-fresh","zh-resumed"):
+        for path in (root/phase).iterdir():
+            rel=str(path.relative_to(root))
+            record=records[rel]
+            assert path.stat().st_size==record["bytes"]
+            assert hashlib.sha256(path.read_bytes()).hexdigest()==record["sha256"]
+    print("REPLAY_INPUT_DIGESTS=PASS")
+    PYTHON
+    PYTHONPATH=src:. "$PY" "$PRIVATE_ROOT/replay/verify_review_continuation.py" \
+      --fresh-contract "$PRIVATE_ROOT/inputs/zh-fresh/translated.contract.json" \
+      --resumed-contract "$PRIVATE_ROOT/inputs/zh-resumed/translated.contract.json" \
+      --fresh-progress "$PRIVATE_ROOT/inputs/zh-fresh/translation-review.checkpoint.json" \
+      --resumed-progress "$PRIVATE_ROOT/inputs/zh-resumed/translation-review.checkpoint.json"
+    PYTHONPATH=src:. "$PY" "$PRIVATE_ROOT/replay/verify_cue_lineage.py" "$PRIVATE_ROOT/inputs/zh-fresh"
+    PYTHONPATH=src:. "$PY" "$PRIVATE_ROOT/replay/verify_cue_lineage.py" "$PRIVATE_ROOT/inputs/zh-resumed"
+
+Record output/exit codes. Expected: continuation PASS, 329 occurrences, 4 original pending IDs event-00018/19/20/00303, remaining pending empty, changed_row_ids those 4, unexpected empty, cache_status_transition_row_ids 325, 29 unchanged snapshots, 70 original requests retained, 4 new requests only owned pending, 325 cache hits, 4 calls. Lineage both 329/329, fresh 339 records, resumed 338 records. This is replay of immutable outputs, not live generation.
+
+Run the following negative controls directly against the actual extracted verifier, in memory only (do not mutate archived inputs). Exact cache transition is accepted, but semantic/provenance changes and fallback status still fail. Full audit on modified in-memory row must report the changed completed ID.
+
+    PYTHONPATH=src:. "$PY" - "$PRIVATE_ROOT" <<'PYTHON'
+    import copy,runpy,sys
+    from pathlib import Path
+    root=Path(sys.argv[1])
+    v=runpy.run_path(str(root/"replay/verify_review_continuation.py"))
+    f=v["read"](root/"inputs/zh-fresh/translated.contract.json")
+    r=v["read"](root/"inputs/zh-resumed/translated.contract.json")
+    old=v["records"](root/"inputs/zh-fresh/translation-review.checkpoint.json")
+    new=v["records"](root/"inputs/zh-resumed/translation-review.checkpoint.json")
+    pending=v["pending_ids"](f)
+    i=next(i for i,x in enumerate(f["utterances"]) if x["id"] not in pending)
+    a,b=f["utterances"][i],r["utterances"][i]
+    same=v["same_completed_occurrence"]
+    assert a["translation_status"]=="translated" and b["translation_status"]=="translated_cached"
+    assert same(a,a) and same(a,b) and not same(b,a)
+    for key,value in (("translation_status","fallback_source_after_error"),("translated_text","invented"),
+                      ("machine_translated_text","invented"),("source_text","invented"),
+                      ("speaker_id","invented"),("translation_review_reason","invented"),
+                      ("translation_unit",None),("unexpected_field",True)):
+        assert not same(a,{**b,key:value}),key
+    corrupt=copy.deepcopy(r)
+    corrupt["utterances"][i]["translation_review_reason"]="unapproved semantic review change"
+    receipt=v["audit"](f,corrupt,old,new)
+    assert receipt["status"]=="FAIL"
+    assert "completed_row_changed:"+a["id"] in receipt["errors"]
+    print("NARROW_TRANSITION_NEGATIVE_CONTROLS=PASS")
+    PYTHON
+
+Do not waive the old failed verifier exit or replace old evidence. The replay receipts are a new, separate validation result.
+
+## C. Final exact-head CPU and Studio/frontend verification
+
+No model service start. Run from candidate root, with raw logs/exit codes (pipefail if tee).
+
+    PYTHONPATH=src:. "$PY" -m compileall -q src/nvidia_transcribe
     PYTHONPATH=src:. "$PY" -m pytest -m 'not gpu'
     PYTHONPATH=src:. "$STUDIO_PY" -m pytest tests/test_studio_api.py tests/test_studio_export_api.py tests/test_studio_exports.py -m 'not gpu'
     (cd web && npm ci && npm test && npm run build)
+    git diff --check 75d8534b3e3ae12ebf2a50dd76c5fd5e8f5b6227 HEAD
+    git status --porcelain=v1
+    git rev-parse HEAD HEAD^{tree}
 
-Prior counts 325 CPU,49 Studio,14 frontend; counts not gates. Focused fault regressions must prove: malformed duplicate/missing keyed verdict rejection, grouped recovery instead of immediate per-decision fanout, no proposal regeneration after early deferred comparison, same actual downstream snapshots and exact completed-row equality when early term becomes accepted, failed evidence refinement confined to its whole atomic unit with successful acquisition retained across fresh provider instance, no extra calls for explicit none, retryable transport does not fan out, current-version corruption rejected, scene sampling and nearby context projection, complete preserved primary for mixed pending stages, prior connected/uncertainty/caption/resource invariants. No live phase until relevant deterministic tests pass. Mechanical integration fixes only as expressly allowed; preserve raw failure and complete diff, rerun focused plus full deterministic gates on actual final local SHA. Substantive failures are Central-owned; do not implement around them.
+Existing full suite includes focused successor regressions; no duplicate focused suite required unless diagnosing failure. Prior 333/49/14 are evidence, not test-count gates. No ordinary inference, no additional fresh episode, no repeated offline generation necessary. If genuine mechanical fix needed, preserve exact diff and rerun affected/full gate; no remote push. A source or behavior change invalidates production-equivalence claim; return it for Central review rather than silently inheriting prior live evidence. Recheck live issue/25 branch at handback with git ls-remote origin refs/heads/issue/25 and main; any movement means STALE, no remote mutation. Owner and owned service state unchanged. Do not restart, deploy or merge.
 
-## B. Authenticate matched inputs and runtime
+## D. Handback (private, bounded)
 
-Latest prior private archive (previous actual host path /tmp/nemovox-evidence-review.8j4w2LnT/nemovox-issue25-evidence-discourse-qualification-8ab0fdc2.tar.gz or exact relocated copy), 1,423,042 bytes SHA-256 476abb65c0058fb7b608261d70ff651fba8fad4e524ab5bad05ece52ef4c2298. Authenticate before extraction. Exact members:
-
-    tar -xOf "$ARCHIVE" ./zh-integrated/translated.contract.json > "$PRIVATE_ROOT/inputs/zh.translated.json"
-    tar -xOf "$ARCHIVE" ./fr-focused/bilingual/reviewed.contract.json > "$PRIVATE_ROOT/inputs/fr.translated.json"
-    sha256sum "$PRIVATE_ROOT/inputs/"*.translated.json
-
-ZH 329 events digest beb81468e62bea427f3c7fcc91c9ff7e7dca0f0be29f9242947f05a9fcd8ee47; FR 257 events digest 37d081e67adc20f97ab7c8b9ac43e5bf39a954a0b9ce08bc42315899b9a13434. These are latest private reviewed contracts with original primary/source rows; runner resets only selected targets to primary and uses full recording context. For prior performance/semantic comparisons inspect the actual archive reports/logs, including fresh vs continuation. Retained #24 recording contracts ZH ac577bdebf534a5e89b33b845616fc20b9418e6798fa97a6b43a7a5ebd19de56 and FR affe54d99cbed6c4e23870646a96eca19d723790ac7d011684867192cf38b9c3. Prior root /workspace/nvidia-transcribe/outputs/handbacks/native-promotion-49a7c13f.NFd9iM2U/review_stage/runs with zh_ep166/recording.contract.json and fr_s04e01/recording.contract.json. Authenticate actual operator-authorized media full SHA ZH a5084539d29cb3fd8a9e2190821315c5fea96290ae27d2420bd83708f457d588, FR 0e77ce3c809e498b97ffe48b53575c29e10d8b08a039b78e2150cd0c845c81b0, selected audio stream. Set absolute ZH_CONTRACT, FR_CONTRACT, ZH_MEDIA, FR_MEDIA, RESOURCE_CONFIG using verified actual paths. Missing data: precise blocker, no substitute invented baseline.
-
-Reconfirm owned NInfer nemovox-text-review.service, loaded qwen3_8_27b_swift15abl_nvfp4full-dflash2.ninfer, ninfer-serve commit 40dec5ff312809d162cbe41dd5682e054e0bcc00, --max-context 262144 --vision --prefix-reuse, actual review/visual fingerprint 7c4ddcaf9e48cbcb1e675f1484eef3d9e08aadc9fc6b4a921c8f3f6c0a03cb2a, Riva 51e174c84e775b5a5628be1117811fc126df47af95526fa9645492bda3096210, MOSS 57826061bf43c59bcb2cbf024760a65a52c8117e9f3cabf703af6748b37dc50b. Recheck effective runtime/resource config and actual model identity; existing authenticated immutable checkpoint manifest sufficient, no huge repeated weights hash. GPU pre/post, owned service only, no unrelated eviction. No credentials/private config in archive. Balanced/natural, no glossary digest 0b845b4dad8d. Report mismatches; no false matched claim.
-
-## C. Bounded real review qualification (GPU as needed)
-
-Use one Mandarin workload covering the actual problematic batches (early 43–44, 66–76 supplement, 203–214, 250–258, 262–266), terminology and caption cases, plus one French control. This is a targeted workload with potentially different packed batches, not a controlled repetition of the old 57-row selection; compare stage mechanics and per-case semantics, report actual selected IDs and boundary differences, normalize useful telemetry rather than claim exact matched speedup. No extra ASR/Riva except nominated short crop. Run once each:
-
-    PYTHONPATH=src:. "$PY" experiments/qualify_recording_review.py \
-      --contract "$PRIVATE_ROOT/inputs/zh.translated.json" \
-      --contract-sha256 beb81468e62bea427f3c7fcc91c9ff7e7dca0f0be29f9242947f05a9fcd8ee47 \
-      --model-resources "$RESOURCE_CONFIG" --output-dir "$PRIVATE_ROOT/evidence/zh-focused" \
-      --target 43:53 66:76 100 106 184:186 190:195 203:214 250:258 262:266 \
-      --modes bilingual --adaptive --media "$ZH_MEDIA" --resume-check \
-      --probe-visual 265 --probe-focus speech_activity \
-      --probe-question "Describe the visible participants, their actions and interactions across the ordered frames, including visible mouth activity only if observable; transcribe any legible dialogue captions."
-    PYTHONPATH=src:. "$PY" experiments/qualify_recording_review.py \
-      --contract "$PRIVATE_ROOT/inputs/fr.translated.json" \
-      --contract-sha256 37d081e67adc20f97ab7c8b9ac43e5bf39a954a0b9ce08bc42315899b9a13434 \
-      --model-resources "$RESOURCE_CONFIG" --output-dir "$PRIVATE_ROOT/evidence/fr-focused" \
-      --target 39:41 71 115:116 125 231 253 --modes bilingual --adaptive --media "$FR_MEDIA" --resume-check
-
-Explicit ZH diagnostic is one real scene-understanding/denser sampling transport control AFTER ordinary review; it is NOT automatic nomination evidence and must not be injected into the ordinary prompt or checkpoint. No forced caption correction or show-specific hints. Verify actual visible observations category, description vs interpretation vs uncertainty, exact frame IDs/hashes/requested seeks, focus and actual sampling geometry, participant/action/interaction/speech-related observations when relevant and visible. Mouth activity is not measured lip alignment or speaker proof. No exhaustive mandatory inventory per request. Show actual automatic evidence receipts and whether prior nearby scene observation is supplied/reused in later relevant context; deterministic reuse regression proves mechanics even if no naturally occurring downstream use in selected cases. Do not claim live non-caption linguistic improvement unless actual case supports it. Include genuine literal captions 74 (择贤/钦承前绪) and 265 (打又打不过) where independently observed; original ASR immutable. Prior case 100 acoustic confirms wording but not proper-name sense; assess modality suitability, avoid repeated audio merely to resolve semantics. Preserve recurring 明皇/冥河/通天 interpretations only as supported; no forced spellings. Clean FR controls should not acquire unnecessary media. Compare actual initial/selected English, source, frame evidence and adverse changes; previous model verdict is not truth. Record indeterminate outcomes.
-
-Report exact logical calls and actual native completion attempts by stage (proposal, proposal recovery, evidence refinement, initial comparison, grouped comparison recovery), malformed output reason, group width, time, tokens/cache reads, actual provider_requests, visual/acoustic attempts and elapsed, in-memory and checkpoint reuses, final unresolved atomic IDs. Distinguish receipt count from real new acquisitions. Record progress file bytes/CPU overhead if material; capture raw staged request receipts and actual output. No alternate models or repeated sample campaign. One bounded retry of a demonstrated mechanical defect allowed if appropriate, independent work continues. If focused continuation changes any complete row, reports widespread new unresolved work, fails schema/semantic invariants, or recovery volume remains disproportionate to the selected workload, STOP before full episode and return evidence; do not burn another full episode merely to reach green.
-
-## D. One integrated episode only after focused qualification
-
-If A/C support useful automatic evidence, scene transport, preserved discourse/semantic gains and corrected operational behavior, run ONE normal complete retained Mandarin episode (no fresh ASR, no second FR episode), existing normal default bilingual/auto, no condensation.
-
-    PYTHONPATH=src:. "$PY" -m nvidia_transcribe.cli generate-subtitles \
-      "$ZH_MEDIA" --recording-contract "$ZH_CONTRACT" \
-      --output-dir "$PRIVATE_ROOT/evidence/zh-integrated" \
-      --model-resources "$RESOURCE_CONFIG" --translator riva --translation-review balanced \
-      --style natural --source-quality auto --fresh
-    PYTHONPATH=src:. "$PY" experiments/verify_cue_lineage.py "$PRIVATE_ROOT/evidence/zh-integrated"
-
-Capture fresh complete translated contract, raw metadata, actual SRT/ASS, current progress checkpoint before continuing; use private directory, no overwrite of prior evidence. Example Bash:
-
-    INTEGRATED="$PRIVATE_ROOT/evidence/zh-integrated"
-    mkdir -p "$PRIVATE_ROOT/evidence/zh-fresh"
-    cp "$INTEGRATED/translated.contract.json" "$INTEGRATED/subtitles.metadata.json" \
-       "$INTEGRATED/translation-review.checkpoint.json" "$PRIVATE_ROOT/evidence/zh-fresh/"
-    cp "$INTEGRATED/"*.srt "$INTEGRATED/"*.ass "$PRIVATE_ROOT/evidence/zh-fresh/"
-    sha256sum "$PRIVATE_ROOT/evidence/zh-fresh/"* > "$PRIVATE_ROOT/evidence/logs/zh_fresh.sha256"
-
-Run same normal command once without --fresh. Then:
-
-    PYTHONPATH=src:. "$PY" experiments/verify_review_continuation.py \
-      --fresh-contract "$PRIVATE_ROOT/evidence/zh-fresh/translated.contract.json" \
-      --resumed-contract "$INTEGRATED/translated.contract.json" \
-      --fresh-progress "$PRIVATE_ROOT/evidence/zh-fresh/translation-review.checkpoint.json" \
-      --resumed-progress "$INTEGRATED/translation-review.checkpoint.json"
-    PYTHONPATH=src:. "$PY" experiments/verify_cue_lineage.py "$INTEGRATED"
-
-Verifier requires exact completed rows/stages, unchanged canonical/primary, same original context snapshots, all prior successful acquisitions unchanged, no new proposal or out-of-unit comparison/refinement on continuation, no new pending IDs and no inference when already complete. If genuine unresolved remain after one continuation, report PARTIAL (even if invariant verifier PASS); don't chain full retries. If fresh has required-review errors rather than explicitly deferred primary-preserved stages, stop and return diagnostic evidence; no blind full retry. Verify SRT/ASS ordered complete text coverage and real source intervals, selected-unit membership, raw lineage; compare actual elapsed and stage costs with previous 2060.5s fresh +1200.09s resume and 750.3s earlier efficient reference. Expect material reduction in unnecessary recovery/continuation, not a hard speed threshold independent of useful acquisitions. Monitor actual progress and resource ownership; if clearly repeating the former prolonged failure pattern, stop cleanly at a safe owned lifecycle boundary with partial evidence rather than launch another repeated campaign. If near completion, preserve finished evidence. Do not stop unrelated services. Report actual quality/cost tradeoffs and any residual gaps. Preserve resumed contract/metadata/SRT/ASS/progress before offline --re-render, then offline re-render same formats, verify byte-identical contract/SRT/ASS and equal lineage, service inactive, zero inference. Restore original owned service/GPU and owner state; no Studio deployment.
-
-## E. Handback and publication
-
-No remote push, PR, merge or deployment. Four obsolete experiment files already retired; don't recreate. Current development runners and this handoff remain until Central independent inspection; Central owns later clean-forward removal and single PR. Local mechanical commit only if necessary, complete diff and actual SHA/tree; preserve candidate and exact evidence even on partial. No arbitrary cleanup.
-
-One private self-contained tar.gz mode 0600 under collision-safe scratch, manifest relative paths/bytes/SHA-256, SHA256SUMS, concise REPORT and case table. Include raw deterministic logs/exit codes, input/runtime identity, exact candidate/owner/remote SHA/tree, complete focused contracts/reports/resume receipts and current progress checkpoints, real visual/acoustic evidence and limited matching-hash screenshots, case-level source/context adjudication, scene/discourse consumption, separate telemetry for fresh acquisitions/reuses and model stages, full integrated fresh AND resumed contract/raw lineage/SRT/ASS/progress, continuation verifier and offline receipts when executed, resource restoration, actual diffs. Current progress includes private recording dialogue; never upload to GitHub or durable retrieval. Exclude full media, weights, secrets, venvs, huge unrelated raw logs and archive itself. Return absolute path, bytes, SHA-256 and attach directly to Central ChatGPT. Conversational RESULT=PASS/PARTIAL/FAIL/BLOCKED with criterion dispositions: deterministic, keyed structure/recovery, completed-stage immutability, acquired observation reuse, actual general scene transport and any demonstrated semantic utility, retained bilingual/discourse/caption quality, integrated runtime/continuation/lineage/offline, restoration. PASS requires actual corrected continuation and proportionate full-episode behavior, not merely successful exit or retained primary fallback. No invented timing/semantic facts or repeated expensive attempts to manufacture PASS. Explain blockers, mechanical deviations and unresolved evidence.
+Return one conversational receipt plus one small mode-0600 tar.gz containing report, exact final/qualified/replay SHA/tree/blob identities, complete final diff inventory, exact import/tool/runtime identity and raw logs/exit codes for archive authentication, continuation/negative controls/lineage replay, all deterministic tests/build, diff check, owner/remote and service pre/post state. Manifest relative paths/bytes/SHA-256 for all payload and SHA256SUMS. Include concise criterion dispositions: qualified product source unchanged, development files absent and no live consumers, corrected verifier PASS with exactly 325 legitimate metadata transitions and no unexpected completed-row changes, negative controls PASS, current candidate deterministic gates PASS, resources/owner unchanged. Reference original immutable archive by digest; no need to duplicate its private contracts, progress, captions or media, or copy model logs/weights. Exclude secrets, venvs, original media and archive itself. Return path, byte count, SHA-256; attach directly to Central. No GitHub evidence upload. Report PASS/PARTIAL/FAIL/BLOCKED/STALE and exact blockers. Central retains independent final PR review and publication. Prior live performance and residual semantic limitations are not newly measured here; no claim that every translation is correct.
 
 Required command-shape friction ledger:
 
@@ -145,4 +164,4 @@ If none:
       events: []
       omitted_sensitive_values=no
 
-Also COMMANDS_MATCH_HANDOFF=yes/no and actual deviations. Distinguish ordinary product/test failure from invocation/interface friction. Central owns final adjudication, any substantive repair, exact-head independent review, diagnostic retirement and one implementation PR.
+Also COMMANDS_MATCH_HANDOFF=yes/no, explain actual deviations. Distinguish ordinary product/test failures from command shape friction. Stop on unauthorized scope or source/identity mismatch; complete independent permitted checks. No additional PR.

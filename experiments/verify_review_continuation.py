@@ -41,6 +41,15 @@ def pending_ids(contract):
     return pending
 
 
+def same_completed_occurrence(before, after):
+    """Permit only successful primary-MT cache reuse as execution metadata."""
+    if before == after:
+        return True
+    return (before.get("translation_status") == "translated"
+            and after.get("translation_status") == "translated_cached"
+            and {**before, "translation_status": "translated_cached"} == after)
+
+
 def audit(fresh,resumed,first,second):
     errors=[]
     before,after=fresh["utterances"],resumed["utterances"]
@@ -55,7 +64,10 @@ def audit(fresh,resumed,first,second):
                     "machine_translated_text","timestamp_provenance"):
             if a.get(key)!=b.get(key):
                 errors.append("canonical_or_primary_changed:"+a["id"]+":"+key)
-    changed=[a["id"] for a,b in zip(before,after) if a!=b]
+    raw_changed=[a["id"] for a,b in zip(before,after) if a!=b]
+    cache_transitions=[a["id"] for a,b in zip(before,after)
+                       if a!=b and same_completed_occurrence(a,b)]
+    changed=[a["id"] for a,b in zip(before,after) if not same_completed_occurrence(a,b)]
     unexpected=[uid for uid in changed if uid not in pending]
     errors.extend("completed_row_changed:"+uid for uid in unexpected)
     errors.extend("new_pending:"+uid for uid in sorted(new_pending-pending))
@@ -98,6 +110,7 @@ def audit(fresh,resumed,first,second):
     return {"status":"PASS" if not errors else "FAIL","errors":errors,
             "occurrences":len(before),"original_pending_unit_ids":sorted(pending),
             "remaining_pending_unit_ids":sorted(new_pending),"changed_row_ids":changed,
+            "raw_changed_row_ids":raw_changed,"cache_status_transition_row_ids":cache_transitions,
             "unexpected_changed_row_ids":unexpected,"new_requests":added,
             "review_execution":review.get("review_execution"),"cache_hits":review.get("cache_hits"),
             "api_calls":review.get("api_calls")}
