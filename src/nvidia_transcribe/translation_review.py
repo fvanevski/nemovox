@@ -14,6 +14,8 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
+import httpx
+
 from nvidia_transcribe.resource_lifecycle import ResourceLifecycleError
 from nvidia_transcribe.ninfer_messages_client import QUALITY_RETRY_TOKENS, runaway_whitespace
 from nvidia_transcribe.refinement import GlossaryConfig, OpenAIChatTextClient
@@ -244,6 +246,11 @@ def _caption_references(item, uid, receipts):
 _TERMINAL_EVIDENCE = {"observed","media_unavailable","reference_untimed"}
 
 
+def _retryable_review_transport(exc):
+    return (isinstance(exc,httpx.TransportError) or isinstance(exc,httpx.HTTPStatusError)
+            and (exc.response.status_code in (408,429) or 500<=exc.response.status_code<=599))
+
+
 def _evidence_request(item):
     return {k:item["evidence_request"][k] for k in ("kind","reference_id","question","focus")}
 
@@ -273,7 +280,7 @@ def _supplemented_proposals(client, provider, messages, wire, cfg, targets, entr
             prior=item.get("supplementary_observation")
             if isinstance(prior,dict) and prior.get("status") in _TERMINAL_EVIDENCE:
                 observation=prior
-                telemetry["checkpoint_acquisition_reuses"]+=1
+                telemetry["checkpoint_acquisition_reuses"]+=int(observation["status"]=="observed")
             elif count>=cfg.max_evidence_requests_per_batch:
                 observation={"target_id":uid,"request":request,"provider":provider.identity,
                              "status":"batch_budget_exhausted"}
@@ -320,11 +327,19 @@ def _supplemented_proposals(client, provider, messages, wire, cfg, targets, entr
             spec["required"].remove("evidence_request")
             spec["properties"]["caption_evidence_ids"]={"type":"array","maxItems":8,"items":{"type":"string"}}
             spec["required"].append("caption_evidence_ids")
-            response=client.complete(messages=alternate,max_tokens=cfg.max_tokens,temperature=cfg.temperature,
-                **{**wire,"response_format":{"type":"json_schema","schema":schema}})
+            try:
+                response=client.complete(messages=alternate,max_tokens=cfg.max_tokens,temperature=cfg.temperature,
+                    **{**wire,"response_format":{"type":"json_schema","schema":schema}})
+            except httpx.HTTPError as exc:
+                if not _retryable_review_transport(exc):
+                    raise
+                # This is an attempted transport, not a model answer.
+                response={"transport_error":{"type":type(exc).__name__,"reason":str(exc)[:500]}}
             responses.append(response)
             ref=progress.request(state,"evidence_proposal",alternate,schema,response)
             try:
+                if "transport_error" in response:
+                    raise ProposalDecisionError("retryable_supplement_transport")
                 if (response.get("choices") or [{}])[0].get("finish_reason")!="stop":
                     raise ProposalDecisionError("incomplete_supplemented_proposal")
                 replacements=_native_proposals(response,subset,supplemented=True)
@@ -459,9 +474,14 @@ def _native_comparisons(client, messages, verdict_ids, individual_ids, passage_c
              and not all(entries[uid].get("comparison_request_sha256") for uid in owned(d))]
     def attempt(ids,recovery=False):
         alternate,aliases,schema=keyed_messages(messages,ids,recovery=recovery)
-        response=client.complete(messages=alternate,max_tokens=cfg.max_tokens,temperature=0.,
-            response_format={"type":"json_schema","schema":schema},thinking_budget=1024,
-            reasoning_effort="xhigh",strict_reasoning_effort=True,stop_on_whitespace_loop=True)
+        try:
+            response=client.complete(messages=alternate,max_tokens=cfg.max_tokens,temperature=0.,
+                response_format={"type":"json_schema","schema":schema},thinking_budget=1024,
+                reasoning_effort="xhigh",strict_reasoning_effort=True,stop_on_whitespace_loop=True)
+        except httpx.HTTPError as exc:
+            if not _retryable_review_transport(exc):
+                raise
+            response={"transport_error":{"type":type(exc).__name__,"reason":str(exc)[:500]}}
         attempts=response.get("_client_request_diagnostics",{}).get("completion_attempts",[])
         stage="comparison_recovery" if recovery else "comparison"
         native_attempts.extend({"stage":stage,**a} for a in attempts)
@@ -474,6 +494,15 @@ def _native_comparisons(client, messages, verdict_ids, individual_ids, passage_c
                  "request_sha256":ref,"response_keys":aliases}
         if recovery:
             recoveries.append(receipt)
+        if "transport_error" in response:
+            receipt.update(outcome="transport_deferred",transport_error=response["transport_error"])
+            for d in ids:
+                for uid in owned(d):
+                    entries[uid]["deferred_comparison"]={**receipt,"outcome":"deferred_preserved_primary"}
+            if not recovery:
+                recoveries.append(receipt)
+            progress.entries(state,entries)
+            return False,receipt
         try:
             decisions=keyed_decisions(response,aliases)
         except (ValueError,TypeError,KeyError,IndexError) as exc:
@@ -498,7 +527,7 @@ def _native_comparisons(client, messages, verdict_ids, individual_ids, passage_c
         return True,receipt
     def recover(ids):
         ok,receipt=attempt(ids,True)
-        if ok:
+        if ok or receipt["outcome"]=="transport_deferred":
             return
         if len(ids)>1:
             mid=len(ids)//2
@@ -509,8 +538,8 @@ def _native_comparisons(client, messages, verdict_ids, individual_ids, passage_c
                 entries[uid]["deferred_comparison"]={**receipt,"outcome":"deferred_preserved_primary"}
             progress.entries(state,entries)
     if pending:
-        ok,_=attempt(pending)
-        if not ok:
+        ok,receipt=attempt(pending)
+        if not ok and receipt["outcome"]!="transport_deferred":
             # First recovery batches contain at most four decisions, not
             # an immediate N-call fan-out. Bisect only failing groups.
             width=min(4,max(1,(len(pending)+1)//2))

@@ -67,7 +67,8 @@ class ReviewProgress:
         # integrity receipt, not an independent semantic judgment.
         body={"stage":stage,"messages":messages,"schema":schema,
               "response":response.get("choices",[]),
-              "diagnostics":response.get("_client_request_diagnostics",{})}
+              "diagnostics":response.get("_client_request_diagnostics",{}),
+              "transport_error":response.get("transport_error")}
         key=digest(body)
         record["requests"][key]=deepcopy(body)
         return key

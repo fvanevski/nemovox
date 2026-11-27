@@ -560,3 +560,55 @@ def test_progress_corruption_is_not_a_cache_hit(tmp_path):
     cp.write_text(json.dumps(doc))
     with pytest.raises(ValueError,match="digest mismatch"):
         run(rows,Model(lambda t,p:pytest.fail("corrupted checkpoint")),checkpoint_path=cp)
+
+
+def test_structured_scene_observation_reaches_later_batch_without_new_acquisition(tmp_path):
+    rows=[row(0,"拿那个。","Take that.",start=1,end=2),
+          row(1,"放那里。","Put it there.",start=4,end=5)]
+    class SceneProvider(Provider):
+        def collect(self,uid,request):
+            self.requests.append((uid,request))
+            body={"frames":[{"id":"frame-1","sha256":"a"*64,"requested_seek_s":1.5}],
+                "observations":[{"observation_id":"scene-cup","frame_ids":["frame-1"],
+                    "category":"interactions","description":"A child points at a cup beside a shelf.",
+                    "interpretation":"The cup may be the intended object.","uncertainty":"No speech attribution.",
+                    "requested_seek_interval":[1.5,1.5],"related_occurrence_ids":[uid],
+                    "independently_confirmed":False}],
+                "visible_text":[],"focus":"interaction"}
+            return {"target_id":uid,"request":request,"provider":self.identity,"status":"observed",
+                "kind":"visual",**body,"observation_sha256":digest(body)}
+    p=SceneProvider()
+    def propose(t,payload):
+        if t["utterance_id"]==rows[0]["id"]:
+            if "supplementary_observations" in payload:
+                return {"corrected_text":"Take the cup."}
+            return {"corrected_text":"Take that.","evidence_request":{"kind":"visual","focus":"interaction",
+                "reference_id":rows[0]["id"],"question":"What is indicated?","reason":"Unclear object"}}
+        prior,=payload["advisory_scene_observations"]
+        assert prior["observation_id"]=="scene-cup"
+        return {"corrected_text":"Put the cup there."}
+    cp=tmp_path/"progress.json"
+    out,report=run(rows,Model(propose),cfg=config(batch_size=1),evidence_provider=p,checkpoint_path=cp)
+    assert report["status"]=="completed" and len(p.requests)==1
+    assert report["recording_context_receipts"][1]["advisory_scene_observations"]==report["scene_observations"]
+    assert out[1]["translated_text"]=="Put the cup there."
+    new_provider=SceneProvider()
+    again,receipt=run(rows,Model(lambda t,p:pytest.fail("unexpected model request")),cfg=config(batch_size=1),
+        evidence_provider=new_provider,checkpoint_path=cp)
+    assert again==out and receipt["api_calls"]==0 and new_provider.requests==[]
+
+
+def test_retryable_transport_does_not_fan_out_comparisons(tmp_path):
+    import httpx
+    rows=[row(i,"一。",f"Number {i}.") for i in range(4)]
+    def fail(p,kw):
+        raise httpx.ReadTimeout("bounded test transport")
+    cp=tmp_path/"progress.json"
+    out,report=run(rows,Model(lambda t,p:{"corrected_text":"One."},fail),checkpoint_path=cp)
+    assert report["status"]=="completed_with_deferred_comparisons"
+    assert report["api_calls"]==2
+    assert report["review_execution"]["recovery_comparison_requests"]==0
+    assert set(report["deferred_comparison_ids"])=={r["id"] for r in rows}
+    fixed,receipt=run(rows,Model(lambda t,p:pytest.fail("proposal regenerated")),checkpoint_path=cp)
+    assert receipt["api_calls"]==1 and receipt["status"]=="completed"
+    assert all(r["translated_text"]=="One." for r in fixed)
