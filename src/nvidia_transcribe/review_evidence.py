@@ -96,6 +96,8 @@ class ReviewEvidenceProvider:
             raise ValueError("Adaptive review media identity mismatch")
         self.identity = {"policy": _POLICY, "media_sha256": self.media_sha,
                          "available": self.available, "enabled": enabled,
+                         "selected_audio_stream":source.get("selected_audio_stream"),
+                         "source_language":contract.get("source_language"),"duration_s":self.duration,
                          "visual_resource": visual_resource.fingerprint() if visual_resource else None,
                          "acoustic_resource": acoustic_resource.fingerprint() if acoustic_resource else None,
                          "max_frames": max_frames, "visual_thinking_budget": visual_thinking_budget}
@@ -148,7 +150,9 @@ class ReviewEvidenceProvider:
             # semantic evidence. Let the normal pipeline fail visibly.
             raise
         except (OSError, ValueError, RuntimeError, subprocess.SubprocessError, httpx.HTTPError, KeyError, IndexError, TypeError) as exc:
-            result = {"status": "acquisition_failed", "error_type": type(exc).__name__, "error":str(exc)[:500]}
+            result = {"status": "acquisition_failed", "error_type": type(exc).__name__}
+            if isinstance(exc,httpx.HTTPStatusError):
+                result["http_status"]=exc.response.status_code
         finally:
             self.telemetry[kind+"_elapsed_s"] += time.perf_counter()-started
         if result["status"] == "observed":

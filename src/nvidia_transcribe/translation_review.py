@@ -316,6 +316,7 @@ def _supplemented_proposals(client, provider, messages, wire, cfg, targets, entr
                 "speaker identity, hidden motives, exact speech boundaries or phonemes. "
                 "Compare literal dialogue captions with original ASR; captions may be paraphrased, offset "
                 "or incorrect. Cite exact associated caption IDs only if used to support the interpretation. "
+                "If a scene observation materially informs the interpretation, cite its observation_id in the reason. "
                 "Keep the canonical source immutable. Return discourse_terms and caption_evidence_ids "
                 "(empty if none); do NOT return an evidence_request. No further acquisition.")
             schema=deepcopy(wire["response_format"]["schema"])
@@ -1063,7 +1064,7 @@ def review_translated_utterances(
                             "Reuse supported advisory interpretations for the same sense; distinguish contextual senses, "
                             "do not invent identities or blindly substitute. Prior advisory scene observations are "
                             "nearby visual evidence, not proof of continuing scene, speech or identity. Reuse when "
-                            "they answer the current uncertainty; avoid redundant acquisitions. "
+                            "they answer the current uncertainty; cite relevant observation_id in the reason and avoid redundant acquisitions. "
                             "For EACH target return evidence_request with kind, reference_id, question and a concise reason. "
                             + ("Choose none only after considering whether the source observation itself may be wrong. "
                                "Look for anomalous grammar, suspicious near-homophones, incongruous classifiers, honorifics, "
@@ -1402,6 +1403,11 @@ def review_translated_utterances(
                 decision = {"target_id":uid, **item["evidence_request"]}
                 out[i]["translation_review_evidence_assessment"] = decision
                 evidence_assessments.append(decision)
+                out[i]["translation_review_proposal_request_sha256"]=state["proposal_request_sha256"]
+                if item.get("supplement_request_sha256"):
+                    out[i]["translation_review_supplement_request_sha256"]=item["supplement_request_sha256"]
+                if item.get("comparison_request_sha256"):
+                    out[i]["translation_review_comparison_request_sha256"]=item["comparison_request_sha256"]
                 if "initial_proposal" in item:
                     out[i]["translation_review_initial_proposal"] = item["initial_proposal"]
                 if item.get("caption_observations_used"):

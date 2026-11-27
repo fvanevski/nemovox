@@ -62,6 +62,7 @@ def main():
     p.add_argument("--adaptive",action="store_true")
     p.add_argument("--probe-visual",type=int)
     p.add_argument("--probe-question")
+    p.add_argument("--probe-focus",choices=["scene","speech_activity","interaction","text"],default="scene")
     p.add_argument("--probe-acoustic",type=int)
     args=p.parse_args()
     if args.adaptive and not args.media:
@@ -138,7 +139,8 @@ def main():
             if index is None:
                 continue
             uid=next(r["id"] for r in rows if r["timestamp_provenance"]["native_event_index"]==index)
-            observation=provider.collect(uid,{"kind":kind,"reference_id":uid,"question":question})
+            observation=provider.collect(uid,{"kind":kind,"reference_id":uid,"question":question,
+                "focus":args.probe_focus if kind=="visual" else "none"})
             write(output/f"explicit-{kind}-probe.json",observation)
             print(json.dumps({"explicit_probe":kind,"status":observation["status"]}),flush=True)
 
