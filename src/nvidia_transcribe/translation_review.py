@@ -200,6 +200,60 @@ _ADVISORY_PROPERTIES = {
 }
 
 
+def _supplemented_proposals(client, provider, messages, wire, cfg, targets, entries, partitions, start):
+    """Acquire only nominated observations and reconsider affected whole units."""
+    receipts = []
+    affected = set()
+    count = 0
+    for offset, target in enumerate(targets):
+        uid = target["utterance_id"]
+        request = entries[uid].get("evidence_request")
+        if request is None:
+            continue
+        if count >= cfg.max_evidence_requests_per_batch:
+            receipt = {"target_id": uid, "request": request, "status": "batch_budget_exhausted"}
+        else:
+            count += 1
+            receipt = provider.collect(uid, request)
+        receipts.append(receipt)
+        if receipt["status"] == "observed":
+            for group in partitions:
+                if start + offset in group:
+                    affected.update(targets[i-start]["utterance_id"] for i in group)
+                    break
+    if not affected:
+        return receipts, None, None
+    subset = [t for t in targets if t["utterance_id"] in affected]
+    alternate = [dict(m) for m in messages]
+    payload = json.loads(alternate[-1]["content"])
+    payload["target_utterances"] = [t for t in payload["target_utterances"]
+                                    if t["utterance_id"] in affected]
+    payload["supplementary_observations"] = receipts
+    payload["read_only_other_proposals"] = [{"id": t["utterance_id"], "source": t["source_text"],
+         "english": entries[t["utterance_id"]]["corrected_text"]} for t in targets
+         if t["utterance_id"] not in affected]
+    alternate[-1]["content"] = json.dumps(payload, ensure_ascii=False)
+    alternate[0]["content"] += (" Reconsider only these exact target allocations in light of the supplied "
+        "observations. Visual observations do not establish speech or identity. Acoustic alternatives "
+        "are fallible same-model crop observations, not canonical changes. Do not request more evidence.")
+    schema = json.loads(json.dumps(wire["response_format"]["schema"]))
+    items = schema["properties"]["reviews"]
+    items["minItems"] = items["maxItems"] = len(subset)
+    items["items"]["properties"].pop("evidence_request", None)
+    response = client.complete(messages=alternate, max_tokens=cfg.max_tokens,
+        temperature=cfg.temperature, **{**wire, "response_format": {"type": "json_schema", "schema": schema}})
+    if (response.get("choices") or [{}])[0].get("finish_reason") != "stop":
+        return receipts, response, "incomplete_supplemented_proposal"
+    try:
+        replacements = _native_proposals(response, subset)
+    except ProposalDecisionError as exc:
+        return receipts, response, str(exc)
+    for uid, item in replacements.items():
+        item.pop("evidence_request", None)
+        entries[uid] = item
+    return receipts, response, None
+
+
 class ProposalDecisionError(ValueError):
     """A complete proposal cannot be associated with its exact target rows."""
 
@@ -750,6 +804,19 @@ def review_translated_utterances(
                         entries[uid]=item
                     if set(entries)!=set(ids):
                         raise ValueError("Incomplete review IDs")
+                if native_review and evidence_provider is not None:
+                    observations, supplement, supplement_error = _supplemented_proposals(
+                        client, evidence_provider, messages, wire, cfg, targets, entries, partitions, start)
+                    if supplement is not None:
+                        attempts = supplement.get("_client_request_diagnostics", {}).get("completion_attempts", [])
+                        native_attempts.extend({"stage": "evidence_proposal", **x} for x in attempts)
+                        calls += max(1, len(attempts))
+                        completion_retries += max(0, len(attempts)-1)
+                    for observation in observations:
+                        entries[observation["target_id"]]["supplementary_observation"] = observation
+                    if supplement_error:
+                        for item in entries.values():
+                            item["supplement_error"] = supplement_error
                 if cfg.wire_protocol == "ninfer_messages":
                     # Only changed proposals need a second, comparative
                     # judgment. Same-model reasoning is a quality check,
@@ -930,6 +997,15 @@ def review_translated_utterances(
             uid = _uid(out[i], i)
             item = entries[uid]
             original = out[i]["machine_translated_text"]
+            if "supplementary_observation" in item:
+                observation = item["supplementary_observation"]
+                out[i]["translation_review_evidence"] = observation
+                evidence_receipts.append(observation)
+                if observation.get("status") not in ("observed", "media_unavailable", "reference_untimed"):
+                    valid_for_cache = False
+            if item.get("supplement_error"):
+                out[i]["translation_review_evidence_error"] = item["supplement_error"]
+                valid_for_cache = False
             candidate = item.get("corrected_text")
             changed = item.get("changed")
             if (not isinstance(candidate, str) or not isinstance(changed, bool)
