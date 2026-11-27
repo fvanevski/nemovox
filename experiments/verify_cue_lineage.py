@@ -38,17 +38,20 @@ def main():
         grouped[uid].append(c)
     def norm(s):
         return re.sub(r"\s+"," ",s).strip()
+    covered=len(grouped)
     for uid,r in known.items():
         if not grouped[uid]:
             errors.append("missing occurrence "+uid)
             continue
         # Order by raw allocation start/end where present; unrenderable
         # records remain explicit rather than disappearing from this audit.
-        actual=norm(" ".join(c["text"] for c in grouped[uid]))
+        ordered=sorted(grouped[uid],key=lambda c: tuple(x if x is not None else float("inf")
+                       for x in (c.get("display_allocation_interval") or [None,None])))
+        actual=norm(" ".join(c["text"] for c in ordered))
         if actual!=norm(r["translated_text"]):
             errors.append("allocation text differs "+uid)
     result={"occurrences":len(rows),"lineage_records":len(metadata["cue_lineage"]),
-            "covered":len(grouped),"errors":errors,"status":"PASS" if not errors else "FAIL"}
+            "covered":covered,"errors":errors,"status":"PASS" if not errors else "FAIL"}
     print(json.dumps(result,ensure_ascii=False,indent=2))
     raise SystemExit(0 if not errors else 1)
 

@@ -130,7 +130,7 @@ class Provider:
         self.requests=[]
     def collect(self, uid, request):
         self.requests.append((uid,request))
-        return {"target_id":uid,"request":request,"status":"observed",
+        return {"target_id":uid,"request":request,"status":"observed","provider":self.identity,
                 "observations":[{"description":"A character points to a cup."}]}
 
 

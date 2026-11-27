@@ -500,6 +500,7 @@ def review_translated_utterances(
     discourse_ledger = []
     context_receipts = []
     evidence_receipts = []
+    supplementary_proposal_errors = []
     source_entries = {_uid(u, i): _entry(u, i) for i, u in enumerate(out)}
     signature = {
         "version": _PROMPT_VERSION, "profile": cfg.profile, "style": cfg.style,
@@ -622,6 +623,17 @@ def review_translated_utterances(
                                         valid_hit=False
                     except (TypeError,KeyError,AttributeError):
                         valid_hit=False
+                if native_review and valid_hit:
+                    for uid, item in hit.items():
+                        evidence = item.get("supplementary_observation")
+                        if evidence is not None and (not isinstance(evidence, dict)
+                                or evidence.get("target_id") != uid or evidence_provider is None
+                                or evidence.get("provider") != evidence_provider.identity
+                                or (evidence.get("kind") == "visual" and evidence.get("status") == "observed"
+                                    and evidence.get("observation_sha256") != digest(evidence.get("observations")))):
+                            valid_hit = False
+                        if item.get("supplement_error") or item.get("deferred_comparison"):
+                            valid_hit = False
                 if valid_hit:
                     entries = hit
                     hits += len(ids)
@@ -878,6 +890,8 @@ def review_translated_utterances(
                                          if "supplementary_observation" in item]} if native_review else {}),
                                  "source_language": source_language, "context_before": before,
                                 "operator_translation_examples":payload["operator_translation_examples"],
+                                **({k: payload[k] for k in ("glossary_characters", "glossary_terms", "series_notes")}
+                                    if native_review else {}),
                                 "comparisons": comparisons, "context_after": after,
                                 "passage_checks":passage_checks,
                                 "complete_target_passage":[({k:t[k] for k in ("utterance_id","source_text","machine_translation")}
@@ -1063,6 +1077,7 @@ def review_translated_utterances(
                 if observation.get("status") not in ("observed", "media_unavailable", "reference_untimed"):
                     valid_for_cache = False
             if item.get("supplement_error"):
+                supplementary_proposal_errors.append({"target_id": uid, "reason": item["supplement_error"]})
                 out[i]["translation_review_evidence_error"] = item["supplement_error"]
                 valid_for_cache = False
             candidate = item.get("corrected_text")
@@ -1249,7 +1264,9 @@ def review_translated_utterances(
            if native_review else {}),
         **({"recording_context_sha256": recording_context.identity,
             "recording_context_receipts": context_receipts, "discourse_terms": discourse_ledger,
-            "supplementary_evidence": evidence_receipts} if native_review else {}),
+            "supplementary_evidence": evidence_receipts,
+            "supplementary_evidence_unresolved_count": sum(x.get("status") != "observed" for x in evidence_receipts),
+            "supplementary_proposal_errors": supplementary_proposal_errors} if native_review else {}),
         "joined_passage_rejections": passage_rejections,
         "unresolved_source_rejections":uncertainty_rejections,
         "direction_grammar_rejections":direction_rejections,
