@@ -16,3 +16,7 @@ Optional detector example, add to resources and map roles.speech_activity to its
 ```
 
 Use `assess-source ORIGINAL_MEDIA --recording-contract PATH --output-dir DIR --activity` or explicit `generate-subtitles --source-quality on` with original media. Assessment is non-destructive; no automatic challenge or correction.
+
+## Adaptive review resources
+
+`visual_inspection` is a separate `openai_chat` registry role using the NInfer Messages image-capable transport. If omitted it inherits the selected `translation_review` resource, including an explicit `--translation-review-resource` override. To select a different provisioned Messages-capable vision endpoint, add a named resource and bind `roles.visual_inspection`, or use `--visual-inspection-resource NAME`. Shared resources reuse the active review lease. Distinct resources release the review lease before acquiring the configured visual endpoint; the next text request reacquires review. No unowned service is stopped. `--visual-max-frames` (3..8), `--visual-thinking-budget` (1024..4096), `--review-evidence-per-batch` (0..12), and `--review-evidence auto|off` control acquisition. Source media must be explicitly supplied and content-bound. Audio re-observation uses the admitted `asr` resource and selected recording audio stream. Existing Studio jobs with original media use the same CLI pipeline and role registry; imported contracts without admitted video do not follow arbitrary embedded paths. No implicit model downloads or endpoint substitution.

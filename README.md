@@ -1,6 +1,6 @@
 # NemoVox
 
-Local, recording-level multilingual dialogue recognition and English subtitle generation. MOSS preserves native timed speaker-attributed events. Riva provides initial English translation, with optional bounded contextual review and SRT/ASS rendering. With managed native contextual review enabled, bounded connected Riva alternatives are adjudicated against the original occurrence boundaries and independent MT; selected English allocations retain source IDs and timing. No implicit model downloads, forced word alignment, or cross-window speaker stitching.
+Local, recording-level multilingual dialogue recognition and English subtitle generation. MOSS preserves native timed speaker-attributed events. Riva provides initial English translation, with optional recording-wide contextual review and SRT/ASS rendering. With managed native contextual review enabled, bounded connected Riva alternatives are adjudicated against the original occurrence boundaries and independent MT; selected English allocations retain source IDs and timing. No implicit model downloads, forced word alignment, or cross-window speaker stitching.
 
 ## Configure
 
@@ -19,3 +19,7 @@ Select the actual spoken language for new media. Imported recording contracts ca
 For an already translated job, rerender with `generate-subtitles --re-render --output-dir outputs/subtitles`, without inference. See [Studio](web/README.md) for the browser workflow and [source assessment](docs/source-reconstruction/NATIVE_DIALOGUE.md).
 
 Development: follow [AGENTS.md](AGENTS.md); run `PYTHONPATH=src:. python -m pytest -m "not gpu"`. Qualify live workers separately.
+
+### Recording-wide review and adaptive evidence
+
+The managed native English reviewer sees compact complete bilingual dialogue by default, with detailed target observations and read-only primary English. `--review-context english` retains complete English and localized original source if that is more suitable for the model/language. `--review-context-bytes` bounds the global UTF-8 representation; oversized recordings use an explicitly recorded subset. This is not an exact tokenizer measurement. The reviewer may nominate a material visual or acoustic ambiguity, then reconsider only the relevant complete linguistic unit using independently recorded observations. Supply original admitted media alongside a retained recording contract to enable evidence acquisition; contract-only jobs continue text review and report unavailable media. `--review-evidence off` disables supplementary acquisition. `visual_inspection` inherits the selected translation review resource unless independently configured. No additional ordinary-path condensation or media inspection pass. A targeted same-MOSS acoustic crop is an alternative observation, not independent recognizer confirmation or a source rewrite.
