@@ -239,3 +239,81 @@ def test_shared_vision_submits_frame_hashes_without_switch(tmp_path,monkeypatch)
     assert all(len(f["sha256"])==64 for f in result["frames"])
     assert len([b for b in captured[0]["messages"][1]["content"] if b["type"]=="image"])==len(result["frames"])
     assert p.collect(rows[0]["id"],request)==result and len(captured)==1
+
+
+def test_distinct_visual_resource_releases_review_before_acquisition(tmp_path,monkeypatch):
+    from contextlib import contextmanager
+    from nvidia_transcribe import review_evidence
+    from nvidia_transcribe.model_resources import ModelResource
+    media=tmp_path/"media.mkv"
+    media.write_bytes(b"test media")
+    rows=[row(0,"甲","A",start=1,end=2)]
+    review=load_model_resources(environ={}).resolve("translation_review")
+    vision=ModelResource(name="vision",adapter="openai_chat",
+                         endpoint="http://127.0.0.1:9999/v1",model="vision")
+    events=[]
+    class Review:
+        def close(self):
+            events.append("review_released")
+        def complete(self,**kw):
+            raise AssertionError("distinct visual resource must not call review")
+    class Vision:
+        def complete(self,**kw):
+            events.append("vision_request")
+            return reply({"observations":[{"frame_ids":["frame-1"],
+                          "description":"A cup","uncertainty":""}]})
+    @contextmanager
+    def managed(manager,resource,**kw):
+        assert resource==vision and kw["wire_protocol"]=="ninfer_messages"
+        events.append("vision_acquired")
+        yield Vision()
+        events.append("vision_released")
+    monkeypatch.setattr(review_evidence,"managed_text_client",managed)
+    monkeypatch.setattr(review_evidence.subprocess,"run",
+        lambda *a,**k: SimpleNamespace(stdout=b"\xff\xd8\xfftest-frame"))
+    p=ReviewEvidenceProvider(media_path=media,contract={"utterances":rows,
+        "source":{"content_sha256":hashlib.sha256(media.read_bytes()).hexdigest()},
+        "native_dialogue":{"decoded_duration_s":10}},lifecycle=object(),
+        review_resource=review,visual_resource=vision,acoustic_resource=None,review_client=Review())
+    result=p.collect(rows[0]["id"],{"kind":"visual","reference_id":rows[0]["id"],
+        "question":"What is visible?"})
+    assert result["status"]=="observed"
+    assert events==["review_released","vision_acquired","vision_request","vision_released"]
+
+
+def test_acoustic_crop_preserves_observations_and_original_stream(tmp_path,monkeypatch):
+    from nvidia_transcribe import review_evidence
+    media=tmp_path/"media.mkv"
+    media.write_bytes(b"original")
+    rows=[row(0,"甲","A",start=4,end=5)]
+    registry=load_model_resources(environ={})
+    review=registry.resolve("translation_review")
+    asr=registry.resolve("asr")
+    events=[]
+    class Review:
+        def close(self):
+            events.append("review_released")
+    def crop(path,**kw):
+        assert kw["audio_stream_index"]==2 and kw["start_s"]==2
+        kw["out_wav"].write_bytes(b"crop")
+        events.append("crop")
+        return 5
+    def recognize(path,**kw):
+        assert kw["resource"]==asr and kw["source_language"]=="zh"
+        assert kw["audio_stream_index"]==0
+        events.append("recognize")
+        return {"contract":{"utterances":[row(0,"乙","B",start=1,end=2)],
+                "model_provenance":{"adapter":"moss_events"},"native_dialogue":{"event_count":1}}}
+    monkeypatch.setattr(review_evidence,"extract_wav_segment",crop)
+    monkeypatch.setattr(review_evidence,"process_moss_media",recognize)
+    p=ReviewEvidenceProvider(media_path=media,contract={"utterances":rows,
+        "source":{"content_sha256":hashlib.sha256(media.read_bytes()).hexdigest(),
+                  "selected_audio_stream":2},"source_language":"zh",
+        "native_dialogue":{"decoded_duration_s":10}},lifecycle=object(),
+        review_resource=review,visual_resource=review,acoustic_resource=asr,review_client=Review())
+    result=p.collect(rows[0]["id"],{"kind":"acoustic","reference_id":rows[0]["id"],
+        "question":"Re-observe the spoken word."})
+    assert result["status"]=="observed" and not result["independently_confirmed"]
+    assert result["observations"][0]["absolute_interval"]==[3,4]
+    assert events==["crop","review_released","recognize"]
+    assert rows[0]["source_text"]=="甲"
