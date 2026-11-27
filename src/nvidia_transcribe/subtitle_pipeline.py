@@ -58,6 +58,9 @@ class SubtitlePipelineConfig:
     condense_cps_threshold: float = 25.0
     source_quality: str = "auto"  # auto: native geometry; on: explicit acoustic activity assessment
     validation_overlay_path: str | Path | None = None
+    review_evidence: str = "auto"
+    visual_max_frames: int = 6
+    visual_thinking_budget: int = 1024
 
 
 def _atomic_write(path: Path, content: str) -> None:
@@ -89,6 +92,28 @@ def _format_utterance_transcript_lines(utterances: Sequence[dict[str, Any]], key
     return "\n".join(lines) + ("\n" if lines else "")
 
 
+def validate_deferred_review(rows, review, translation):
+    """A deferred stage may render only complete preserved primary allocations."""
+    if review.get("status") not in ("completed_with_deferred_comparisons","completed_with_deferred_evidence"):
+        return
+    comparison=set(review.get("deferred_comparison_ids") or [])
+    evidence={x["target_id"] for x in review.get("supplementary_proposal_errors",[])}
+    def uid(row):
+        return str(row.get("utterance_id") or row.get("id"))
+    observed_comparison={uid(r) for r in rows if r.get("translation_review_status")==
+                         "review_deferred_comparative_preserved_machine_translation"}
+    observed_evidence={uid(r) for r in rows if r.get("translation_review_status")==
+                       "review_deferred_evidence_preserved_machine_translation"}
+    pending=comparison|evidence
+    if (not pending or comparison&evidence or comparison!=observed_comparison
+            or evidence!=observed_evidence or translation.get("errors")
+            or review.get("reviewed",0)+len(pending)!=len(rows)
+            or any(not str(r.get("machine_translated_text") or "").strip()
+                   or (uid(r) in pending and r.get("translated_text")!=r.get("machine_translated_text"))
+                   for r in rows)):
+        raise RuntimeError("Deferred comparative review lacks complete preserved primary MT")
+
+
 def generate_subtitles(
     media_path: str | Path | None = None,
     *,
@@ -113,6 +138,8 @@ def generate_subtitles(
     translated_path = out_dir / "translated.contract.json"
     if cfg.re_render_only and not translated_path.is_file():
         raise FileNotFoundError(f"Offline re-render requires an existing translated contract: {translated_path}")
+    if cfg.review_evidence not in ("auto", "off"):
+        raise ValueError("Unsupported adaptive review evidence policy")
     if cfg.source_quality not in ("auto", "on", "off"):
         raise ValueError("Unsupported source quality mode")
     if cfg.translation_review.profile != "off" and cfg.translation.backend != "riva":
@@ -214,9 +241,11 @@ def generate_subtitles(
         condense_summary: dict[str, Any] = {"status": "reused_translated_contract"}
         review_summary: dict[str, Any] = {"status": "reused_translated_contract"}
         retained_review = translated_contract.get("translation_review") or {}
-        if retained_review.get("status") == "completed_with_deferred_comparisons":
+        if retained_review.get("status") in ("completed_with_deferred_comparisons","completed_with_deferred_evidence"):
+            validate_deferred_review(translated_contract["utterances"],retained_review,translated_contract.get("translation") or {})
             review_summary["retained_review_status"] = retained_review["status"]
-            review_summary["deferred_comparison_ids"] = retained_review["deferred_comparison_ids"]
+            review_summary["deferred_comparison_ids"] = retained_review.get("deferred_comparison_ids",[])
+            review_summary["supplementary_proposal_errors"] = retained_review.get("supplementary_proposal_errors",[])
         elif retained_review.get("status") == "completed_with_errors":
             salvage_review_error = True
             if cfg.validation_overlay_path is not None:
@@ -300,11 +329,21 @@ def generate_subtitles(
         # Stage 3: Dedicated machine translation of unchanged ASR by default
         _event("translation", "running")
         _log(f"Stage 3/4: Translation ({src_lang} -> {cfg.target_language}, backend={cfg.translation.backend}, style={cfg.translation.style})")
+        # Nomination sees source-bound uncertainty before requesting any
+        # alternative. No extra Riva requests for review-off or English bypass.
+        translation_input = refined_utts
+        if native_source and cfg.translation.backend == "riva":
+            from nvidia_transcribe.review_uncertainty import bind_review_uncertainty
+            translation_input = bind_review_uncertainty(refined_utts, contract.get("source_quality"))
+        primary_config = replace(cfg.translation, connected_hypotheses=(
+            native_source and cfg.translation.backend == "riva"
+            and cfg.translation_review.profile != "off"
+            and cfg.translation_review.wire_protocol == "ninfer_messages"))
         with _text_stage("text_translation") as stage_client:
             translated_utts, trans_summary = translate_utterances(
-                refined_utts,
+                translation_input,
                 source_language=src_lang,
-                config=cfg.translation,
+                config=primary_config,
                 glossary=gl,
                 text_client=stage_client,
                 lifecycle=lifecycle,
@@ -346,24 +385,26 @@ def generate_subtitles(
             from nvidia_transcribe.review_uncertainty import bind_review_uncertainty
             translated_utts=bind_review_uncertainty(translated_utts,contract.get("source_quality"))
             with _text_stage("translation_review") as stage_client:
+                evidence_provider = None
+                if (native_source and cfg.review_evidence == "auto" and cfg.translation_review.profile != "off"
+                        and cfg.translation_review.max_evidence_requests_per_batch > 0
+                        and cfg.translation_review.wire_protocol == "ninfer_messages" and lifecycle is not None
+                        and lifecycle_resources and "translation_review" in lifecycle_resources and text_client is None):
+                    from nvidia_transcribe.review_evidence import ReviewEvidenceProvider
+                    review_resource = lifecycle_resources["translation_review"]
+                    evidence_provider = ReviewEvidenceProvider(media_path=media_path, contract=contract,
+                        lifecycle=lifecycle, review_resource=review_resource,
+                        visual_resource=lifecycle_resources.get("visual_inspection", review_resource),
+                        acoustic_resource=asr_resource, review_client=stage_client,
+                        max_frames=cfg.visual_max_frames, visual_thinking_budget=cfg.visual_thinking_budget)
                 translated_utts, review_summary = review_translated_utterances(
                     translated_utts, source_language=src_lang, config=cfg.translation_review,
                     glossary=gl, text_client=stage_client,
                     checkpoint_path=out_dir / "translation-review.checkpoint.json",
                     resume=cfg.resume_translation_review,
+                    **({"evidence_provider": evidence_provider} if evidence_provider is not None else {}),
                 )
-            if review_summary.get("status") == "completed_with_deferred_comparisons":
-                deferred = set(review_summary.get("deferred_comparison_ids") or [])
-                observed = {str(u.get("utterance_id") or u.get("id")) for u in translated_utts
-                            if u.get("translation_review_status") ==
-                            "review_deferred_comparative_preserved_machine_translation"}
-                if (not deferred or deferred != observed or trans_summary.get("errors")
-                        or review_summary.get("reviewed", 0) + len(deferred) != len(translated_utts)
-                        or any(not str(u.get("machine_translated_text") or "").strip()
-                               or (str(u.get("utterance_id") or u.get("id")) in deferred
-                                   and u.get("translated_text") != u.get("machine_translated_text"))
-                               for u in translated_utts)):
-                    raise RuntimeError("Deferred comparative review lacks complete preserved primary MT")
+            validate_deferred_review(translated_utts,review_summary,trans_summary)
             _event("review",
                    "skipped" if review_summary.get("status") == "disabled" else
                    "failed" if review_summary.get("status") == "completed_with_errors" else "complete",
@@ -423,10 +464,15 @@ def generate_subtitles(
 
     overlay_summary: dict[str, Any] = {"status": "none"}
     if cfg.validation_overlay_path is not None:
+        from nvidia_transcribe import connected_units
+        connected_units.validate_selected_units(translated_contract.get("utterances") or [],
+            require_complete=(translated_contract.get("translation_review") or {}).get("translation_unit_schema") == connected_units.SCHEMA)
         overlay_doc = json.loads(Path(cfg.validation_overlay_path).read_text(encoding="utf-8"))
         translated_contract, overlay_summary = apply_validation_overlay(translated_contract, overlay_doc)
-        _atomic_write(translated_path, json.dumps(translated_contract, ensure_ascii=False, indent=2))
         overlaid_utts = translated_contract.get("utterances") or []
+        connected_units.validate_selected_units(overlaid_utts,
+            require_complete=(translated_contract.get("translation_review") or {}).get("translation_unit_schema") == connected_units.SCHEMA)
+        _atomic_write(translated_path, json.dumps(translated_contract, ensure_ascii=False, indent=2))
         _atomic_write(out_dir / "raw_source_transcript.txt", _format_utterance_transcript_lines(overlaid_utts, "raw_source_text", "source_text"))
         _atomic_write(out_dir / "refined_source_transcript.txt", _format_utterance_transcript_lines(overlaid_utts, "refined_text", "source_text"))
         _atomic_write(out_dir / "final_english_subtitles.txt", _format_utterance_transcript_lines(overlaid_utts, "translated_text"))
@@ -468,6 +514,7 @@ def generate_subtitles(
         "validation_overlay": overlay_summary,
         "subtitles": render_res["stats"],
         "subtitle_conflicts": render_res["conflicts"][:200],
+        "cue_lineage": render_res.get("cue_lineage", []),
         "total_wall_time_s": elapsed_s,
     }
     if render_res.get("no_renderable_dialogue"):

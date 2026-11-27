@@ -5,3 +5,7 @@ Browser workflow: choose original media or an existing recording contract, selec
 The backend is the repository's FastAPI Studio service (nvidia_transcribe.studio_api), using the same host resource registry as CLI. Configure actual media/export roots and isolated model workers; see repository README and model-resource documentation. From web/, install the locked dependencies with npm ci, run npm test and npm run build. Use npm run dev for local frontend development; do not expose private media to untrusted networks. Existing job history is retained. No source-quality detector runs implicitly.
 
 The normal Riva translation and bounded English review settings, glossary selection, preview, export and ASS presentation controls remain available.
+
+Studio's managed native reviewer receives recording-wide context and may acquire targeted visual/acoustic observations from the admitted job media. Visual inspection inherits the translation review resource unless the host registry binds `visual_inspection` separately. Contract-only imports remain text-based unless original media is explicitly admitted by the workflow. See the model-resource configuration documentation.
+
+The shared native workflow records explicit evidence-need decisions and advisory recurring terminology, and can use source-language captions as competing wording observations without altering the original dialogue record.

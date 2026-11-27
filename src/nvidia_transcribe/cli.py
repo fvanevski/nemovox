@@ -37,7 +37,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run or resume ASR -> dedicated translation -> optional English review -> SRT/ASS rendering.",
     )
     gs.add_argument("media", nargs="?", default=None, help="Path to local media file (omit when using --recording-contract).")
-    gs.add_argument("--recording-contract", default=None, help="Existing recording.contract.json (skips ASR); original media is needed only for optional acoustic assessment.")
+    gs.add_argument("--recording-contract", default=None, help="Existing recording.contract.json (skips ASR); supply original media for adaptive audiovisual evidence.")
     gs.add_argument("--source-quality", choices=["auto", "on", "off"], default="auto",
                     help="auto: native interval assessment; on: explicit configured speech-activity assessment; off: skip new assessment.")
     gs.add_argument("--output-dir", required=True, help="Directory for refined/translated contracts and SRT/ASS outputs.")
@@ -67,6 +67,18 @@ def build_parser() -> argparse.ArgumentParser:
                     help="Named text resource for legacy general-text-model primary translation.")
     gs.add_argument("--translation-review-resource", default=None,
                     help="Named OpenAI-compatible text resource for English post-edit.")
+    gs.add_argument("--visual-inspection-resource", default=None,
+                    help="Named Messages-capable vision resource; defaults to selected review resource.")
+    gs.add_argument("--review-context", choices=["english", "bilingual"], default="bilingual",
+                    help="Complete recording English or bilingual dialogue; detailed target source in both modes.")
+    gs.add_argument("--review-context-bytes", type=int, default=160000,
+                    help="Conservative UTF-8 recording-context admission budget, not a token count.")
+    gs.add_argument("--review-evidence", choices=["auto", "off"], default="auto",
+                    help="Conditionally investigate material visual/acoustic ambiguities using original media.")
+    gs.add_argument("--review-evidence-per-batch", type=int, default=3,
+                    help="Maximum new evidence requests per batch (0 disables acquisition).")
+    gs.add_argument("--visual-max-frames", type=int, default=6)
+    gs.add_argument("--visual-thinking-budget", type=int, default=1024)
     gs.add_argument("--condensation-resource", default=None, help="Named text resource for condensation.")
     gs.add_argument("--max-chars", type=int, default=42)
     gs.add_argument("--max-lines", type=int, default=2)
@@ -157,6 +169,9 @@ def main(argv: list[str] | None = None) -> int:
         translation_resource = registry.resolve("text_translation", resource_name=args.translation_resource, **text_overrides)
         condensation_resource = registry.resolve("subtitle_condensation", resource_name=args.condensation_resource, **text_overrides)
         review_resource = registry.resolve("translation_review", resource_name=args.translation_review_resource, **text_overrides)
+        visual_resource = registry.resolve("visual_inspection", resource_name=args.visual_inspection_resource, **text_overrides)
+        if args.visual_inspection_resource is None and registry.visual_inherits_review:
+            visual_resource = review_resource
         activity_resource = registry.resolve("speech_activity") if "speech_activity" in registry.roles else None
         riva_resource = registry.resolve("riva_translation", require_local_paths=(
             args.translator == "riva" and not args.re_render and not same_language))
@@ -206,6 +221,8 @@ def main(argv: list[str] | None = None) -> int:
             target_language=args.target_language,
             base_url=review_resource.endpoint, model=review_resource.model,
             resource_fingerprint=review_resource.fingerprint(), api_key=review_key,
+            context_mode=args.review_context, context_max_bytes=args.review_context_bytes,
+            max_evidence_requests_per_batch=args.review_evidence_per_batch,
         )
         cond_cfg = TranslationConfig(
             backend="openai_chat", style=args.style, target_language=args.target_language,
@@ -245,7 +262,8 @@ def main(argv: list[str] | None = None) -> int:
             condense_high_cps=args.condense_high_cps,
             condense_cps_threshold=args.condense_threshold,
             validation_overlay_path=args.validation_overlay,
-            source_quality=args.source_quality,
+            source_quality=args.source_quality, review_evidence=args.review_evidence,
+            visual_max_frames=args.visual_max_frames, visual_thinking_budget=args.visual_thinking_budget,
         )
         try:
             res = generate_subtitles(
@@ -262,6 +280,7 @@ def main(argv: list[str] | None = None) -> int:
                     "asr": asr_resource, "source_refinement": refinement_resource,
                     "text_translation": translation_resource, "riva_translation": riva_resource,
                     "translation_review": review_resource, "subtitle_condensation": condensation_resource,
+                    "visual_inspection": visual_resource,
                     **({"speech_activity": activity_resource} if activity_resource else {}),
                 },
             )

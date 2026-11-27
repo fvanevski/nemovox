@@ -9,6 +9,7 @@ import subprocess
 from contextlib import nullcontext
 
 from nvidia_transcribe.semantic_context import literal_examples, current_row_context
+from nvidia_transcribe import connected_units
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -90,6 +91,7 @@ class TranslationConfig:
     context_utterances_after: int = 4
     batch_size: int = 6
     allow_adjacent_regrouping: bool = True
+    connected_hypotheses: bool = False  # enabled by managed native review pipeline
     base_url: str = "http://127.0.0.1:8001/v1"
     model: str = "chat"
     resource_fingerprint: str = ""  # selected resource identity, no credentials
@@ -467,6 +469,9 @@ def translate_utterances(
         raise ValueError(f"Unsupported translation style {cfg.style!r}")
 
     out_utts = [{**u} for u in utterances]
+    for u in out_utts:
+        u.pop("translation_unit_candidate", None)
+        u.pop("translation_unit", None)
     for i, u in enumerate(out_utts):
         uid = str(u.get("utterance_id") or u.get("id") or f"utt-{i:04d}")
         u["grouped_utterance_ids"] = [uid]
@@ -480,7 +485,8 @@ def translate_utterances(
     gl = glossary or GlossaryConfig()
     trans_cfg_sig = {
         "prompt_version": _TRANSLATION_PROMPT_VERSION,
-        "occurrence_regrouping_contract": "bound-occurrence/v2",
+        "occurrence_regrouping_contract": "bound-occurrence/v3",
+        "connected_hypotheses": cfg.connected_hypotheses,
         "backend": cfg.backend,
         "model": cfg.model,
         "endpoint": cfg.base_url,
@@ -535,11 +541,15 @@ def translate_utterances(
             raise ValueError(f"Riva-Translate-4B-Instruct-v2 does not support source_language={source_language!r}")
         pending_items = []
         riva_keys: dict[str, str] = {}
+        examples_by_uid = {}
+        joint_records = {}
+        joint_results = {}
         for i, u in enumerate(out_utts):
             uid = str(u.get("utterance_id") or u.get("id") or f"utt-{i:04d}")
             src_txt = _src_text(u)
             nearby=out_utts[max(0,i-2):i]+out_utts[i+1:i+3]
             examples = literal_examples(u, gl, nearby) if src_txt else []
+            examples_by_uid[uid] = examples
             accepted = current_row_context(u)
             rkey = hashlib.sha256(
                 json.dumps({"backend": "riva", "resource": cfg.resource_fingerprint, "checkpoint": cfg.riva_model_path, "worker": cfg.riva_python, "device": cfg.riva_device, "lang_pair": lang_pair, "uid": uid, "text": src_txt,
@@ -558,6 +568,35 @@ def translate_utterances(
             else:
                 pending_items.append({"utterance_id": uid, "text": src_txt, "lang_pair": lang_pair,
                                       "context_examples":examples})
+
+        # Both hypotheses share one isolated worker acquisition. Original
+        # per-occurrence requests and example selection remain unchanged.
+        if cfg.connected_hypotheses:
+            for group in connected_units.nominate(out_utts):
+                common = {}
+                for member in group:
+                    for example in examples_by_uid[connected_units.uid(member)]:
+                        common.setdefault(example["id"], example)
+                record = connected_units.request_record(group, list(common.values())[:4])
+                cid = record["candidate_id"]
+                if cid in riva_keys or cid in joint_records:
+                    raise ValueError("Duplicate connected translation request")
+                key = connected_units.digest({"config": trans_cfg_sig, "candidate": record})
+                riva_keys[cid] = key
+                joint_records[cid] = (group, record)
+                entry = cached.get(key)
+                if (isinstance(entry, dict)
+                        and isinstance(entry.get("translated_text"), str)
+                        and entry["translated_text"].strip()
+                        and entry.get("context_example_ids") == [e["id"] for e in record["context_examples"]]
+                        and type(entry.get("input_tokens")) is int
+                        and 0 < entry["input_tokens"] <= 8192):
+                    joint_results[cid] = entry
+                    cache_hits += 1
+                else:
+                    pending_items.append({"utterance_id": cid, "text": record["joint_input"],
+                                          "lang_pair": lang_pair,
+                                          "context_examples": record["context_examples"]})
 
         riva_meta: dict[str, Any] = {}
         if pending_items:
@@ -624,10 +663,25 @@ def translate_utterances(
                     cached[riva_keys[uid]] = {"translated_text": by_uid[uid], "grouped_with_prev": False,
                                               "context_example_ids":example_ids[uid],
                                               "input_tokens":input_tokens[uid]}
+            for cid in joint_records:
+                if cid in by_uid:
+                    if type(input_tokens[cid]) is not int:
+                        raise RuntimeError("Missing connected Riva token receipt")
+                    entry = {"translated_text": by_uid[cid], "context_example_ids": example_ids[cid],
+                             "input_tokens": input_tokens[cid]}
+                    joint_results[cid] = cached[riva_keys[cid]] = entry
             if ckpt_file:
                 ckpt_file.parent.mkdir(parents=True, exist_ok=True)
                 ckpt_file.write_text(json.dumps({"schema": "translation_cache/v2", "signature": gl_sig, "items": cached}, ensure_ascii=False, indent=2), encoding="utf-8")
 
+        for cid, (group, record) in joint_records.items():
+            entry = joint_results[cid]
+            candidate = {**record, "joint_mt": entry["translated_text"],
+                         "joint_input_tokens": entry["input_tokens"]}
+            for member in group:
+                member["translation_unit_candidate"] = candidate
+        if joint_records:
+            connected_units.groups(out_utts)
         for u in out_utts:
             u["machine_translated_text"]=u["translated_text"]
         return out_utts, {
@@ -637,6 +691,8 @@ def translate_utterances(
             "total_utterances": len(out_utts),
             "cache_hits": cache_hits,
             "context_example_rows":sum(bool(u.get("riva_context_example_ids")) for u in out_utts),
+            "connected_candidate_count": len(joint_records),
+            "connected_input_tokens": sum(e["input_tokens"] for e in joint_results.values()),
             "native_input_tokens":sum(u["riva_input_tokens"] for u in out_utts
                                       if type(u.get("riva_input_tokens")) is int),
             "elapsed_s": round(time.perf_counter() - t0, 3),
@@ -886,8 +942,10 @@ def condense_high_cps_cues_with_text_model(
     n = len(out_utts)
     candidates: list[tuple[int, float, int]] = []
     for i, u in enumerate(out_utts):
-        if u.get("merged_into") or u.get("fragment_suppressed"):
-            continue
+        if (u.get("merged_into") or u.get("fragment_suppressed")
+                or str(u.get("translation_review_status") or "").startswith("review_deferred_")
+                or len((u.get("translation_unit") or {}).get("constituents", [])) > 1):
+            continue  # never shorten one fragment of an atomic allocation
         s, e = u.get("source_start"), u.get("source_end")
         en = str(u.get("translated_text") or "").strip()
         if s is None or e is None or not en:
