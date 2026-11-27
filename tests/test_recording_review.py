@@ -1203,3 +1203,40 @@ def test_real_video_probe_and_transient_frame_failure_recover(tmp_path,monkeypat
     obs=provider.collect(uid,request)
     assert obs["status"]=="observed" and len(vision.calls)==1
     assert provider.collect(uid,request)==obs and len(vision.calls)==1
+
+
+def test_attached_cover_art_does_not_supply_visual_observations(tmp_path,monkeypatch):
+    import subprocess
+    from nvidia_transcribe import review_evidence
+    from nvidia_transcribe.media import has_visual_stream
+    media=tmp_path/"cover.flac"
+    subprocess.run(["ffmpeg","-nostdin","-v","error","-f","lavfi","-i",
+        "anullsrc=r=16000:cl=mono","-f","lavfi","-i",
+        "color=c=black:s=32x32:r=1","-t","4","-map","0:a","-map","1:v",
+        "-c:a","flac","-c:v","mjpeg","-frames:v","1","-disposition:v","attached_pic",
+        str(media)],check=True,capture_output=True,timeout=30)
+    # Prove the fixture actually has an ordinary v stream (its cover image).
+    video=json.loads(subprocess.check_output(["ffprobe","-v","error","-select_streams",
+        "v:0","-show_entries","stream=index,codec_type","-of","json",str(media)],text=True))
+    assert len(video["streams"])==1
+    assert not has_visual_stream(media)
+    rows=[row(0,"甲。","A.",start=0.1,end=0.5)]
+    resource=load_model_resources(environ={}).resolve("translation_review")
+    vision=FixtureVision(error=AssertionError("cover art must not become scene evidence"))
+    provider=ReviewEvidenceProvider(media_path=media,
+        contract={"utterances":rows,"source":{"content_sha256":hashlib.sha256(media.read_bytes()).hexdigest()},
+                  "native_dialogue":{"decoded_duration_s":4},"source_language":"zh"},
+        lifecycle=None,review_resource=resource,visual_resource=resource,
+        acoustic_resource=None,review_client=vision)
+    native_run=subprocess.run
+    probes=[]
+    def probe_only(cmd,*a,**kw):
+        assert cmd[0]=="ffprobe"
+        probes.append(cmd)
+        return native_run(cmd,*a,**kw)
+    monkeypatch.setattr(review_evidence.subprocess,"run",probe_only)
+    request={k:v for k,v in evidence_request(rows[0]["id"]).items() if k!="reason"}
+    first=provider.collect(rows[0]["id"],request)
+    assert first["status"]=="visual_media_unavailable"
+    assert provider.collect(rows[0]["id"],request)==first
+    assert len(probes)==1 and vision.calls==[] and provider.cache=={}
