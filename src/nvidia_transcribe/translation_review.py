@@ -1023,6 +1023,11 @@ def review_translated_utterances(
         "rejected_polarity": rejected_polarity,
         "comparative_calls": comparative_calls, "comparative_rejections": comparative_rejections,
         "dependent_passage_rejections": dependent_rejections,
+        **({"translation_unit_schema": connected_units.SCHEMA,
+            "connected_candidate_count": sum(len(g) > 1 for g in partitions),
+            "jointly_adjudicated_count": len({r["translation_unit"]["unit_id"] for r in out
+                if (r.get("translation_unit") or {}).get("selection") == "jointly_adjudicated"})}
+           if native_review else {}),
         "joined_passage_rejections": passage_rejections,
         "unresolved_source_rejections":uncertainty_rejections,
         "direction_grammar_rejections":direction_rejections,

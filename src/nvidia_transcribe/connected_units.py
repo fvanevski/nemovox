@@ -179,13 +179,15 @@ def bind_selected_units(rows, partitions, selected):
                 row["translation_unit"] = selected_unit([row], jointly_adjudicated=False)
 
 
-def validate_selected_units(rows):
+def validate_selected_units(rows, *, require_complete=False):
     """Check exact selected allocation before offline display."""
     pos = 0
     while pos < len(rows):
         row = rows[pos]
         record = row.get("translation_unit")
         if record is None:
+            if require_complete and native(row) and not row.get("pre_overlay_translation_unit"):
+                raise ValueError("Missing selected native translation allocation")
             pos += 1
             continue
         if not isinstance(record, dict) or record.get("schema") != SCHEMA:
@@ -206,4 +208,15 @@ def validate_selected_units(rows):
                   if r.get("condensation_applied") else r["translated_text"]} for r in chunk]
         if selected_unit(prior, jointly_adjudicated=joint) != record:
             raise ValueError("Selected translation allocation mismatch")
+        if joint:
+            accepted = [r for r in chunk if r.get("translation_review_status") == "corrected"]
+            receipts = [r.get("translation_review_passage") for r in accepted]
+            expected = [{"id": uid(r), "english": r["translated_text"].strip()} for r in chunk]
+            if (not receipts or not isinstance(receipts[0], dict)
+                    or not receipts[0].get("atomic_connected_allocation")
+                    or receipts[0].get("proposal_allocation") != expected
+                    or receipts[0].get("target_ids") != [uid(r) for r in chunk]
+                    or receipts[0].get("verdict", {}).get("choice") != "proposal"
+                    or any(r != receipts[0] for r in receipts)):
+                raise ValueError("Missing exact atomic review allocation receipt")
         pos += len(chunk)

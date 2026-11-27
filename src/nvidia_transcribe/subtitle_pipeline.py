@@ -433,6 +433,9 @@ def generate_subtitles(
 
     overlay_summary: dict[str, Any] = {"status": "none"}
     if cfg.validation_overlay_path is not None:
+        from nvidia_transcribe import connected_units
+        connected_units.validate_selected_units(translated_contract.get("utterances") or [],
+            require_complete=(translated_contract.get("translation_review") or {}).get("translation_unit_schema") == connected_units.SCHEMA)
         overlay_doc = json.loads(Path(cfg.validation_overlay_path).read_text(encoding="utf-8"))
         translated_contract, overlay_summary = apply_validation_overlay(translated_contract, overlay_doc)
         _atomic_write(translated_path, json.dumps(translated_contract, ensure_ascii=False, indent=2))

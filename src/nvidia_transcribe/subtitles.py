@@ -523,6 +523,8 @@ def assign_subtitle_lanes(
             grouped_utterance_ids=list(c.grouped_utterance_ids),
             source_turn_ids=list(c.source_turn_ids),
             conflicts=list(c.conflicts),
+            translation_unit_id=c.translation_unit_id,
+            unit_occurrence_ids=list(c.unit_occurrence_ids),
         )
 
         def _free(lid: int) -> bool:
@@ -694,7 +696,8 @@ def render_subtitles(
     """Render SRT and/or ASS subtitles directly from a translated or refined contract."""
     cfg = config or SubtitleConfig()
     utterances = contract.get("utterances") or []
-    connected_units.validate_selected_units(utterances)
+    connected_units.validate_selected_units(utterances, require_complete=(
+        (contract.get("translation_review") or {}).get("translation_unit_schema") == connected_units.SCHEMA))
     cues = build_display_cues(utterances, config=cfg)
     displayed, overflow, unrenderable = assign_subtitle_lanes(
         cues,
@@ -786,7 +789,12 @@ def render_subtitles(
             lineage.append({"occurrence_id": cue.utterance_id,
                 "translation_unit_id": cue.translation_unit_id,
                 "unit_occurrence_ids": cue.unit_occurrence_ids or [cue.utterance_id],
-                "actual_event_interval": connected_units.interval(row),
+                "actual_event_interval": (connected_units.interval({
+                    "source_start": row.get("raw_source_start"), "source_end": row.get("raw_source_end")})
+                    if (row.get("timestamp_provenance") or {}).get("timing_source") == "viewing_validation_overlay"
+                    else connected_units.interval(row)),
+                "effective_event_interval": connected_units.interval(row),
+                "timing_status": cue.timing_status,
                 "display_allocation_interval": [cue.raw_start, cue.raw_end],
                 "display_interval": None if cue.unrenderable else [cue.start, cue.end],
                 "disposition": disposition, "lane": cue.lane, "text": cue.text,
