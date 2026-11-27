@@ -166,15 +166,16 @@ def inspect_audio_streams(media_path: str | Path) -> list[dict[str, Any]]:
     return result
 
 
-def has_visual_stream(media_path: str | Path) -> bool:
-    """Probe the first actual video stream, excluding attached pictures.
+def visual_stream_index(media_path: str | Path, *, legacy: bool = False) -> int | None:
+    """Return the selected container index, or confirmed absence.
 
-    A successful empty stream list establishes absence; probe failure or
-    malformed metadata never does. Match FFmpeg's 0:V:0 extraction selector.
+    The legacy selector is used only to authenticate retained observations;
+    current extraction excludes attached pictures. Probe failure or malformed
+    metadata never establishes absence.
     """
     try:
         raw = subprocess.check_output(
-            ["ffprobe", "-v", "error", "-select_streams", "V:0",
+            ["ffprobe", "-v", "error", "-select_streams", "v:0" if legacy else "V:0",
              "-show_entries", "stream=index,codec_type", "-of", "json",
              str(media_path)],
             text=True, stderr=subprocess.PIPE, timeout=30,
@@ -187,7 +188,7 @@ def has_visual_stream(media_path: str | Path) -> bool:
             or any(not isinstance(s, dict) or s.get("codec_type") != "video"
                    or type(s.get("index")) is not int or s["index"] < 0 for s in streams)):
         raise MediaInspectionError("Invalid visual stream metadata")
-    return bool(streams)
+    return streams[0]["index"] if streams else None
 
 
 def compute_file_sha256(path: Path) -> str:

@@ -106,7 +106,11 @@ def observed_scenes(receipt):
 
 
 def visual_digest(receipt):
-    return digest({k:receipt.get(k) for k in ("frames","observations","visible_text","focus")})
+    body = {k:receipt.get(k) for k in ("frames","observations","visible_text","focus")}
+    # Older receipts are admitted only after stream-equivalence validation.
+    if "visual_stream" in receipt:
+        body["visual_stream"] = receipt["visual_stream"]
+    return digest(body)
 
 
 def _unique(pairs):
