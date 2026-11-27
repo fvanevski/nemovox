@@ -16,7 +16,7 @@ PYTHONPATH=src:. python -m nvidia_transcribe.cli assess-source --recording-contr
 
 Select the actual spoken language for new media. Imported recording contracts can supply it. Use the selected audio-stream ordinal when media has multiple audio tracks. Native source assessment is geometry-only by default; explicit acoustic event assessment requires an admitted CPU detector and the exact original media. No detector changes source wording, event times or speakers.
 
-For an already translated job, rerender with `generate-subtitles --re-render --output-dir outputs/subtitles`, without inference. See [Studio](web/README.md) for the browser workflow and [source assessment](docs/source-reconstruction/NATIVE_DIALOGUE.md).
+For an already translated job, rerender with `generate-subtitles --re-render --output-dir outputs/subtitles`, without inference. Explicit validation overlays retire complete affected joint allocations when timing corrections change their ordered membership or introduce another occurrence into their protected time interval; historical decisions and accepted English are retained unless explicitly edited. The overlaid allocation is validated before publication. See [Studio](web/README.md) for the browser workflow and [source assessment](docs/source-reconstruction/NATIVE_DIALOGUE.md).
 
 Development: follow [AGENTS.md](AGENTS.md); run `PYTHONPATH=src:. python -m pytest -m "not gpu"`. Qualify live workers separately.
 

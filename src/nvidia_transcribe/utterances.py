@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from nvidia_transcribe import connected_units
+
 
 def apply_validation_overlay(
     contract: dict[str, Any],
@@ -122,10 +124,6 @@ def apply_validation_overlay(
                 "source_start", "source_end", "translated_text", "overlay_suppressed",
                 "suppressed_duplicate_of")):
             invalidated.add(unit["unit_id"])
-    for row in utts:
-        unit = row.get("translation_unit")
-        if unit and unit["unit_id"] in invalidated:
-            row["pre_overlay_translation_unit"] = row.pop("translation_unit")
     # Maintain chronological ordering for timed/recovered items while preserving IDs cleanly
     timed_pairs = []
     untimed_pairs = []
@@ -137,6 +135,40 @@ def apply_validation_overlay(
     ordered_utts = [u for _, u in sorted(timed_pairs, key=lambda x: x[0])] + [
         u for _, u in sorted(untimed_pairs, key=lambda x: x[0])
     ]
+
+    # An overlay can disrupt an untouched joint unit by moving a different
+    # occurrence into its ordered membership or protected time envelope.
+    # Evaluate the final sequence before retiring any complete allocation.
+    positions = {str(row.get("utterance_id") or row.get("id")): i
+                 for i, row in enumerate(ordered_utts)}
+    intervals = [(i, connected_units.interval(row))
+                 for i, row in enumerate(ordered_utts)]
+    checked = set()
+    for row in ordered_utts:
+        unit = row.get("translation_unit")
+        if not unit or unit["unit_id"] in invalidated or unit["unit_id"] in checked:
+            continue
+        checked.add(unit["unit_id"])
+        members = unit["constituents"]
+        if len(members) <= 1:
+            continue
+        member_positions = [positions.get(member["id"]) for member in members]
+        first = member_positions[0]
+        if first is None or member_positions != list(range(first, first + len(members))):
+            invalidated.add(unit["unit_id"])
+            continue
+        # Untouched constituents retain their admitted intervals. Even if
+        # adjacency survives, an unrelated overlapping event breaks the
+        # original joint-candidate protection against intervening speech.
+        start, end = members[0]["interval"][0], members[-1]["interval"][1]
+        occupied = set(member_positions)
+        if any(i not in occupied and bounds is not None
+               and bounds[0] < end and bounds[1] > start for i, bounds in intervals):
+            invalidated.add(unit["unit_id"])
+    for row in ordered_utts:
+        unit = row.get("translation_unit")
+        if unit and unit["unit_id"] in invalidated:
+            row["pre_overlay_translation_unit"] = row.pop("translation_unit")
 
     summary = {
         "status": "applied",

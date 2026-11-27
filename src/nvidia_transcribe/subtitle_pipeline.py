@@ -469,8 +469,10 @@ def generate_subtitles(
             require_complete=(translated_contract.get("translation_review") or {}).get("translation_unit_schema") == connected_units.SCHEMA)
         overlay_doc = json.loads(Path(cfg.validation_overlay_path).read_text(encoding="utf-8"))
         translated_contract, overlay_summary = apply_validation_overlay(translated_contract, overlay_doc)
-        _atomic_write(translated_path, json.dumps(translated_contract, ensure_ascii=False, indent=2))
         overlaid_utts = translated_contract.get("utterances") or []
+        connected_units.validate_selected_units(overlaid_utts,
+            require_complete=(translated_contract.get("translation_review") or {}).get("translation_unit_schema") == connected_units.SCHEMA)
+        _atomic_write(translated_path, json.dumps(translated_contract, ensure_ascii=False, indent=2))
         _atomic_write(out_dir / "raw_source_transcript.txt", _format_utterance_transcript_lines(overlaid_utts, "raw_source_text", "source_text"))
         _atomic_write(out_dir / "refined_source_transcript.txt", _format_utterance_transcript_lines(overlaid_utts, "refined_text", "source_text"))
         _atomic_write(out_dir / "final_english_subtitles.txt", _format_utterance_transcript_lines(overlaid_utts, "translated_text"))

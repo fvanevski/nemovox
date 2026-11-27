@@ -241,3 +241,153 @@ def test_native_pipeline_and_offline_render_use_exact_unit_lineage(tmp_path, mon
     assert all("translation_unit" not in r and "pre_overlay_translation_unit" in r
                for r in overlaid["utterances"])
     render_subtitles(overlaid, output_dir=outdir, episode_stem="operator_override")
+
+
+@pytest.mark.parametrize("case,new_interval,retire_first", [
+    ("intervening", (1.5, 1.8), True),
+    ("recovered", (1.5, 1.8), True),
+    ("overlap_before", (0.5, 1.5), True),
+    ("overlap_after", (2.9, 3.5), True), # starts after the last member, overlaps its end
+    ("touching", (3, 3.5), False),
+    ("outside", (4.5, 5.5), False),
+])
+def test_overlay_reordering_preserves_or_retires_exact_joint_units(
+        tmp_path, monkeypatch, case, new_interval, retire_first):
+    from nvidia_transcribe import subtitle_pipeline as pipeline
+    rows = [
+        row(0, "他说", 1, 2, "He said."),
+        row(1, "向西走", 2.1, 3, "Go west."),
+        row(2, "别走。", 4, 5, "Don't leave.", speaker="S02"),
+        row(3, "他要", 7, 8, "He wants."),
+        row(4, "回家", 8.1, 9, "Go home."),
+    ]
+    if case == "recovered":
+        rows[2]["source_start"] = rows[2]["source_end"] = None
+        rows[2]["timestamp_provenance"]["timing_status"] = "unavailable"
+        rows.append(rows.pop(2))
+    rows = attach(rows)
+    proposals = {r["id"]: r["translated_text"] for r in rows}
+    proposals.update({"event-00000":"He said to", "event-00001":"go west.",
+                      "event-00003":"He wants to", "event-00004":"go home."})
+    selected, report = review(rows, Review(proposals))
+    assert report["status"] == "completed" and report["jointly_adjudicated_count"] == 2
+    contract = {"source":{"path":"clip.wav","duration_s":12},"source_language":"zh",
+                "target_language":"en","utterances":selected,"translation_review":report}
+    before = deepcopy(contract)
+    by_id = {r["id"]:r for r in selected}
+    a,b,c,d,e = (f"event-{i:05d}" for i in range(5))
+    first_unit = by_id[a]["translation_unit"]
+    second_unit = by_id[d]["translation_unit"]
+    assert first_unit == by_id[b]["translation_unit"]
+    assert second_unit == by_id[e]["translation_unit"]
+    assert len(first_unit["constituents"]) == len(second_unit["constituents"]) == 2
+    cu.validate_selected_units(selected, require_complete=True)
+    outdir = tmp_path/"job"
+    outdir.mkdir()
+    path = outdir/"translated.contract.json"
+    path.write_text(json.dumps(contract),encoding="utf-8")
+    overlay = {"entries":[{"id":c,"proposed_start_s":new_interval[0],
+                            "proposed_end_s":new_interval[1]}]}
+    overlay_path = tmp_path/"overlay.json"
+    overlay_path.write_text(json.dumps(overlay),encoding="utf-8")
+    def forbidden(*args,**kwargs):
+        pytest.fail("offline overlay must not invoke inference")
+    monkeypatch.setattr(pipeline,"translate_utterances",forbidden)
+    monkeypatch.setattr(pipeline,"review_translated_utterances",forbidden)
+    cfg = pipeline.SubtitlePipelineConfig(re_render_only=True,
+        validation_overlay_path=overlay_path)
+    meta = pipeline.generate_subtitles(output_dir=outdir,config=cfg)
+    overlaid = json.loads(path.read_text())
+    direct, summary = apply_validation_overlay(contract,overlay)
+    assert direct == overlaid and contract == before
+    assert meta["validation_overlay"] == summary
+    expected = {by_id[c]["translation_unit"]["unit_id"]}
+    # Strict interval overlap matters even when adjacency remains.
+    if retire_first:
+        expected.add(first_unit["unit_id"])
+    assert set(summary["invalidated_translation_units"]) == expected
+    after = {r["id"]:r for r in overlaid["utterances"]}
+    assert set(after) == set(by_id)
+    for uid in (a,b,c,d,e):
+        for field in ("id","source_text","speaker_id","machine_translated_text",
+                      "translated_text","translation_review_status"):
+            assert after[uid][field] == by_id[uid][field]
+        if uid != c:
+            assert cu.interval(after[uid]) == cu.interval(by_id[uid])
+            assert after[uid]["timestamp_provenance"] == by_id[uid]["timestamp_provenance"]
+        if by_id[uid]["translation_unit"]["unit_id"] in expected:
+            assert "translation_unit" not in after[uid]
+            assert after[uid]["pre_overlay_translation_unit"] == by_id[uid]["translation_unit"]
+        else:
+            assert after[uid] == by_id[uid]
+    if case != "recovered":
+        assert (after[c]["raw_source_start"],after[c]["raw_source_end"]) == (4,5)
+    assert cu.interval(after[c]) == list(new_interval)
+    cu.validate_selected_units(overlaid["utterances"], require_complete=True)
+    lineage = meta["cue_lineage"]
+    assert {r["occurrence_id"] for r in lineage} == set(by_id)
+    for entry in lineage:
+        uid = entry["occurrence_id"]
+        assert entry["actual_event_interval"] == cu.interval(by_id[uid])
+        assert entry["effective_event_interval"] == cu.interval(after[uid])
+        active = after[uid].get("translation_unit")
+        assert entry["translation_unit_id"] == (active["unit_id"] if active else None)
+        assert entry["unit_occurrence_ids"] == (
+            [r["id"] for r in active["constituents"]] if active else [uid])
+    retained = path.read_bytes()
+    files = {fmt: (outdir / f"clip.en.{fmt}").read_bytes() for fmt in ("srt","ass")}
+    again = pipeline.generate_subtitles(output_dir=outdir,
+        config=replace(cfg,validation_overlay_path=None))
+    assert path.read_bytes() == retained and again["cue_lineage"] == lineage
+    assert all((outdir / f"clip.en.{fmt}").read_bytes() == data for fmt,data in files.items())
+
+
+@pytest.mark.parametrize("change",[
+    {"proposed_start_s":1.2,"proposed_end_s":2},
+    {"translated_text":"He told us to"},
+    {"suppress":True},
+])
+def test_overlay_direct_constituent_change_retires_complete_unit(tmp_path,change):
+    rows=attach([row(0,"他说",1,2,"He said."),row(1,"向西走",2.1,3,"Go west.")])
+    a,b=[r["id"] for r in rows]
+    selected,report=review(rows,Review({a:"He said to",b:"go west."}))
+    contract={"utterances":selected,"translation_review":report}
+    before=deepcopy(contract)
+    overlaid,summary=apply_validation_overlay(contract,{"entries":[{"id":a,**change}]})
+    unit=selected[0]["translation_unit"]
+    assert summary["invalidated_translation_units"]==[unit["unit_id"]]
+    assert all(r.get("pre_overlay_translation_unit")==unit and "translation_unit" not in r
+               for r in overlaid["utterances"])
+    assert contract==before
+    assert all(r["machine_translated_text"]==old["machine_translated_text"]
+               for r,old in zip(overlaid["utterances"],selected))
+    cu.validate_selected_units(overlaid["utterances"],require_complete=True)
+    render_subtitles(overlaid,output_dir=tmp_path,episode_stem="direct")
+
+
+def test_invalid_overlay_result_rejected_before_contract_publication(tmp_path,monkeypatch):
+    from nvidia_transcribe import subtitle_pipeline as pipeline
+    rows=attach([row(0,"他说",1,2,"He said."),row(1,"向西走",2.1,3,"Go west.")])
+    a,b=[r["id"] for r in rows]
+    selected,report=review(rows,Review({a:"He said to",b:"go west."}))
+    contract={"source":{"path":"clip.wav"},"utterances":selected,"translation_review":report}
+    path=tmp_path/"translated.contract.json"
+    path.write_text(json.dumps(contract),encoding="utf-8")
+    cfg=pipeline.SubtitlePipelineConfig(re_render_only=True)
+    pipeline.generate_subtitles(output_dir=tmp_path,config=cfg)
+    before={p.name:p.read_bytes() for p in tmp_path.iterdir() if p.is_file()}
+    overlay_path=tmp_path/"overlay.json"
+    overlay_path.write_text(json.dumps({"entries":[{"id":a,"reason":"fixture"}]}))
+    def broken(contract,overlay):
+        result,summary=apply_validation_overlay(contract,overlay)
+        result["utterances"][1].pop("translation_unit")
+        return result,summary
+    monkeypatch.setattr(pipeline,"apply_validation_overlay",broken)
+    def forbidden(*args,**kwargs):
+        pytest.fail("invalid overlay must be rejected before render")
+    monkeypatch.setattr(pipeline,"render_subtitles",forbidden)
+    with pytest.raises(ValueError,match="Selected unit occurrence mismatch"):
+        pipeline.generate_subtitles(output_dir=tmp_path,
+            config=replace(cfg,validation_overlay_path=overlay_path))
+    assert all((tmp_path/name).read_bytes()==data for name,data in before.items())
+    assert {p.name for p in tmp_path.iterdir() if p.is_file()}==set(before)|{"overlay.json"}
