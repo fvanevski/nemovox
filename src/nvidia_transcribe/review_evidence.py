@@ -15,7 +15,7 @@ import time
 
 import httpx
 
-from nvidia_transcribe.media import compute_file_sha256, extract_wav_segment
+from nvidia_transcribe.media import compute_file_sha256, extract_wav_segment, visual_stream_index
 from nvidia_transcribe.moss_recording import process_moss_media
 from nvidia_transcribe.ninfer_messages_client import image_content_block
 from nvidia_transcribe.resource_lifecycle import managed_text_client, ResourceLifecycleError
@@ -101,6 +101,9 @@ class ReviewEvidenceProvider:
                          "visual_resource": visual_resource.fingerprint() if visual_resource else None,
                          "acoustic_resource": acoustic_resource.fingerprint() if acoustic_resource else None,
                          "max_frames": max_frames, "visual_thinking_budget": visual_thinking_budget}
+        # Lazy, content-bound stream selection. Keep the existing identity for
+        # equivalent historical media; validate actual receipt compatibility.
+        self._visual_streams = {}
         self.cache = {}
         self.telemetry = {"visual_attempts":0,"acoustic_attempts":0,"in_memory_reuses":0,
                           "visual_elapsed_s":0.0,"acoustic_elapsed_s":0.0}
@@ -167,6 +170,52 @@ class ReviewEvidenceProvider:
             self.cache[key] = result
         return {**base, **result}
 
+    def _visual_index(self, *, legacy=False):
+        if legacy not in self._visual_streams:
+            index = visual_stream_index(self.path, legacy=legacy)
+            if compute_file_sha256(self.path) != self.media_sha:
+                raise ValueError("Adaptive review media changed during visual inspection")
+            self._visual_streams[legacy] = index
+        return self._visual_streams[legacy]
+
+    def validate_retained_visual(self, receipt):
+        """Reject a historical observation whose stream cannot be admitted."""
+        if (not self.available or self.visual_resource is None
+                or receipt.get("kind") != "visual"
+                or (receipt.get("request") or {}).get("kind") != "visual"
+                or receipt.get("observation_sha256") != visual_digest(receipt)):
+            raise ValueError("Invalid retained visual evidence; use --fresh-translation")
+        current = self._visual_index()
+        if "visual_stream" in receipt:
+            stream = receipt["visual_stream"]
+            compatible = (isinstance(stream, dict)
+                          and set(stream) == {"selector", "container_index"}
+                          and stream["selector"] == "0:V:0"
+                          and type(stream["container_index"]) is int
+                          and stream["container_index"] == current)
+        else:
+            # Legacy receipts lack the actual stream index. Their original
+            # v:0 selector must resolve to the same current usable video.
+            compatible = current is not None and self._visual_index(legacy=True) == current
+        if current is None or not compatible:
+            raise ValueError("Incompatible retained visual evidence; use --fresh-translation")
+
+    def validate_retained_progress(self, records):
+        """Preflight matching observations before any batch/snapshot is used.
+
+        Rejection is recording-wide because later frozen discourse/scene
+        context and selected English may depend on an earlier observation.
+        Do not restore a subset or silently rewrite historical decisions.
+        """
+        for record in records.values():
+            for item in (record.get("entries") or {}).values():
+                receipt = item.get("supplementary_observation")
+                if (isinstance(receipt, dict) and receipt.get("provider") == self.identity
+                        and receipt.get("status") == "observed"
+                        and (receipt.get("kind") == "visual"
+                             or (receipt.get("request") or {}).get("kind") == "visual")):
+                    self.validate_retained_visual(receipt)
+
     def restore(self, receipt):
         """Restore an exact successful acquisition for another matching request."""
         if receipt.get("status")!="observed" or receipt.get("provider")!=self.identity:
@@ -177,8 +226,8 @@ class ReviewEvidenceProvider:
             raise ValueError("Unknown retained evidence reference")
         s,e=row.get("source_start"),row.get("source_end")
         key=digest({"request":request,"provider":self.identity,"interval":[s,e]})
-        if receipt.get("kind")=="visual" and receipt.get("observation_sha256")!=visual_digest(receipt):
-            raise ValueError("Retained visual evidence digest mismatch")
+        if receipt.get("kind")=="visual" or request.get("kind")=="visual":
+            self.validate_retained_visual(receipt)
         result={k:v for k,v in receipt.items() if k not in ("target_id","request","provider")}
         if key in self.cache and self.cache[key]!=result:
             raise ValueError("Conflicting retained evidence for exact request")
@@ -187,6 +236,9 @@ class ReviewEvidenceProvider:
     def _visual(self, s, e, question, reference_id, focus):
         if self.visual_resource is None:
             return {"status": "visual_resource_unavailable"}
+        stream_index = self._visual_index()
+        if stream_index is None:
+            return {"status": "visual_media_unavailable"}
         lo, hi = max(0.0, s-0.75), min(self.duration-0.01, e+0.75)
         if hi <= lo:
             return {"status": "reference_untimed"}
@@ -195,7 +247,7 @@ class ReviewEvidenceProvider:
         for i,seek in enumerate(seeks):
             reply = subprocess.run(
                 ["ffmpeg", "-nostdin", "-v", "error", "-ss", f"{seek:.3f}",
-                 "-i", str(self.path), "-map", "0:v:0", "-frames:v", "1",
+                 "-i", str(self.path), "-map", "0:V:0", "-frames:v", "1",
                  "-vf", "scale=1280:-2", "-c:v", "mjpeg", "-q:v", "3",
                  "-f", "image2pipe", "pipe:1"], capture_output=True, check=True, timeout=60)
             data = reply.stdout
@@ -308,7 +360,8 @@ class ReviewEvidenceProvider:
         # equally, two empty collections are not a successful observation.
         if not scene_records and not text_records:
             raise ValueError("No visual evidence returned")
-        body = {"frames":frames, "observations":scene_records, "visible_text":text_records, "focus":focus}
+        body = {"frames":frames, "observations":scene_records, "visible_text":text_records, "focus":focus,
+                "visual_stream":{"selector":"0:V:0","container_index":stream_index}}
         return {"status": "observed", "kind": "visual", **body,
                 "model_receipt": response.get("_client_request_diagnostics", {}),
                 "observation_sha256": digest(body), "independently_confirmed": False}

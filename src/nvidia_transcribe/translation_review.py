@@ -252,6 +252,7 @@ def _caption_references(item, uid, receipts):
 _TERMINAL_EVIDENCE = frozenset({
     "observed", "media_unavailable", "reference_untimed",
     "visual_resource_unavailable", "acoustic_resource_unavailable",
+    "visual_media_unavailable",
     "reference_exceeds_acoustic_budget",
 })
 _RETRYABLE_EVIDENCE = frozenset({"acquisition_failed", "batch_budget_exhausted"})
@@ -857,6 +858,11 @@ def review_translated_utterances(
                          evidence_budget=cfg.max_evidence_requests_per_batch)
     ckpt = Path(checkpoint_path) if checkpoint_path else None
     progress=ReviewProgress(ckpt,resume) if native_review else None
+    # Validate before admitting any frozen context, serving completed rows or
+    # starting new inference. A later record may depend on an earlier receipt.
+    validate_retained = getattr(evidence_provider, "validate_retained_progress", None)
+    if progress is not None and callable(validate_retained):
+        validate_retained(progress.records)
     cached: dict[str, dict[str, Any]] = {}
     if not native_review and resume and ckpt and ckpt.is_file():
         try:
