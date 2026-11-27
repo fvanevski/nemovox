@@ -23,7 +23,7 @@ from nvidia_transcribe.recording_context import RecordingContext, digest, releva
 
 VALID_REVIEW_PROFILES = ("off", "conservative", "balanced", "expressive")
 VALID_REVIEW_STYLES = ("natural", "literal", "expressive")
-_PROMPT_VERSION = "mt_postedit_v12_recording_context"
+_PROMPT_VERSION = "mt_postedit_v13_explicit_evidence_decisions"
 _SCHEMA = {
     "type": "json_schema",
     "json_schema": {
@@ -194,10 +194,44 @@ _ADVISORY_PROPERTIES = {
                               "items": {"type": "string"}}},
         "required": ["source", "english", "reference_ids"], "additionalProperties": False}},
     "evidence_request": {"type": "object", "properties": {
-        "kind": {"type": "string", "enum": ["visual", "acoustic"]},
-        "reference_id": {"type": "string"}, "question": {"type": "string"}},
-        "required": ["kind", "reference_id", "question"], "additionalProperties": False},
+        "kind": {"type": "string", "enum": ["none", "visual", "acoustic"]},
+        "reference_id": {"type": "string"}, "question": {"type": "string"}, "reason": {"type": "string"}},
+        "required": ["kind", "reference_id", "question", "reason"], "additionalProperties": False},
 }
+
+
+def _advisory_decision(item, *, allow_evidence):
+    """Missing decisions are invalid, never silently interpreted as none."""
+    terms = item.get("discourse_terms")
+    request = item.get("evidence_request")
+    if not isinstance(terms, list) or len(terms) > 4:
+        raise ProposalDecisionError("missing_or_invalid_discourse_collection")
+    if (not isinstance(request, dict) or set(request) != {"kind","reference_id","question","reason"}
+            or request["kind"] not in ("none","visual","acoustic")
+            or not all(isinstance(request[k], str) for k in ("reference_id","question","reason"))
+            or not 1 <= len(request["reason"].strip()) <= 500):
+        raise ProposalDecisionError("missing_or_invalid_evidence_assessment")
+    if request["kind"] == "none":
+        if request["reference_id"] or request["question"]:
+            raise ProposalDecisionError("none_evidence_assessment_has_request")
+    elif (not allow_evidence or not request["reference_id"].strip()
+            or not 1 <= len(request["question"].strip()) <= 500):
+        raise ProposalDecisionError("invalid_evidence_nomination")
+    return request
+
+
+def _caption_references(item, uid, receipts):
+    refs = item.get("caption_evidence_ids")
+    if (not isinstance(refs, list) or len(refs) > 8
+            or any(not isinstance(ref,str) for ref in refs) or len(set(refs)) != len(refs)):
+        raise ProposalDecisionError("invalid_caption_reference_collection")
+    available = {v["caption_id"]:v for obs in receipts if obs.get("status") == "observed"
+                 and obs.get("kind") == "visual" for v in obs.get("visible_text", [])
+                 if v.get("text_kind") == "dialogue_caption"
+                 and uid in v.get("related_occurrence_ids", [])}
+    if any(ref not in available for ref in refs):
+        raise ProposalDecisionError("unbound_caption_reference")
+    return [available[ref] for ref in refs]
 
 
 def _supplemented_proposals(client, provider, messages, wire, cfg, targets, entries, partitions, start):
@@ -207,9 +241,10 @@ def _supplemented_proposals(client, provider, messages, wire, cfg, targets, entr
     count = 0
     for offset, target in enumerate(targets):
         uid = target["utterance_id"]
-        request = entries[uid].get("evidence_request")
-        if request is None:
+        decision = entries[uid]["evidence_request"]
+        if decision["kind"] == "none":
             continue
+        request = {k:decision[k] for k in ("kind","reference_id","question")}
         if count >= cfg.max_evidence_requests_per_batch:
             receipt = {"target_id": uid, "request": request, "status": "batch_budget_exhausted"}
         else:
@@ -229,27 +264,43 @@ def _supplemented_proposals(client, provider, messages, wire, cfg, targets, entr
     payload["target_utterances"] = [t for t in payload["target_utterances"]
                                     if t["utterance_id"] in affected]
     payload["supplementary_observations"] = receipts
+    payload["initial_affected_proposals"] = [{"id":t["utterance_id"], "english":entries[t["utterance_id"]]["corrected_text"],
+        "reason":entries[t["utterance_id"]]["reason"]} for t in subset]
     payload["read_only_other_proposals"] = [{"id": t["utterance_id"], "source": t["source_text"],
          "english": entries[t["utterance_id"]]["corrected_text"]} for t in targets
          if t["utterance_id"] not in affected]
     alternate[-1]["content"] = json.dumps(payload, ensure_ascii=False)
     alternate[0]["content"] += (" Reconsider only these exact target allocations in light of the supplied "
         "observations. Visual observations do not establish speech or identity. Acoustic alternatives "
-        "are fallible same-model crop observations, not canonical changes. Do not request more evidence.")
+        "are fallible same-model crop observations, not canonical changes. Compare literal dialogue_caption "
+        "observations with original ASR, including plausible homophone errors. Captions may be paraphrased, "
+        "offset or incorrect. A caption linked to a target by requested seek is a competing wording observation, "
+        "not established speech or exact timing. Where materially more plausible, translate its supported meaning "
+        "and cite the exact caption_id in caption_evidence_ids; otherwise return []. Never transfer caption words "
+        "from a different occurrence as if spoken here. Explain why the proposed interpretation is supported. "
+        "No further evidence requests; return the original required discourse_terms collection and caption_evidence_ids.")
     schema = json.loads(json.dumps(wire["response_format"]["schema"]))
     items = schema["properties"]["reviews"]
     items["minItems"] = items["maxItems"] = len(subset)
-    items["items"]["properties"].pop("evidence_request", None)
+    item_schema = items["items"]
+    item_schema["properties"].pop("evidence_request", None)
+    item_schema["required"].remove("evidence_request")
+    item_schema["properties"]["caption_evidence_ids"] = {"type":"array","maxItems":8,"items":{"type":"string"}}
+    item_schema["required"].append("caption_evidence_ids")
     response = client.complete(messages=alternate, max_tokens=cfg.max_tokens,
         temperature=cfg.temperature, **{**wire, "response_format": {"type": "json_schema", "schema": schema}})
     if (response.get("choices") or [{}])[0].get("finish_reason") != "stop":
         return receipts, response, "incomplete_supplemented_proposal"
     try:
-        replacements = _native_proposals(response, subset)
+        replacements = _native_proposals(response, subset, supplemented=True)
+        for uid,item in replacements.items():
+            _caption_references(item, uid, receipts)
     except ProposalDecisionError as exc:
         return receipts, response, str(exc)
     for uid, item in replacements.items():
-        item.pop("evidence_request", None)
+        item["evidence_request"] = entries[uid]["evidence_request"]
+        item["initial_proposal"] = {k:entries[uid][k] for k in ("corrected_text","reason")}
+        item["caption_observations_used"] = _caption_references(item, uid, receipts)
         entries[uid] = item
     return receipts, response, None
 
@@ -267,7 +318,7 @@ def _unique_json_object(pairs):
     return result
 
 
-def _native_proposals(reply,targets,aliases=None):
+def _native_proposals(reply,targets,aliases=None, *, require_advisory=False, allow_evidence=False, supplemented=False):
     try:
         parsed=json.loads(reply["choices"][0]["message"]["content"],
                           object_pairs_hook=_unique_json_object)
@@ -291,7 +342,8 @@ def _native_proposals(reply,targets,aliases=None):
     entries={}
     for index,item in enumerate(values):
         if (not isinstance(item,dict) or not {"utterance_id","corrected_text","reason"} <= set(item)
-                or set(item)-{"utterance_id","corrected_text","reason",*(_ADVISORY_PROPERTIES)}):
+                or set(item)-{"utterance_id","corrected_text","reason",*(_ADVISORY_PROPERTIES),
+                              *(("caption_evidence_ids",) if supplemented else ())}):
             raise ProposalDecisionError(f"invalid_proposal_shape:{index}")
         uid=item["utterance_id"]
         if not isinstance(uid,str) or uid not in originals:
@@ -306,6 +358,11 @@ def _native_proposals(reply,targets,aliases=None):
             raise ProposalDecisionError(f"invalid_discourse_terms:{index}")
         if "evidence_request" in item and not isinstance(item["evidence_request"],dict):
             raise ProposalDecisionError(f"invalid_evidence_request:{index}")
+        if require_advisory:
+            _advisory_decision(item, allow_evidence=allow_evidence)
+        if supplemented and (not isinstance(item.get("discourse_terms"),list) or len(item["discourse_terms"])>4
+                or "evidence_request" in item or "caption_evidence_ids" not in item):
+            raise ProposalDecisionError("invalid_supplemented_advisories")
         entries[uid]={**item,"changed":candidate.strip()!=originals[uid].strip()}
     if set(entries)!=set(originals):
         raise ProposalDecisionError("missing_proposal_ids")
@@ -321,6 +378,7 @@ def _keyed_proposal(client,messages,ids,wire,cfg):
     if "recording_context" in json.loads(messages[-1]["content"]):
         original_item = wire["response_format"]["schema"]["properties"]["reviews"]["items"]
         item["properties"].update({k:v for k,v in original_item["properties"].items() if k in _ADVISORY_PROPERTIES})
+        item["required"].extend(k for k in original_item["required"] if k in _ADVISORY_PROPERTIES)
     schema={"type":"object","properties":{"reviews":{"type":"object",
         "properties":{key:item for key in aliases},"required":list(aliases),
         "additionalProperties":False}},"required":["reviews"],"additionalProperties":False}
@@ -331,7 +389,8 @@ def _keyed_proposal(client,messages,ids,wire,cfg):
     alternate[0]["content"]+=(" The previous proposal was structurally invalid. "
         "Return a fresh complete reviews OBJECT, not a list. Each required response key "
         "maps to exactly one target utterance in response_keys. The value contains only "
-        "corrected_text and reason for that target. Do not emit utterance IDs in values.")
+        "corrected_text and reason for that target, plus required advisory fields when present in the schema. "
+        "Do not emit utterance IDs in values.")
     reply=client.complete(messages=alternate,max_tokens=cfg.max_tokens,temperature=cfg.temperature,
         **{**wire,"response_format":{"type":"json_schema","schema":schema}})
     return reply,aliases
@@ -500,6 +559,8 @@ def review_translated_utterances(
     discourse_ledger = []
     context_receipts = []
     evidence_receipts = []
+    evidence_assessments = []
+    discourse_receipts = []
     supplementary_proposal_errors = []
     source_entries = {_uid(u, i): _entry(u, i) for i, u in enumerate(out)}
     signature = {
@@ -624,13 +685,21 @@ def review_translated_utterances(
                     except (TypeError,KeyError,AttributeError):
                         valid_hit=False
                 if native_review and valid_hit:
+                    cached_evidence = [item["supplementary_observation"] for item in hit.values()
+                        if isinstance(item.get("supplementary_observation"),dict)]
                     for uid, item in hit.items():
+                        try:
+                            _advisory_decision(item, allow_evidence=evidence_provider is not None)
+                            if "caption_evidence_ids" in item and _caption_references(item,uid,cached_evidence) != item.get("caption_observations_used"):
+                                valid_hit = False
+                        except (ProposalDecisionError, KeyError, TypeError, ValueError):
+                            valid_hit = False
                         evidence = item.get("supplementary_observation")
                         if evidence is not None and (not isinstance(evidence, dict)
                                 or evidence.get("target_id") != uid or evidence_provider is None
                                 or evidence.get("provider") != evidence_provider.identity
                                 or (evidence.get("kind") == "visual" and evidence.get("status") == "observed"
-                                    and evidence.get("observation_sha256") != digest(evidence.get("observations")))):
+                                    and evidence.get("observation_sha256") != digest({k:evidence.get(k) for k in ("frames","observations","visible_text")})))):
                             valid_hit = False
                         if item.get("supplement_error") or item.get("deferred_comparison"):
                             valid_hit = False
@@ -689,9 +758,10 @@ def review_translated_utterances(
                     del item_schema["properties"]["changed"]
                     item_schema["required"].remove("changed")
                     if native_review:
-                        item_schema["properties"].update(_ADVISORY_PROPERTIES)
+                        item_schema["properties"].update(deepcopy(_ADVISORY_PROPERTIES))
+                        item_schema["required"].extend(_ADVISORY_PROPERTIES)
                         if evidence_provider is None:
-                            item_schema["properties"].pop("evidence_request")
+                            item_schema["properties"]["evidence_request"]["properties"]["kind"]["enum"] = ["none"]
                     def source_only(seq):
                         return [{k:v for k,v in row.items() if k!="machine_translation"} for row in seq]
                     source_payload={**payload,"context_before":source_only(before),
@@ -742,13 +812,21 @@ def review_translated_utterances(
                             "not proof of an unobserved identity; retain uncertainty and consistent supported terminology. "
                             "The recording_context is read-only provisional bilingual or English dialogue, not ground truth. "
                             "Use earlier AND later dialogue for referents and scene meaning; check original source for facts. "
-                            "For recurring names or terms, optionally provide discourse_terms with an exact source literal, "
-                            "the English rendering in your proposal, and IDs of other occurrences containing that literal. "
-                            "Advisory terms are not mandatory substitutions; distinguish contextual senses. "
-                            + ("If a material ambiguity could be resolved by an observation, optionally provide evidence_request "
-                               "with kind visual or acoustic, reference_id of a real relevant timed occurrence, and a specific "
-                               "neutral observational question. Do not request evidence for ordinary lexical corrections. "
-                               if evidence_provider is not None else "")
+                            "For EACH target explicitly assess recurring proper names, titles and specialized terms. "
+                            "Return discourse_terms with exact source literals, the English rendering in your proposal, "
+                            "and IDs of other occurrences containing the literal. Return [] if none is supported. "
+                            "Reuse supported advisory interpretations for the same sense; distinguish contextual senses, "
+                            "do not invent identities or blindly substitute. "
+                            "For EACH target return evidence_request with kind, reference_id, question and a concise reason. "
+                            + ("Choose none only after considering whether the source observation itself may be wrong. "
+                               "Look for anomalous grammar, suspicious near-homophones, incongruous classifiers, honorifics, "
+                               "contradictory participant roles, names and unresolved referents. A plausible fluent English "
+                               "translation of faulty ASR is not proof of correct wording. Visual inspection can read "
+                               "on-screen source-language captions as well as scene actions; choose visual when such evidence "
+                               "could resolve material uncertainty, acoustic when re-observing speech is more discriminating. "
+                               "For visual/acoustic specify a real relevant timed occurrence ID and a neutral observational question. "
+                               "For none use empty reference_id and question, with reason. Do not investigate routine lexical corrections. "
+                               if evidence_provider is not None else "Acquisition is disabled: return kind none with empty reference_id and question and reason. ")
                         )
                     direct_schema["properties"]["reviews"]["minItems"] = len(ids)
                     direct_schema["properties"]["reviews"]["maxItems"] = len(ids)
@@ -776,7 +854,8 @@ def review_translated_utterances(
                         raise ValueError("Incomplete bounded Messages postedit: "+
                             json.dumps(response.get("_client_request_diagnostics",{}),ensure_ascii=False))
                     try:
-                        entries=_native_proposals(response,targets)
+                        entries=_native_proposals(response,targets,require_advisory=native_review,
+                            allow_evidence=evidence_provider is not None)
                     except ProposalDecisionError as exc:
                         receipt={"target_ids":ids,"initial_rejected_response":_failure_receipt(response,str(exc))}
                         proposal_recoveries.append(receipt)
@@ -792,7 +871,8 @@ def review_translated_utterances(
                             receipt["alternate_rejected_response"]=_failure_receipt(alternate,"incomplete_keyed_proposal")
                             raise ProposalDecisionError("incomplete_keyed_proposal")
                         try:
-                            entries=_native_proposals(alternate,targets,aliases)
+                            entries=_native_proposals(alternate,targets,aliases,require_advisory=native_review,
+                                allow_evidence=evidence_provider is not None)
                         except ProposalDecisionError as rejected:
                             receipt["alternate_rejected_response"]=_failure_receipt(alternate,str(rejected))
                             raise
@@ -887,7 +967,10 @@ def review_translated_utterances(
                             {"role": "user", "content": json.dumps({
                                 **({"recording_context": global_context, "advisory_discourse_terms": terms,
                                      "supplementary_observations": [item["supplementary_observation"] for item in entries.values()
-                                         if "supplementary_observation" in item]} if native_review else {}),
+                                         if "supplementary_observation" in item],
+                                     "caption_interpretations": [{"id":uid,"caption_ids":item["caption_evidence_ids"],
+                                         "reason":item["reason"]} for uid,item in entries.items()
+                                         if item.get("caption_evidence_ids")]} if native_review else {}),
                                  "source_language": source_language, "context_before": before,
                                 "operator_translation_examples":payload["operator_translation_examples"],
                                 **({k: payload[k] for k in ("glossary_characters", "glossary_terms", "series_notes")}
@@ -922,6 +1005,9 @@ def review_translated_utterances(
                                 "across a real connected boundary is not a semantic error. Prioritize factual quantities, "
                                 "participants, polarity, honorifics, names and idioms above display-fragment style. "
                                 "Read recording_context, advisory terms and supplementary observations as fallible evidence. "
+                                "Check cited literal captions against the original ASR and actual occurrence associations. "
+                                "Accept a materially better supported alternative source interpretation only when the evidence "
+                                "supports it; do not presume captions prove speech or permit unsupported changes. "
                                 "Give a specific source-grounded reason for EACH decision. Return only supplied verdict IDs."
                             )
                         verdict = client.complete(messages=comparison_messages,
@@ -970,8 +1056,11 @@ def review_translated_utterances(
                                 data = json.loads(reduced[-1]["content"])
                                 data["comparisons"] = [c for c in data["comparisons"] if c["utterance_id"] == decision_id]
                                 data["passage_checks"] = [p for p in data["passage_checks"] if p["utterance_id"] == decision_id]
+                                related_ids = passage["target_ids"] if passage else owned
+                                data["caption_interpretations"] = [x for x in data["caption_interpretations"] if x["id"] in related_ids]
+                                cited = {ref for x in data["caption_interpretations"] for ref in x["caption_ids"]}
                                 data["supplementary_observations"] = [x for x in data["supplementary_observations"]
-                                    if x.get("target_id") in (passage["target_ids"] if passage else owned)]
+                                    if x.get("target_id") in related_ids or any(v["caption_id"] in cited for v in x.get("visible_text", []))]
                                 reduced[-1]["content"] = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
                                 reduced[0]["content"] += " Recover exactly one owned verdict. Other dialogue is read-only context."
                                 isolated, tokens = _compact_comparison(client, reduced, [decision_id], cfg.max_tokens)
@@ -1070,6 +1159,18 @@ def review_translated_utterances(
             uid = _uid(out[i], i)
             item = entries[uid]
             original = out[i]["machine_translated_text"]
+            if native_review:
+                discourse_receipts.append({"target_id":uid, "nominated":item["discourse_terms"]})
+                decision = {"target_id":uid, **item["evidence_request"]}
+                out[i]["translation_review_evidence_assessment"] = decision
+                evidence_assessments.append(decision)
+                if "initial_proposal" in item:
+                    out[i]["translation_review_initial_proposal"] = item["initial_proposal"]
+                if item.get("caption_observations_used"):
+                    out[i]["translation_review_caption_interpretation"] = {
+                        "observations":item["caption_observations_used"],
+                        "source_text_sha256":text_digest(out[i]["source_text"]),
+                        "status":"proposed_not_selected", "canonical_source_changed":False}
             if "supplementary_observation" in item:
                 observation = item["supplementary_observation"]
                 out[i]["translation_review_evidence"] = observation
@@ -1244,6 +1345,10 @@ def review_translated_utterances(
                         dependent_rejections+=1
                     changed_count-=1
     if native_review:
+        for row in out:
+            if _uid(row,0) in selected and row.get("translation_review_caption_interpretation"):
+                if row.get("translation_review_status") in ("corrected","unchanged"):
+                    row["translation_review_caption_interpretation"]["status"] = "selected_interpretation"
         connected_units.bind_selected_units(out, partitions, selected)
         connected_units.validate_selected_units(out)
     if target_utterance_ids is not None:
@@ -1264,6 +1369,8 @@ def review_translated_utterances(
            if native_review else {}),
         **({"recording_context_sha256": recording_context.identity,
             "recording_context_receipts": context_receipts, "discourse_terms": discourse_ledger,
+            "evidence_assessments": evidence_assessments,
+            "discourse_assessments": discourse_receipts,
             "supplementary_evidence": evidence_receipts,
             "supplementary_evidence_unresolved_count": sum(x.get("status") != "observed" for x in evidence_receipts),
             "supplementary_proposal_errors": supplementary_proposal_errors} if native_review else {}),
