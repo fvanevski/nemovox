@@ -27,6 +27,7 @@ ROLE_ADAPTERS: dict[str, frozenset[str]] = {
     "source_refinement": frozenset({"openai_chat"}),
     "text_translation": frozenset({"openai_chat"}),
     "translation_review": frozenset({"openai_chat"}),
+    "visual_inspection": frozenset({"openai_chat"}),
     "subtitle_condensation": frozenset({"openai_chat"}),
     "riva_translation": frozenset({"riva_worker"}),
 }
@@ -248,6 +249,8 @@ def load_model_resources(
                     raise ResourceConfigError(f"Empty environment override for {resource_name}.{field_name}")
                 chosen = value.strip()
                 resources[resource_name][field_name] = chosen
+    # Inherit the selected review resource unless vision is explicitly bound.
+    roles.setdefault("visual_inspection", roles["translation_review"])
     validated = {name: _validate_resource(name, spec) for name, spec in resources.items()}
     registry = ModelResources(resources=validated, roles=roles)
     for role in ROLE_ADAPTERS:

@@ -12,6 +12,8 @@ from pathlib import Path
 import subprocess
 import tempfile
 
+import httpx
+
 from nvidia_transcribe.media import compute_file_sha256, extract_wav_segment
 from nvidia_transcribe.moss_recording import process_moss_media
 from nvidia_transcribe.ninfer_messages_client import image_content_block
@@ -102,7 +104,7 @@ class ReviewEvidenceProvider:
             # Ownership/lease restoration failures are not ordinary missing
             # semantic evidence. Let the normal pipeline fail visibly.
             raise
-        except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
+        except (OSError, ValueError, RuntimeError, subprocess.SubprocessError, httpx.HTTPError, KeyError, IndexError, TypeError) as exc:
             result = {"status": "acquisition_failed", "error_type": type(exc).__name__}
         if result["status"] == "observed":
             if compute_file_sha256(self.path) != self.media_sha:
@@ -189,7 +191,9 @@ class ReviewEvidenceProvider:
                 source_language=self.contract["source_language"], audio_stream_index=0, resume=False)
             crop = result["contract"]
             observations = [{"source": row["source_text"],
-                             "crop_interval": [row["source_start"], row["source_end"]]}
+                             "crop_interval": [row["source_start"], row["source_end"]],
+                             "absolute_interval": [lo+row["source_start"], lo+row["source_end"]]
+                             if row["source_start"] is not None else [None, None]}
                             for row in crop["utterances"]]
             return {"status": "observed", "kind": "acoustic", "crop_offset_s": lo,
                     "requested_crop_end_s": hi, "crop_sha256": crop_sha,

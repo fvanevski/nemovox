@@ -58,6 +58,9 @@ class SubtitlePipelineConfig:
     condense_cps_threshold: float = 25.0
     source_quality: str = "auto"  # auto: native geometry; on: explicit acoustic activity assessment
     validation_overlay_path: str | Path | None = None
+    review_evidence: str = "auto"
+    visual_max_frames: int = 6
+    visual_thinking_budget: int = 1024
 
 
 def _atomic_write(path: Path, content: str) -> None:
@@ -113,6 +116,8 @@ def generate_subtitles(
     translated_path = out_dir / "translated.contract.json"
     if cfg.re_render_only and not translated_path.is_file():
         raise FileNotFoundError(f"Offline re-render requires an existing translated contract: {translated_path}")
+    if cfg.review_evidence not in ("auto", "off"):
+        raise ValueError("Unsupported adaptive review evidence policy")
     if cfg.source_quality not in ("auto", "on", "off"):
         raise ValueError("Unsupported source quality mode")
     if cfg.translation_review.profile != "off" and cfg.translation.backend != "riva":
@@ -356,11 +361,23 @@ def generate_subtitles(
             from nvidia_transcribe.review_uncertainty import bind_review_uncertainty
             translated_utts=bind_review_uncertainty(translated_utts,contract.get("source_quality"))
             with _text_stage("translation_review") as stage_client:
+                evidence_provider = None
+                if (native_source and cfg.review_evidence == "auto" and cfg.translation_review.profile != "off"
+                        and cfg.translation_review.wire_protocol == "ninfer_messages" and lifecycle is not None
+                        and lifecycle_resources and "translation_review" in lifecycle_resources and text_client is None):
+                    from nvidia_transcribe.review_evidence import ReviewEvidenceProvider
+                    review_resource = lifecycle_resources["translation_review"]
+                    evidence_provider = ReviewEvidenceProvider(media_path=media_path, contract=contract,
+                        lifecycle=lifecycle, review_resource=review_resource,
+                        visual_resource=lifecycle_resources.get("visual_inspection", review_resource),
+                        acoustic_resource=asr_resource, review_client=stage_client,
+                        max_frames=cfg.visual_max_frames, visual_thinking_budget=cfg.visual_thinking_budget)
                 translated_utts, review_summary = review_translated_utterances(
                     translated_utts, source_language=src_lang, config=cfg.translation_review,
                     glossary=gl, text_client=stage_client,
                     checkpoint_path=out_dir / "translation-review.checkpoint.json",
                     resume=cfg.resume_translation_review,
+                    **({"evidence_provider": evidence_provider} if evidence_provider is not None else {}),
                 )
             if review_summary.get("status") == "completed_with_deferred_comparisons":
                 deferred = set(review_summary.get("deferred_comparison_ids") or [])
