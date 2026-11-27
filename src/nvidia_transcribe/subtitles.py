@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
+from nvidia_transcribe import connected_units
+
 _SENTENCE_END_CHARS = frozenset(".?!。？！")
 _CLAUSE_END_CHARS = frozenset(",;:—–、，；：")
 _PHRASE_BREAK_WORDS = frozenset(
@@ -56,6 +58,8 @@ class SubtitleCue:
     grouped_utterance_ids: list[str] = field(default_factory=list)
     source_turn_ids: list[str] = field(default_factory=list)
     conflicts: list[str] = field(default_factory=list)
+    translation_unit_id: str | None = None
+    unit_occurrence_ids: list[str] = field(default_factory=list)
 
 
 def _finite_nonneg(value: Any) -> float | None:
@@ -222,6 +226,9 @@ def build_display_cues(
         if not text:
             continue
 
+        selected = utt.get("translation_unit") or {}
+        unit_id = selected.get("unit_id")
+        unit_members = [r["id"] for r in selected.get("constituents", [])]
         raw_s, raw_e, t_status = _resolve_utterance_timing(utt)
         if raw_s is None or raw_e is None:
             cues.append(
@@ -238,6 +245,8 @@ def build_display_cues(
                     grouped_utterance_ids=grouped,
                     source_turn_ids=src_refs,
                     conflicts=["unrenderable_no_usable_timing"],
+                    translation_unit_id=unit_id,
+                    unit_occurrence_ids=unit_members,
                 )
             )
             continue
@@ -314,6 +323,8 @@ def build_display_cues(
                     grouped_utterance_ids=grouped,
                     source_turn_ids=src_refs,
                     conflicts=conflicts,
+                    translation_unit_id=unit_id,
+                    unit_occurrence_ids=unit_members,
                 )
             )
     return cues
@@ -683,6 +694,7 @@ def render_subtitles(
     """Render SRT and/or ASS subtitles directly from a translated or refined contract."""
     cfg = config or SubtitleConfig()
     utterances = contract.get("utterances") or []
+    connected_units.validate_selected_units(utterances)
     cues = build_display_cues(utterances, config=cfg)
     displayed, overflow, unrenderable = assign_subtitle_lanes(
         cues,
@@ -761,9 +773,28 @@ def render_subtitles(
         for c in all_renderable + unrenderable
         if c.conflicts
     ]
+    # Actual event bounds are distinct from allocated display sub-cue bounds.
+    by_id = {str(u.get("utterance_id") or u.get("id") or f"utt-{i:04d}"): u
+             for i, u in enumerate(utterances)}
+    lineage = []
+    for disposition, bucket in (("displayed", displayed), ("overflow", overflow),
+                                ("unrenderable", unrenderable)):
+        for cue in bucket:
+            row = by_id.get(cue.utterance_id)
+            if row is None or not connected_units.native(row):
+                continue
+            lineage.append({"occurrence_id": cue.utterance_id,
+                "translation_unit_id": cue.translation_unit_id,
+                "unit_occurrence_ids": cue.unit_occurrence_ids or [cue.utterance_id],
+                "actual_event_interval": connected_units.interval(row),
+                "display_allocation_interval": [cue.raw_start, cue.raw_end],
+                "display_interval": None if cue.unrenderable else [cue.start, cue.end],
+                "disposition": disposition, "lane": cue.lane, "text": cue.text,
+                "conflicts": list(cue.conflicts)})
     return {
         "outputs": outputs,
         "sidecars": sidecars,
+        "cue_lineage": lineage,
         "no_renderable_dialogue":no_renderable_dialogue,
         "stats": {
             "total_input_utterances": len(utterances),

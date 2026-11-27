@@ -110,6 +110,22 @@ def apply_validation_overlay(
         if ent.get("reason"):
             u["overlay_reason"] = str(ent["reason"])
 
+    # Explicit operator overrides are separate from model review authority.
+    # Retain the pre-overlay decision, retiring affected complete units.
+    invalidated = set()
+    original_by_id = {str(row.get("utterance_id") or row.get("id")): row
+                      for row in contract.get("utterances", [])}
+    for row in utts:
+        before = original_by_id.get(str(row.get("utterance_id") or row.get("id")), {})
+        unit = row.get("translation_unit")
+        if unit and any(row.get(k) != before.get(k) for k in (
+                "source_start", "source_end", "translated_text", "overlay_suppressed",
+                "suppressed_duplicate_of")):
+            invalidated.add(unit["unit_id"])
+    for row in utts:
+        unit = row.get("translation_unit")
+        if unit and unit["unit_id"] in invalidated:
+            row["pre_overlay_translation_unit"] = row.pop("translation_unit")
     # Maintain chronological ordering for timed/recovered items while preserving IDs cleanly
     timed_pairs = []
     untimed_pairs = []
@@ -130,5 +146,6 @@ def apply_validation_overlay(
         "edited_text_count": edited_text,
         "suppressed_count": suppressed_count,
         "skipped_ids": skipped,
+        "invalidated_translation_units": sorted(invalidated),
     }
     return {**contract, "utterances": ordered_utts, "validation_overlay": summary}, summary

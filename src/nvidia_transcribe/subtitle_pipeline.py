@@ -300,11 +300,21 @@ def generate_subtitles(
         # Stage 3: Dedicated machine translation of unchanged ASR by default
         _event("translation", "running")
         _log(f"Stage 3/4: Translation ({src_lang} -> {cfg.target_language}, backend={cfg.translation.backend}, style={cfg.translation.style})")
+        # Nomination sees source-bound uncertainty before requesting any
+        # alternative. No extra Riva requests for review-off or English bypass.
+        translation_input = refined_utts
+        if native_source and cfg.translation.backend == "riva":
+            from nvidia_transcribe.review_uncertainty import bind_review_uncertainty
+            translation_input = bind_review_uncertainty(refined_utts, contract.get("source_quality"))
+        primary_config = replace(cfg.translation, connected_hypotheses=(
+            native_source and cfg.translation.backend == "riva"
+            and cfg.translation_review.profile != "off"
+            and cfg.translation_review.wire_protocol == "ninfer_messages"))
         with _text_stage("text_translation") as stage_client:
             translated_utts, trans_summary = translate_utterances(
-                refined_utts,
+                translation_input,
                 source_language=src_lang,
-                config=cfg.translation,
+                config=primary_config,
                 glossary=gl,
                 text_client=stage_client,
                 lifecycle=lifecycle,
@@ -468,6 +478,7 @@ def generate_subtitles(
         "validation_overlay": overlay_summary,
         "subtitles": render_res["stats"],
         "subtitle_conflicts": render_res["conflicts"][:200],
+        "cue_lineage": render_res.get("cue_lineage", []),
         "total_wall_time_s": elapsed_s,
     }
     if render_res.get("no_renderable_dialogue"):
