@@ -387,6 +387,7 @@ def generate_subtitles(
             with _text_stage("translation_review") as stage_client:
                 evidence_provider = None
                 if (native_source and cfg.review_evidence == "auto" and cfg.translation_review.profile != "off"
+                        and cfg.translation_review.max_evidence_requests_per_batch > 0
                         and cfg.translation_review.wire_protocol == "ninfer_messages" and lifecycle is not None
                         and lifecycle_resources and "translation_review" in lifecycle_resources and text_client is None):
                     from nvidia_transcribe.review_evidence import ReviewEvidenceProvider

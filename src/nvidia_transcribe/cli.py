@@ -75,7 +75,8 @@ def build_parser() -> argparse.ArgumentParser:
                     help="Conservative UTF-8 recording-context admission budget, not a token count.")
     gs.add_argument("--review-evidence", choices=["auto", "off"], default="auto",
                     help="Conditionally investigate material visual/acoustic ambiguities using original media.")
-    gs.add_argument("--review-evidence-per-batch", type=int, default=3)
+    gs.add_argument("--review-evidence-per-batch", type=int, default=3,
+                    help="Maximum new evidence requests per batch (0 disables acquisition).")
     gs.add_argument("--visual-max-frames", type=int, default=6)
     gs.add_argument("--visual-thinking-budget", type=int, default=1024)
     gs.add_argument("--condensation-resource", default=None, help="Named text resource for condensation.")

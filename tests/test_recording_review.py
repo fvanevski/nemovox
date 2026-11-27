@@ -612,3 +612,226 @@ def test_retryable_transport_does_not_fan_out_comparisons(tmp_path):
     fixed,receipt=run(rows,Model(lambda t,p:pytest.fail("proposal regenerated")),checkpoint_path=cp)
     assert receipt["api_calls"]==1 and receipt["status"]=="completed"
     assert all(r["translated_text"]=="One." for r in fixed)
+
+
+def evidence_request(reference_id, kind="visual"):
+    return {"kind":kind,"reference_id":reference_id,"question":"What is the relevant evidence?",
+            "reason":"Ambiguous source","focus":"scene" if kind=="visual" else "none"}
+
+
+class NominationModel(Model):
+    """Exercise the real direct and keyed proposal parsers, not a validator mock."""
+    def complete(self, *, messages, **kwargs):
+        payload=json.loads(messages[-1]["content"])
+        if "response_keys" not in payload:
+            return super().complete(messages=messages, **kwargs)
+        self.calls.append(payload)
+        schema=kwargs["response_format"]["schema"]["properties"]["reviews"]
+        assert set(schema["required"])==set(payload["response_keys"])
+        targets={t["utterance_id"]:t for t in payload["target_utterances"]}
+        return reply({"reviews":{key:{"reason":"source evidence","discourse_terms":[],
+            "evidence_request":{"kind":"none","reference_id":"","question":"",
+                                "reason":"text sufficient","focus":"none"},
+            **self.propose(targets[uid],payload)}
+            for key,uid in payload["response_keys"].items()}})
+
+
+@pytest.mark.parametrize("persistent", [False, True])
+def test_invalid_reference_is_recovered_or_rejected_before_durable_admission(tmp_path,persistent):
+    rows=[row(0,"甲。","A."),row(1,"乙。","B.")]
+    a,b=[r["id"] for r in rows]
+    provider=Provider()
+    def propose(t,payload):
+        uid=t["utterance_id"]
+        if uid!=a:
+            return {"corrected_text":"B."}
+        if "supplementary_observations" in payload:
+            return {"corrected_text":"A."}
+        ref=b if "response_keys" in payload and not persistent else "missing-event"
+        return {"corrected_text":"A.","evidence_request":evidence_request(ref)}
+    cp=tmp_path/"progress.json"
+    model=NominationModel(propose)
+    out,report=run(rows,model,cfg=config(batch_size=1),evidence_provider=provider,checkpoint_path=cp)
+    assert len(report["proposal_recoveries"])==1
+    assert "unknown_evidence_reference" in json.dumps(report["proposal_recoveries"])
+    assert not report["supplementary_proposal_errors"]
+    records=[w["record"] for w in json.loads(cp.read_text())["records"].values()]
+    if persistent:
+        assert report["status"]=="completed_with_errors"
+        assert provider.requests==[]
+        assert out[0]["translated_text"]=="A."
+        assert out[0]["translation_review_status"]=="review_error_preserved_machine_translation"
+        assert all(a not in (r["entries"] or {}) for r in records)
+        # The failed proposal never becomes durable successful work; retry
+        # can actually regenerate it while the completed neighbor is reused.
+        def corrected(t,payload):
+            assert t["utterance_id"]==a
+            return {"corrected_text":"A.",**({} if "supplementary_observations" in payload else
+                {"evidence_request":evidence_request(b)})}
+        final,receipt=run(rows,Model(corrected),cfg=config(batch_size=1),
+            evidence_provider=provider,checkpoint_path=cp)
+        assert receipt["status"]=="completed" and receipt["cache_hits"]==1
+        assert final[1]==out[1]
+    else:
+        assert report["status"]=="completed"
+        assert report["proposal_recoveries"][0]["outcome"]=="complete"
+        final=out
+    # A valid reference may name a different real occurrence, not only the
+    # current target or the current packed batch.
+    assert provider.requests==[
+        (a,{k:v for k,v in evidence_request(b).items() if k!="reason"})]
+    assert final[0]["translation_review_evidence"]["status"]=="observed"
+    fresh_provider=Provider()
+    again,receipt=run(rows,Model(lambda t,p:pytest.fail("completed proposal regenerated")),
+        cfg=config(batch_size=1),evidence_provider=fresh_provider,checkpoint_path=cp)
+    assert again==final and receipt["api_calls"]==0 and fresh_provider.requests==[]
+
+
+def test_zero_budget_uses_text_only_schema_and_resumes(tmp_path):
+    rows=[row(0,"甲。","A.")]
+    class DisabledModel(NominationModel):
+        def complete(self,*,messages,**kw):
+            p=json.loads(messages[-1]["content"])
+            if "target_utterances" in p:
+                schema=kw["response_format"]["schema"]["properties"]["reviews"]
+                items=schema["properties"]["r01"] if "response_keys" in p else schema["items"]
+                assert items["properties"]["evidence_request"]["properties"]["kind"]["enum"]==["none"]
+                assert "Acquisition is disabled" in messages[0]["content"]
+            return super().complete(messages=messages,**kw)
+    def propose(t,p):
+        if "response_keys" not in p:
+            return {"corrected_text":"A.","evidence_request":evidence_request(rows[0]["id"])}
+        return {"corrected_text":"A."}
+    p=Provider()
+    cp=tmp_path/"progress.json"
+    cfg=config(max_evidence_requests_per_batch=0)
+    out,report=run(rows,DisabledModel(propose),cfg=cfg,evidence_provider=p,checkpoint_path=cp)
+    assert report["status"]=="completed" and report["api_calls"]==2
+    assert report["proposal_recoveries"][0]["outcome"]=="complete"
+    assert report["evidence_assessments"][0]["kind"]=="none"
+    assert report["supplementary_proposal_errors"]==[] and p.requests==[]
+    assert report["review_execution"]["provider_requests"]==0
+    again,receipt=run(rows,Model(lambda t,p:pytest.fail("regenerated text-only proposal")),
+        cfg=cfg,evidence_provider=Provider(),checkpoint_path=cp)
+    assert again==out and receipt["api_calls"]==0 and receipt["cache_hits"]==1
+
+
+@pytest.mark.parametrize("kind,status,end,available,visual,acoustic",[
+    ("visual","media_unavailable",2,False,True,True),
+    ("visual","reference_untimed",2,True,True,True),
+    ("visual","visual_resource_unavailable",2,True,False,True),
+    ("acoustic","acoustic_resource_unavailable",2,True,True,False),
+    ("acoustic","reference_exceeds_acoustic_budget",40,True,True,True),
+])
+def test_permanent_evidence_limitation_completes_and_reuses_receipt(
+        tmp_path,monkeypatch,kind,status,end,available,visual,acoustic):
+    from nvidia_transcribe import review_evidence
+    media=tmp_path/"media.mkv"
+    media.write_bytes(b"authenticated test media")
+    rows=[row(0,"甲。","A.",start=1,end=end)]
+    if status=="reference_untimed":
+        rows[0]["source_start"]=rows[0]["source_end"]=None
+    registry=load_model_resources(environ={})
+    review=registry.resolve("translation_review")
+    def forbidden(*a,**kw):
+        pytest.fail("terminal limitation must not invoke media or model acquisition")
+    monkeypatch.setattr(review_evidence.subprocess,"run",forbidden)
+    monkeypatch.setattr(review_evidence,"extract_wav_segment",forbidden)
+    monkeypatch.setattr(review_evidence,"process_moss_media",forbidden)
+    def provider():
+        return ReviewEvidenceProvider(media_path=media if available else None,
+            contract={"utterances":rows,"source":{"content_sha256":hashlib.sha256(media.read_bytes()).hexdigest(),
+                "selected_audio_stream":0},"native_dialogue":{"decoded_duration_s":60},"source_language":"zh"},
+            lifecycle=None,review_resource=review,visual_resource=review if visual else None,
+            acoustic_resource=registry.resolve("asr") if acoustic else None,review_client=None)
+    def propose(t,p):
+        assert "supplementary_observations" not in p
+        return {"corrected_text":"Text-supported A.","evidence_request":evidence_request(rows[0]["id"],kind)}
+    def compare(p,kw):
+        assert p["supplementary_observations"][0]["status"]==status
+        return decisions(p,"original")
+    cp=tmp_path/"progress.json"
+    out,report=run(rows,Model(propose,compare),evidence_provider=provider(),checkpoint_path=cp)
+    assert report["status"]=="completed" and report["api_calls"]==2
+    assert report["supplementary_evidence_unresolved_count"]==1
+    assert report["supplementary_proposal_errors"]==[]
+    assert report["supplementary_evidence"][0]["status"]==status
+    assert out[0]["translated_text"]=="A."
+    p2=provider()
+    again,receipt=run(rows,Model(lambda t,p:pytest.fail("unexpected proposal")),
+        evidence_provider=p2,checkpoint_path=cp)
+    assert again==out and receipt["api_calls"]==0 and receipt["cache_hits"]==1
+    assert receipt["review_execution"]["provider_requests"]==0
+    assert receipt["review_execution"]["checkpoint_acquisition_reuses"]==0
+
+
+@pytest.mark.parametrize("failure",["acquisition_failed","batch_budget_exhausted"])
+def test_retryable_evidence_resolves_only_pending_unit(tmp_path,failure):
+    rows=[row(0,"甲。","A."),row(1,"乙。","B."),row(2,"丙。","C.")]
+    a,b,c=[r["id"] for r in rows]
+    class TransientProvider(Provider):
+        def collect(self,uid,request):
+            obs=super().collect(uid,request)
+            if uid==b:
+                obs["status"]="acquisition_failed"
+            return obs
+    def propose(t,p):
+        uid=t["utterance_id"]
+        if "supplementary_observations" in p:
+            return {"corrected_text":"Refined "+uid}
+        if uid in (a,b):
+            return {"corrected_text":"Proposed "+uid,"evidence_request":evidence_request(uid)}
+        return {"corrected_text":"Revised C."}
+    cfg=config(max_evidence_requests_per_batch=1 if failure=="batch_budget_exhausted" else 3)
+    cp=tmp_path/"progress.json"
+    first=Provider() if failure=="batch_budget_exhausted" else TransientProvider()
+    old,report=run(rows,Model(propose),cfg=cfg,evidence_provider=first,checkpoint_path=cp)
+    assert report["status"]=="completed_with_deferred_evidence"
+    assert report["supplementary_proposal_errors"]==[{"target_id":b,"reason":"unresolved_evidence_acquisition"}]
+    assert old[1]["translation_review_evidence"]["status"]==failure
+    assert old[1]["translated_text"]=="B."
+    p2=Provider()
+    second=Model(propose)
+    final,receipt=run(rows,second,cfg=cfg,evidence_provider=p2,checkpoint_path=cp)
+    assert receipt["status"]=="completed" and receipt["cache_hits"]==2
+    assert receipt["api_calls"]==2 and receipt["review_execution"]["checkpoint_acquisition_reuses"]==1
+    assert [uid for uid,_ in p2.requests]==[b]
+    assert final[0]==old[0] and final[2]==old[2]
+    assert final[1]["translated_text"]=="Refined "+b
+    assert [t["utterance_id"] for t in second.calls[0]["target_utterances"]]==[b]
+    assert ids(second.calls[1])==[b]
+
+
+def test_invalid_legacy_checkpoint_nomination_fails_closed(tmp_path):
+    rows=[row(0,"甲。","A.")]
+    uid=rows[0]["id"]
+    cp=tmp_path/"progress.json"
+    p=Provider()
+    def propose(t,payload):
+        return {"corrected_text":"A.",**({} if "supplementary_observations" in payload else
+            {"evidence_request":evidence_request(uid)})}
+    _,report=run(rows,Model(propose),evidence_provider=p,checkpoint_path=cp)
+    assert report["status"]=="completed"
+    # Emulate a structurally valid pre-fix checkpoint with an invalid
+    # admitted nomination, including coherent request and envelope digests.
+    doc=json.loads(cp.read_text())
+    wrapped=next(iter(doc["records"].values()))
+    record=wrapped["record"]
+    item=record["entries"][uid]
+    ref=record["proposal_request_sha256"]
+    receipt=record["requests"].pop(ref)
+    response=json.loads(receipt["response"][0]["message"]["content"])
+    response["reviews"][0]["evidence_request"]["reference_id"]="missing"
+    receipt["response"][0]["message"]["content"]=json.dumps(response)
+    ref=digest(receipt)
+    record["requests"][ref]=receipt
+    record["proposal_request_sha256"]=ref
+    item["evidence_request"]["reference_id"]="missing"
+    wrapped["sha256"]=digest(record)
+    cp.write_text(json.dumps(doc))
+    p2=Provider()
+    _,report=run(rows,Model(lambda t,p:pytest.fail("invalid checkpoint must fail visibly")),
+        evidence_provider=p2,checkpoint_path=cp)
+    assert report["status"]=="completed_with_errors"
+    assert any("unknown_evidence_reference" in e for e in report["errors"])
+    assert p2.requests==[] and report["supplementary_proposal_errors"]==[]

@@ -206,7 +206,7 @@ _ADVISORY_PROPERTIES = {
 }
 
 
-def _advisory_decision(item, *, allow_evidence):
+def _advisory_decision(item, *, allow_evidence, reference_ids=()):
     """Missing decisions are invalid, never silently interpreted as none."""
     terms = item.get("discourse_terms")
     request = item.get("evidence_request")
@@ -226,6 +226,8 @@ def _advisory_decision(item, *, allow_evidence):
     elif (not allow_evidence or not request["reference_id"].strip()
             or not 1 <= len(request["question"].strip()) <= 500):
         raise ProposalDecisionError("invalid_evidence_nomination")
+    elif request["reference_id"] not in reference_ids:
+        raise ProposalDecisionError("unknown_evidence_reference")
     return request
 
 
@@ -243,7 +245,24 @@ def _caption_references(item, uid, receipts):
     return [available[ref] for ref in refs]
 
 
-_TERMINAL_EVIDENCE = {"observed","media_unavailable","reference_untimed"}
+# These outcomes cannot be improved by repeating an identical request with
+# the same admitted media, resource identity and geometry. They are explicit
+# limitations, not successful observations.
+_TERMINAL_EVIDENCE = frozenset({
+    "observed", "media_unavailable", "reference_untimed",
+    "visual_resource_unavailable", "acoustic_resource_unavailable",
+    "reference_exceeds_acoustic_budget",
+})
+_RETRYABLE_EVIDENCE = frozenset({"acquisition_failed", "batch_budget_exhausted"})
+
+
+def _check_acquisition_outcome(observation):
+    status = observation.get("status")
+    if status not in _TERMINAL_EVIDENCE | _RETRYABLE_EVIDENCE:
+        # Invalid nominations are proposal/admission failures, not work that
+        # can be repaired by collecting the same immutable request again.
+        raise ProposalDecisionError("invalid_evidence_acquisition_outcome:" + str(status))
+    return status
 
 
 def _retryable_review_transport(exc):
@@ -288,9 +307,10 @@ def _supplemented_proposals(client, provider, messages, wire, cfg, targets, entr
                 count+=1
                 observation=provider.collect(uid,request)
                 telemetry["provider_requests"]+=1
+            status = _check_acquisition_outcome(observation)
             item["supplementary_observation"]=observation
             receipts.append(observation)
-            if observation["status"] not in _TERMINAL_EVIDENCE:
+            if status in _RETRYABLE_EVIDENCE:
                 waiting=True
             progress.entries(state,entries)
         observed=any(r["status"]=="observed" for r in receipts)
@@ -381,7 +401,7 @@ def _completed_unit(ids, entries, state):
     return True
 
 
-def _validate_progress_entries(entries, targets, state, provider):
+def _validate_progress_entries(entries, targets, state, provider, *, reference_ids):
     """Reject corrupted or mismatched stage records; never manufacture decisions."""
     ids=[t["utterance_id"] for t in targets]
     if set(entries)!=set(ids):
@@ -392,7 +412,7 @@ def _validate_progress_entries(entries, targets, state, provider):
     for t in targets:
         uid=t["utterance_id"]
         item=entries[uid]
-        _advisory_decision(item,allow_evidence=provider is not None)
+        _advisory_decision(item,allow_evidence=provider is not None,reference_ids=reference_ids)
         if (not isinstance(item.get("corrected_text"),str) or not item["corrected_text"].strip()
                 or item.get("changed")!=(item["corrected_text"].strip()!=t["machine_translation"].strip())
                 or not isinstance(item.get("reason"),str)):
@@ -406,6 +426,7 @@ def _validate_progress_entries(entries, targets, state, provider):
                     or (obs.get("kind")=="acoustic" and obs.get("status")=="observed"
                         and obs.get("observation_sha256")!=digest({k:obs.get(k) for k in ("crop_offset_s","requested_crop_end_s","crop_sha256","observations","native_dialogue","model_receipt")}))):
                 raise ValueError("Native progress evidence mismatch")
+            _check_acquisition_outcome(obs)
         if "caption_evidence_ids" in item and _caption_references(item,uid,receipts)!=item.get("caption_observations_used"):
             raise ValueError("Native progress caption mismatch")
         initial_ref=state.get("proposal_request_sha256")
@@ -414,7 +435,8 @@ def _validate_progress_entries(entries, targets, state, provider):
             raise ValueError("Native progress initial request missing")
         initial_payload=json.loads(initial_request["messages"][-1]["content"])
         initial=_native_proposals({"choices":initial_request["response"]},targets,
-            initial_payload.get("response_keys"),require_advisory=True,allow_evidence=provider is not None)[uid]
+            initial_payload.get("response_keys"),require_advisory=True,allow_evidence=provider is not None,
+             reference_ids=reference_ids)[uid]
         if item["evidence_request"]!=initial["evidence_request"]:
             raise ValueError("Native progress initial nomination mismatch")
         if item.get("supplement_request_sha256"):
@@ -562,7 +584,8 @@ def _unique_json_object(pairs):
     return result
 
 
-def _native_proposals(reply,targets,aliases=None, *, require_advisory=False, allow_evidence=False, supplemented=False):
+def _native_proposals(reply,targets,aliases=None, *, require_advisory=False, allow_evidence=False,
+                      supplemented=False, reference_ids=()):
     try:
         parsed=json.loads(reply["choices"][0]["message"]["content"],
                           object_pairs_hook=_unique_json_object)
@@ -603,7 +626,7 @@ def _native_proposals(reply,targets,aliases=None, *, require_advisory=False, all
         if "evidence_request" in item and not isinstance(item["evidence_request"],dict):
             raise ProposalDecisionError(f"invalid_evidence_request:{index}")
         if require_advisory:
-            _advisory_decision(item, allow_evidence=allow_evidence)
+            _advisory_decision(item, allow_evidence=allow_evidence, reference_ids=reference_ids)
         if supplemented and (not isinstance(item.get("discourse_terms"),list) or len(item["discourse_terms"])>4
                 or "evidence_request" in item or "caption_evidence_ids" not in item):
             raise ProposalDecisionError("invalid_supplemented_advisories")
@@ -802,6 +825,10 @@ def review_translated_utterances(
     recording_context = RecordingContext(out, cfg.context_mode, cfg.context_max_bytes) if native_review else None
     if type(cfg.max_evidence_requests_per_batch) is not int or not 0 <= cfg.max_evidence_requests_per_batch <= 12:
         raise ValueError("Invalid per-batch evidence budget")
+    # Zero means text-only, including schema/prompt and checkpoint admission.
+    # Do not create deferred work which can never fit the configured budget.
+    if cfg.max_evidence_requests_per_batch == 0:
+        evidence_provider = None
     discourse_ledger = []
     scene_ledger = []
     execution_telemetry={"checkpoint_acquisition_reuses":0,"provider_requests":0,"proposal_reuses":0,
@@ -813,6 +840,7 @@ def review_translated_utterances(
     discourse_receipts = []
     supplementary_proposal_errors = []
     source_entries = {_uid(u, i): _entry(u, i) for i, u in enumerate(out)}
+    reference_ids = frozenset(source_entries)
     signature = {
         "version": _PROMPT_VERSION, "profile": cfg.profile, "style": cfg.style,
         "source_language": source_language, "target_language": cfg.target_language,
@@ -1089,7 +1117,7 @@ def review_translated_utterances(
                         wire["retry_max_tokens"]=QUALITY_RETRY_TOKENS
                 if native_review and state["entries"] is not None:
                     entries=deepcopy(state["entries"])
-                    _validate_progress_entries(entries,targets,state,evidence_provider)
+                    _validate_progress_entries(entries,targets,state,evidence_provider,reference_ids=reference_ids)
                     hits+=sum(len(group) for group in _owned_groups(partitions,start,end)
                               if _completed_unit([all_ids[i] for i in group],entries,state))
                     execution_telemetry["proposal_reuses"]+=len(ids)
@@ -1122,7 +1150,7 @@ def review_translated_utterances(
                                 json.dumps(response.get("_client_request_diagnostics",{}),ensure_ascii=False))
                         try:
                             entries=_native_proposals(response,targets,require_advisory=native_review,
-                                allow_evidence=evidence_provider is not None)
+                                allow_evidence=evidence_provider is not None,reference_ids=reference_ids)
                         except ProposalDecisionError as exc:
                             receipt={"target_ids":ids,"initial_rejected_response":_failure_receipt(response,str(exc))}
                             proposal_recoveries.append(receipt)
@@ -1142,7 +1170,7 @@ def review_translated_utterances(
                                 raise ProposalDecisionError("incomplete_keyed_proposal")
                             try:
                                 entries=_native_proposals(alternate,targets,aliases,require_advisory=native_review,
-                                    allow_evidence=evidence_provider is not None)
+                                    allow_evidence=evidence_provider is not None,reference_ids=reference_ids)
                             except ProposalDecisionError as rejected:
                                 receipt["alternate_rejected_response"]=_failure_receipt(alternate,str(rejected))
                                 raise
@@ -1422,7 +1450,7 @@ def review_translated_utterances(
                 for scene in observed_scenes(observation):
                     if scene not in scene_ledger:
                         scene_ledger.append(scene)
-                if observation.get("status") not in ("observed", "media_unavailable", "reference_untimed"):
+                if observation.get("status") not in _TERMINAL_EVIDENCE:
                     valid_for_cache = False
             if item.get("supplement_error"):
                 supplementary_proposal_errors.append({"target_id": uid, "reason": item["supplement_error"]})
