@@ -21,7 +21,7 @@ class RecordingContext:
     The caller reserves separate headroom for prompts, schemas and completion.
     """
     def __init__(self, rows, mode, max_bytes):
-        if mode not in ("local", "english", "bilingual"):
+        if mode not in ("english", "bilingual"):
             raise ValueError("Unsupported review context representation")
         if type(max_bytes) is not int or not 1024 <= max_bytes <= 180000:
             raise ValueError("Review context budget must be 1024..180000 UTF-8 bytes")
@@ -39,8 +39,6 @@ class RecordingContext:
         self.identity = digest(self.rows)
 
     def for_targets(self, start, end):
-        if self.mode == "local":
-            return {"representation": "local", "coverage": "local_only"}
         bilingual = self.mode == "bilingual"
         def render(i):
             row = self.rows[i]
@@ -95,4 +93,14 @@ def supported_terms(item, target, all_rows):
 def relevant_terms(ledger, targets, limit=32):
     # Never apply a global string replacement. Supply conflicting interpretations
     # as alternatives, restricted to literally present mentions.
-    return [term for term in ledger if any(term["source"] in t["source_text"] for t in targets)][-limit:]
+    relevant = [term for term in ledger if any(term["source"] in t["source_text"] for t in targets)]
+    # Collapse repeated equal interpretations while preserving competing senses
+    # and their exact accepted occurrences. Do not let frequent repetitions evict
+    # every distinct term in the current target batch.
+    grouped = {}
+    for term in relevant:
+        key = (term["source"], term["english"].casefold())
+        prior = grouped.get(key)
+        ids = [*(prior["accepted_target_ids"] if prior else []), term["accepted_target_id"]]
+        grouped[key] = {**term, "accepted_target_ids": list(dict.fromkeys(ids))[-8:]}
+    return list(grouped.values())[-limit:]

@@ -227,7 +227,7 @@ def _caption_references(item, uid, receipts):
         raise ProposalDecisionError("invalid_caption_reference_collection")
     available = {v["caption_id"]:v for obs in receipts if obs.get("status") == "observed"
                  and obs.get("kind") == "visual" for v in obs.get("visible_text", [])
-                 if v.get("text_kind") == "dialogue_caption"
+                 if v.get("text_kind") == "dialogue_caption" and v.get("source_language_match") is True
                  and uid in v.get("related_occurrence_ids", [])}
     if any(ref not in available for ref in refs):
         raise ProposalDecisionError("unbound_caption_reference")
@@ -695,11 +695,15 @@ def review_translated_utterances(
                         except (ProposalDecisionError, KeyError, TypeError, ValueError):
                             valid_hit = False
                         evidence = item.get("supplementary_observation")
+                        request = item.get("evidence_request") or {}
+                        if request.get("kind") != "none" and (not isinstance(evidence,dict)
+                                or evidence.get("request") != {k:request.get(k) for k in ("kind","reference_id","question")}):
+                            valid_hit = False
                         if evidence is not None and (not isinstance(evidence, dict)
                                 or evidence.get("target_id") != uid or evidence_provider is None
                                 or evidence.get("provider") != evidence_provider.identity
                                 or (evidence.get("kind") == "visual" and evidence.get("status") == "observed"
-                                    and evidence.get("observation_sha256") != digest({k:evidence.get(k) for k in ("frames","observations","visible_text")})))):
+                                    and evidence.get("observation_sha256") != digest({k:evidence.get(k) for k in ("frames","observations","visible_text")}))):
                             valid_hit = False
                         if item.get("supplement_error") or item.get("deferred_comparison"):
                             valid_hit = False
@@ -1261,6 +1265,15 @@ def review_translated_utterances(
                 original_joined = " ".join(out[i]["machine_translated_text"] for i in group)
                 if _bad_joined_direction(joined) and not _bad_joined_direction(original_joined):
                     continue
+                corrected = [out[i] for i in group if out[i]["translation_review_status"] == "corrected"]
+                if len(group)>1 and corrected:
+                    receipt = corrected[0].get("translation_review_passage")
+                    if (not isinstance(receipt,dict) or not receipt.get("atomic_connected_allocation")
+                            or receipt.get("verdict",{}).get("choice")!="proposal"
+                            or receipt.get("proposal_allocation") != [{"id":all_ids[i],"english":out[i]["translated_text"].strip()} for i in group]
+                            or receipt.get("target_ids") != [all_ids[i] for i in group]
+                            or any(row.get("translation_review_passage")!=receipt for row in corrected)):
+                        continue
                 for i in group:
                     uid = all_ids[i]
                     item = entries[uid]
@@ -1345,10 +1358,16 @@ def review_translated_utterances(
                         dependent_rejections+=1
                     changed_count-=1
     if native_review:
-        for row in out:
-            if _uid(row,0) in selected and row.get("translation_review_caption_interpretation"):
+        for i,row in enumerate(out):
+            if all_ids[i] in selected and row.get("translation_review_caption_interpretation"):
                 if row.get("translation_review_status") in ("corrected","unchanged"):
                     row["translation_review_caption_interpretation"]["status"] = "selected_interpretation"
+        # Final accepted ledger only; never expose rolled-back observations as accepted.
+        valid_terms = [term for term in discourse_ledger if out[all_ids.index(term["accepted_target_id"])].get("translation_review_status") in ("corrected","unchanged")]
+        discourse_ledger = valid_terms
+        for i,row in enumerate(out):
+            if all_ids[i] in selected and row.get("translation_review_status") not in ("corrected","unchanged"):
+                row.pop("translation_review_discourse_terms",None)
         connected_units.bind_selected_units(out, partitions, selected)
         connected_units.validate_selected_units(out)
     if target_utterance_ids is not None:

@@ -1,4 +1,4 @@
-"""Bounded matched-context qualification on private existing native MT outputs.
+"""Bounded recording-review qualification on private existing native MT outputs.
 
 Development runner only: no Riva/ASR recomputation except an explicitly
 nominated acoustic crop. Use separate private output directories.
@@ -56,8 +56,8 @@ def main():
     p.add_argument("--model-resources",required=True)
     p.add_argument("--output-dir",required=True)
     p.add_argument("--target",nargs="+",required=True)
-    p.add_argument("--modes",nargs="+",choices=["local","english","bilingual"],
-                   default=["local","english","bilingual"])
+    p.add_argument("--modes",nargs="+",choices=["english","bilingual"], default=["bilingual"])
+    p.add_argument("--resume-check",action="store_true",help="Replay successful current-version selection from cache.")
     p.add_argument("--media")
     p.add_argument("--adaptive",action="store_true")
     p.add_argument("--probe-visual",type=int)
@@ -116,6 +116,11 @@ def main():
                 "summary":summary,"selected_ids":sorted(selected)})
             print(json.dumps({"mode":mode,"status":summary["status"],"changed":summary["changed"],
                  "deferred":summary["deferred_comparison_ids"],"api_calls":summary["api_calls"]}),flush=True)
+            if args.resume_check:
+                replay,receipt=review_translated_utterances(rows,source_language=contract["source_language"],
+                    config=cfg,text_client=client,evidence_provider=provider,target_utterance_ids=selected,
+                    checkpoint_path=root/"review.checkpoint.json",resume=True)
+                write(root/"resume.json",{"equal_rows":replay==revised,"summary":receipt})
         for kind,index,question in (("visual",args.probe_visual,args.probe_question),
                                    ("acoustic",args.probe_acoustic,"Re-observe spoken wording.")):
             if index is None:

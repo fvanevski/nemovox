@@ -148,7 +148,8 @@ class ReviewEvidenceProvider:
              "do not translate, complete obscured words, merge different frames or infer spoken words. "
              "Use dialogue_caption only for apparent dialogue subtitles, other_text for logos, labels and signs. "
              "Group frames only when the literal is identical. Record language and uncertainty (empty if legible); "
-             "return an empty visible_text list when none is legible."},
+             "Use ISO source language codes (zh, fr, ja, en, etc.); unknown if uncertain. "
+             "Return an empty visible_text list when none is legible."},
             {"role": "user", "content": [{"type": "text", "text": json.dumps({
                 "question": question, "recording_source_language": self.contract.get("source_language"),
                 "reference_occurrence_id": reference_id, "reference_interval": [s,e]}, ensure_ascii=False)}, *blocks]}]
@@ -207,6 +208,9 @@ class ReviewEvidenceProvider:
             record = {**item, "frame_sha256": [by_frame[x]["sha256"] for x in item["frame_ids"]],
                       "related_occurrence_ids": associations, "reference_occurrence_id": reference_id,
                       "association_basis": "requested_seek_intersects_observed_event",
+                      "source_language_match": bool(self.contract.get("source_language") and
+                          item["language"].casefold().replace("_","-").split("-")[0] ==
+                          self.contract["source_language"].casefold().replace("_","-").split("-")[0]),
                       "independently_confirmed": False}
             record["caption_id"] = "visible-" + digest({"media":self.media_sha, "record":record})
             if record not in text_records:
