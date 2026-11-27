@@ -242,6 +242,7 @@ def test_shared_vision_submits_frame_hashes_without_switch(tmp_path,monkeypatch)
                               "text_kind":"dialogue_caption","language":"zh","uncertainty":""}]})
         def close(self):
             raise AssertionError("shared resource must not switch")
+    monkeypatch.setattr(review_evidence,"has_visual_stream",lambda path: True)
     monkeypatch.setattr(review_evidence.subprocess,"run",
         lambda *a,**k: SimpleNamespace(stdout=b"\xff\xd8\xfftest-frame"))
     p=ReviewEvidenceProvider(media_path=media,contract={"utterances":rows,
@@ -291,6 +292,7 @@ def test_distinct_visual_resource_releases_review_before_acquisition(tmp_path,mo
         yield Vision()
         events.append("vision_released")
     monkeypatch.setattr(review_evidence,"managed_text_client",managed)
+    monkeypatch.setattr(review_evidence,"has_visual_stream",lambda path: True)
     monkeypatch.setattr(review_evidence.subprocess,"run",
         lambda *a,**k: SimpleNamespace(stdout=b"\xff\xd8\xfftest-frame"))
     p=ReviewEvidenceProvider(media_path=media,contract={"utterances":rows,
@@ -843,6 +845,7 @@ def visual_fixture(tmp_path, monkeypatch, rows, client):
     media = tmp_path / "visual-fixture.mkv"
     media.write_bytes(b"authenticated fixture media")
     resource = load_model_resources(environ={}).resolve("translation_review")
+    monkeypatch.setattr(review_evidence,"has_visual_stream",lambda path: True)
     monkeypatch.setattr(review_evidence.subprocess, "run",
         lambda *a, **kw: SimpleNamespace(stdout=b"\xff\xd8\xfftest-frame"))
     return ReviewEvidenceProvider(media_path=media,
@@ -1013,3 +1016,190 @@ def test_visual_collections_reject_empty_or_malformed_evidence(tmp_path,monkeypa
     assert obs["error_type"]=="ValueError"
     assert "observation_sha256" not in obs and provider.cache=={}
     assert len(vision.calls)==1
+
+
+def audio_only_fixture(tmp_path, rows, client, *, acoustic=False):
+    """Real PCM audio, deliberately given a video-looking filename."""
+    import wave
+    media = tmp_path / "audio-only.mkv"
+    with wave.open(str(media), "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(16000)
+        wav.writeframes(b"\0\0" * 16000 * 24)
+    registry = load_model_resources(environ={})
+    review = registry.resolve("translation_review")
+    return ReviewEvidenceProvider(media_path=media,
+        contract={"utterances":rows,
+                  "source":{"content_sha256":hashlib.sha256(media.read_bytes()).hexdigest(),
+                            "selected_audio_stream":0},
+                  "native_dialogue":{"decoded_duration_s":24},"source_language":"zh"},
+        lifecycle=None, review_resource=review, visual_resource=review,
+        acoustic_resource=registry.resolve("asr") if acoustic else None,
+        review_client=client)
+
+
+def test_audio_only_visual_limitation_finishes_admitted_proposal_and_reuses(tmp_path, monkeypatch):
+    """The old failed acquisition remains resumable with its original identity."""
+    import subprocess
+    from nvidia_transcribe import review_evidence
+    rows = [row(0,"甲。","A.",start=1,end=2),
+            row(1,"乙。","B.",start=10,end=11)]
+    uid, neighbor = [r["id"] for r in rows]
+    cp = tmp_path/"progress.json"
+    vision = FixtureVision(error=AssertionError("no visual inference on audio"))
+    first = audio_only_fixture(tmp_path, rows, vision)
+    def propose(t,p):
+        if t["utterance_id"] == neighbor:
+            return {"corrected_text":"Improved B."}
+        assert "supplementary_observations" not in p
+        return {"corrected_text":"Improved A.","evidence_request":evidence_request(uid)}
+    def fail_frame(cmd, **kw):
+        assert cmd[0] == "ffmpeg"
+        raise subprocess.CalledProcessError(1, cmd)
+    # Reproduce the old generic frame-extraction failure in the real review
+    # state machine, retaining the admitted proposal and completed neighbor.
+    with monkeypatch.context() as old:
+        old.setattr(review_evidence,"has_visual_stream",lambda path: True)
+        old.setattr(review_evidence.subprocess,"run",fail_frame)
+        previous,report=run(rows,Model(propose),cfg=config(batch_size=1),
+            evidence_provider=first,checkpoint_path=cp)
+    assert report["status"]=="completed_with_deferred_evidence"
+    assert previous[0]["translated_text"]=="A."
+    assert previous[0]["translation_review_evidence"]["status"]=="acquisition_failed"
+    assert previous[1]["translated_text"]=="Improved B."
+    before=json.loads(cp.read_text())
+    second=audio_only_fixture(tmp_path,rows,vision)
+    assert second.identity==first.identity
+    native_run=subprocess.run
+    def probe_only(cmd,*args,**kw):
+        assert cmd[0]=="ffprobe", "impossible visual acquisition retried"
+        return native_run(cmd,*args,**kw)
+    monkeypatch.setattr(review_evidence.subprocess,"run",probe_only)
+    def compare(p,kw):
+        assert ids(p)==[uid]
+        obs,=p["supplementary_observations"]
+        assert obs["status"]=="visual_media_unavailable"
+        assert "observations" not in obs and "observation_sha256" not in obs
+        return decisions(p)
+    model=Model(lambda t,p:pytest.fail("admitted proposal regenerated"),compare)
+    final,receipt=run(rows,model,cfg=config(batch_size=1),
+        evidence_provider=second,checkpoint_path=cp)
+    assert receipt["status"]=="completed" and receipt["api_calls"]==1
+    assert receipt["cache_hits"]==1 and receipt["supplementary_proposal_errors"]==[]
+    assert receipt["supplementary_evidence_unresolved_count"]==1
+    assert final[0]["translated_text"]=="Improved A."
+    assert final[0]["machine_translated_text"]=="A."
+    assert final[0]["source_text"]==rows[0]["source_text"]
+    assert final[1]==previous[1]
+    after=json.loads(cp.read_text())
+    for key,wrapper in before["records"].items():
+        record=wrapper["record"]
+        newer=after["records"][key]["record"]
+        assert newer["snapshot"]==record["snapshot"]
+        assert all(newer["requests"].get(ref)==value for ref,value in record["requests"].items())
+    third=audio_only_fixture(tmp_path,rows,vision)
+    monkeypatch.setattr(review_evidence,"has_visual_stream",
+        lambda path:pytest.fail("completed terminal limitation probed again"))
+    again,done=run(rows,Model(lambda t,p:pytest.fail("unexpected proposal")),
+        cfg=config(batch_size=1),evidence_provider=third,checkpoint_path=cp)
+    assert again==final and done["api_calls"]==0 and done["cache_hits"]==2
+    assert done["review_execution"]["provider_requests"]==0 and vision.calls==[]
+
+
+def test_audio_only_acoustic_remains_available(tmp_path,monkeypatch):
+    from nvidia_transcribe import review_evidence
+    rows=[row(0,"甲。","A.",start=4,end=5)]
+    uid=rows[0]["id"]
+    events=[]
+    class Review:
+        def close(self):
+            events.append("released")
+    provider=audio_only_fixture(tmp_path,rows,Review(),acoustic=True)
+    visual={k:v for k,v in evidence_request(uid).items() if k!="reason"}
+    assert provider.collect(uid,visual)["status"]=="visual_media_unavailable"
+    def recognize(path,**kw):
+        assert kw["audio_stream_index"]==0 and path.is_file()
+        events.append("recognized")
+        return {"contract":{"utterances":[row(0,"乙","B",start=1,end=2)],
+                "model_provenance":{"adapter":"moss_events"},
+                "native_dialogue":{"event_count":1}}}
+    monkeypatch.setattr(review_evidence,"process_moss_media",recognize)
+    req={k:v for k,v in evidence_request(uid,"acoustic").items() if k!="reason"}
+    result=provider.collect(uid,req)
+    assert result["status"]=="observed" and result["kind"]=="acoustic"
+    assert result["observations"][0]["absolute_interval"]==[3,4]
+    assert events==["released","recognized"]
+
+
+@pytest.mark.parametrize("raw", ["{}", "null", "not-json", '{"streams":null}',
+    '{"streams":[{}]}', '{"streams":[{"index":0,"codec_type":"audio"}]}'])
+def test_visual_probe_invalid_metadata_is_not_terminal(tmp_path,monkeypatch,raw):
+    from nvidia_transcribe import media
+    rows=[row(0,"甲。","A.",start=1,end=2)]
+    provider=audio_only_fixture(tmp_path,rows,FixtureVision(error=AssertionError("no inference")))
+    request={k:v for k,v in evidence_request(rows[0]["id"]).items() if k!="reason"}
+    with monkeypatch.context() as bad:
+        bad.setattr(media.subprocess,"check_output",lambda *a,**kw:raw)
+        result=provider.collect(rows[0]["id"],request)
+        assert result["status"]=="acquisition_failed"
+        assert result["error_type"]=="MediaInspectionError"
+        assert provider.cache=={}
+    # A later successful probe may establish the actual immutable absence.
+    assert provider.collect(rows[0]["id"],request)["status"]=="visual_media_unavailable"
+
+
+@pytest.mark.parametrize("failure",["missing","timeout","nonzero"])
+def test_visual_probe_execution_failure_is_retryable(tmp_path,monkeypatch,failure):
+    import subprocess
+    from nvidia_transcribe import media
+    rows=[row(0,"甲。","A.",start=1,end=2)]
+    provider=audio_only_fixture(tmp_path,rows,FixtureVision(error=AssertionError("no inference")))
+    request={k:v for k,v in evidence_request(rows[0]["id"]).items() if k!="reason"}
+    def fail(cmd,**kw):
+        if failure=="missing":
+            raise FileNotFoundError("ffprobe")
+        if failure=="timeout":
+            raise subprocess.TimeoutExpired(cmd,30)
+        raise subprocess.CalledProcessError(1,cmd)
+    with monkeypatch.context() as bad:
+        bad.setattr(media.subprocess,"check_output",fail)
+        assert provider.collect(rows[0]["id"],request)["status"]=="acquisition_failed"
+    assert provider.collect(rows[0]["id"],request)["status"]=="visual_media_unavailable"
+
+
+def test_real_video_probe_and_transient_frame_failure_recover(tmp_path,monkeypatch):
+    import subprocess
+    from nvidia_transcribe import review_evidence
+    # Small synthetic audiovisual file; filename is deliberately not a media hint.
+    media=tmp_path/"video.bin"
+    subprocess.run(["ffmpeg","-nostdin","-v","error","-f","lavfi","-i",
+        "color=c=black:s=32x32:r=10:d=4","-f","lavfi","-i",
+        "anullsrc=r=16000:cl=mono","-t","4","-c:v","ffv1","-c:a","pcm_s16le",
+        "-f","matroska",str(media)],check=True,capture_output=True,timeout=30)
+    rows=[row(0,"甲。","A.",start=1,end=2)]
+    uid=rows[0]["id"]
+    resource=load_model_resources(environ={}).resolve("translation_review")
+    vision=FixtureVision(caption_only_body())
+    provider=ReviewEvidenceProvider(media_path=media,
+        contract={"utterances":rows,"source":{"content_sha256":hashlib.sha256(media.read_bytes()).hexdigest()},
+                  "native_dialogue":{"decoded_duration_s":4},"source_language":"zh"},
+        lifecycle=None,review_resource=resource,visual_resource=resource,
+        acoustic_resource=None,review_client=vision)
+    request={k:v for k,v in evidence_request(uid).items() if k!="reason"}
+    native_run=subprocess.run
+    def fail_frame(cmd,*a,**kw):
+        if cmd[0]=="ffmpeg":
+            assert "0:V:0" in cmd
+            raise subprocess.CalledProcessError(1,cmd)
+        return native_run(cmd,*a,**kw)
+    with monkeypatch.context() as bad:
+        bad.setattr(review_evidence.subprocess,"run",fail_frame)
+        assert provider.collect(uid,request)["status"]=="acquisition_failed"
+    def real_frame(cmd,*a,**kw):
+        assert cmd[0]=="ffmpeg" and "0:V:0" in cmd
+        return native_run(cmd,*a,**kw)
+    monkeypatch.setattr(review_evidence.subprocess,"run",real_frame)
+    obs=provider.collect(uid,request)
+    assert obs["status"]=="observed" and len(vision.calls)==1
+    assert provider.collect(uid,request)==obs and len(vision.calls)==1

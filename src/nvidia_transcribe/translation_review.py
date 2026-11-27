@@ -252,6 +252,7 @@ def _caption_references(item, uid, receipts):
 _TERMINAL_EVIDENCE = frozenset({
     "observed", "media_unavailable", "reference_untimed",
     "visual_resource_unavailable", "acoustic_resource_unavailable",
+    "visual_media_unavailable",
     "reference_exceeds_acoustic_budget",
 })
 _RETRYABLE_EVIDENCE = frozenset({"acquisition_failed", "batch_budget_exhausted"})

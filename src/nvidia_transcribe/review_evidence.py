@@ -15,7 +15,7 @@ import time
 
 import httpx
 
-from nvidia_transcribe.media import compute_file_sha256, extract_wav_segment
+from nvidia_transcribe.media import compute_file_sha256, extract_wav_segment, has_visual_stream
 from nvidia_transcribe.moss_recording import process_moss_media
 from nvidia_transcribe.ninfer_messages_client import image_content_block
 from nvidia_transcribe.resource_lifecycle import managed_text_client, ResourceLifecycleError
@@ -101,6 +101,9 @@ class ReviewEvidenceProvider:
                          "visual_resource": visual_resource.fingerprint() if visual_resource else None,
                          "acoustic_resource": acoustic_resource.fingerprint() if acoustic_resource else None,
                          "max_frames": max_frames, "visual_thinking_budget": visual_thinking_budget}
+        # Capability is a fact about the already content-bound input, not a
+        # new prompt or checkpoint identity. Probe lazily only for visual work.
+        self._has_visual_stream = None
         self.cache = {}
         self.telemetry = {"visual_attempts":0,"acoustic_attempts":0,"in_memory_reuses":0,
                           "visual_elapsed_s":0.0,"acoustic_elapsed_s":0.0}
@@ -187,6 +190,16 @@ class ReviewEvidenceProvider:
     def _visual(self, s, e, question, reference_id, focus):
         if self.visual_resource is None:
             return {"status": "visual_resource_unavailable"}
+        if self._has_visual_stream is None:
+            available = has_visual_stream(self.path)
+            # Before admitting a permanent absence, ensure the probed input
+            # still matches the authenticated recording. Do not memoize a
+            # probe failure or a result from a different input.
+            if not available and compute_file_sha256(self.path) != self.media_sha:
+                raise ValueError("Adaptive review media changed during visual inspection")
+            self._has_visual_stream = available
+        if not self._has_visual_stream:
+            return {"status": "visual_media_unavailable"}
         lo, hi = max(0.0, s-0.75), min(self.duration-0.01, e+0.75)
         if hi <= lo:
             return {"status": "reference_untimed"}
@@ -195,7 +208,7 @@ class ReviewEvidenceProvider:
         for i,seek in enumerate(seeks):
             reply = subprocess.run(
                 ["ffmpeg", "-nostdin", "-v", "error", "-ss", f"{seek:.3f}",
-                 "-i", str(self.path), "-map", "0:v:0", "-frames:v", "1",
+                 "-i", str(self.path), "-map", "0:V:0", "-frames:v", "1",
                  "-vf", "scale=1280:-2", "-c:v", "mjpeg", "-q:v", "3",
                  "-f", "image2pipe", "pipe:1"], capture_output=True, check=True, timeout=60)
             data = reply.stdout

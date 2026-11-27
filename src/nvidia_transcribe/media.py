@@ -166,6 +166,30 @@ def inspect_audio_streams(media_path: str | Path) -> list[dict[str, Any]]:
     return result
 
 
+def has_visual_stream(media_path: str | Path) -> bool:
+    """Probe the first actual video stream, excluding attached pictures.
+
+    A successful empty stream list establishes absence; probe failure or
+    malformed metadata never does. Match FFmpeg's 0:V:0 extraction selector.
+    """
+    try:
+        raw = subprocess.check_output(
+            ["ffprobe", "-v", "error", "-select_streams", "V:0",
+             "-show_entries", "stream=index,codec_type", "-of", "json",
+             str(media_path)],
+            text=True, stderr=subprocess.PIPE, timeout=30,
+        )
+        document = json.loads(raw)
+    except (OSError, subprocess.SubprocessError, ValueError, TypeError) as exc:
+        raise MediaInspectionError("Could not inspect visual stream capability") from exc
+    streams = document.get("streams") if isinstance(document, dict) else None
+    if (not isinstance(streams, list) or len(streams) > 1
+            or any(not isinstance(s, dict) or s.get("codec_type") != "video"
+                   or type(s.get("index")) is not int or s["index"] < 0 for s in streams)):
+        raise MediaInspectionError("Invalid visual stream metadata")
+    return bool(streams)
+
+
 def compute_file_sha256(path: Path) -> str:
     """Compute exact streaming SHA-256 digest of a file."""
     h = hashlib.sha256()
