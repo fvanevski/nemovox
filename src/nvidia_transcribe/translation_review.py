@@ -18,10 +18,11 @@ from nvidia_transcribe.ninfer_messages_client import QUALITY_RETRY_TOKENS, runaw
 from nvidia_transcribe.refinement import GlossaryConfig, OpenAIChatTextClient
 from nvidia_transcribe.semantic_context import current_row_context, literal_examples, text_digest
 from nvidia_transcribe.review_uncertainty import current_uncertainty, uncertainty_veto
+from nvidia_transcribe import connected_units
 
 VALID_REVIEW_PROFILES = ("off", "conservative", "balanced", "expressive")
 VALID_REVIEW_STYLES = ("natural", "literal", "expressive")
-_PROMPT_VERSION = "mt_postedit_v10_localized_wording_and_timing_uncertainty"
+_PROMPT_VERSION = "mt_postedit_v11_connected_allocations"
 _SCHEMA = {
     "type": "json_schema",
     "json_schema": {
@@ -93,6 +94,8 @@ def _entry(u: dict[str, Any], i: int) -> dict[str, Any]:
         "source_semantic_resolution": u.get("source_semantic_resolution"),
         "accepted_source_context": current_row_context(u),
         "unresolved_source_evidence": current_uncertainty(u),
+        **({"native_dialogue": True, "connected_hypothesis": u.get("translation_unit_candidate")}
+           if connected_units.native(u) else {}),
     }
 
 
@@ -127,6 +130,15 @@ def _unsupported_polarity_inversion(
 
 
 def _passage_groups(rows):
+    if rows and all(row.get("native_dialogue") for row in rows):
+        groups = []
+        for i, row in enumerate(rows):
+            candidate = row.get("connected_hypothesis")
+            if (candidate and groups and rows[groups[-1][0]].get("connected_hypothesis") == candidate):
+                groups[-1].append(i)
+            else:
+                groups.append([i])
+        return groups
     groups=[]
     group=[]
     for i,row in enumerate(rows):
@@ -153,11 +165,20 @@ def _passage_checks(targets, entries):
         ids=[targets[i]["utterance_id"] for i in group]
         if len(ids)<2 or not any(entries[uid]["changed"] for uid in ids):
             continue
-        result.append({"utterance_id":"passage:"+text_digest(json.dumps(ids)),
+        native = all(targets[i].get("native_dialogue") for i in group)
+        record = {"utterance_id":"passage:"+text_digest(json.dumps(ids)),
             "target_ids":ids,
-            "joined_source":" ".join(targets[i]["source_text"] for i in group),
+            "joined_source":("\n" if native else " ").join(targets[i]["source_text"] for i in group),
             "joined_primary":" ".join(targets[i]["machine_translation"] for i in group),
-            "joined_proposal":" ".join(entries[uid]["corrected_text"].strip() for uid in ids)})
+            "joined_proposal":" ".join(entries[uid]["corrected_text"].strip() for uid in ids)}
+        if native:
+            record.update(atomic_connected_allocation=True,
+                source_occurrences=[targets[i] for i in group],
+                primary_allocation=[{"id": uid, "english": targets[i]["machine_translation"]}
+                                    for uid, i in zip(ids, group)],
+                proposal_allocation=[{"id": uid, "english": entries[uid]["corrected_text"].strip()}
+                                     for uid in ids])
+        result.append(record)
     return result
 
 
@@ -371,11 +392,16 @@ def review_translated_utterances(
             or len(set(all_ids)) != len(all_ids) or not target_utterance_ids <= set(all_ids)):
         raise ValueError("Selective translation review requires unique existing target IDs")
     selected = set(all_ids) if target_utterance_ids is None else target_utterance_ids
+    native_review = bool(out) and cfg.wire_protocol == "ninfer_messages" and all(connected_units.native(r) for r in out)
+    partitions = connected_units.groups(out) if native_review else []
+    if native_review and any(0 < sum(all_ids[i] in selected for i in g) < len(g) for g in partitions):
+        raise ValueError("Selective review must include the complete connected candidate")
     for i, u in enumerate(out):
         if "machine_translated_text" not in u:
             u["machine_translated_text"] = str(u.get("translated_text") or "")
         if all_ids[i] in selected:
             u["translated_text"]=u["machine_translated_text"]
+            u.pop("translation_unit", None)
             for key in list(u):
                 if key.startswith("translation_review") or key.startswith("translation_comparison") or key=="translation_comparative_review":
                     del u[key]
@@ -440,9 +466,23 @@ def review_translated_utterances(
             end += 1
         ranges.append((pos, end))
         pos = end
+    # Pack complete candidates. Recovery may split batches but not blocks.
+    if native_review:
+        ranges = []
+        for block in partitions:
+            lo, hi = block[0], block[-1] + 1
+            if all_ids[lo] not in selected:
+                continue
+            if ranges and ranges[-1][1] == lo and hi - ranges[-1][0] <= batch:
+                ranges[-1] = (ranges[-1][0], hi)
+            else:
+                ranges.append((lo, hi))
+    boundaries = {g[0] for g in partitions}
+    def split_points(start, end):
+        return [i for i in range(start+1, end) if not native_review or i in boundaries]
     subdivisions=[]
     def subdivide(start,end,index,stage):
-        mid=(start+end)//2
+        mid=min(split_points(start, end), key=lambda i: abs(i-(start+end)/2))
         ranges[index+1:index+1]=[(start,mid),(mid,end)]
         subdivisions.append({"stage":stage,"target_ids":all_ids[start:end],
                              "subranges":[all_ids[start:mid],all_ids[mid:end]]})
@@ -567,6 +607,21 @@ def review_translated_utterances(
                             "Return one nonempty candidate and a concise source-grounded meaning explanation per target ID. "
                             "Neighboring rows are read-only context. Return corrected_text and reason, not a changed flag.")},
                         {"role":"user","content":json.dumps(source_payload,ensure_ascii=False)}]
+                    if native_review:
+                        messages[0]["content"] += (
+                            " Native occurrence boundaries are evidence, not punctuation. "
+                            "A connected_hypothesis is an optional Riva alternative, not a source transcript or "
+                            "proof of speaker identity. Read the ordered separate constituent observations, "
+                            "including pauses, vocatives, interruptions and possible speaker-label errors. "
+                            "Consider the joint MT only if the original source supports its meaning; "
+                            "do not fuse a pronoun and following form of address or join interrupted turns. "
+                            "Maintain a complete, nonempty English allocation for every actual occurrence. "
+                            "Within an explicitly nominated candidate you may allocate a coherent English clause "
+                            "across its constituent IDs without duplicating or omitting meaning; preserve independent "
+                            "sentences and forms of address. Never transfer text across different candidate blocks. "
+                            "Treat nearby repeated source names and literal operator examples as discourse evidence, "
+                            "not proof of an unobserved identity; retain uncertainty and consistent supported terminology."
+                        )
                     direct_schema["properties"]["reviews"]["minItems"] = len(ids)
                     direct_schema["properties"]["reviews"]["maxItems"] = len(ids)
                     wire = {"response_format": {"type": "json_schema", "schema": direct_schema},
@@ -586,7 +641,7 @@ def review_translated_utterances(
                 choice = (response.get("choices") or [{}])[0]
                 raw = str((choice.get("message") or {}).get("content") or "")
                 if cfg.wire_protocol == "ninfer_messages":
-                    if _native_output_exhausted(response) and end-start>1:
+                    if _native_output_exhausted(response) and split_points(start,end):
                         subdivide(start,end,range_index,"proposal")
                         continue
                     if choice.get("finish_reason") != "stop":
@@ -641,13 +696,16 @@ def review_translated_utterances(
                     if changed_ids:
                         if cfg.max_tokens < 1280:
                             raise ValueError("Comparative review requires 1024 thinking tokens and final-answer headroom")
+                        passage_checks=_passage_checks(targets,entries)
+                        atomic_ids = {uid for p in passage_checks if p.get("atomic_connected_allocation")
+                                      for uid in p["target_ids"]}
+                        individual_ids = [uid for uid in changed_ids if uid not in atomic_ids]
                         comparisons = [{"utterance_id": uid,
                                         "source_and_original": next(t for t in targets
                                                                     if t["utterance_id"] == uid),
                                         "proposed_translation": entries[uid].get("corrected_text")}
-                                       for uid in changed_ids]
-                        passage_checks=_passage_checks(targets,entries)
-                        verdict_ids=changed_ids+[x["utterance_id"] for x in passage_checks]
+                                       for uid in individual_ids]
+                        verdict_ids=individual_ids+[x["utterance_id"] for x in passage_checks]
                         if len(verdict_ids)!=len(set(verdict_ids)):
                             raise ValueError("Duplicate passage review identity")
                         schema = {"type": "object", "properties": {
@@ -695,6 +753,18 @@ def review_translated_utterances(
                                 "joined_primary_passage":" ".join(t["machine_translation"] for t in targets),
                                 "joined_candidate_passage":" ".join(entries[t["utterance_id"]]["corrected_text"] for t in targets)}, ensure_ascii=False)}
                         ]
+                        if native_review:
+                            comparison_messages[0]["content"] += (
+                                " For an atomic_connected_allocation passage, decide the complete exact "
+                                "proposal versus the complete independent primary allocation, not individual "
+                                "fragment translations. Inspect source_occurrences separately; a connected "
+                                "hypothesis is only an alternative, and speaker labels may be wrong. "
+                                "Reject any proposal that conflates vocatives, changes who did what to whom, "
+                                "omits a name, destroys repetition, invents an interruption completion or "
+                                "moves independent dialogue between occurrences. Check full meaning and "
+                                "chronological display allocation. Accept only if the exact whole proposal is "
+                                "better supported and introduces no material error. Return only supplied verdict IDs."
+                            )
                         verdict = client.complete(messages=comparison_messages,
                             max_tokens=cfg.max_tokens, temperature=0.0,
                             response_format={"type": "json_schema", "schema": schema},
@@ -711,7 +781,7 @@ def review_translated_utterances(
                         if (_native_output_exhausted(verdict)
                                 and runaway_whitespace(str((result.get("message") or {}).get("content") or ""))):
                             recovery_reason="runaway_output_whitespace"
-                        elif _native_output_exhausted(verdict) and end-start>1:
+                        elif _native_output_exhausted(verdict) and split_points(start,end):
                             subdivide(start,end,range_index,"comparison")
                             continue
                         elif _native_output_exhausted(verdict):
@@ -770,13 +840,17 @@ def review_translated_utterances(
                         if not all("deferred_comparison" in entries[uid] for uid in changed_ids):
                             if set(by_id) != set(verdict_ids):
                                 raise ValueError("Missing comparative review decisions")
-                            for uid in changed_ids:
+                            for uid in individual_ids:
                                 entries[uid]["comparative_review"] = by_id[uid]
                             for passage in passage_checks:
                                 verdict=by_id[passage["utterance_id"]]
                                 for uid in passage["target_ids"]:
                                     if uid in changed_ids:
                                         entries[uid]["passage_review"]={**passage,"verdict":verdict}
+                                        if passage.get("atomic_connected_allocation"):
+                                            entries[uid]["comparative_review"] = {
+                                                **verdict, "utterance_id": uid,
+                                                "atomic_verdict_id": passage["utterance_id"]}
             except Exception as exc:
                 if isinstance(exc, ResourceLifecycleError):
                     # Do not repeatedly attempt a blocked model acquisition on
@@ -833,6 +907,9 @@ def review_translated_utterances(
                     out[i]["translation_review_status"] = "review_invalid_preserved_machine_translation"
                     continue
                 out[i]["translation_comparative_review"] = comparison
+                passage=item.get("passage_review")
+                if passage is not None and passage.get("atomic_connected_allocation"):
+                    out[i]["translation_review_passage"]=passage
                 if comparison["choice"] == "original":
                     out[i]["translation_review_status"] = "review_rejected_comparative_preserved_machine_translation"
                     comparative_rejections += 1
@@ -891,6 +968,8 @@ def review_translated_utterances(
             group.append(i)
         if group:
             groups.append(group)
+        if native_review:
+            groups = [g for g in partitions if all(all_ids[i] in selected for i in g)]
         for group in groups:
             accepted=[i for i in group if out[i].get("translation_review_status")=="corrected"]
             if not accepted:
@@ -905,7 +984,22 @@ def review_translated_utterances(
             joined_original=" ".join(str(out[i].get("machine_translated_text") or "") for i in group)
             direction_error=(_bad_joined_direction(joined_candidate) and
                              not _bad_joined_direction(joined_original))
-            if rejected or len(keys)>1 or direction_error:
+            # Require the actual evaluated allocation, not merely adjacency
+            # or a shared review-batch hash.
+            atomic_mismatch = False
+            if native_review and len(group) > 1:
+                receipts = [out[i].get("translation_review_passage") for i in accepted]
+                receipt = receipts[0]
+                allocation = [{"id": all_ids[i], "english": out[i]["translated_text"].strip()} for i in group]
+                atomic_mismatch = (
+                    not isinstance(receipt, dict)
+                    or not receipt.get("atomic_connected_allocation")
+                    or receipt.get("proposal_allocation") != allocation
+                    or receipt.get("target_ids") != [all_ids[i] for i in group]
+                    or receipt.get("verdict", {}).get("choice") != "proposal"
+                    or any(r != receipt for r in receipts)
+                )
+            if rejected or len(keys)>1 or direction_error or atomic_mismatch:
                 for i in accepted:
                     out[i]["translated_text"]=out[i]["machine_translated_text"]
                     if direction_error:
@@ -915,6 +1009,9 @@ def review_translated_utterances(
                         out[i]["translation_review_status"]="review_rejected_dependent_passage_preserved_machine_translation"
                         dependent_rejections+=1
                     changed_count-=1
+    if native_review:
+        connected_units.bind_selected_units(out, partitions, selected)
+        connected_units.validate_selected_units(out)
     if target_utterance_ids is not None:
         out = [u if all_ids[i] in selected else {**utterances[i]} for i, u in enumerate(out)]
     return out, {
