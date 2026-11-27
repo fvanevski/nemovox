@@ -77,7 +77,7 @@ class ReviewEvidenceProvider:
 
     def collect(self, target_id, request):
         base = {"target_id": target_id, "request": request, "provider": self.identity}
-        if (not isinstance(request, dict)
+        if (target_id not in self.rows or not isinstance(request, dict)
                 or set(request) != {"kind", "reference_id", "question"}
                 or request["kind"] not in ("visual", "acoustic")
                 or not isinstance(request["reference_id"], str)

@@ -169,7 +169,7 @@ def main(argv: list[str] | None = None) -> int:
         condensation_resource = registry.resolve("subtitle_condensation", resource_name=args.condensation_resource, **text_overrides)
         review_resource = registry.resolve("translation_review", resource_name=args.translation_review_resource, **text_overrides)
         visual_resource = registry.resolve("visual_inspection", resource_name=args.visual_inspection_resource, **text_overrides)
-        if args.visual_inspection_resource is None and registry.roles["visual_inspection"] == registry.roles["translation_review"]:
+        if args.visual_inspection_resource is None and registry.visual_inherits_review:
             visual_resource = review_resource
         activity_resource = registry.resolve("speech_activity") if "speech_activity" in registry.roles else None
         riva_resource = registry.resolve("riva_translation", require_local_paths=(

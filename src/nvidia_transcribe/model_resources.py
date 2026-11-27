@@ -149,6 +149,7 @@ def _validate_resource(name: str, spec: Mapping[str, Any]) -> ModelResource:
 class ModelResources:
     resources: Mapping[str, ModelResource]
     roles: Mapping[str, str]
+    visual_inherits_review: bool = True
 
     def resolve(self, role: str, *, resource_name: str | None = None,
                 endpoint: str | None = None, model: str | None = None,
@@ -250,9 +251,10 @@ def load_model_resources(
                 chosen = value.strip()
                 resources[resource_name][field_name] = chosen
     # Inherit the selected review resource unless vision is explicitly bound.
+    visual_inherits_review = "visual_inspection" not in roles
     roles.setdefault("visual_inspection", roles["translation_review"])
     validated = {name: _validate_resource(name, spec) for name, spec in resources.items()}
-    registry = ModelResources(resources=validated, roles=roles)
+    registry = ModelResources(resources=validated, roles=roles, visual_inherits_review=visual_inherits_review)
     for role in ROLE_ADAPTERS:
         if role == "speech_activity" and role not in roles:
             continue

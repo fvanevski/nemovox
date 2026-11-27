@@ -82,6 +82,7 @@ def supported_terms(item, target, all_rows):
                 or not isinstance(english, str) or not 1 <= len(english.strip()) <= 100
                 or english.casefold() not in item["corrected_text"].casefold()
                 or not isinstance(refs, list) or not 1 <= len(refs) <= 4
+                or not any(ref != target["utterance_id"] for ref in refs)
                 or any(not isinstance(ref, str) or ref not in all_rows
                        or source not in all_rows[ref]["source_text"] for ref in refs)):
             continue
