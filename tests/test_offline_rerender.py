@@ -17,8 +17,7 @@ def prohibit_inference(monkeypatch):
 
     for name in ("managed_text_client", "process_moss_media",
                  "assess_recording_activity", "assess_native_dialogue", "refine_utterances_with_text_model",
-                 "translate_utterances", "review_translated_utterances",
-                 "condense_high_cps_cues_with_text_model"):
+                 "translate_utterances", "review_translated_utterances"):
         monkeypatch.setattr(pipeline, name, forbidden)
     return calls
 
@@ -101,3 +100,31 @@ def test_rerender_unusable_contract_does_not_fall_back_to_inference(
             output_dir=tmp_path, config=pipeline.SubtitlePipelineConfig(re_render_only=True),
             lifecycle=object(), lifecycle_resources={"asr": object()})
     assert not prohibit_inference
+
+
+def test_presentation_observations_persist_and_replay_without_media(tmp_path, monkeypatch, prohibit_inference):
+    from nvidia_transcribe import presentation
+    source = {"fingerprint_sha256": "a"*64, "duration_s": 10.0}
+    contract = {"source": source, "utterances": [
+        {"id":"one", "source_start":1., "source_end":3., "translated_text":"Selected English."}]}
+    path = tmp_path / "translated.contract.json"
+    path.write_text(json.dumps(contract))
+    original = path.read_bytes()
+    doc = {"schema":presentation.SCHEMA,"media_fingerprint_sha256":source["fingerprint_sha256"],
+           "duration_s":10., "frame_size":[1920,1080], "active_picture":[0,.12,1,.87],
+           "samples":[], "status":"sampled", "caption_status":"unknown",
+           "known_scene_boundaries_s":[]}
+    calls = []
+    def observe(media, actual_source):
+        calls.append(media)
+        assert actual_source == source
+        return doc
+    monkeypatch.setattr(presentation,"observe_media",observe)
+    cfg = pipeline.SubtitlePipelineConfig(re_render_only=True)
+    first = pipeline.generate_subtitles(tmp_path/"admitted-video.mkv",output_dir=tmp_path,config=cfg)
+    ass = Path(first["files"]["ass"]).read_bytes()
+    assert json.loads((tmp_path/"presentation.observations.json").read_text()) == doc
+    second = pipeline.generate_subtitles(output_dir=tmp_path,config=cfg)
+    assert Path(second["files"]["ass"]).read_bytes() == ass
+    assert first["cue_lineage"] == second["cue_lineage"]
+    assert len(calls) == 1 and not prohibit_inference and path.read_bytes() == original

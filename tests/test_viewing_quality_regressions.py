@@ -19,7 +19,6 @@ from nvidia_transcribe.subtitles import (
 )
 from nvidia_transcribe.translation import (
     TranslationConfig,
-    condense_high_cps_cues_with_text_model,
     translate_utterances,
 )
 
@@ -210,37 +209,6 @@ def test_c2_c4_d_positive_duration_slack_extension_third_lane_and_raised_main(tm
 
     # Check CLI parser supports raised_main flags cleanly
     parser = build_parser()
-    args = parser.parse_args(["generate-subtitles", "--recording-contract", "r.json", "--output-dir", "o", "--ass-layout", "raised_main", "--ass-margin-v", "135", "--condense-high-cps"])
-    assert args.ass_layout == "raised_main" and args.ass_margin_v == 135 and args.condense_high_cps is True
+    args = parser.parse_args(["generate-subtitles", "--recording-contract", "r.json", "--output-dir", "o", "--ass-layout", "raised_main", "--ass-margin-v", "135"])
+    assert args.ass_layout == "raised_main" and args.ass_margin_v == 135
 
-
-def test_c3_selective_condensation_keeps_uncondensed_text(tmp_path: Path) -> None:
-    utts = [
-        {"id": "utt-0", "speaker_id": "SPK_00", "source_start": 10.0, "source_end": 12.0, "refined_text": "他一直在这没日没夜地练", "translated_text": "He has been over here training endlessly day and night without eating or drinking a single bit."},
-        {"id": "utt-1", "speaker_id": "SPK_00", "source_start": 20.0, "source_end": 23.0, "refined_text": "走吧", "translated_text": "Let's go."},  # already slow ~3 cps -> skipped!
-    ]
-    client = _CallTrackingClient(
-        lambda _idx, _msgs: {
-            "choices": [
-                {
-                    "message": {
-                        "content": json.dumps(
-                            {
-                                "utterance_id": "utt-0",
-                                "condensed_text": "He's been training nonstop without food or water.",
-                                "changed": True,
-                                "rationale": "concise_idiom",
-                            }
-                        )
-                    }
-                }
-            ]
-        }
-    )
-    out, summary = condense_high_cps_cues_with_text_model(utts, source_language="zh", cps_threshold=25.0, text_client=client, checkpoint_path=tmp_path / "cond.ckpt.json")
-    assert summary["candidate_count"] == 1
-    assert summary["condensed_count"] == 1
-    assert len(client.calls) == 1
-    assert out[0]["translated_text"] == "He's been training nonstop without food or water."
-    assert out[0]["uncondensed_translated_text"].startswith("He has been over here training endlessly")
-    assert out[1]["translated_text"] == "Let's go."

@@ -554,30 +554,40 @@ def test_studio_keeps_source_asr_uncorrected(client):
 
 
 
-def test_condensation_is_opt_in_for_api_and_persisted_job_options(client):
-    """Omitted API options must not enable an unexpected second text-model pass."""
+def test_adaptive_layout_defaults_and_retired_condensation_rejection(client):
     from nvidia_transcribe.studio_api import JobRequest, Options
-
-    assert Options().condense_high_cps is False
-    assert Options(condense_high_cps=True).condense_high_cps is True
-
+    from pydantic import ValidationError
+    assert Options().ass_layout == "auto"
+    assert Options(ass_layout="standard").ass_layout == "standard"
+    assert Options(ass_layout="raised_main").ass_layout == "raised_main"
+    with pytest.raises(ValidationError, match="condensation has been removed"):
+        Options(condense_high_cps=True)
     c, media, _secret, settings = client
-    request = {
-        "source": {"kind": "contract", "value": str(media / "recording.contract.json")},
-        "task": "subtitles",
-        "options": {"translator": "openai_chat"},
-    }
-    parsed = JobRequest.model_validate(request)
-    assert parsed.options.refinement == "off"
-    assert parsed.options.condense_high_cps is False
-    response = c.post("/api/jobs", json=request)
+    request = {"source":{"kind":"contract","value":str(media/"recording.contract.json")},
+               "task":"subtitles","options":{"translator":"openai_chat"}}
+    assert JobRequest.model_validate(request).options.ass_layout == "auto"
+    response = c.post("/api/jobs",json=request)
     assert response.status_code == 202, response.text
-    persisted = json.loads((settings.job_root / response.json()["id"] / "job.json").read_text(encoding="utf-8"))
-    assert persisted["request"]["options"]["condense_high_cps"] is False
-
-    # Existing jobs that explicitly opted in must retain that request.
-    request["options"]["condense_high_cps"] = True
-    assert JobRequest.model_validate(request).options.condense_high_cps is True
+    job_id = response.json()["id"]
+    persisted = json.loads((settings.job_root/job_id/"job.json").read_text())
+    assert persisted["request"]["options"]["ass_layout"] == "auto"
+    assert "condense_high_cps" not in persisted["request"]["options"]
+    output = settings.job_root/job_id/"output"
+    output.mkdir()
+    (output/"demo.en.ass").write_text("[Script Info]\n")
+    (output/"presentation.observations.json").write_text("{}")
+    row = {"occurrence_id":"one","display_event_id":3,"display_interval":[1.2,3.4],
+           "disposition":"displayed","text":"Selected text","lane":1}
+    (output/"subtitles.metadata.json").write_text(json.dumps({
+        "cue_lineage":[row,{**row,"occurrence_id":"two"}],
+        "presentation":{"layout":"auto","status":"measured"},
+        "subtitles":{"ass_overflow_cues":0}}))
+    preview = c.get(f"/api/jobs/{job_id}/preview").json()
+    assert preview["kind"] == "subtitles"
+    assert preview["cues"] == [{"start":1.2,"end":3.4,"text":"Selected text","utterance_id":"one","lane":1}]
+    assert preview["presentation"]["status"] == "measured"
+    assert any(a["name"]=="presentation.observations.json"
+               for a in c.get(f"/api/jobs/{job_id}/artifacts").json())
 
 
 def test_yaml_glossary_dependency_is_declared_for_cli_and_studio():
@@ -695,7 +705,7 @@ def test_normal_api_defaults_match_cli_and_preserve_explicit_backend_choice():
     defaults=Options()
     assert (defaults.translator,defaults.translation_review)==("riva","balanced")
     assert defaults.source_language == "auto"
-    assert defaults.refinement == "off" and not defaults.condense_high_cps
+    assert defaults.refinement == "off" and defaults.ass_layout == "auto"
     assert not {"chunk_policy","chunk_seconds","context_seconds","alignment_fallback","speaker_embeddings","asr_mode"}.intersection(defaults.model_dump())
     assert Options(translator="openai_chat").translation_review=="off"
     from pydantic import ValidationError
