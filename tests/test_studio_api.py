@@ -590,6 +590,37 @@ def test_adaptive_layout_defaults_and_retired_condensation_rejection(client):
                for a in c.get(f"/api/jobs/{job_id}/artifacts").json())
 
 
+@pytest.mark.parametrize("current_metadata", [False, True])
+def test_preview_preserves_srt_fallback_without_complete_ass_event_identity(client, current_metadata):
+    """Existing archived ASS/SRT jobs and incomplete current ledgers remain previewable."""
+    c, media, _secret, settings = client
+    response = c.post("/api/jobs", json={
+        "source": {"kind": "contract", "value": str(media / "recording.contract.json")},
+        "task": "subtitles", "options": {"translator": "openai_chat"},
+    })
+    assert response.status_code == 202, response.text
+    job_id = response.json()["id"]
+    output = settings.job_root / job_id / "output"
+    output.mkdir()
+    (output / "demo.en.ass").write_text("[Script Info]\n", encoding="utf-8")
+    (output / "demo.en.srt").write_text(
+        "1\n00:00:01,200 --> 00:00:03,400\nRetained dialogue.\n", encoding="utf-8")
+    # The base renderer emitted occurrence lineage without display_event_id.
+    row = {"occurrence_id": "one", "display_interval": [1.0, 3.8],
+           "disposition": "displayed", "text": "Retained dialogue.", "lane": 0}
+    metadata = {"cue_lineage": [row], "subtitles": {"ass_displayed_cues": 1}}
+    if current_metadata:
+        metadata["presentation"] = {"layout": "auto", "status": "measured"}
+        metadata["cue_lineage"].insert(0, {**row, "occurrence_id": "other", "display_event_id": 0})
+    (output / "subtitles.metadata.json").write_text(json.dumps(metadata), encoding="utf-8")
+    preview = c.get(f"/api/jobs/{job_id}/preview")
+    assert preview.status_code == 200, preview.text
+    payload = preview.json()
+    assert payload["kind"] == "subtitles"
+    assert payload["cues"] == [{"start": 1.2, "end": 3.4, "text": "Retained dialogue."}]
+    assert payload["ass_cues"] is None
+
+
 def test_yaml_glossary_dependency_is_declared_for_cli_and_studio():
     """Clean installs must supply the YAML reader used by both runtime surfaces."""
     import tomllib

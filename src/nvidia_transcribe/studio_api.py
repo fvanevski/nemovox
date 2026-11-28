@@ -1032,11 +1032,20 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
         meta_path = output / "subtitles.metadata.json"
         meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.is_file() else {}
         presentation = meta.get("presentation")
-        # ASS-only jobs expose emitted display intervals, not source times.
+        # Only current render metadata identifies emitted ASS events. Older
+        # retained jobs have occurrence lineage but no display_event_id; keep
+        # their existing SRT/transcript fallback instead of inventing IDs or
+        # breaking job preview. An incomplete current ledger is not an ASS timeline.
         ass_cues = None
-        if sorted(output.glob("*.ass")) and isinstance(meta.get("cue_lineage"), list):
+        lineage = meta.get("cue_lineage")
+        if (sorted(output.glob("*.ass")) and isinstance(presentation, dict)
+                and isinstance(lineage, list)
+                and all(isinstance(row, dict) and
+                        (row.get("disposition") != "displayed"
+                         or type(row.get("display_event_id")) is int)
+                        for row in lineage)):
             unique = {}
-            for row in meta["cue_lineage"]:
+            for row in lineage:
                 interval = row.get("display_interval")
                 if row.get("disposition") == "displayed" and interval:
                     unique.setdefault(row["display_event_id"], {
