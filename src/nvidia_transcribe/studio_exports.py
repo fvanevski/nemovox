@@ -14,6 +14,8 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from nvidia_transcribe.render_receipt import read_render_manifest, rendered_artifact_paths
+
 ARTIFACT_PATHS = {
     "source_transcript": "asr/transcript.txt",
     "recording_contract": "asr/recording.contract.json",
@@ -144,13 +146,18 @@ def export_selected(
         plan.get("save_remote_media") and remote_media is not None) else []
     # Recheck remote export on finalization, in case the initial copy failed.
     requested = remote_requested if media_only else list(plan.get("artifacts", [])) + remote_requested
+    output = job_root / "output"
+    emitted = rendered_artifact_paths(output, read_render_manifest(output)) if not media_only else {}
     for kind in requested:
         if kind not in EXPORT_TYPES and kind != "remote_media":
             entries[kind] = {"type": kind, "status": "failed", "error": "Unknown artifact type."}
             continue
-        candidates = sorted((job_root / "output").glob("*." + kind)) if kind in ("srt", "ass") \
-            else [job_root / ARTIFACT_PATHS[kind]] if kind in ARTIFACT_PATHS \
-            else [remote_media] if remote_media is not None else []
+        if kind in ("srt", "ass", "presentation_observations"):
+            candidates = [emitted[kind]] if kind in emitted else []
+        elif kind in ARTIFACT_PATHS:
+            candidates = [job_root / ARTIFACT_PATHS[kind]]
+        else:
+            candidates = [remote_media] if remote_media is not None else []
         # Imported recording contracts skip process-media, but the subtitle
         # pipeline still writes the unchanged source-language transcript here.
         if kind == "source_transcript" and not any(p.is_file() for p in candidates):

@@ -38,6 +38,7 @@ from nvidia_transcribe.translation import is_english_source_to_english
 from nvidia_transcribe.model_resources import ResourceConfigError, load_model_resources
 from nvidia_transcribe.resource_lifecycle import ModelLifecycle, ResourceLifecycleError
 from nvidia_transcribe.refinement import load_glossary
+from nvidia_transcribe.render_receipt import read_render_manifest, rendered_artifact_paths
 from nvidia_transcribe.studio_exports import (browse_destinations, export_roots,
                                              export_selected, validate_destination)
 from pydantic import BaseModel, Field, model_validator
@@ -1028,9 +1029,9 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
     def preview(job_id: str) -> dict:
         root = runner.path(job_id)
         output = root / "output"
-        subs = sorted(output.glob("*.srt"))
-        meta_path = output / "subtitles.metadata.json"
-        meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.is_file() else {}
+        meta = read_render_manifest(output)
+        emitted = rendered_artifact_paths(output, meta)
+        srt_path = emitted.get("srt")
         presentation = meta.get("presentation")
         # Only current render metadata identifies emitted ASS events. Older
         # retained jobs have occurrence lineage but no display_event_id; keep
@@ -1038,7 +1039,8 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
         # breaking job preview. An incomplete current ledger is not an ASS timeline.
         ass_cues = None
         lineage = meta.get("cue_lineage")
-        if (sorted(output.glob("*.ass")) and isinstance(presentation, dict)
+        if ("ass" in emitted and isinstance(presentation, dict)
+                and presentation.get("status") != "ass_not_requested"
                 and isinstance(lineage, list)
                 and all(isinstance(row, dict) and
                         (row.get("disposition") != "displayed"
@@ -1053,11 +1055,11 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
                         "utterance_id": row["occurrence_id"], "lane": row.get("lane"),
                         **({"ass_bounds":row["ass_bounds"]} if row.get("ass_bounds") else {})})
             ass_cues = sorted(unique.values(), key=lambda r:r["start"])
-        if not subs and ass_cues is not None:
+        if srt_path is None and ass_cues is not None:
             return {"kind": "subtitles", "cues": ass_cues, "ass_cues": ass_cues,
                     "presentation": presentation, "display_stats": meta.get("subtitles")}
-        if subs:
-            return {"kind": "subtitles", "cues": _srt_cues(subs[0].read_text(encoding="utf-8")),
+        if srt_path is not None:
+            return {"kind": "subtitles", "cues": _srt_cues(srt_path.read_text(encoding="utf-8")),
                     "ass_cues": ass_cues, "presentation": presentation, "display_stats": meta.get("subtitles")}
         candidate = output / "translated.contract.json"
         if not candidate.is_file():
@@ -1076,6 +1078,8 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
     @app.get("/api/jobs/{job_id}/artifacts")
     def artifacts(job_id: str) -> list[dict]:
         root = runner.path(job_id)
+        output = root / "output"
+        emitted = rendered_artifact_paths(output, read_render_manifest(output))
         paths = [
             root / "asr/recording.contract.json",
             root / "asr/transcript.txt",
@@ -1085,9 +1089,7 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
             root / "output/refined_source_transcript.txt",
             root / "output/final_english_subtitles.txt",
             root / "output/subtitles.metadata.json",
-            root / "output/presentation.observations.json",
-            *sorted((root / "output").glob("*.srt")),
-            *sorted((root / "output").glob("*.ass")),
+            *emitted.values(),
             *(sorted(p for p in (root / "remote").glob("*")
                       if p.is_file() and p.suffix.lower() in MEDIA_EXTENSIONS)
               if (root / "remote").is_dir() else []),

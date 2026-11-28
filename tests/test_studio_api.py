@@ -579,6 +579,8 @@ def test_adaptive_layout_defaults_and_retired_condensation_rejection(client):
     row = {"occurrence_id":"one","display_event_id":3,"display_interval":[1.2,3.4],
            "disposition":"displayed","text":"Selected text","lane":1}
     (output/"subtitles.metadata.json").write_text(json.dumps({
+        "files":{"ass":str(output/"demo.en.ass"),
+                 "presentation_observations":str(output/"presentation.observations.json")},
         "cue_lineage":[row,{**row,"occurrence_id":"two"}],
         "presentation":{"layout":"auto","status":"measured"},
         "subtitles":{"ass_overflow_cues":0}}))
@@ -611,6 +613,7 @@ def test_preview_preserves_srt_fallback_without_complete_ass_event_identity(clie
     metadata = {"cue_lineage": [row], "subtitles": {"ass_displayed_cues": 1}}
     if current_metadata:
         metadata["presentation"] = {"layout": "auto", "status": "measured"}
+        metadata["files"] = {"ass":str(output/"demo.en.ass"), "srt":str(output/"demo.en.srt")}
         metadata["cue_lineage"].insert(0, {**row, "occurrence_id": "other", "display_event_id": 0})
     (output / "subtitles.metadata.json").write_text(json.dumps(metadata), encoding="utf-8")
     preview = c.get(f"/api/jobs/{job_id}/preview")
@@ -619,6 +622,47 @@ def test_preview_preserves_srt_fallback_without_complete_ass_event_identity(clie
     assert payload["kind"] == "subtitles"
     assert payload["cues"] == [{"start": 1.2, "end": 3.4, "text": "Retained dialogue."}]
     assert payload["ass_cues"] is None
+
+
+@pytest.mark.parametrize("formats", [("srt","ass"), ("srt",)])
+def test_preview_and_artifacts_follow_latest_render_not_stale_files(client, formats):
+    from nvidia_transcribe.subtitle_pipeline import SubtitlePipelineConfig, generate_subtitles
+    from nvidia_transcribe.subtitles import SubtitleConfig
+
+    c, media, _secret, settings = client
+    response = c.post("/api/jobs", json={
+        "source": {"kind": "contract", "value": str(media / "recording.contract.json")},
+        "task": "subtitles", "options": {"translator": "openai_chat"},
+    })
+    assert response.status_code == 202, response.text
+    job_id = response.json()["id"]
+    output = settings.job_root/job_id/"output"
+    output.mkdir()
+    (output/"translated.contract.json").write_text(json.dumps({
+        "source":{"duration_s":10.0},
+        "utterances":[{"id":"one","source_start":1.0,"source_end":1.2,
+                        "translated_text":"Hello."}]}))
+    generate_subtitles(output_dir=output,config=SubtitlePipelineConfig(
+        re_render_only=True,episode_stem="a-old",
+        subtitles=SubtitleConfig(ass_layout="standard")))
+    current = generate_subtitles(output_dir=output,config=SubtitlePipelineConfig(
+        re_render_only=True,episode_stem="z-current",formats=formats,
+        subtitles=SubtitleConfig(ass_layout="raised_main",min_display_s=2.0)))
+    assert (output/"a-old.en.ass").is_file() and (output/"a-old.en.srt").is_file()
+    preview = c.get(f"/api/jobs/{job_id}/preview")
+    assert preview.status_code == 200, preview.text
+    payload = preview.json()
+    assert payload["cues"] == [{"start":1.0,"end":3.0,"text":"Hello."}]
+    if "ass" in formats:
+        assert payload["ass_cues"] == [{"start":1.0,"end":3.0,"text":"Hello.",
+                                        "utterance_id":"one","lane":0}]
+    else:
+        assert payload["ass_cues"] is None
+        assert current["cue_lineage"] == []
+        assert current["subtitles"]["ass_displayed_cues"] == 0
+    artifacts = c.get(f"/api/jobs/{job_id}/artifacts").json()
+    names = {a["name"] for a in artifacts if a["name"].endswith((".srt",".ass"))}
+    assert names == {f"z-current.en.{fmt}" for fmt in formats}
 
 
 def test_yaml_glossary_dependency_is_declared_for_cli_and_studio():

@@ -451,20 +451,24 @@ def generate_subtitles(
     observations_path = out_dir / "presentation.observations.json"
     observation_source = translated_contract.get("source") or {}
     presentation_observations = None
-    if cfg.subtitles.ass_layout == "auto" and "ass" in cfg.formats:
-        if observations_path.is_file() and (cfg.re_render_only or cfg.resume):
-            retained = json.loads(observations_path.read_text(encoding="utf-8"))
-            try:
-                presentation_observations = admit_observations(retained, observation_source)
-            except ValueError:
-                if cfg.re_render_only or media_path is None:
-                    raise
-                presentation_observations = None
-            if media_path is not None and presentation_observations is not None:
-                verify_media_source(media_path, observation_source)
-        if presentation_observations is None and media_path is not None and observation_source.get("fingerprint_sha256"):
-            presentation_observations = observe_media(media_path, observation_source)
-            _atomic_write(observations_path, json.dumps(presentation_observations, ensure_ascii=False, indent=2))
+    # Retained scene boundaries constrain timing independently of spatial
+    # layout or output format. Only new frame acquisition is auto-ASS-specific.
+    if observations_path.is_file() and (cfg.re_render_only or cfg.resume):
+        retained = json.loads(observations_path.read_text(encoding="utf-8"))
+        try:
+            presentation_observations = admit_observations(retained, observation_source)
+        except ValueError:
+            if cfg.re_render_only or media_path is None:
+                raise
+            presentation_observations = None
+        if media_path is not None and presentation_observations is not None:
+            verify_media_source(media_path, observation_source)
+    inspect_for_ass = (cfg.subtitles.ass_layout == "auto"
+                       and "ass" in {f.strip().lower() for f in cfg.formats})
+    if (inspect_for_ass and presentation_observations is None and media_path is not None
+            and observation_source.get("fingerprint_sha256")):
+        presentation_observations = observe_media(media_path, observation_source)
+        _atomic_write(observations_path, json.dumps(presentation_observations, ensure_ascii=False, indent=2))
 
     # Stage 4: Render English SRT & ASS subtitles
     _event("render", "running")

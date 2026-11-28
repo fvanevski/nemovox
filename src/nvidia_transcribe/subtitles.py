@@ -727,6 +727,12 @@ def render_subtitles(
     outputs: dict[str, str] = {}
     sidecars: dict[str, str] = {}
     fmts = {f.strip().lower() for f in formats if f.strip()}
+    # A hypothetical schedule is not emitted dialogue. Keep per-format
+    # lineage, counts and conflicts restricted to requested outputs.
+    if "ass" not in fmts:
+        displayed, overflow, unrenderable = [], [], []
+    if "srt" not in fmts:
+        srt_displayed, srt_overflow, srt_unrenderable, all_renderable = [], [], [], []
 
     no_renderable_dialogue = bool(cues) and not (("srt" in fmts and all_renderable) or
                                                  ("ass" in fmts and displayed))
@@ -754,6 +760,8 @@ def render_subtitles(
             _atomic_write(sc_ass, ass_text)
             sidecars["ass"] = str(sc_ass)
 
+    conflict_cues = (displayed + overflow + unrenderable if "ass" in fmts
+                     else srt_displayed + srt_overflow + srt_unrenderable)
     conflicts_summary = [
         {
             "utterance_id": c.utterance_id,
@@ -764,7 +772,7 @@ def render_subtitles(
             "text": c.text,
             "conflicts": c.conflicts,
         }
-        for c in displayed + overflow + unrenderable
+        for c in conflict_cues
         if c.conflicts
     ]
     # Actual event bounds are distinct from allocated display sub-cue bounds.
@@ -814,14 +822,14 @@ def render_subtitles(
         "no_renderable_dialogue":no_renderable_dialogue,
         "stats": {
             "total_input_utterances": len(utterances),
-            "renderable_cues": len(all_renderable),
+            "renderable_cues": len(all_renderable) if "srt" in fmts else len(displayed),
             "srt_displayed_cues": len(all_renderable),
             "srt_unrenderable_cues": len(srt_unrenderable),
             "ass_sequential_overlap_cues": sum("sequential_display_overlap" in c.conflicts for c in displayed),
             "ass_displayed_cues": len(displayed),
             "ass_lane_1_top_cues": sum(1 for c in displayed if c.lane == 1),
             "ass_overflow_cues": len(overflow),
-            "unrenderable_cues": len(unrenderable),
+            "unrenderable_cues": len(unrenderable) if "ass" in fmts else len(srt_unrenderable),
             "conflict_cues": len(conflicts_summary),
             "ass_placement_conflict_cues": sum(any(x.startswith("placement_") for x in c.conflicts) for c in displayed + overflow),
         },

@@ -58,3 +58,52 @@ def current_render_metadata(job, translated):
     if metadata.get("render_status") == "rendered_with_review_errors" or "salvage_render_receipt" in metadata:
         raise ValueError("Stale failed-review salvage metadata for nonfailed contract")
     return metadata
+
+
+def read_render_manifest(output: Path) -> dict:
+    """Read the job's current output manifest, not a filename glob.
+
+    An absent manifest permits the single-file retained-job fallback. A
+    malformed manifest does not establish any current render artifacts.
+    """
+    path = output / "subtitles.metadata.json"
+    if not path.is_file():
+        return {}
+    try:
+        metadata = read(path)
+    except (OSError, ValueError):
+        return {"files": {}}
+    return metadata if isinstance(metadata, dict) else {"files": {}}
+
+
+def rendered_artifact_paths(output: Path, metadata: dict) -> dict[str, Path]:
+    """Resolve only current emitted files within the job's output directory.
+
+    Retained job directories can move; manifest basenames remain meaningful,
+    whereas the original absolute path must never be dereferenced. An absent
+    format in a current manifest is not permission to select an older file.
+    Pre-manifest jobs may expose an unambiguous subtitle file without claiming
+    that it belongs to current-format lineage.
+    """
+    result = {}
+    if "files" in metadata or "presentation" in metadata:
+        files = metadata.get("files")
+        if not isinstance(files, dict):
+            return result
+        for kind in ("srt", "ass", "presentation_observations"):
+            value = files.get(kind)
+            if not isinstance(value, str) or not value:
+                continue
+            path = output / Path(value).name
+            matches = (path.name == "presentation.observations.json"
+                       if kind == "presentation_observations"
+                       else path.suffix == "." + kind)
+            if matches and path.is_file() and not path.is_symlink():
+                result[kind] = path
+        return result
+    for kind in ("srt", "ass"):
+        paths = [p for p in output.glob("*." + kind)
+                 if p.is_file() and not p.is_symlink()]
+        if len(paths) == 1:
+            result[kind] = paths[0]
+    return result

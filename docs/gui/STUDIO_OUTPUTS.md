@@ -66,3 +66,5 @@ keep their output-directory and inference behavior. See the current
 [Studio workflow](SUBTITLE_WORKFLOW.md) and [lifecycle guide](../model-resources/LIFECYCLE.md).
 
 The optional presentation observations export preserves source-bound picture/caption-region evidence. The ASS preview timeline uses emitted ASS display intervals when native browser rendering is active; SRT fallback uses its own emitted intervals. Placement diagnostics distinguish logical lanes from measured screen positions and explicitly report overflow or unavailable measurement.
+
+For rerendered jobs, preview, artifact listing and export resolve the current render manifest's declared subtitle basenames within the job directory. Older files are left intact but are not substituted for absent or missing current formats. Pre-manifest jobs retain unambiguous single-file fallback without claiming current-format ASS lineage.

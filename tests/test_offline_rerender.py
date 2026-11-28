@@ -128,3 +128,44 @@ def test_presentation_observations_persist_and_replay_without_media(tmp_path, mo
     assert Path(second["files"]["ass"]).read_bytes() == ass
     assert first["cue_lineage"] == second["cue_lineage"]
     assert len(calls) == 1 and not prohibit_inference and path.read_bytes() == original
+
+
+@pytest.mark.parametrize(("layout","formats"), [
+    ("auto", ("srt","ass")), ("standard", ("srt","ass")),
+    ("raised_main", ("ass",)), ("auto", ("srt",)),
+])
+def test_retained_scene_constraints_are_independent_of_layout_and_format(
+        tmp_path, monkeypatch, prohibit_inference, layout, formats):
+    from nvidia_transcribe import presentation
+    from nvidia_transcribe.subtitles import SubtitleConfig
+
+    source = {"fingerprint_sha256":"a"*64,"duration_s":10.0}
+    contract = {"source":source,"utterances":[
+        {"id":"one","source_start":1.0,"source_end":1.4,
+         "translated_text":"This complete sentence requires more reading time."}]}
+    path = tmp_path/"translated.contract.json"
+    path.write_text(json.dumps(contract))
+    original = path.read_bytes()
+    doc = {"schema":presentation.SCHEMA,"media_fingerprint_sha256":source["fingerprint_sha256"],
+           "duration_s":10.0,"frame_size":[1920,1080],"active_picture":None,
+           "samples":[],"known_scene_boundaries_s":[2.2],"status":"sampled","caption_status":"unknown"}
+    obs = tmp_path/"presentation.observations.json"
+    obs.write_text(json.dumps(doc))
+    def forbidden(*args, **kwargs):
+        pytest.fail("Offline rendering reacquired presentation observations")
+    monkeypatch.setattr(presentation,"observe_media",forbidden)
+    result = pipeline.generate_subtitles(output_dir=tmp_path,
+        config=pipeline.SubtitlePipelineConfig(re_render_only=True,formats=formats,
+            subtitles=SubtitleConfig(ass_layout=layout)))
+    assert path.read_bytes() == original and json.loads(obs.read_text()) == doc
+    assert "presentation_observations" in result["files"] and not prohibit_inference
+    for fmt,key,count in (("ass","cue_lineage","ass_displayed_cues"),
+                          ("srt","srt_cue_lineage","srt_displayed_cues")):
+        if fmt in formats:
+            assert result["subtitles"][count] == 1
+            assert result[key][0]["display_interval"] == [1.0,2.2]
+            assert "display_clamped_at_known_scene_boundary" in result[key][0]["conflicts"]
+            assert fmt in result["files"]
+        else:
+            assert result["subtitles"][count] == 0
+            assert result[key] == [] and fmt not in result["files"]
