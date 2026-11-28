@@ -25,7 +25,6 @@ from nvidia_transcribe.refinement import (
 from nvidia_transcribe.subtitles import SubtitleConfig, render_subtitles
 from nvidia_transcribe.translation import (
     TranslationConfig,
-    condense_high_cps_cues_with_text_model,
     is_english_source_to_english,
     translate_utterances,
 )
@@ -42,7 +41,6 @@ class SubtitlePipelineConfig:
     refinement: RefinementConfig = RefinementConfig(backend="off", profile="off")
     translation: TranslationConfig = TranslationConfig()
     translation_review: TranslationReviewConfig = TranslationReviewConfig()
-    condensation: TranslationConfig | None = None
     subtitles: SubtitleConfig = SubtitleConfig()
     formats: tuple[str, ...] = ("srt", "ass")
     episode_stem: str | None = None
@@ -52,10 +50,7 @@ class SubtitlePipelineConfig:
     resume_refinement: bool = True
     resume_translation: bool = True
     resume_translation_review: bool = True
-    resume_condensation: bool = True
     re_render_only: bool = False
-    condense_high_cps: bool = False
-    condense_cps_threshold: float = 25.0
     source_quality: str = "auto"  # auto: native geometry; on: explicit acoustic activity assessment
     validation_overlay_path: str | Path | None = None
     review_evidence: str = "auto"
@@ -144,12 +139,6 @@ def generate_subtitles(
         raise ValueError("Unsupported source quality mode")
     if cfg.translation_review.profile != "off" and cfg.translation.backend != "riva":
         raise ValueError("Contextual English post-edit requires dedicated Riva primary translation")
-    if (cfg.condense_high_cps and cfg.translation.backend == "riva"
-            and cfg.condensation is None and not cfg.re_render_only):
-        raise ValueError(
-            "Riva translation with subtitle condensation requires an explicit "
-            "OpenAI-compatible condensation resource config."
-        )
     asr_resource = (lifecycle_resources or {}).get("asr")
     retained_contract = None
     if recording_contract_path is not None and not cfg.re_render_only:
@@ -216,7 +205,6 @@ def generate_subtitles(
             "source_refinement": cfg.refinement,
             "text_translation": cfg.translation,
             "translation_review": cfg.translation_review,
-            "subtitle_condensation": cfg.condensation or cfg.translation,
         }[role]
         return managed_text_client(
             lifecycle, resource,
@@ -232,13 +220,12 @@ def generate_subtitles(
 
     if cfg.re_render_only:
         _log("Stage 1-3: Reusing existing translated.contract.json (--re-render)")
-        for skipped in ("source_quality", "translation", "review", "condensation"):
+        for skipped in ("source_quality", "translation", "review"):
             _event(skipped, "skipped", "Offline re-render uses retained contract")
         retained_contract_bytes = translated_path.read_bytes()
         translated_contract = json.loads(retained_contract_bytes)
         ref_summary: dict[str, Any] = {"status": "reused_translated_contract"}
         trans_summary: dict[str, Any] = {"status": "reused_translated_contract"}
-        condense_summary: dict[str, Any] = {"status": "reused_translated_contract"}
         review_summary: dict[str, Any] = {"status": "reused_translated_contract"}
         retained_review = translated_contract.get("translation_review") or {}
         if retained_review.get("status") in ("completed_with_deferred_comparisons","completed_with_deferred_evidence"):
@@ -412,31 +399,12 @@ def generate_subtitles(
         else:
             review_summary = {"status": "not_applicable_legacy_translation"}
             _event("review", "skipped", "Not a dedicated Riva review path")
-        if cfg.condense_high_cps and cfg.translation.backend != "none":
-            _event("condensation", "running")
-            _log(f"Stage 3c/4: Selective condensation (> {cfg.condense_cps_threshold} CPS)")
-            with _text_stage("subtitle_condensation") as stage_client:
-                translated_utts, condense_summary = condense_high_cps_cues_with_text_model(
-                    translated_utts,
-                    source_language=src_lang,
-                    config=cfg.condensation or cfg.translation,
-                    cps_threshold=cfg.condense_cps_threshold,
-                    target_cps=cfg.subtitles.target_cps,
-                    text_client=stage_client,
-                    checkpoint_path=out_dir / "condensation.checkpoint.json",
-                    resume=cfg.resume_condensation,
-                )
-            _event("condensation", "complete", str(condense_summary.get("status", "")))
-        else:
-            condense_summary = {"status": "disabled", "candidate_count": 0, "condensed_count": 0}
-            _event("condensation", "skipped", "Optional condensation disabled")
         translated_contract = {
             **refined_contract,
             "target_language": cfg.target_language,
             "utterances": translated_utts,
             "translation": trans_summary,
             "translation_review": review_summary,
-            "condensation": condense_summary,
         }
         review_failed = (cfg.translation_review.profile != "off"
                          and review_summary.get("status") == "completed_with_errors")
@@ -477,6 +445,24 @@ def generate_subtitles(
         _atomic_write(out_dir / "refined_source_transcript.txt", _format_utterance_transcript_lines(overlaid_utts, "refined_text", "source_text"))
         _atomic_write(out_dir / "final_english_subtitles.txt", _format_utterance_transcript_lines(overlaid_utts, "translated_text"))
 
+    # Media observations are a separate recording-bound artifact: offline
+    # rendering (including salvage) must not rewrite selected English.
+    from nvidia_transcribe.presentation import admit_observations, observe_media
+    observations_path = out_dir / "presentation.observations.json"
+    observation_source = translated_contract.get("source") or {}
+    presentation_observations = None
+    if cfg.subtitles.ass_layout == "auto" and "ass" in cfg.formats:
+        if observations_path.is_file() and (cfg.re_render_only or cfg.resume):
+            retained = json.loads(observations_path.read_text(encoding="utf-8"))
+            try:
+                presentation_observations = admit_observations(retained, observation_source)
+            except ValueError:
+                if cfg.re_render_only or media_path is None:
+                    raise
+        if presentation_observations is None and media_path is not None and observation_source.get("fingerprint_sha256"):
+            presentation_observations = observe_media(media_path, observation_source)
+            _atomic_write(observations_path, json.dumps(presentation_observations, ensure_ascii=False, indent=2))
+
     # Stage 4: Render English SRT & ASS subtitles
     _event("render", "running")
     _log(f"Stage 4/4: Rendering subtitles ({','.join(cfg.formats)}) -> {ep_stem}.{cfg.target_language}.*")
@@ -489,6 +475,7 @@ def generate_subtitles(
         config=cfg.subtitles,
         sidecar_dir=Path(cfg.sidecar_dir) if cfg.sidecar_dir else None,
         overwrite_sidecar=cfg.overwrite_sidecar,
+        presentation_observations=presentation_observations,
     )
 
     elapsed_s = round(time.perf_counter() - t0, 3)
@@ -502,6 +489,7 @@ def generate_subtitles(
             "final_english_subtitles": str(out_dir / "final_english_subtitles.txt"),
             "refined_contract": str(refined_path),
             "translated_contract": str(translated_path),
+            **({"presentation_observations": str(observations_path)} if presentation_observations is not None else {}),
             **render_res["outputs"],
         },
         "sidecars": render_res["sidecars"],
@@ -510,9 +498,9 @@ def generate_subtitles(
         "refinement": ref_summary,
         "translation": trans_summary,
         "translation_review": review_summary,
-        "condensation": condense_summary,
         "validation_overlay": overlay_summary,
         "subtitles": render_res["stats"],
+        "presentation": render_res["presentation"],
         "subtitle_conflicts": render_res["conflicts"][:200],
         "cue_lineage": render_res.get("cue_lineage", []),
         "srt_cue_lineage": render_res.get("srt_cue_lineage", []),

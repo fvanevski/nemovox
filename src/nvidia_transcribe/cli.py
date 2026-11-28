@@ -79,18 +79,15 @@ def build_parser() -> argparse.ArgumentParser:
                     help="Maximum new evidence requests per batch (0 disables acquisition).")
     gs.add_argument("--visual-max-frames", type=int, default=6)
     gs.add_argument("--visual-thinking-budget", type=int, default=1024)
-    gs.add_argument("--condensation-resource", default=None, help="Named text resource for condensation.")
     gs.add_argument("--max-chars", type=int, default=42)
     gs.add_argument("--max-lines", type=int, default=2)
     gs.add_argument("--min-display", type=float, default=1.2)
     gs.add_argument("--max-display", type=float, default=6.5)
     gs.add_argument("--overlap-threshold", type=float, default=0.4)
-    gs.add_argument("--ass-layout", default="standard", choices=["standard", "raised_main"], help="ASS positioning layout ('raised_main' clears bottom Chinese hardsubs).")
+    gs.add_argument("--ass-layout", default="auto", choices=["auto", "standard", "raised_main"], help="Measured automatic placement or an explicit fixed standard/raised override.")
     gs.add_argument("--ass-margin-v", type=int, default=150, help="Bottom margin (px) for raised_main ASS layout.")
     gs.add_argument("--ass-opaque-box", action="store_true", help="Draw semi-opaque dark box behind ASS cues.")
     gs.add_argument("--ass-max-lanes", type=int, default=3, choices=[2, 3], help="Maximum simultaneous ASS speaker lanes.")
-    gs.add_argument("--condense-high-cps", action="store_true", help="Condense overly fast (>threshold CPS) English cues with the configured text model.")
-    gs.add_argument("--condense-threshold", type=float, default=25.0, help="CPS threshold triggering text-model condensation.")
     gs.add_argument("--fresh", action="store_true", help="Recompute ASR, refinement, and translation without reusing caches.")
     gs.add_argument("--fresh-refinement", action="store_true", help="Ignore refinement checkpoint cache.")
     gs.add_argument("--fresh-translation", action="store_true", help="Ignore translation checkpoint cache.")
@@ -167,7 +164,6 @@ def main(argv: list[str] | None = None) -> int:
         text_overrides = {"endpoint": args.text_url, "model": args.text_model}
         refinement_resource = registry.resolve("source_refinement", resource_name=args.refinement_resource, **text_overrides)
         translation_resource = registry.resolve("text_translation", resource_name=args.translation_resource, **text_overrides)
-        condensation_resource = registry.resolve("subtitle_condensation", resource_name=args.condensation_resource, **text_overrides)
         review_resource = registry.resolve("translation_review", resource_name=args.translation_review_resource, **text_overrides)
         visual_resource = registry.resolve("visual_inspection", resource_name=args.visual_inspection_resource, **text_overrides)
         if args.visual_inspection_resource is None and registry.visual_inherits_review:
@@ -177,8 +173,6 @@ def main(argv: list[str] | None = None) -> int:
             args.translator == "riva" and not args.re_render and not same_language))
         refinement_key = refinement_resource.credential() if args.refinement != "off" and not args.re_render else None
         translation_key = translation_resource.credential() if args.translator == "openai_chat" and not args.re_render else None
-        condensation_key = (condensation_resource.credential()
-                            if args.condense_high_cps and args.translator != "none" and not args.re_render else None)
         review_key = (review_resource.credential() if args.translation_review != "off" and args.translator == "riva"
                       and not args.re_render and not same_language else None)
     except ResourceConfigError as exc:
@@ -224,11 +218,6 @@ def main(argv: list[str] | None = None) -> int:
             context_mode=args.review_context, context_max_bytes=args.review_context_bytes,
             max_evidence_requests_per_batch=args.review_evidence_per_batch,
         )
-        cond_cfg = TranslationConfig(
-            backend="openai_chat", style=args.style, target_language=args.target_language,
-            base_url=condensation_resource.endpoint, model=condensation_resource.model,
-            resource_fingerprint=condensation_resource.fingerprint(), api_key=condensation_key,
-        )
         sub_cfg = SubtitleConfig(
             max_chars=args.max_chars,
             max_lines=args.max_lines,
@@ -247,7 +236,6 @@ def main(argv: list[str] | None = None) -> int:
             refinement=ref_cfg,
             translation=trans_cfg,
             translation_review=review_cfg,
-            condensation=cond_cfg,
             subtitles=sub_cfg,
             formats=formats,
             episode_stem=args.episode_stem,
@@ -257,10 +245,7 @@ def main(argv: list[str] | None = None) -> int:
             resume_refinement=not (args.fresh or args.fresh_refinement),
             resume_translation=not (args.fresh or args.fresh_translation),
             resume_translation_review=not (args.fresh or args.fresh_translation),
-            resume_condensation=not (args.fresh or args.fresh_translation),
             re_render_only=args.re_render,
-            condense_high_cps=args.condense_high_cps,
-            condense_cps_threshold=args.condense_threshold,
             validation_overlay_path=args.validation_overlay,
             source_quality=args.source_quality, review_evidence=args.review_evidence,
             visual_max_frames=args.visual_max_frames, visual_thinking_budget=args.visual_thinking_budget,
@@ -279,7 +264,7 @@ def main(argv: list[str] | None = None) -> int:
                 lifecycle_resources={
                     "asr": asr_resource, "source_refinement": refinement_resource,
                     "text_translation": translation_resource, "riva_translation": riva_resource,
-                    "translation_review": review_resource, "subtitle_condensation": condensation_resource,
+                    "translation_review": review_resource,
                     "visual_inspection": visual_resource,
                     **({"speech_activity": activity_resource} if activity_resource else {}),
                 },

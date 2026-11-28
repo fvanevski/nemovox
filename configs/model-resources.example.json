@@ -24,7 +24,6 @@
     "asr": "moss_local",
     "source_refinement": "text_local",
     "text_translation": "text_local",
-    "subtitle_condensation": "text_local",
     "translation_review": "text_local",
     "riva_translation": "riva_local"
   }
