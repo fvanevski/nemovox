@@ -207,6 +207,24 @@ _ADVISORY_PROPERTIES = {
 }
 
 
+def _evidence_request_schema(allow_evidence):
+    """Constrain modality and focus together without changing admitted receipts."""
+    def variant(kind, foci):
+        spec=deepcopy(_ADVISORY_PROPERTIES["evidence_request"])
+        props=spec["properties"]
+        props["kind"]["enum"]=[kind]
+        props["focus"]["enum"]=foci
+        if kind=="none":
+            for field in ("reference_id","question"):
+                props[field]["enum"]=[""]
+        return spec
+    none=variant("none",["none"])
+    if not allow_evidence:
+        return none
+    return {"anyOf":[none,variant("acoustic",["none"]),
+                     variant("visual",["scene","speech_activity","interaction","text"])]}
+
+
 def _advisory_decision(item, *, allow_evidence, reference_ids=()):
     """Missing decisions are invalid, never silently interpreted as none."""
     terms = item.get("discourse_terms")
@@ -232,18 +250,57 @@ def _advisory_decision(item, *, allow_evidence, reference_ids=()):
     return request
 
 
+def _available_captions(uid, receipts):
+    return {v["caption_id"]:v for obs in receipts if obs.get("status") == "observed"
+            and obs.get("kind") == "visual" for v in obs.get("visible_text", [])
+            if v.get("text_kind") == "dialogue_caption" and v.get("source_language_match") is True
+            and uid in v.get("related_occurrence_ids", [])}
+
+
 def _caption_references(item, uid, receipts):
     refs = item.get("caption_evidence_ids")
     if (not isinstance(refs, list) or len(refs) > 8
             or any(not isinstance(ref,str) for ref in refs) or len(set(refs)) != len(refs)):
         raise ProposalDecisionError("invalid_caption_reference_collection")
-    available = {v["caption_id"]:v for obs in receipts if obs.get("status") == "observed"
-                 and obs.get("kind") == "visual" for v in obs.get("visible_text", [])
-                 if v.get("text_kind") == "dialogue_caption" and v.get("source_language_match") is True
-                 and uid in v.get("related_occurrence_ids", [])}
+    available = _available_captions(uid,receipts)
     if any(ref not in available for ref in refs):
         raise ProposalDecisionError("unbound_caption_reference")
     return [available[ref] for ref in refs]
+
+
+def _caption_choice_schema(allowed):
+    return {"type":"array","maxItems":min(8,len(allowed)),
+            "items":{"type":"string",**({"enum":sorted(allowed)} if allowed else {})}}
+
+
+def _keyed_supplement_request(messages, schema, ids, choices):
+    """Retry the entire connected allocation, with exact per-row citation choices."""
+    aliases={f"r{i+1:02d}":uid for i,uid in enumerate(ids)}
+    base=deepcopy(schema["properties"]["reviews"]["items"])
+    del base["properties"]["utterance_id"]
+    base["required"].remove("utterance_id")
+    props={}
+    for key,uid in aliases.items():
+        spec=deepcopy(base)
+        spec["properties"]["caption_evidence_ids"]=_caption_choice_schema(choices[uid])
+        props[key]=spec
+    keyed={"type":"object","properties":{"reviews":{"type":"object",
+        "properties":props,"required":list(aliases),"additionalProperties":False}},
+        "required":["reviews"],"additionalProperties":False}
+    alternate=[dict(m) for m in messages]
+    payload=json.loads(alternate[-1]["content"])
+    payload["response_keys"]=aliases
+    alternate[-1]["content"]=json.dumps(payload,ensure_ascii=False,separators=(",",":"))
+    alternate[0]["content"]+=(
+        " The previous response contained invalid caption citations. Reconsider the COMPLETE "
+        "connected allocation with the same evidence, not only its citation list. "
+        "Return reviews as an OBJECT keyed by response_keys; each value has corrected_text, "
+        "reason, discourse_terms and caption_evidence_ids, no utterance_id or evidence_request. "
+        "Use only admissible_caption_ids for that specific occurrence, or []. "
+        "An adjacent occurrence's caption is not automatically admissible. If its associated "
+        "evidence does not support a proposed interpretation, revise the wording as needed; "
+        "do not merely remove a citation while retaining an unsupported claim.")
+    return alternate,keyed,aliases
 
 
 # These outcomes cannot be improved by repeating an identical request with
@@ -320,6 +377,8 @@ def _supplemented_proposals(client, provider, messages, wire, cfg, targets, entr
             payload["target_utterances"]=[t for t in payload["target_utterances"] if t["utterance_id"] in ids]
             payload["supplementary_observations"]=[{k:v for k,v in r.items() if k not in ("model_receipt","provider")}
                                                    for r in receipts]
+            choices={uid:sorted(_available_captions(uid,receipts)) for uid in ids}
+            payload["admissible_caption_ids"]=choices
             payload["initial_affected_proposals"]=[{"id":uid,"english":entries[uid]["corrected_text"],
                                                       "reason":entries[uid]["reason"]} for uid in ids]
             payload["read_only_other_proposals"]=[{"id":t["utterance_id"],"source":t["source_text"],
@@ -333,6 +392,8 @@ def _supplemented_proposals(client, provider, messages, wire, cfg, targets, entr
                 "speaker identity, hidden motives, exact speech boundaries or phonemes. "
                 "Compare literal dialogue captions with original ASR; captions may be paraphrased, offset "
                 "or incorrect. Cite exact associated caption IDs only if used to support the interpretation. "
+                "admissible_caption_ids gives the complete permitted citation list per target occurrence; "
+                "use [] if none are available or used. Never borrow a neighboring occurrence's ID. "
                 "If a scene observation materially informs the interpretation, cite its observation_id in the reason. "
                 "Keep the canonical source immutable. Return discourse_terms and caption_evidence_ids "
                 "(empty if none); do NOT return an evidence_request. No further acquisition.")
@@ -343,29 +404,42 @@ def _supplemented_proposals(client, provider, messages, wire, cfg, targets, entr
             spec["properties"]["utterance_id"]["enum"]=ids
             spec["properties"].pop("evidence_request",None)
             spec["required"].remove("evidence_request")
-            spec["properties"]["caption_evidence_ids"]={"type":"array","maxItems":8,"items":{"type":"string"}}
+            spec["properties"]["caption_evidence_ids"]=_caption_choice_schema(
+                {ref for allowed in choices.values() for ref in allowed})
             spec["required"].append("caption_evidence_ids")
-            try:
-                response=client.complete(messages=alternate,max_tokens=cfg.max_tokens,temperature=cfg.temperature,
-                    **{**wire,"response_format":{"type":"json_schema","schema":schema}})
-            except httpx.HTTPError as exc:
-                if not retryable_review_transport(exc):
-                    raise
-                # This is an attempted transport, not a model answer.
-                response={"transport_error":{"type":type(exc).__name__,"reason":str(exc)[:500]}}
-            responses.append(response)
-            ref=progress.request(state,"evidence_proposal",alternate,schema,response)
-            try:
-                if "transport_error" in response:
-                    raise ProposalDecisionError("retryable_supplement_transport")
-                if (response.get("choices") or [{}])[0].get("finish_reason")!="stop":
-                    raise ProposalDecisionError("incomplete_supplemented_proposal")
-                replacements=_native_proposals(response,subset,supplemented=True)
-                for uid,item in replacements.items():
-                    _caption_references(item,uid,receipts)
-            except ProposalDecisionError as exc:
-                error=str(exc)
-            else:
+            aliases=None
+            stage="evidence_proposal"
+            # One bounded recovery for citation-specific errors. Never reacquire
+            # media or publish only part of a connected allocation.
+            for attempt in range(2):
+                try:
+                    response=client.complete(messages=alternate,max_tokens=cfg.max_tokens,temperature=cfg.temperature,
+                        **{**wire,"response_format":{"type":"json_schema","schema":schema}})
+                except httpx.HTTPError as exc:
+                    if not retryable_review_transport(exc):
+                        raise
+                    response={"transport_error":{"type":type(exc).__name__,"reason":str(exc)[:500]}}
+                responses.append((stage,response))
+                ref=progress.request(state,stage,alternate,schema,response)
+                progress.save()
+                try:
+                    if "transport_error" in response:
+                        raise ProposalDecisionError("retryable_supplement_transport")
+                    if (response.get("choices") or [{}])[0].get("finish_reason")!="stop":
+                        raise ProposalDecisionError("incomplete_supplemented_proposal")
+                    replacements=_native_proposals(response,subset,aliases,supplemented=True)
+                    for uid,item in replacements.items():
+                        _caption_references(item,uid,receipts)
+                except ProposalDecisionError as exc:
+                    error=str(exc)
+                    if attempt==0 and error in ("unbound_caption_reference","invalid_caption_reference_collection"):
+                        alternate,schema,aliases=_keyed_supplement_request(alternate,schema,ids,choices)
+                        stage="evidence_proposal_recovery"
+                        continue
+                    break
+                error=None
+                break
+            if error is None:
                 for uid,item in replacements.items():
                     previous=entries[uid]
                     item["evidence_request"]=previous["evidence_request"]
@@ -439,12 +513,13 @@ def _validate_progress_entries(entries, targets, state, provider, *, reference_i
         if item.get("supplement_request_sha256"):
             ref=item["supplement_request_sha256"]
             request=state["requests"].get(ref)
-            if not isinstance(request,dict) or digest(request)!=ref or request.get("stage")!="evidence_proposal":
+            if not isinstance(request,dict) or digest(request)!=ref or request.get("stage") not in ("evidence_proposal","evidence_proposal_recovery"):
                 raise ValueError("Native progress supplementary request missing")
             payload=json.loads(request["messages"][-1]["content"])
             owned={x["utterance_id"] for x in payload["target_utterances"]}
             revised=_native_proposals({"choices":request["response"]},
-                [x for x in targets if x["utterance_id"] in owned],supplemented=True)[uid]
+                [x for x in targets if x["utterance_id"] in owned],
+                payload.get("response_keys"),supplemented=True)[uid]
             if (any(item.get(k)!=v for k,v in revised.items())
                     or item.get("initial_proposal")!={k:initial[k] for k in ("corrected_text","reason")}):
                 raise ValueError("Native progress supplementary allocation mismatch")
@@ -597,7 +672,8 @@ def _native_proposals(reply,targets,aliases=None, *, require_advisory=False, all
         if not isinstance(values,dict) or set(values)!=set(aliases):
             raise ProposalDecisionError("invalid_keyed_proposal_ids")
         if any(not isinstance(v,dict) or not {"corrected_text","reason"} <= set(v)
-               or set(v)-{"corrected_text","reason",*(_ADVISORY_PROPERTIES)} for v in values.values()):
+               or set(v)-{"corrected_text","reason",*(_ADVISORY_PROPERTIES),
+                           *(("caption_evidence_ids",) if supplemented else ())} for v in values.values()):
             raise ProposalDecisionError("invalid_keyed_proposal_shape")
         values=[{"utterance_id":aliases[k],**v} for k,v in values.items()]
     if not isinstance(values,list):
@@ -633,7 +709,7 @@ def _native_proposals(reply,targets,aliases=None, *, require_advisory=False, all
     return entries
 
 
-def _keyed_proposal(client,messages,ids,wire,cfg,*,record_request=None):
+def _keyed_proposal(client,messages,ids,wire,cfg,*,record_request=None,invalid_focus=False):
     """One alternate response geometry; exact source and canonical IDs remain."""
     aliases={f"r{i+1:02d}":uid for i,uid in enumerate(ids)}
     item={"type":"object","properties":{"corrected_text":{"type":"string"},
@@ -655,6 +731,14 @@ def _keyed_proposal(client,messages,ids,wire,cfg,*,record_request=None):
         "maps to exactly one target utterance in response_keys. The value contains only "
         "corrected_text and reason for that target, plus required advisory fields when present in the schema. "
         "Do not emit utterance IDs in values.")
+    if invalid_focus:
+        alternate[0]["content"]+=(
+            " The rejected response used an incompatible modality and focus. "
+            "For acoustic use focus none, never speech_activity; acoustic observes sound. "
+            "For none use focus none and empty reference_id and question. "
+            "Only visual may use scene, speech_activity, interaction or text. "
+            "Choose the modality justified by the actual uncertainty; do not simply switch modality "
+            "to fit a previously emitted focus.")
     reply=client.complete(messages=alternate,max_tokens=cfg.max_tokens,temperature=cfg.temperature,
         **{**wire,"response_format":{"type":"json_schema","schema":schema}})
     if record_request is not None:
@@ -829,7 +913,8 @@ def review_translated_utterances(
     discourse_ledger = []
     scene_ledger = []
     execution_telemetry={"checkpoint_acquisition_reuses":0,"provider_requests":0,"proposal_reuses":0,
-                         "initial_comparison_requests":0,"recovery_comparison_requests":0,"evidence_refinement_requests":0}
+                         "initial_comparison_requests":0,"recovery_comparison_requests":0,"evidence_refinement_requests":0,
+                         "evidence_proposal_recovery_requests":0}
     provider_start=dict(getattr(evidence_provider,"telemetry",{}))
     context_receipts = []
     evidence_receipts = []
@@ -1036,8 +1121,8 @@ def review_translated_utterances(
                     if native_review:
                         item_schema["properties"].update(deepcopy(_ADVISORY_PROPERTIES))
                         item_schema["required"].extend(_ADVISORY_PROPERTIES)
-                        if evidence_provider is None:
-                            item_schema["properties"]["evidence_request"]["properties"]["kind"]["enum"] = ["none"]
+                        item_schema["properties"]["evidence_request"]=_evidence_request_schema(
+                            evidence_provider is not None)
                     def source_only(seq):
                         return [{k:v for k,v in row.items() if k!="machine_translation"} for row in seq]
                     source_payload={**payload,"context_before":source_only(before),
@@ -1104,7 +1189,9 @@ def review_translated_utterances(
                                "could resolve material uncertainty, acoustic when re-observing speech is more discriminating. "
                                "For uncertain referents, roles, actions or apparent speaker, prefer scene evidence over "
                                "repeating clear acoustic wording. Visual focus is scene, speech_activity (mouth/beak activity), "
-                               "interaction (gestures/actions), or text (captions/labels); otherwise focus is none. "
+                               "interaction (gestures/actions), or text (captions/labels). For acoustic, "
+                               "focus MUST be none, including when the question is about speech activity. "
+                               "speech_activity is a visual focus only. "
                                "For visual/acoustic specify a real relevant timed occurrence ID and a neutral observational question. "
                                "For none use empty reference_id and question, focus none, with reason. Do not investigate routine lexical corrections. "
                                if evidence_provider is not None else "Acquisition is disabled: return kind none with empty reference_id and question, focus none and reason. ")
@@ -1160,7 +1247,8 @@ def review_translated_utterances(
                             def capture_keyed(msg,schema,reply):
                                 state["proposal_request_sha256"]=progress.request(state,"proposal_recovery",msg,schema,reply)
                             alternate,aliases=_keyed_proposal(client,messages,ids,wire,cfg,
-                                record_request=capture_keyed if native_review else None)
+                                record_request=capture_keyed if native_review else None,
+                                invalid_focus=str(exc)=="invalid_evidence_focus")
                             attempts=alternate.get("_client_request_diagnostics",{}).get("completion_attempts",[])
                             native_attempts.extend({"stage":"proposal_recovery",**x} for x in attempts)
                             extra=max(0,len(attempts)-1)
@@ -1175,6 +1263,16 @@ def review_translated_utterances(
                                     allow_evidence=evidence_provider is not None,reference_ids=reference_ids)
                             except ProposalDecisionError as rejected:
                                 receipt["alternate_rejected_response"]=_failure_receipt(alternate,str(rejected))
+                                if native_review:
+                                    # Persist rejected attempts without admitting any proposal. Isolate
+                                    # repeated focus failures at existing atomic-unit boundaries.
+                                    if str(rejected)=="invalid_evidence_focus" and split_points(start,end):
+                                        state["split"]=True
+                                        progress.save()
+                                        receipt["outcome"]="subdivided_invalid_focus"
+                                        subdivide(start,end,range_index,"proposal_focus_recovery")
+                                        continue
+                                    progress.save()
                                 raise
                             receipt["outcome"]="complete"
                             receipt["alternate_diagnostics"]=alternate.get("_client_request_diagnostics",{})
@@ -1206,11 +1304,13 @@ def review_translated_utterances(
                 if native_review and evidence_provider is not None:
                     responses=_supplemented_proposals(client,evidence_provider,messages,wire,cfg,targets,entries,
                         partitions,start,progress,state,execution_telemetry)
-                    for supplement in responses:
+                    for supplement_stage,supplement in responses:
                         attempts=supplement.get("_client_request_diagnostics",{}).get("completion_attempts",[])
-                        native_attempts.extend({"stage":"evidence_proposal",**x} for x in attempts)
+                        native_attempts.extend({"stage":supplement_stage,**x} for x in attempts)
                         calls+=max(1,len(attempts))
                         execution_telemetry["evidence_refinement_requests"]+=1
+                        execution_telemetry["evidence_proposal_recovery_requests"]+=int(
+                            supplement_stage=="evidence_proposal_recovery")
                         completion_retries+=max(0,len(attempts)-1)
                 if cfg.wire_protocol == "ninfer_messages":
                     # Only changed proposals need a second, comparative

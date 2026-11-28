@@ -26,3 +26,23 @@ Adaptive review requires explicit per-target evidence dispositions. Visual inspe
 The native reviewer uses the current `native-review-progress/v1` checkpoint schema with per-stage request receipts and frozen actual advisory context for continuation. Successful media acquisition is reusable independently of subsequent semantic refinement. General visual observations carry categories, frame identities, visible descriptions, tentative interpretations and uncertainty. Task focus selects distributed scene or concentrated speech/activity/text sampling within the configured frame budget. Previously observed nearby scene facts are advisory; they do not establish speech, identities or scene continuity. Runtime summaries distinguish real acquisitions from retained/reused observations and initial versus recovery comparison requests.
 
 The former `subtitle_condensation` role and related extra-pass options are retired. Remove that binding from custom registry configurations before using the current CLI; retain resources used by other roles. Automatic ASS presentation is CPU-only and has no model role.
+
+
+### Review response recovery
+
+Evidence nomination schemas constrain modality and focus together: acoustic and none require
+focus none; only visual supports visual foci. Invalid decisions still fail strict admission.
+Keyed proposal recovery explicitly diagnoses incompatible focus; if it repeats in a multi-unit
+batch, bounded subdivision at existing connected-unit boundaries isolates the failed unit.
+Supplementary proposals receive explicit per-occurrence admissible caption IDs, including
+empty choices. One keyed recovery of a citation-specific error reconsiders the complete
+connected allocation using the same admitted observations, with no new media acquisition.
+Persistent failures remain visible and resumable; no invalid citation or partial connected
+allocation is admitted.
+
+These response-transport and recovery changes preserve the existing semantic policy and
+canonical receipt shapes. The existing native-review-progress/v1 identity is retained for
+compatible completed stages, subject to the same recording, context, resource, stream,
+observation, allocation and decision checks. Rejected responses are not admitted decisions.
+Do not edit checkpoint identities to force reuse; incompatible state requires explicit
+regeneration. A future semantic-policy change must separately bind its own admission identity.

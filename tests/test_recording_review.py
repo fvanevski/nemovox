@@ -1366,3 +1366,149 @@ def test_regenerate_incompatible_visual_checkpoint_without_dependent_context(tmp
     assert out[0]["translation_review_evidence"]["status"]=="visual_media_unavailable"
     assert [r["translated_text"] for r in out]==["Text A.","Text B."]
     assert summary["scene_observations"]==[]
+
+
+@pytest.mark.parametrize("persistent",[False,True])
+def test_invalid_acoustic_focus_recovery_isolates_atomic_units(tmp_path,persistent):
+    rows=[row(0,"甲。","A."),row(1,"乙。","B."),row(2,"丙。","C.")]
+    a,b,c=[r["id"] for r in rows]
+    originals={r["id"]:r["translated_text"] for r in rows}
+    provider=Provider()
+
+    class FocusModel(NominationModel):
+        def complete(self,*,messages,**kw):
+            payload=json.loads(messages[-1]["content"])
+            if "target_utterances" in payload and "supplementary_observations" not in payload:
+                schema=kw["response_format"]["schema"]["properties"]["reviews"]
+                item=(next(iter(schema["properties"].values())) if "response_keys" in payload
+                      else schema["items"])
+                branches=item["properties"]["evidence_request"]["anyOf"]
+                assert {v["properties"]["kind"]["enum"][0]:v["properties"]["focus"]["enum"]
+                        for v in branches}=={"none":["none"],"acoustic":["none"],
+                            "visual":["scene","speech_activity","interaction","text"]}
+                if "response_keys" in payload:
+                    assert "focus MUST be none" in messages[0]["content"]
+                    assert "incompatible modality and focus" in messages[0]["content"]
+            return super().complete(messages=messages,**kw)
+
+    def propose(t,p):
+        uid=t["utterance_id"]
+        result={"corrected_text":originals[uid]}
+        if uid==a and "supplementary_observations" not in p:
+            req=evidence_request(a,"acoustic")
+            if persistent or len(p["target_utterances"])>1:
+                req["focus"]="speech_activity"
+            result["evidence_request"]=req
+        return result
+
+    cp=tmp_path/"progress.json"
+    first=FocusModel(propose)
+    out,report=run(rows,first,evidence_provider=provider,checkpoint_path=cp)
+    assert any(x["stage"]=="proposal_focus_recovery" for x in report["subdivisions"])
+    assert any(x.get("outcome")=="subdivided_invalid_focus" for x in report["proposal_recoveries"])
+    assert out[1]["translated_text"]=="B." and out[2]["translated_text"]=="C."
+    assert out[1]["translation_review_status"]==out[2]["translation_review_status"]=="unchanged"
+    records=[w["record"] for w in json.loads(cp.read_text())["records"].values()]
+    assert any(rec["split"] and rec["entries"] is None for rec in records)
+    assert all(item["evidence_request"]["focus"]!="speech_activity"
+               for rec in records for item in (rec["entries"] or {}).values())
+    if persistent:
+        assert report["status"]=="completed_with_errors"
+        assert provider.requests==[]
+        assert out[0]["translation_review_status"]=="review_error_preserved_machine_translation"
+        def corrected(t,p):
+            assert t["utterance_id"]==a
+            return {"corrected_text":"A.",**({} if "supplementary_observations" in p else
+                    {"evidence_request":evidence_request(a,"acoustic")})}
+        out2,report=run(rows,Model(corrected),evidence_provider=provider,checkpoint_path=cp)
+        assert report["status"]=="completed" and report["cache_hits"]==2
+        assert out2[1:]==out[1:]
+    else:
+        assert report["status"]=="completed"
+        out2=out
+    assert len(provider.requests)==1 and provider.requests[0][1]["focus"]=="none"
+    replay,summary=run(rows,Model(lambda t,p:pytest.fail("unexpected regenerated proposal")),
+                       evidence_provider=Provider(),checkpoint_path=cp)
+    assert replay==out2 and summary["api_calls"]==0
+
+
+@pytest.mark.parametrize("persistent",[False,True])
+def test_connected_caption_citation_recovery_uses_exact_owned_choices(tmp_path,monkeypatch,persistent):
+    rows=[row(0,"拿","Take",start=1,end=2),row(1,"那个","that.",start=2.1,end=3),
+          row(2,"好了。","All right.",start=10,end=11)]
+    a,b,c=[r["id"] for r in rows]
+    for group in connected_units.nominate(rows):
+        record={**connected_units.request_record(group,[]),"joint_mt":"Take that.","joint_input_tokens":8}
+        for r in group:
+            r["translation_unit_candidate"]=deepcopy(record)
+    assert connected_units.groups(rows)==[[0,1],[2]]
+    vision=FixtureVision(caption_only_body())
+    provider=visual_fixture(tmp_path,monkeypatch,rows,vision)
+
+    def propose(t,p):
+        uid=t["utterance_id"]
+        if "supplementary_observations" in p:
+            assert set(p["admissible_caption_ids"])=={a,b}
+            assert p["admissible_caption_ids"][a]==[]
+            cap,=p["admissible_caption_ids"][b]
+            return {"corrected_text":"Take" if uid==a else "the cup.",
+                    "caption_evidence_ids":[cap] if uid==b or persistent or "response_keys" not in p else []}
+        if uid==b:
+            return {"corrected_text":"that thing.","evidence_request":{**evidence_request(b),"focus":"text"}}
+        return {"corrected_text":"Take" if uid==a else "All right."}
+
+    class CaptionModel(Model):
+        def complete(self,*,messages,**kw):
+            payload=json.loads(messages[-1]["content"])
+            if "response_keys" not in payload:
+                return super().complete(messages=messages,**kw)
+            self.calls.append(payload)
+            assert "supplementary_observations" in payload
+            schema=kw["response_format"]["schema"]["properties"]["reviews"]
+            targets={t["utterance_id"]:t for t in payload["target_utterances"]}
+            assert set(payload["response_keys"].values())=={a,b}
+            for key,uid in payload["response_keys"].items():
+                cap_schema=schema["properties"][key]["properties"]["caption_evidence_ids"]
+                assert cap_schema["maxItems"]==(0 if uid==a else 1)
+                if uid==b:
+                    assert cap_schema["items"]["enum"]==payload["admissible_caption_ids"][b]
+            return reply({"reviews":{key:{"reason":"source evidence","discourse_terms":[],
+                **self.propose(targets[uid],payload)} for key,uid in payload["response_keys"].items()}})
+
+    cp=tmp_path/"progress.json"
+    first=CaptionModel(propose)
+    out,report=run(rows,first,evidence_provider=provider,checkpoint_path=cp)
+    assert report["review_execution"]["evidence_proposal_recovery_requests"]==1
+    assert len(vision.calls)==1
+    assert out[2]["translated_text"]=="All right."
+    records=[w["record"] for w in json.loads(cp.read_text())["records"].values()]
+    requests=[q for rec in records for q in rec["requests"].values()]
+    assert sum(q["stage"]=="evidence_proposal" for q in requests)==1
+    assert sum(q["stage"]=="evidence_proposal_recovery" for q in requests)==1
+    if persistent:
+        assert report["status"]=="completed_with_deferred_evidence"
+        assert [r["translated_text"] for r in out[:2]]==["Take","that."]
+        assert {e["target_id"] for e in report["supplementary_proposal_errors"]}=={a,b}
+        assert all(not item.get("supplement_request_sha256")
+                   for rec in records for uid,item in (rec["entries"] or {}).items() if uid in (a,b))
+        def corrected(t,p):
+            assert "supplementary_observations" in p
+            uid=t["utterance_id"]
+            return {"corrected_text":"Take" if uid==a else "the cup.",
+                    "caption_evidence_ids":p["admissible_caption_ids"][uid]}
+        no_vision=FixtureVision(error=AssertionError("acquisition should be reused"))
+        again_provider=visual_fixture(tmp_path,monkeypatch,rows,no_vision)
+        final,report=run(rows,Model(corrected),evidence_provider=again_provider,checkpoint_path=cp)
+        assert report["status"]=="completed" and report["cache_hits"]==1
+        assert not no_vision.calls
+    else:
+        assert report["status"]=="completed"
+        final=out
+    assert final[1]["translated_text"]=="the cup."
+    assert final[0]["translation_unit"]==final[1]["translation_unit"]
+    assert all(r["source_text"]==o["source_text"] and r["machine_translated_text"]==o["machine_translated_text"]
+               for r,o in zip(final,rows))
+    no_vision=FixtureVision(error=AssertionError("unexpected acquisition"))
+    replay,report=run(rows,Model(lambda t,p:pytest.fail("unexpected text inference")),
+        evidence_provider=visual_fixture(tmp_path,monkeypatch,rows,no_vision),checkpoint_path=cp)
+    assert replay==final and report["api_calls"]==0 and not no_vision.calls
