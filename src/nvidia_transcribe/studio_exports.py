@@ -23,6 +23,7 @@ ARTIFACT_PATHS = {
     "refined_source_transcript": "output/refined_source_transcript.txt",
     "final_english": "output/final_english_subtitles.txt",
     "subtitle_metadata": "output/subtitles.metadata.json",
+    "presentation_observations": "output/presentation.observations.json",
 }
 EXPORT_TYPES = frozenset((*ARTIFACT_PATHS, "srt", "ass"))
 

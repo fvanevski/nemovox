@@ -173,7 +173,7 @@ class ExportPlan(BaseModel):
     artifacts: list[Literal[
         "source_transcript", "recording_contract", "refined_contract",
         "translated_contract", "raw_source_transcript", "refined_source_transcript",
-        "final_english", "subtitle_metadata", "srt", "ass",
+        "final_english", "subtitle_metadata", "presentation_observations", "srt", "ass",
     ]] = Field(default_factory=list)
     save_remote_media: bool = False
 
@@ -1033,19 +1033,23 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
         meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.is_file() else {}
         presentation = meta.get("presentation")
         # ASS-only jobs expose emitted display intervals, not source times.
-        if not subs and sorted(output.glob("*.ass")) and isinstance(meta.get("cue_lineage"), list):
+        ass_cues = None
+        if sorted(output.glob("*.ass")) and isinstance(meta.get("cue_lineage"), list):
             unique = {}
             for row in meta["cue_lineage"]:
                 interval = row.get("display_interval")
                 if row.get("disposition") == "displayed" and interval:
                     unique.setdefault(row["display_event_id"], {
                         "start": interval[0], "end": interval[1], "text": row["text"],
-                        "utterance_id": row["occurrence_id"], "lane": row.get("lane")})
-            return {"kind": "subtitles", "cues": sorted(unique.values(), key=lambda r:r["start"]),
+                        "utterance_id": row["occurrence_id"], "lane": row.get("lane"),
+                        **({"ass_bounds":row["ass_bounds"]} if row.get("ass_bounds") else {})})
+            ass_cues = sorted(unique.values(), key=lambda r:r["start"])
+        if not subs and ass_cues is not None:
+            return {"kind": "subtitles", "cues": ass_cues, "ass_cues": ass_cues,
                     "presentation": presentation, "display_stats": meta.get("subtitles")}
         if subs:
             return {"kind": "subtitles", "cues": _srt_cues(subs[0].read_text(encoding="utf-8")),
-                    "presentation": presentation, "display_stats": meta.get("subtitles")}
+                    "ass_cues": ass_cues, "presentation": presentation, "display_stats": meta.get("subtitles")}
         candidate = output / "translated.contract.json"
         if not candidate.is_file():
             candidate = root / "asr" / "recording.contract.json"

@@ -107,8 +107,10 @@ export interface Cue {
   text: string;
   speaker?: string | null;
   utterance_id?: string | null;
+  lane?: number | null;
+  ass_bounds?: [number, number, number, number];
 }
-export interface Preview { kind: "pending" | "subtitles" | "transcript"; cues: Cue[]; presentation?: {layout: string; status: string; caption_status?: string; observation_status?: string} | null; display_stats?: Record<string, number> | null; }
+export interface Preview { kind: "pending" | "subtitles" | "transcript"; cues: Cue[]; ass_cues?: Cue[] | null; presentation?: {layout: string; status: string; caption_status?: string; observation_status?: string} | null; display_stats?: Record<string, number> | null; }
 export interface Artifact { name: string; path: string; url: string; }
 
 async function json<T>(route: string, init?: RequestInit): Promise<T> {

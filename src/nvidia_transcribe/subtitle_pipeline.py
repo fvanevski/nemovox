@@ -447,7 +447,7 @@ def generate_subtitles(
 
     # Media observations are a separate recording-bound artifact: offline
     # rendering (including salvage) must not rewrite selected English.
-    from nvidia_transcribe.presentation import admit_observations, observe_media
+    from nvidia_transcribe.presentation import admit_observations, observe_media, verify_media_source
     observations_path = out_dir / "presentation.observations.json"
     observation_source = translated_contract.get("source") or {}
     presentation_observations = None
@@ -456,6 +456,8 @@ def generate_subtitles(
             retained = json.loads(observations_path.read_text(encoding="utf-8"))
             try:
                 presentation_observations = admit_observations(retained, observation_source)
+                if media_path is not None and presentation_observations is not None:
+                    verify_media_source(media_path, observation_source)
             except ValueError:
                 if cfg.re_render_only or media_path is None:
                     raise
@@ -500,7 +502,9 @@ def generate_subtitles(
         "translation_review": review_summary,
         "validation_overlay": overlay_summary,
         "subtitles": render_res["stats"],
-        "presentation": render_res["presentation"],
+        "presentation": {**render_res["presentation"],
+                         **({"observations_sha256": hashlib.sha256(observations_path.read_bytes()).hexdigest()}
+                            if presentation_observations is not None else {})},
         "subtitle_conflicts": render_res["conflicts"][:200],
         "cue_lineage": render_res.get("cue_lineage", []),
         "srt_cue_lineage": render_res.get("srt_cue_lineage", []),

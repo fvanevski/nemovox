@@ -11,6 +11,7 @@ export const ARTIFACT_CHOICES = [
   { id: "raw_source_transcript", label: "Original source transcript (.txt)", tasks: ["translation", "subtitles"] },
   { id: "refined_source_transcript", label: "Source compatibility transcript (.txt)", tasks: ["translation", "subtitles"] },
   { id: "subtitle_metadata", label: "Subtitle diagnostics (.json)", tasks: ["translation", "subtitles"] },
+  { id: "presentation_observations", label: "Media presentation observations (.json; automatic ASS)", tasks: ["subtitles"] },
 ] as const;
 export type ExportArtifactType = (typeof ARTIFACT_CHOICES)[number]["id"];
 export function availableArtifacts(task: TaskKind): typeof ARTIFACT_CHOICES[number][] {

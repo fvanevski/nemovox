@@ -125,3 +125,18 @@ def test_metrics_use_exact_emitted_thresholds_and_ignore_position_tags(tmp_path)
     report=metrics(events(path,"ass"),"ass")
     assert report["above_20_cps"]==0 and report["under_1_2s"]==0
     assert report["max_cps"]==20.
+
+
+def test_full_content_identity_and_confirmed_absence_are_distinct(monkeypatch):
+    doc=observations([0,0,1,1])
+    native={**SOURCE,"content_sha256":"b"*64}
+    with pytest.raises(ValueError,match="identity"):
+        p.admit_observations(doc,native)
+    doc["media_content_sha256"]=native["content_sha256"]
+    doc["caption_observations"]=[{"interval_s":[0.,5.],"status":"absent","regions":[],
+                                  "evidence_sha256":"c"*64,"method":"synthetic caption-free control"}]
+    p.admit_observations(doc,native)
+    fixed_measurement(monkeypatch)
+    shown,_,_=p.place_ass([cue(0,1,3),cue(1,10,12)],SubtitleConfig(),doc)
+    assert shown[0].ass_bounds[3]>int(.84*1080)
+    assert shown[1].ass_bounds[3]<=int(.84*1080)

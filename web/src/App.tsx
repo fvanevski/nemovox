@@ -49,12 +49,6 @@ function Field({title, hint, children}: {title: string; hint?: string; children:
 function Select({value, onChange, children}: {value: string | number; onChange: (v: string) => void; children: React.ReactNode}) {
   return <select className="control" value={value} onChange={e => onChange(e.target.value)}>{children}</select>;
 }
-function Toggle({value, onChange, title, detail}: {value: boolean; onChange: (b: boolean) => void; title: string; detail?: string}) {
-  return <label className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-[#2b3a4a] bg-[#101925] p-4">
-    <span><span className="block text-sm font-semibold">{title}</span>{detail && <span className="mt-1 block text-xs muted">{detail}</span>}</span>
-    <input type="checkbox" checked={value} onChange={e => onChange(e.target.checked)} className="h-5 w-5 accent-teal-400" />
-  </label>;
-}
 function TaskCard({task, active, onClick}: {task: typeof TASKS[number]; active: boolean; onClick: () => void}) {
   const Icon = task.icon;
   return <button type="button" onClick={onClick} aria-pressed={active}
@@ -250,7 +244,7 @@ export default function App() {
     } catch (exc) {setLogCopyMessage((exc as Error).message);}
   }
   const ready = selectedSource !== null;
-  const cues = preview.data?.cues || [];
+  const cues = (assPreviewReady ? preview.data?.ass_cues : undefined) || preview.data?.cues || [];
   const active = cues.filter(c => c.start !== null && c.end !== null && currentTime >= c.start && currentTime < c.end).slice(0, 3);
   const filteredCues = useMemo(() => cues.filter(c => c.text.toLowerCase().includes(cueSearch.toLowerCase())), [cues, cueSearch]);
   useEffect(() => {setCurrentTime(0); setVideoError(false);}, [jobId]);
@@ -701,7 +695,7 @@ export default function App() {
               </section>
               <section className="panel flex min-h-[470px] min-w-0 flex-col overflow-hidden">
                 <div className="border-b border-[#2a3b4b] p-4">
-                  <div className="mb-3 flex items-center justify-between"><span className="text-sm font-semibold">Dialogue timeline</span><Pill>{cues.length} cues</Pill></div>
+                  <div className="mb-3 flex items-center justify-between"><span className="text-sm font-semibold">Dialogue timeline{assPreviewReady && preview.data?.ass_cues ? " · ASS" : ""}</span><Pill>{cues.length} cues</Pill></div>
                   <input value={cueSearch} onChange={e => setCueSearch(e.target.value)} className="control !min-h-9 !py-2 !text-xs" placeholder="Search dialogue…"/>
                 </div>
                 <div className="scrollbar max-h-[540px] flex-1 overflow-auto">
@@ -709,7 +703,7 @@ export default function App() {
                     const isActive = cue.start !== null && cue.end !== null && currentTime >= cue.start && currentTime < cue.end;
                     return <button className="cue-row" data-active={isActive} key={String(cue.utterance_id || "cue") + String(i) + String(cue.start)}
                       onClick={() => {if (cue.start != null && videoRef.current) {videoRef.current.currentTime = cue.start; void videoRef.current.play().catch(() => {});}}}>
-                      <div className="mb-1 flex items-center justify-between text-[11px] text-slate-500"><span>{secondsLabel(cue.start)} → {secondsLabel(cue.end)}</span><span className="text-teal-400/70">{cue.speaker || ""}</span></div>
+                      <div className="mb-1 flex items-center justify-between text-[11px] text-slate-500"><span>{secondsLabel(cue.start)} → {secondsLabel(cue.end)}</span><span className="text-teal-400/70">{cue.speaker || (cue.lane != null ? `Lane ${cue.lane + 1}` : "")}</span></div>
                       <div className="whitespace-pre-wrap text-sm leading-5 text-slate-200">{cue.text}</div>
                     </button>;
                   })}

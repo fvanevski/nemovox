@@ -9,12 +9,13 @@ from __future__ import annotations
 import ctypes as C
 import ctypes.util
 import json
+import hashlib
 import math
 import subprocess
 from dataclasses import replace
 from pathlib import Path
 
-from nvidia_transcribe.media import _bounded_file_fingerprint, visual_stream_index
+from nvidia_transcribe.media import _bounded_file_fingerprint, compute_file_sha256, visual_stream_index
 
 SCHEMA = "nemovox-presentation-observations/v1"
 
@@ -36,6 +37,7 @@ def admit_observations(doc, source):
     if (not isinstance(doc, dict) or doc.get("schema") != SCHEMA
             or not source.get("fingerprint_sha256")
             or doc.get("media_fingerprint_sha256") != source["fingerprint_sha256"]
+            or doc.get("media_content_sha256") != source.get("content_sha256")
             or not _number(source.get("duration_s"))
             or doc.get("duration_s") != source["duration_s"]):
         raise ValueError("Presentation observation source identity mismatch")
@@ -56,6 +58,26 @@ def admit_observations(doc, source):
                 or not isinstance(sample.get("caption_candidates"), list)
                 or not all(_region(b) for b in sample["caption_candidates"])):
             raise ValueError("Invalid presentation sample")
+    # Optional independently acquired interval-bound region evidence is shared
+    # with subsequent semantic inspection. A sampled empty candidate list is
+    # NOT such evidence, and no literal target-language text is admitted here.
+    confirmed = doc.get("caption_observations", [])
+    if not isinstance(confirmed,list):
+        raise ValueError("Invalid caption observations")
+    for item in confirmed:
+        if not isinstance(item,dict):
+            raise ValueError("Invalid caption observation")
+        span,regions = item.get("interval_s"),item.get("regions")
+        evidence = item.get("evidence_sha256")
+        if (not isinstance(span,list) or len(span)!=2 or not all(_number(v) for v in span)
+                or not 0 <= span[0] < span[1] <= doc["duration_s"]
+                or item.get("status") not in ("present","absent","unknown")
+                or not isinstance(regions,list) or not all(_region(b) for b in regions)
+                or (item["status"]=="present") != bool(regions)
+                or not isinstance(evidence,str) or len(evidence)!=64
+                or any(ch not in "0123456789abcdef" for ch in evidence)
+                or not isinstance(item.get("method"),str) or not item["method"].strip()):
+            raise ValueError("Invalid caption observation")
     cuts = doc.get("known_scene_boundaries_s", [])
     if (not isinstance(cuts, list) or any(not _number(t) or not 0 < t < doc["duration_s"] for t in cuts)
             or cuts != sorted(set(cuts))):
@@ -110,17 +132,27 @@ def observe_frame(raw: bytes, width: int, height: int) -> dict:
     return {"active_picture": picture, "caption_candidates": candidates}
 
 
+def verify_media_source(path, source):
+    path = Path(path)
+    if (not source.get("fingerprint_sha256")
+            or _bounded_file_fingerprint(path) != source["fingerprint_sha256"]
+            or (source.get("content_sha256") and compute_file_sha256(path) != source["content_sha256"])):
+        raise ValueError("Media does not match presentation observation source")
+
+
 def observe_media(path: str | Path, source: dict, *, max_samples: int = 24) -> dict:
     """Bounded, explicit video-only acquisition from an admitted media path."""
     path = Path(path)
     fingerprint = source.get("fingerprint_sha256")
     duration = source.get("duration_s")
-    if (not fingerprint or not _number(duration) or duration <= 0
-            or _bounded_file_fingerprint(path) != fingerprint):
-        raise ValueError("Media does not match presentation observation source")
+    if not _number(duration) or duration <= 0:
+        raise ValueError("Invalid presentation observation duration")
+    verify_media_source(path,source)
     doc = {"schema": SCHEMA, "media_fingerprint_sha256": fingerprint,
+           "media_content_sha256": source.get("content_sha256"),
            "duration_s": duration, "frame_size": None, "active_picture": None,
-           "samples": [], "known_scene_boundaries_s": [],
+           "samples": [], "caption_observations": [], "known_scene_boundaries_s": [],
+           "sample_time_basis": "requested_seek_not_exact_pts",
            "method": "bounded-grayscale-edge-and-bright-strokes/v1",
            "status": "unknown", "caption_status": "unknown"}
     try:
@@ -156,7 +188,7 @@ def observe_media(path: str | Path, source: dict, *, max_samples: int = 24) -> d
                      "-vf",f"scale={sw}:{sh},setsar=1,format=gray",
                      "-f","rawvideo","-pix_fmt","gray","-"], timeout=20)
                 observation = observe_frame(raw,sw,sh)
-                doc["samples"].append({"time_s":t, **observation})
+                doc["samples"].append({"time_s":t, "grayscale_frame_sha256":hashlib.sha256(raw).hexdigest(), **observation})
             except (OSError,subprocess.SubprocessError,ValueError):
                 continue
         pictures = [s["active_picture"] for s in doc["samples"] if s["active_picture"] is not None]
@@ -174,8 +206,7 @@ def observe_media(path: str | Path, source: dict, *, max_samples: int = 24) -> d
                                 for s in doc["samples"]) else "unknown")
     except (OSError,subprocess.SubprocessError,ValueError,KeyError,IndexError,TypeError,ZeroDivisionError,RuntimeError):
         doc["status"] = "inspection_unavailable"
-    if _bounded_file_fingerprint(path) != fingerprint:
-        raise ValueError("Media changed during presentation observation")
+    verify_media_source(path,source)
     return admit_observations(doc,source)
 
 
@@ -293,7 +324,7 @@ def _components(cues):
         yield group
 
 
-def _regions(cfg, doc):
+def _regions(cfg, doc, start, end):
     """Return vertical regions, preferring bottom and top letterbox space.
 
     The union of sampled bright-stroke candidates is reserved conservatively.
@@ -305,12 +336,20 @@ def _regions(cfg, doc):
     picture = (doc or {}).get("active_picture")
     bottom_bar = bool(picture and picture[3] <= .94)
     top_bar = bool(picture and picture[1] >= .06)
-    # In unknown/full-frame media reserve the typical lower caption area.
-    floor = h-gap if bottom_bar else int(h*.84)
+    # A source-bound absence interval covering the whole occupancy group can
+    # release the lower reserve. Conflicting present/unknown evidence defeats
+    # that release. Automatically sampled emptiness never does so.
+    applicable = [o for o in (doc or {}).get("caption_observations",[])
+                  if o["interval_s"][0] < end and o["interval_s"][1] > start]
+    absent = (any(o["status"]=="absent" and o["interval_s"][0]<=start
+                  and o["interval_s"][1]>=end for o in applicable)
+              and all(o["status"]=="absent" for o in applicable))
+    floor = h-gap if bottom_bar or absent else int(h*.84)
+    candidates = [] if absent else [b for sample in (doc or {}).get("samples",[])
+                                     for b in sample["caption_candidates"]]
+    candidates.extend(b for o in applicable for b in o["regions"])
     bands = [(max(gap,math.floor(b[1]*h)-gap),
-              min(h-gap,math.ceil(b[3]*h)+gap))
-             for sample in (doc or {}).get("samples",[])
-             for b in sample["caption_candidates"]]
+              min(h-gap,math.ceil(b[3]*h)+gap)) for b in candidates]
     def subtract(lo,hi):
         free = [(lo,hi)]
         for a,b in bands:
@@ -342,6 +381,7 @@ def place_ass(cues,cfg,doc):
               "caption_status":(doc or {}).get("caption_status","unknown"),
               "active_picture":(doc or {}).get("active_picture"),"play_res":list(cfg.play_res),
               "region_policy":"stable_sampled_union_or_conservative_lower_reserve",
+              "confirmed_caption_observation_count":len((doc or {}).get("caption_observations",[])),
               "scene_boundary_count":len((doc or {}).get("known_scene_boundaries_s",[]))}
     if not cues:
         return [],[],report
@@ -356,8 +396,7 @@ def place_ass(cues,cfg,doc):
     report["font_name"] = cfg.font_name
     width,height = cfg.play_res
     center,gap = width//2, max(8,round(height*.012))
-    regions,picture = _regions(cfg,doc)
-    report["available_vertical_regions"] = regions
+    picture = (doc or {}).get("active_picture")
     accepted,overflow = [],[]
     usable = []
     for c in cues:
@@ -380,6 +419,7 @@ def place_ass(cues,cfg,doc):
             positions[c.display_order] = min(floor,next_top)-b[3]
         return positions
     def find_positions(group):
+        regions,_ = _regions(cfg,doc,min(c.start for c in group),max(c.end for c in group))
         for lo,hi in regions:
             pos = solve(group,hi)
             if all(pos[c.display_order]+boxes[c.display_order][1] >= lo for c in group):
