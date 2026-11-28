@@ -13,7 +13,6 @@ import math
 import subprocess
 from dataclasses import replace
 from pathlib import Path
-from typing import Any
 
 from nvidia_transcribe.media import _bounded_file_fingerprint, visual_stream_index
 
@@ -161,12 +160,15 @@ def observe_media(path: str | Path, source: dict, *, max_samples: int = 24) -> d
             except (OSError,subprocess.SubprocessError,ValueError):
                 continue
         pictures = [s["active_picture"] for s in doc["samples"] if s["active_picture"] is not None]
-        if len(pictures) >= 3 and len(pictures) >= .75*n:
-            # A bar is usable only if it persists across sampled pictures.
-            tops = sorted(p[1] for p in pictures)
-            bottoms = sorted(p[3] for p in pictures)
-            if tops[-1]-tops[0] <= .025 and bottoms[-1]-bottoms[0] <= .025:
-                doc["active_picture"] = [0.,min(tops),1.,max(bottoms)]
+        if pictures:
+            # Ignore isolated dark scenes, not a competing framing regime.
+            clusters = [[p for p in pictures if abs(p[1]-anchor[1]) <= .012
+                         and abs(p[3]-anchor[3]) <= .012] for anchor in pictures]
+            stable = max(clusters,key=len)
+            if len(stable) >= max(3,math.ceil(.75*n)):
+                doc["active_picture"] = [0.,min(p[1] for p in stable),1.,max(p[3] for p in stable)]
+                doc["geometry_support_samples"] = len(stable)
+        doc["requested_sample_count"] = n
         doc["status"] = "sampled" if doc["samples"] else "unknown"
         doc["caption_status"] = ("candidate_regions_observed" if any(s["caption_candidates"]
                                 for s in doc["samples"]) else "unknown")
@@ -291,19 +293,40 @@ def _components(cues):
         yield group
 
 
-def _bottom(cfg, doc):
-    """Stable conservative lower bound; sampled absence is never asserted."""
+def _regions(cfg, doc):
+    """Return vertical regions, preferring bottom and top letterbox space.
+
+    The union of sampled bright-stroke candidates is reserved conservatively.
+    Unobserved source captions are not asserted absent. Stable letterbox bars
+    permit a distinct policy from full-frame or unknown geometry.
+    """
     _,h = cfg.play_res
+    gap = max(8,round(h*.012))
     picture = (doc or {}).get("active_picture")
-    # Stable bottom bar: use it if sampled caption candidates permit it.
-    bar = bool(picture and picture[3] <= .94)
-    bottom = h-12 if bar else int(h*.84)
-    # Use union across samples, not extrapolated absence between samples.
-    # Only lower-region observations are admitted from automatic acquisition.
-    candidates = [b for s in (doc or {}).get("samples",[]) for b in s["caption_candidates"]]
-    if candidates:
-        bottom = min(bottom,math.floor(min(b[1] for b in candidates)*h)-10)
-    return bottom,bar
+    bottom_bar = bool(picture and picture[3] <= .94)
+    top_bar = bool(picture and picture[1] >= .06)
+    # In unknown/full-frame media reserve the typical lower caption area.
+    floor = h-gap if bottom_bar else int(h*.84)
+    bands = [(max(gap,math.floor(b[1]*h)-gap),
+              min(h-gap,math.ceil(b[3]*h)+gap))
+             for sample in (doc or {}).get("samples",[])
+             for b in sample["caption_candidates"]]
+    def subtract(lo,hi):
+        free = [(lo,hi)]
+        for a,b in bands:
+            if b <= a:
+                continue
+            free = [(x,y) for l,u in free
+                    for x,y in ((l,min(u,a)),(max(l,b),u))
+                    if x < y] if free else []
+        return sorted(free,key=lambda p:p[1],reverse=True)
+    preferred = []
+    if bottom_bar:
+        preferred.extend(subtract(math.ceil(picture[3]*h)+gap,h-gap))
+    if top_bar:
+        preferred.extend(subtract(gap,math.floor(picture[1]*h)-gap))
+    preferred.extend(subtract(gap,floor))
+    return list(dict.fromkeys(preferred)), picture
 
 
 def place_ass(cues,cfg,doc):
@@ -333,7 +356,8 @@ def place_ass(cues,cfg,doc):
     report["font_name"] = cfg.font_name
     width,height = cfg.play_res
     center,gap = width//2, max(8,round(height*.012))
-    bottom,bar = _bottom(cfg,doc)
+    regions,picture = _regions(cfg,doc)
+    report["available_vertical_regions"] = regions
     accepted,overflow = [],[]
     usable = []
     for c in cues:
@@ -355,11 +379,15 @@ def place_ass(cues,cfg,doc):
                             and n.start < c.end and n.end > c.start),default=floor)
             positions[c.display_order] = min(floor,next_top)-b[3]
         return positions
-    def fits(group,positions):
-        return all(positions[c.display_order]+boxes[c.display_order][1] >= gap for c in group)
+    def find_positions(group):
+        for lo,hi in regions:
+            pos = solve(group,hi)
+            if all(pos[c.display_order]+boxes[c.display_order][1] >= lo for c in group):
+                return pos
+        return None
     for group in _components(usable):
-        positions = solve(group,bottom)
-        if not fits(group,positions):
+        positions = find_positions(group)
+        if positions is None:
             # Keep real concurrency, sacrifice only sequential tail padding.
             for i,c in enumerate(group):
                 for n in group[i+1:]:
@@ -370,8 +398,8 @@ def place_ass(cues,cfg,doc):
                         c.end = n.start
                         c.conflicts.append("placement_clamped_discretionary_padding")
                         break
-            positions = solve(group,bottom)
-        if not fits(group,positions):
+            positions = find_positions(group)
+        if positions is None:
             positions = solve(group,height-gap)
             for c in group:
                 c.conflicts.append("placement_caption_region_conflict")
@@ -385,11 +413,29 @@ def place_ass(cues,cfg,doc):
                 continue
             c.ass_position = (center,y)
             c.ass_bounds = (center+b[0],y+b[1],center+b[2],y+b[3])
-            if bar and c.ass_bounds[1] < math.ceil(doc["active_picture"][3]*height):
+            if (picture and (picture[1] >= .06 or picture[3] <= .94)
+                    and c.ass_bounds[1] < math.ceil(picture[3]*height)
+                    and c.ass_bounds[3] > math.floor(picture[1]*height)):
                 c.conflicts.append("placement_active_picture_used")
             if len(c.text)/(c.end-c.start) > cfg.target_cps+4:
                 c.conflicts = [v for v in c.conflicts if not v.startswith("high_reading_speed:")]
                 c.conflicts.append(f"high_reading_speed:{len(c.text)/(c.end-c.start):.1f}cps")
             accepted.append(c)
+    # Reconcile pressure flags after final placement-driven trimming.
+    for c in accepted:
+        c.conflicts = [v for v in c.conflicts if v != "sequential_display_overlap"
+                       and v != "simultaneous_display_pressure"
+                       and not v.startswith("high_reading_speed:")]
+        prior = [p for p in accepted if p.display_order < c.display_order
+                 and p.start < c.end and p.end > c.start]
+        if any(not _acoustically_concurrent(p,c,cfg.overlap_threshold_s) for p in prior):
+            c.conflicts.append("sequential_display_overlap")
+        pool = [c,*prior]
+        if prior and (len(pool)>2 or sum(len(p.text) for p in pool)>100
+                      or sum(len(p.text)/(p.end-p.start) for p in pool)>cfg.target_cps*1.8):
+            c.conflicts.append("simultaneous_display_pressure")
+        cps = len(c.text)/(c.end-c.start)
+        if cps>cfg.target_cps+4:
+            c.conflicts.append(f"high_reading_speed:{cps:.1f}cps")
     report["placed_cues"],report["overflow_cues"] = len(accepted),len(overflow)
     return accepted,overflow,report

@@ -203,6 +203,7 @@ def build_display_cues(
     utterances: Sequence[dict[str, Any]],
     *,
     config: SubtitleConfig | None = None,
+    scene_boundaries_s: Sequence[float] = (),
 ) -> list[SubtitleCue]:
     """Build display-ready SubtitleCue objects from translated/refined utterances."""
     cfg = config or SubtitleConfig()
@@ -318,10 +319,10 @@ def build_display_cues(
                     unit_occurrence_ids=unit_members,
                 )
             )
-    return _group_display_continuations(cues, utterances, cfg)
+    return _group_display_continuations(cues, utterances, cfg, scene_boundaries_s)
 
 
-def _group_display_continuations(cues, utterances, cfg):
+def _group_display_continuations(cues, utterances, cfg, scene_boundaries_s=()):
     """Only co-display a proven joint allocation's grammatical continuation.
 
     Never alter selected English or treat same-speaker proximity as membership.
@@ -363,6 +364,7 @@ def _group_display_continuations(cues, utterances, cfg):
                 and not prev.text.rstrip("\"'").endswith((".", "!", "?", "…"))
                 and cue.text[0].islower()
                 and end - start <= cfg.max_display_s
+                and not any(start < cut < end for cut in scene_boundaries_s)
                 and len(wrapped) <= cfg.max_lines
                 and all(len(line) <= cfg.max_chars for line in wrapped)
                 and cue.raw_start - start <= cfg.min_display_s
@@ -669,7 +671,8 @@ def render_subtitles(
         raise ValueError("Unknown ASS layout")
     if cfg.ass_layout == "auto":
         cfg = adaptive_config(cfg, observation)
-    cues = build_display_cues(utterances, config=cfg)
+    cues = build_display_cues(utterances, config=cfg,
+                              scene_boundaries_s=(observation or {}).get("known_scene_boundaries_s", []))
     constrain_scene_padding(cues, observation)
     displayed, overflow, unrenderable = assign_subtitle_lanes(
         cues,
@@ -712,12 +715,13 @@ def render_subtitles(
                     cue.conflicts.append(f"high_reading_speed:{cps:.1f}cps")
                 kept.append(cue)
             bucket[:] = kept
-    presentation = {"layout": cfg.ass_layout, "status": "manual_override"}
+    presentation = {"layout": cfg.ass_layout, "status": "manual_override" if cfg.ass_layout != "auto" else "ass_not_requested"}
     if cfg.ass_layout == "auto" and "ass" in {f.strip().lower() for f in formats}:
         displayed, placement_overflow, presentation = place_ass(displayed, cfg, observation)
         overflow.extend(placement_overflow)
         if presentation["status"] == "measurement_unavailable":
             cfg = replace(cfg, ass_layout="raised_main")
+            presentation["effective_layout"] = "raised_main"
     all_renderable = list(srt_displayed) + list(srt_overflow)
     lang_tag = (target_language or "en").strip().lower()
     outputs: dict[str, str] = {}
