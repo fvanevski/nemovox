@@ -32,7 +32,7 @@ class SubtitleConfig:
     margin_h: int = 54
     margin_v: int = 42
     raised_main_margin_v: int = 150
-    ass_layout: str = "standard"  # "standard" | "raised_main"
+    ass_layout: str = "auto"  # "auto" | "standard" | "raised_main"
     ass_opaque_box: bool = False
     ass_max_lanes: int = 3
     outline: float = 2.5
@@ -63,6 +63,8 @@ class SubtitleCue:
     display_occurrence_ids: list[str] = field(default_factory=list)
     source_intervals: list[tuple[float, float]] = field(default_factory=list)
     display_order: int = 0
+    ass_position: tuple[int, int] | None = None
+    ass_bounds: tuple[int, int, int, int] | None = None
 
 
 def _finite_nonneg(value: Any) -> float | None:
@@ -630,7 +632,9 @@ def format_ass(lane_cues: Iterable[SubtitleCue], *, config: SubtitleConfig | Non
         style = "Main" if cue.lane == 0 else ("Top" if cue.lane == 1 else "TopAlt")
         wrapped = "\n".join(wrap_subtitle_lines(cue.text, max_chars=cfg.max_chars, max_lines=cfg.max_lines))
         lines.append(
-            f"Dialogue: {cue.lane},{_ass_timestamp(cue.start)},{_ass_timestamp(cue.end)},{style},{cue.speaker},0,0,0,,{_ass_escape(wrapped)}"
+            f"Dialogue: {cue.lane},{_ass_timestamp(cue.start)},{_ass_timestamp(cue.end)},{style},{cue.speaker},0,0,0,,"
+            + (r"{\an5\pos(" + f"{cue.ass_position[0]},{cue.ass_position[1]}" + ")}" if cue.ass_position else "")
+            + _ass_escape(wrapped)
         )
     return "\n".join(lines) + "\n"
 
@@ -652,13 +656,21 @@ def render_subtitles(
     config: SubtitleConfig | None = None,
     sidecar_dir: Path | None = None,
     overwrite_sidecar: bool = False,
+    presentation_observations: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Render SRT and/or ASS subtitles directly from a translated or refined contract."""
     cfg = config or SubtitleConfig()
     utterances = contract.get("utterances") or []
     connected_units.validate_selected_units(utterances, require_complete=(
         (contract.get("translation_review") or {}).get("translation_unit_schema") == connected_units.SCHEMA))
+    from nvidia_transcribe.presentation import admit_observations, adaptive_config, constrain_scene_padding, place_ass
+    observation = admit_observations(presentation_observations, contract.get("source") or {})
+    if cfg.ass_layout not in ("auto", "standard", "raised_main"):
+        raise ValueError("Unknown ASS layout")
+    if cfg.ass_layout == "auto":
+        cfg = adaptive_config(cfg, observation)
     cues = build_display_cues(utterances, config=cfg)
+    constrain_scene_padding(cues, observation)
     displayed, overflow, unrenderable = assign_subtitle_lanes(
         cues,
         utterances=utterances,
@@ -700,6 +712,12 @@ def render_subtitles(
                     cue.conflicts.append(f"high_reading_speed:{cps:.1f}cps")
                 kept.append(cue)
             bucket[:] = kept
+    presentation = {"layout": cfg.ass_layout, "status": "manual_override"}
+    if cfg.ass_layout == "auto" and "ass" in {f.strip().lower() for f in formats}:
+        displayed, placement_overflow, presentation = place_ass(displayed, cfg, observation)
+        overflow.extend(placement_overflow)
+        if presentation["status"] == "measurement_unavailable":
+            cfg = replace(cfg, ass_layout="raised_main")
     all_renderable = list(srt_displayed) + list(srt_overflow)
     lang_tag = (target_language or "en").strip().lower()
     outputs: dict[str, str] = {}
@@ -776,6 +794,8 @@ def render_subtitles(
                                              else None),
                         "disposition": ("displayed" if srt and disposition == "overflow" else disposition),
                         "lane": None if srt else cue.lane, "text": cue.text,
+                        "ass_position": None if srt else cue.ass_position,
+                        "ass_bounds": None if srt else cue.ass_bounds,
                         "conflicts": list(cue.conflicts)})
         return lineage
 
@@ -786,6 +806,7 @@ def render_subtitles(
         "sidecars": sidecars,
         "cue_lineage": lineage,
         "srt_cue_lineage": srt_lineage,
+        "presentation": presentation,
         "no_renderable_dialogue":no_renderable_dialogue,
         "stats": {
             "total_input_utterances": len(utterances),
@@ -798,6 +819,7 @@ def render_subtitles(
             "ass_overflow_cues": len(overflow),
             "unrenderable_cues": len(unrenderable),
             "conflict_cues": len(conflicts_summary),
+            "ass_placement_conflict_cues": sum(any(x.startswith("placement_") for x in c.conflicts) for c in displayed + overflow),
         },
         "conflicts": conflicts_summary,
     }
