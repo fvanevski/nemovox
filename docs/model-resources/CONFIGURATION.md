@@ -4,7 +4,7 @@ Use `configs/model-resources.example.json` as the template for an ignored local 
 
 - `asr`: `moss_events`, model identifier, checkpoint_path, worker_python, device cuda:0. No endpoint or CTC overrides. Select a configured worker using --asr-resource.
 - `riva_translation`: `riva_worker`, local checkpoint_path, worker_python, device cuda:0.
-- `source_refinement`, `text_translation`, `translation_review`, `subtitle_condensation`: named `openai_chat` endpoint/model resources; optional api_key_env. Source refinement is only an explicit imported-contract operation, not native recognition.
+- `source_refinement`, `text_translation`, `translation_review`: named `openai_chat` endpoint/model resources; optional api_key_env. Source refinement is only an explicit imported-contract operation, not native recognition.
 - Optional `speech_activity`: `firered_aed`, model identifier, local checkpoint_path, worker_python, explicit cpu. No default binding.
 
 Text environment overrides TEXT_BASE_URL/TEXT_MODEL apply to the default text binding. Explicit CLI text overrides are last. Never store credentials in config. Unsupported fields or adapters fail closed. Remove retired ASR endpoint env settings and old resource definitions from a private migrated config before using the promoted version.
@@ -24,3 +24,5 @@ Use `assess-source ORIGINAL_MEDIA --recording-contract PATH --output-dir DIR --a
 Adaptive review requires explicit per-target evidence dispositions. Visual inspection returns frame-linked literal text separately from scene descriptions; only source-language dialogue captions associated with the occurrence can be cited as alternative wording evidence. The configured resource retains the existing NInfer Messages image transport and xhigh reasoning effort. Caption evidence does not independently authenticate speech, speaker identity or timing.
 
 The native reviewer uses the current `native-review-progress/v1` checkpoint schema with per-stage request receipts and frozen actual advisory context for continuation. Successful media acquisition is reusable independently of subsequent semantic refinement. General visual observations carry categories, frame identities, visible descriptions, tentative interpretations and uncertainty. Task focus selects distributed scene or concentrated speech/activity/text sampling within the configured frame budget. Previously observed nearby scene facts are advisory; they do not establish speech, identities or scene continuity. Runtime summaries distinguish real acquisitions from retained/reused observations and initial versus recovery comparison requests.
+
+The former `subtitle_condensation` role and related extra-pass options are retired. Remove that binding from custom registry configurations before using the current CLI; retain resources used by other roles. Automatic ASS presentation is CPU-only and has no model role.

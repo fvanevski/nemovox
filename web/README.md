@@ -9,3 +9,5 @@ The normal Riva translation and bounded English review settings, glossary select
 Studio's managed native reviewer receives recording-wide context and may acquire targeted visual/acoustic observations from the admitted job media. Visual inspection inherits the translation review resource unless the host registry binds `visual_inspection` separately. Contract-only imports remain text-based unless original media is explicitly admitted by the workflow. See the model-resource configuration documentation.
 
 The shared native workflow records explicit evidence-need decisions and advisory recurring terminology, and can use source-language captions as competing wording observations without altering the original dialogue record.
+
+Automatic ASS layout is the default. Standard and raised layouts are manual overrides. No extra condensation inference is offered. Studio exposes presentation diagnostics, an optional observations export, and emitted ASS intervals when JASSUB is active; the SRT fallback has its own timing. Unknown captions and missing native measurement are explicitly distinguished from measured placement.

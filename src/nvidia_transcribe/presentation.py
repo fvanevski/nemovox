@@ -159,7 +159,8 @@ def observe_media(path: str | Path, source: dict, *, max_samples: int = 24) -> d
         stream = visual_stream_index(path)
         if stream is None:
             doc["status"] = "no_video"
-            return doc
+            verify_media_source(path,source)
+            return admit_observations(doc,source)
         probe = json.loads(subprocess.check_output(
             ["ffprobe", "-v", "error", "-select_streams", "V:0",
              "-show_entries", "stream=index,width,height,sample_aspect_ratio:stream_side_data=rotation",

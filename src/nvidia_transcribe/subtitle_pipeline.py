@@ -456,11 +456,12 @@ def generate_subtitles(
             retained = json.loads(observations_path.read_text(encoding="utf-8"))
             try:
                 presentation_observations = admit_observations(retained, observation_source)
-                if media_path is not None and presentation_observations is not None:
-                    verify_media_source(media_path, observation_source)
             except ValueError:
                 if cfg.re_render_only or media_path is None:
                     raise
+                presentation_observations = None
+            if media_path is not None and presentation_observations is not None:
+                verify_media_source(media_path, observation_source)
         if presentation_observations is None and media_path is not None and observation_source.get("fingerprint_sha256"):
             presentation_observations = observe_media(media_path, observation_source)
             _atomic_write(observations_path, json.dumps(presentation_observations, ensure_ascii=False, indent=2))
