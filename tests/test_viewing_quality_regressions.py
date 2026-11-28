@@ -211,4 +211,3 @@ def test_c2_c4_d_positive_duration_slack_extension_third_lane_and_raised_main(tm
     parser = build_parser()
     args = parser.parse_args(["generate-subtitles", "--recording-contract", "r.json", "--output-dir", "o", "--ass-layout", "raised_main", "--ass-margin-v", "135"])
     assert args.ass_layout == "raised_main" and args.ass_margin_v == 135
-

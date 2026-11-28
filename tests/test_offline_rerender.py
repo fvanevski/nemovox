@@ -120,7 +120,7 @@ def test_presentation_observations_persist_and_replay_without_media(tmp_path, mo
         assert actual_source == source
         return doc
     monkeypatch.setattr(presentation,"observe_media",observe)
-    cfg = pipeline.SubtitlePipelineConfig(re_render_only=True)
+    cfg = pipeline.SubtitlePipelineConfig(re_render_only=True, episode_stem="admitted-video")
     first = pipeline.generate_subtitles(tmp_path/"admitted-video.mkv",output_dir=tmp_path,config=cfg)
     ass = Path(first["files"]["ass"]).read_bytes()
     assert json.loads((tmp_path/"presentation.observations.json").read_text()) == doc

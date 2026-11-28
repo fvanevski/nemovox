@@ -876,4 +876,3 @@ def translate_utterances(
         "errors": errors,
         "elapsed_s": round(time.perf_counter() - t0, 3),
     }
-
