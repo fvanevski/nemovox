@@ -38,6 +38,7 @@ from nvidia_transcribe.translation import is_english_source_to_english
 from nvidia_transcribe.model_resources import ResourceConfigError, load_model_resources
 from nvidia_transcribe.resource_lifecycle import ModelLifecycle, ResourceLifecycleError
 from nvidia_transcribe.refinement import load_glossary
+from nvidia_transcribe.render_receipt import read_render_manifest, rendered_artifact_paths
 from nvidia_transcribe.studio_exports import (browse_destinations, export_roots,
                                              export_selected, validate_destination)
 from pydantic import BaseModel, Field, model_validator
@@ -156,14 +157,15 @@ class Options(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def default_review_for_backend(cls, values):
+        if isinstance(values,dict) and values.get("condense_high_cps"):
+            raise ValueError("Extra subtitle condensation has been removed")
         if isinstance(values,dict) and "translation_review" not in values:
             return {**values,"translation_review":"balanced" if values.get("translator","riva")=="riva" else "off"}
         return values
     style: Literal["natural", "literal", "expressive"] = "natural"
     glossary: str | None = Field(default=None, max_length=512)
-    ass_layout: Literal["standard", "raised_main"] = "standard"
+    ass_layout: Literal["auto", "standard", "raised_main"] = "auto"
     ass_max_lanes: Literal[2, 3] = 3
-    condense_high_cps: bool = False
     formats: list[Literal["srt", "ass"]] = Field(default_factory=lambda: ["srt", "ass"])
 
 
@@ -172,7 +174,7 @@ class ExportPlan(BaseModel):
     artifacts: list[Literal[
         "source_transcript", "recording_contract", "refined_contract",
         "translated_contract", "raw_source_transcript", "refined_source_transcript",
-        "final_english", "subtitle_metadata", "srt", "ass",
+        "final_english", "subtitle_metadata", "presentation_observations", "srt", "ass",
     ]] = Field(default_factory=list)
     save_remote_media: bool = False
 
@@ -417,7 +419,7 @@ class JobRunner:
 
     def _stage_event(self, job_id: str, name: str, status: str, detail: str = "") -> None:
         """Record only known typed CLI milestones, preserving arrival order."""
-        if name not in {"download", "asr", "source_quality", "translation", "review", "condensation", "render", "export"}:
+        if name not in {"download", "asr", "source_quality", "translation", "review", "render", "export"}:
             return
         if status not in {"running", "complete", "skipped", "failed", "cancelled"}:
             return
@@ -444,13 +446,12 @@ class JobRunner:
             record["stage_history"] = stages
             if status == "running":
                 progress = {"download": 4, "asr": 8, "source_quality": 55, "translation": 60,
-                            "review": 76, "condensation": 83, "render": 90, "export": 96}[name]
+                            "review": 76, "render": 90, "export": 96}[name]
                 record["stage"] = {"download": "Downloading remote media",
                                    "asr": "Transcribing audio and speakers",
                                    "source_quality": "Checking source dialogue and timing",
                                    "translation": "Translating to English",
                                    "review": "Reviewing English translation",
-                                   "condensation": "Condensing high-CPS cues",
                                    "render": "Rendering subtitles",
                                    "export": "Saving selected files"}[name]
                 record["progress"] = max(record.get("progress", 0), progress)
@@ -670,8 +671,6 @@ class JobRunner:
                     args.insert(1, str(source))
                 if opt.source_language != "auto":
                     args.extend(["--source-language", opt.source_language])
-                if opt.condense_high_cps and spec.task == "subtitles":
-                    args.append("--condense-high-cps")
                 if opt.glossary:
                     args.extend(["--glossary", opt.glossary])
                 self._command(job_id, args, "Generating English outputs", 55)
@@ -1030,9 +1029,38 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
     def preview(job_id: str) -> dict:
         root = runner.path(job_id)
         output = root / "output"
-        subs = sorted(output.glob("*.srt"))
-        if subs:
-            return {"kind": "subtitles", "cues": _srt_cues(subs[0].read_text(encoding="utf-8"))}
+        meta = read_render_manifest(output)
+        emitted = rendered_artifact_paths(output, meta)
+        srt_path = emitted.get("srt")
+        presentation = meta.get("presentation")
+        # Only current render metadata identifies emitted ASS events. Older
+        # retained jobs have occurrence lineage but no display_event_id; keep
+        # their existing SRT/transcript fallback instead of inventing IDs or
+        # breaking job preview. An incomplete current ledger is not an ASS timeline.
+        ass_cues = None
+        lineage = meta.get("cue_lineage")
+        if ("ass" in emitted and isinstance(presentation, dict)
+                and presentation.get("status") != "ass_not_requested"
+                and isinstance(lineage, list)
+                and all(isinstance(row, dict) and
+                        (row.get("disposition") != "displayed"
+                         or type(row.get("display_event_id")) is int)
+                        for row in lineage)):
+            unique = {}
+            for row in lineage:
+                interval = row.get("display_interval")
+                if row.get("disposition") == "displayed" and interval:
+                    unique.setdefault(row["display_event_id"], {
+                        "start": interval[0], "end": interval[1], "text": row["text"],
+                        "utterance_id": row["occurrence_id"], "lane": row.get("lane"),
+                        **({"ass_bounds":row["ass_bounds"]} if row.get("ass_bounds") else {})})
+            ass_cues = sorted(unique.values(), key=lambda r:r["start"])
+        if srt_path is None and ass_cues is not None:
+            return {"kind": "subtitles", "cues": ass_cues, "ass_cues": ass_cues,
+                    "presentation": presentation, "display_stats": meta.get("subtitles")}
+        if srt_path is not None:
+            return {"kind": "subtitles", "cues": _srt_cues(srt_path.read_text(encoding="utf-8")),
+                    "ass_cues": ass_cues, "presentation": presentation, "display_stats": meta.get("subtitles")}
         candidate = output / "translated.contract.json"
         if not candidate.is_file():
             candidate = root / "asr" / "recording.contract.json"
@@ -1050,6 +1078,8 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
     @app.get("/api/jobs/{job_id}/artifacts")
     def artifacts(job_id: str) -> list[dict]:
         root = runner.path(job_id)
+        output = root / "output"
+        emitted = rendered_artifact_paths(output, read_render_manifest(output))
         paths = [
             root / "asr/recording.contract.json",
             root / "asr/transcript.txt",
@@ -1059,8 +1089,7 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
             root / "output/refined_source_transcript.txt",
             root / "output/final_english_subtitles.txt",
             root / "output/subtitles.metadata.json",
-            *sorted((root / "output").glob("*.srt")),
-            *sorted((root / "output").glob("*.ass")),
+            *emitted.values(),
             *(sorted(p for p in (root / "remote").glob("*")
                       if p.is_file() and p.suffix.lower() in MEDIA_EXTENSIONS)
               if (root / "remote").is_dir() else []),

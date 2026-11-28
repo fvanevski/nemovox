@@ -167,7 +167,6 @@ def test_riva_first_pipeline_runs_separate_postedit_and_preserves_raw_mt(tmp_pat
         source_language="fr",
         translation=TranslationConfig(backend="riva", riva_device="cuda:0"),
         translation_review=_cfg(),
-        condense_high_cps=False,
         formats=("srt",),
     )
     meta = generate_subtitles(
@@ -285,7 +284,7 @@ def test_english_source_skips_riva_worker_and_text_review(tmp_path, monkeypatch)
     )
     assert meta["translation"]["status"] == "bypassed_same_language"
     assert meta["translation_review"]["status"] == "skipped_same_language"
-    assert meta["condensation"]["status"] == "disabled"
+    assert "condensation" not in meta
     contract = json.loads((outdir / "translated.contract.json").read_text(encoding="utf-8"))
     u = contract["utterances"][0]
     assert u["source_text"] == u["translated_text"] == "I can tell you what happened."

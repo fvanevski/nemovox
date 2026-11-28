@@ -10,8 +10,8 @@ export function isEnglishSourceToEnglish(source: string, target: string): boolea
 export const INITIAL_OPTIONS: JobOptions = {
   source_language: "auto", target_language: "en", audio_stream: 0,
   refinement: "off", translator: "riva", translation_review: "balanced", style: "natural",
-  glossary: null, ass_layout: "standard", ass_max_lanes: 3,
-  condense_high_cps: false, formats: ["srt", "ass"],
+  glossary: null, ass_layout: "auto", ass_max_lanes: 3,
+  formats: ["srt", "ass"],
 };
 
 export interface ExplainedOption {

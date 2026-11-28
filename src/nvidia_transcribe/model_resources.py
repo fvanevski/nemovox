@@ -28,7 +28,6 @@ ROLE_ADAPTERS: dict[str, frozenset[str]] = {
     "text_translation": frozenset({"openai_chat"}),
     "translation_review": frozenset({"openai_chat"}),
     "visual_inspection": frozenset({"openai_chat"}),
-    "subtitle_condensation": frozenset({"openai_chat"}),
     "riva_translation": frozenset({"riva_worker"}),
 }
 RESOURCE_FIELDS = frozenset({"adapter", "model", "endpoint", "checkpoint_path", "worker_python", "device", "api_key_env"})
@@ -64,7 +63,6 @@ _ROLE_DEFAULTS = {
     "asr": "moss_local",
     "source_refinement": "text_local",
     "text_translation": "text_local",
-    "subtitle_condensation": "text_local",
     "translation_review": "text_local",
     "riva_translation": "riva_local",
 }

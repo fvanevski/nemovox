@@ -168,3 +168,37 @@ def test_atomic_link_failure_does_not_leave_partial_export(monkeypatch, store):
     assert not list(exported.glob("*.tmp"))
     assert not (exported / "show.en.srt").exists()
     assert (job / "output" / "show.en.srt").is_file()
+
+
+@pytest.mark.parametrize("include_ass", [True, False])
+def test_exports_use_current_manifest_and_never_substitute_stale_format(store, include_ass):
+    root, _outside, job = store
+    output = job/"output"
+    current = output/"z-current.en.srt"
+    current.write_text("Current subtitle bytes")
+    ass = output/"z-current.en.ass"
+    if include_ass:
+        ass.write_text("Current ASS bytes")
+    # The original job may have moved; resolve its declared basename locally.
+    files = {"srt":"/previous/job/output/"+current.name}
+    if include_ass:
+        files["ass"] = "/previous/job/output/"+ass.name
+    (output/"subtitles.metadata.json").write_text(json.dumps({
+        "files":files,"presentation":{"layout":"auto","status":"measured"}}))
+    report = export_selected(job,job.name,plan(root,"srt","ass"),(root,))
+    by_type = {item["type"]:item for item in report["items"]}
+    assert by_type["srt"]["source"] == "output/z-current.en.srt"
+    assert by_type["ass"]["status"] == ("saved" if include_ass else "failed")
+    destination = root/("nemovox-"+job.name)
+    assert (destination/current.name).read_bytes() == current.read_bytes()
+    assert not (destination/"show.en.ass").exists()
+    assert (destination/ass.name).exists() == include_ass
+
+
+def test_current_manifest_missing_artifact_does_not_fall_back_to_old_file(store):
+    root, _outside, job = store
+    (job/"output/subtitles.metadata.json").write_text(json.dumps({
+        "files":{"srt":"/old/location/missing.en.srt"}}))
+    result = export_selected(job,job.name,plan(root,"srt"),(root,))
+    assert result["status"] == "failed"
+    assert result["items"][0]["status"] == "failed"

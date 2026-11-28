@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import math
 import unicodedata
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
@@ -32,7 +32,7 @@ class SubtitleConfig:
     margin_h: int = 54
     margin_v: int = 42
     raised_main_margin_v: int = 150
-    ass_layout: str = "standard"  # "standard" | "raised_main"
+    ass_layout: str = "auto"  # "auto" | "standard" | "raised_main"
     ass_opaque_box: bool = False
     ass_max_lanes: int = 3
     outline: float = 2.5
@@ -60,6 +60,11 @@ class SubtitleCue:
     conflicts: list[str] = field(default_factory=list)
     translation_unit_id: str | None = None
     unit_occurrence_ids: list[str] = field(default_factory=list)
+    display_occurrence_ids: list[str] = field(default_factory=list)
+    source_intervals: list[tuple[float, float]] = field(default_factory=list)
+    display_order: int = 0
+    ass_position: tuple[int, int] | None = None
+    ass_bounds: tuple[int, int, int, int] | None = None
 
 
 def _finite_nonneg(value: Any) -> float | None:
@@ -141,41 +146,36 @@ def _punctuation_chunks(text: str, budget: int, max_chars: int, max_lines: int) 
     words = [w for w in text.split(" ") if w]
     if not words:
         return [text]
-    chunks: list[str] = []
-    idx = 0
-    min_fill = max(1, int(budget * 0.35))
-    while idx < len(words):
-        cur: list[str] = []
-        last_sent: int | None = None
-        last_clause: int | None = None
-        last_phrase: int | None = None
-        while idx < len(words):
-            w = words[idx]
-            cand = " ".join(cur + [w])
-            wrapped = wrap_subtitle_lines(cand, max_chars=max_chars, max_lines=max_lines)
-            fits = len(cand) <= budget and len(wrapped) <= max_lines and all(len(ln) <= max_chars for ln in wrapped)
-            if fits:
-                cur.append(w)
-                idx += 1
-                stripped = w.rstrip("\"'»)]}”’")
-                if stripped and len(cand) >= min_fill:
-                    if stripped[-1] in _SENTENCE_END_CHARS:
-                        last_sent = len(cur)
-                    elif stripped[-1] in _CLAUSE_END_CHARS:
-                        last_clause = len(cur)
-                if len(cand) >= min_fill and idx < len(words) and words[idx].lower() in _PHRASE_BREAK_WORDS:
-                    last_phrase = len(cur)
-                continue
-            if not cur:
-                cur.append(w)
-                idx += 1
-            break
-        if idx < len(words):
-            split_at = last_sent or last_clause or last_phrase
-            if split_at is not None and 0 < split_at < len(cur):
-                idx -= len(cur) - split_at
-                cur = cur[:split_at]
-        chunks.append(" ".join(cur))
+    # Dynamic partition: first minimize fragment count, then avoid tiny
+    # trailing fragments while rewarding grammatical break opportunities.
+    # The character budget bounds the inner loop; a single oversized token
+    # is retained and subsequently diagnosed, never discarded.
+    n = len(words)
+    best = [(0, 0.0, n)] * (n + 1)
+    for i in range(n - 1, -1, -1):
+        choices = []
+        for j in range(i + 1, n + 1):
+            candidate = " ".join(words[i:j])
+            wrapped = wrap_subtitle_lines(candidate, max_chars, max_lines)
+            fits = (len(candidate) <= budget and len(wrapped) <= max_lines
+                    and all(len(line) <= max_chars for line in wrapped))
+            if not fits and j > i + 1:
+                break
+            tail_count, tail_cost, _ = best[j]
+            last = candidate.rstrip("\"'»)]}”’")[-1:]
+            bonus = (100 if last in _SENTENCE_END_CHARS else
+                     50 if last in _CLAUSE_END_CHARS else
+                     20 if j < n and words[j].lower() in _PHRASE_BREAK_WORDS else 0)
+            choices.append((1 + tail_count, len(candidate) ** 2 + tail_cost - bonus, j))
+            if not fits:
+                break
+        best[i] = min(choices)
+    chunks = []
+    i = 0
+    while i < n:
+        j = best[i][2]
+        chunks.append(" ".join(words[i:j]))
+        i = j
     return chunks
 
 
@@ -203,6 +203,7 @@ def build_display_cues(
     utterances: Sequence[dict[str, Any]],
     *,
     config: SubtitleConfig | None = None,
+    scene_boundaries_s: Sequence[float] = (),
 ) -> list[SubtitleCue]:
     """Build display-ready SubtitleCue objects from translated/refined utterances."""
     cfg = config or SubtitleConfig()
@@ -222,7 +223,7 @@ def build_display_cues(
         src_refs = [str(x) for x in (utt.get("source_turn_ids") or
                                      ([utt["source_turn_id"]] if utt.get("source_turn_id") else []))]
         spk = str(utt.get("speaker_id") or utt.get("global_speaker_id") or "SPK_UNK")
-        text = _select_utterance_display_text(utt)
+        text = _select_utterance_display_text(utt).translate(str.maketrans({"‘": "\'", "’": "\'", "“": '"', "”": '"'}))
         if not text:
             continue
 
@@ -259,29 +260,19 @@ def build_display_cues(
         )
         chunks = [text] if fits_single else _punctuation_chunks(text, budget, cfg.max_chars, cfg.max_lines)
 
-        # Allocate duration across sub-chunks with a floor so partial/short turns don't starve slivers
-        span = max(0.25, raw_e - raw_s)
-        raw_weights = [max(10.0, float(len(ch))) for ch in chunks]
-        tot_w = sum(raw_weights)
-        allocs = [span * (w / tot_w) for w in raw_weights]
-        if len(chunks) > 1:
-            floor_s = min(0.85, span / float(len(chunks)))
-            capped_need = sum(max(0.0, floor_s - a) for a in allocs)
-            if capped_need > 0:
-                surplus = [max(0.0, a - floor_s) for a in allocs]
-                tot_surp = sum(surplus)
-                if tot_surp > 1e-6:
-                    allocs = [
-                        (floor_s if a < floor_s else a - capped_need * (s / tot_surp))
-                        for a, s in zip(allocs, surplus)
-                    ]
+        # Allocate ONLY the actual source span. A display floor is not acoustic
+        # evidence. Give each fragment an equal feasible dwell floor and distribute
+        # the remaining span by text burden.
+        span = raw_e - raw_s
+        weights = [max(1, len(ch)) for ch in chunks]
+        floor_s = min(cfg.min_display_s, span / len(chunks))
+        remaining = max(0.0, span - floor_s * len(chunks))
+        allocs = [floor_s + remaining * w / sum(weights) for w in weights]
 
         cursor = raw_s
         for j, ch_text in enumerate(chunks):
             sub_s = cursor
             sub_e = raw_e if j == len(chunks) - 1 else min(raw_e, cursor + allocs[j])
-            if sub_e <= sub_s:
-                sub_e = round(sub_s + max(0.25, span / float(len(chunks))), 3)
             cursor = sub_e
 
             disp_s, disp_e = sub_s, sub_e
@@ -316,8 +307,9 @@ def build_display_cues(
                     end=round(max(disp_s + 0.1, disp_e), 3),
                     text=ch_text,
                     speaker=spk,
-                    raw_start=round(sub_s, 3),
-                    raw_end=round(sub_e, 3),
+                    raw_start=sub_s,
+                    raw_end=sub_e,
+                    source_intervals=[(raw_s, raw_e)],
                     timing_status=t_status,
                     unrenderable=False,
                     grouped_utterance_ids=grouped,
@@ -327,21 +319,72 @@ def build_display_cues(
                     unit_occurrence_ids=unit_members,
                 )
             )
-    return cues
+    return _group_display_continuations(cues, utterances, cfg, scene_boundaries_s)
 
 
-def _speaker_talk_ranking(utterances: Sequence[dict[str, Any]]) -> list[str]:
-    totals: dict[str, float] = {}
-    first_idx: dict[str, int] = {}
-    for i, utt in enumerate(utterances):
-        spk = str(utt.get("speaker_id") or utt.get("global_speaker_id") or "SPK_UNK")
-        if spk not in first_idx:
-            first_idx[spk] = i
-            totals[spk] = 0.0
-        s, e, _ = _resolve_utterance_timing(utt)
-        if s is not None and e is not None:
-            totals[spk] += max(0.0, e - s)
-    return sorted(totals, key=lambda s: (-totals[s], first_idx[s]))
+def _group_display_continuations(cues, utterances, cfg, scene_boundaries_s=()):
+    """Only co-display a proven joint allocation's grammatical continuation.
+
+    Never alter selected English or treat same-speaker proximity as membership.
+    Any intervening, overlapping or uncertain occurrence defeats grouping.
+    """
+    by_id = {str(row.get("utterance_id") or row.get("id") or f"utt-{i:04d}"):
+             (i, row) for i, row in enumerate(utterances)}
+    counts = {}
+    for cue in cues:
+        counts[cue.utterance_id] = counts.get(cue.utterance_id, 0) + 1
+    result = []
+    for cue in cues:
+        if not result:
+            result.append(cue)
+            continue
+        prev = result[-1]
+        a, b = by_id[prev.utterance_id], by_id[cue.utterance_id]
+        text = prev.text + " " + cue.text
+        wrapped = wrap_subtitle_lines(text, cfg.max_chars, cfg.max_lines)
+        selected = a[1].get("translation_unit") or {}
+        start, end = prev.raw_start, cue.raw_end
+        if (not prev.unrenderable and not cue.unrenderable
+                and not prev.display_occurrence_ids
+                and counts[prev.utterance_id] == counts[cue.utterance_id] == 1
+                and b[0] == a[0] + 1
+                and prev.translation_unit_id is not None
+                and prev.translation_unit_id == cue.translation_unit_id
+                and selected.get("selection") == "jointly_adjudicated"
+                and selected == b[1].get("translation_unit")
+                and prev.utterance_id in prev.unit_occurrence_ids
+                and cue.utterance_id in prev.unit_occurrence_ids
+                and a[1].get("speaker_id") and a[1].get("speaker_id") == b[1].get("speaker_id")
+                and prev.speaker != "SPK_UNK"
+                and not any(row.get(key) for row in (a[1], b[1]) for key in
+                            ("review_source_uncertainty", "source_quality_status", "speaker_uncertainty"))
+                and start is not None and end is not None
+                and prev.raw_end is not None and cue.raw_start is not None
+                and 0 <= cue.raw_start - prev.raw_end <= 0.25
+                and not prev.text.rstrip("\"'").endswith((".", "!", "?", "…"))
+                and cue.text[0].islower()
+                and end - start <= cfg.max_display_s
+                and not any(start < cut < end for cut in scene_boundaries_s)
+                and len(wrapped) <= cfg.max_lines
+                and all(len(line) <= cfg.max_chars for line in wrapped)
+                and cue.raw_start - start <= cfg.min_display_s
+                and min(prev.raw_end-start, end-cue.raw_start) < cfg.min_display_s
+                and not any(other.utterance_id not in (prev.utterance_id, cue.utterance_id)
+                            and other.raw_start is not None and other.raw_end is not None
+                            and other.raw_start < end and other.raw_end > start for other in cues)):
+            result[-1] = replace(
+                prev, text=text, raw_end=end,
+                end=min(start + cfg.max_display_s,
+                        max(end, start + cfg.min_display_s, start + len(text) / max(10.0, cfg.target_cps))),
+                grouped_utterance_ids=list(dict.fromkeys(prev.grouped_utterance_ids + cue.grouped_utterance_ids)),
+                source_turn_ids=list(dict.fromkeys(prev.source_turn_ids + cue.source_turn_ids)),
+                display_occurrence_ids=[prev.utterance_id, cue.utterance_id],
+                source_intervals=prev.source_intervals + cue.source_intervals,
+                conflicts=list(dict.fromkeys(prev.conflicts + cue.conflicts + ["display_grouped_continuation"])),
+            )
+        else:
+            result.append(cue)
+    return result
 
 
 def _acoustic_bounds(cue: SubtitleCue) -> tuple[float, float]:
@@ -352,133 +395,14 @@ def _acoustic_bounds(cue: SubtitleCue) -> tuple[float, float]:
 
 def _acoustically_concurrent(a: SubtitleCue, b: SubtitleCue, overlap_threshold_s: float) -> bool:
     """Real overlap of a substantial fraction of a short voice is concurrency."""
-    as0, ae0 = _acoustic_bounds(a)
-    bs0, be0 = _acoustic_bounds(b)
-    overlap = min(ae0, be0) - max(as0, bs0)
-    shorter = min(ae0-as0, be0-bs0)
-    return overlap > 0 and shorter > 0 and overlap >= min(
-        max(0., overlap_threshold_s), .5 * shorter)
-
-
-def _solo_fraction(cue: SubtitleCue, pool: Sequence[SubtitleCue], overlap_threshold_s: float) -> float:
-    cs, ce = _acoustic_bounds(cue)
-    tot = ce - cs
-    if tot <= 0:
-        return 1.0
-    ov = 0.0
-    for other in pool:
-        if other is cue or other.speaker == cue.speaker:
-            continue
-        os0, oe0 = _acoustic_bounds(other)
-        span = min(ce, oe0) - max(cs, os0)
-        if _acoustically_concurrent(cue, other, overlap_threshold_s):
-            ov += span
-    return 1.0 - min(1.0, ov / tot)
-
-
-def _norm_dup_cue_text(text: str) -> str:
-    import re
-
-    return " ".join(re.findall(r"[a-z0-9']+", (text or "").lower()))
-
-
-def _deduplicate_concurrent_echo_cues(
-    cues: Sequence[SubtitleCue],
-    *,
-    prio: dict[str, int],
-) -> tuple[list[SubtitleCue], list[SubtitleCue]]:
-    """Remove only replayed render copies of the SAME source event.
-
-    Similar English, approximate timing and even identical spoken sentences
-    cannot establish a shared acoustic event: two real speakers can say the
-    same phrase. Grouped source-turn lineage wins over legacy utterance IDs.
-    """
-    kept: list[SubtitleCue] = []
-    suppressed: list[SubtitleCue] = []
-    ordered = sorted(cues, key=lambda c: (_acoustic_bounds(c)[0], prio.get(c.speaker, len(prio))))
-    for cue in ordered:
-        current_refs = frozenset(cue.source_turn_ids or cue.grouped_utterance_ids or [cue.utterance_id])
-        cs, ce = _acoustic_bounds(cue)
-        duplicated = False
-        if current_refs:
-            for prev in kept:
-                previous_refs = frozenset(prev.source_turn_ids or prev.grouped_utterance_ids or [prev.utterance_id])
-                if current_refs != previous_refs or (cue.source_turn_ids and not prev.source_turn_ids) or (prev.source_turn_ids and not cue.source_turn_ids):
-                    continue
-                ps, pe = _acoustic_bounds(prev)
-                if (abs(cs - ps) <= 0.1 and abs(ce - pe) <= 0.1
-                        and _norm_dup_cue_text(cue.text) == _norm_dup_cue_text(prev.text)):
-                    duplicated = True
-                    break
-        if duplicated:
-            suppressed.append(cue)
-        else:
-            kept.append(cue)
-    return kept, suppressed
-
-
-def _schedule_single_lane(
-    lane_cues: list[SubtitleCue],
-    *,
-    target_cps: float = 18.0,
-    max_display_s: float = 6.5,
-    min_gap_s: float = 0.04,
-) -> None:
-    """Resolve display overlaps and expand high-CPS cues into trailing free gaps safely."""
-    lane_cues.sort(key=lambda c: (c.start, _acoustic_bounds(c)[0], c.end))
-    min_positive_s = 0.15
-
-    # Pass 1: resolve sequential display overlaps strictly without ever inverting start/end
-    for i in range(len(lane_cues) - 1):
-        prev = lane_cues[i]
-        curr = lane_cues[i + 1]
-        if prev.end > curr.start:
-            _, prev_raw_end = _acoustic_bounds(prev)
-            if curr.start >= prev_raw_end or (curr.start - prev.start) >= 0.35:
-                new_end = round(max(prev.start + min_positive_s, curr.start), 3)
-                if new_end > curr.start and curr.end > new_end + min_positive_s:
-                    curr.start = new_end
-                prev.end = new_end
-                if curr.start < prev_raw_end:
-                    prev.conflicts.append("display_clamped_before_next_cue")
-            else:
-                target = min(prev.end, max(prev.start + 0.35, prev_raw_end), curr.end - 0.25)
-                if target >= prev.start + min_positive_s and (curr.end - target) >= 0.25:
-                    prev.end = round(target, 3)
-                    curr.start = round(target, 3)
-                    prev.conflicts.append("display_split_subthreshold_overlap")
-                    curr.conflicts.append("display_delayed_subthreshold_overlap")
-                elif curr.start >= prev.start + min_positive_s:
-                    prev.end = round(curr.start, 3)
-                    prev.conflicts.append("display_clamped_before_next_cue")
-                else:
-                    # Both share virtually identical start (e.g. sub-threshold fragment on same speaker)
-                    split_pt = round(min(curr.end - min_positive_s, prev.start + max(min_positive_s, 0.5 * (curr.end - prev.start))), 3)
-                    if split_pt >= prev.start + min_positive_s and curr.end >= split_pt + min_positive_s:
-                        prev.end = split_pt
-                        curr.start = split_pt
-                        prev.conflicts.append("display_split_subthreshold_overlap")
-                        curr.conflicts.append("display_delayed_subthreshold_overlap")
-                    else:
-                        prev.conflicts.append("same_lane_collision_unresolved")
-
-    # Pass 2: use remaining trailing free space safely to lower high reading speed without colliding
-    for i, cue in enumerate(lane_cues):
-        cur_dur = max(0.05, cue.end - cue.start)
-        cur_cps = len(cue.text) / cur_dur
-        if cur_cps > target_cps and cur_dur < max_display_s:
-            desired_dur = min(max_display_s, len(cue.text) / max(10.0, target_cps))
-            desired_end = cue.start + desired_dur
-            if i + 1 < len(lane_cues):
-                max_safe_end = max(cue.end, lane_cues[i + 1].start - min_gap_s)
-                cue.end = round(min(desired_end, max_safe_end), 3)
-            else:
-                cue.end = round(desired_end, 3)
-
-    # Final invariant: every cue must have strictly positive rounded duration (centisecond-safe >= 0.05s)
-    for cue in lane_cues:
-        cue.start = round(max(0.0, cue.start), 3)
-        cue.end = round(max(cue.start + 0.05, cue.end), 3)
+    for as0, ae0 in a.source_intervals or [_acoustic_bounds(a)]:
+        for bs0, be0 in b.source_intervals or [_acoustic_bounds(b)]:
+            overlap = min(ae0, be0) - max(as0, bs0)
+            shorter = min(ae0-as0, be0-bs0)
+            if overlap > 0 and shorter > 0 and overlap >= min(
+                    max(0., overlap_threshold_s), .5 * shorter):
+                return True
+    return False
 
 
 def assign_subtitle_lanes(
@@ -489,99 +413,139 @@ def assign_subtitle_lanes(
     max_lanes: int = 2,
     target_cps: float = 18.0,
     max_display_s: float = 6.5,
+    min_display_s: float = 1.2,
+    allow_sequential_stacking: bool = True,
 ) -> tuple[list[SubtitleCue], list[SubtitleCue], list[SubtitleCue]]:
-    """Assign simultaneous cues to bottom/top/(optional 3rd) ASS lanes; keep overflow & unrenderable."""
-    unrenderable = [c for c in cues if c.unrenderable]
-    raw_renderable = [c for c in cues if not c.unrenderable]
-    ranking = _speaker_talk_ranking(utterances) if utterances else []
-    prio = {spk: i for i, spk in enumerate(ranking)}
+    """Schedule actual display occupancy at emitted centisecond precision.
 
-    renderable, _suppressed_dups = _deduplicate_concurrent_echo_cues(raw_renderable, prio=prio)
+    Prefer the bottom lane and trailing slack. Retain real concurrency.
+    Only stack successive turns when truncation creates real reading pressure
+    and the aggregate simultaneous burden is bounded. Never move an onset
+    later to clear a lane. Saturation is explicit, not a hidden collision.
+    SRT uses the same policy without discretionary sequential stacking.
+    """
+    num_lanes = max(1, min(3, int(max_lanes)))
+    displayed, overflow, unrenderable = [], [], []
+    active = {}
+    seen = set()
+    # Preserve input order on equal onset; no retroactive lane swaps.
+    ordered = sorted(enumerate(cues), key=lambda item: (_acoustic_bounds(item[1])[0], item[0]))
+    for order, (_, source) in enumerate(ordered):
+        cue = replace(source, conflicts=list(source.conflicts),
+                      grouped_utterance_ids=list(source.grouped_utterance_ids),
+                      source_turn_ids=list(source.source_turn_ids),
+                      unit_occurrence_ids=list(source.unit_occurrence_ids),
+                      display_occurrence_ids=list(source.display_occurrence_ids),
+                      source_intervals=list(source.source_intervals), display_order=order)
+        if cue.unrenderable:
+            unrenderable.append(cue)
+            continue
+        identity = (cue.utterance_id, cue.raw_start, cue.raw_end, cue.text,
+                    tuple(cue.display_occurrence_ids), tuple(cue.source_turn_ids))
+        if identity in seen:
+            cue.unrenderable = True
+            cue.conflicts.append("duplicate_display_replay")
+            unrenderable.append(cue)
+            continue
+        seen.add(identity)
+        cue.start = round(cue.start * 100) / 100
+        cue.end = round(min(cue.end, cue.start + max_display_s) * 100) / 100
+        if cue.end <= cue.start:
+            cue.unrenderable = True
+            cue.conflicts.append("unrenderable_at_display_precision")
+            unrenderable.append(cue)
+            continue
+        active = {lane: prev for lane, prev in active.items() if prev.end > cue.start}
 
-    def _rank(c: SubtitleCue) -> int:
-        return prio.get(c.speaker, len(prio))
+        def same_occurrence(prev):
+            return bool(set(prev.display_occurrence_ids or [prev.utterance_id])
+                        & set(cue.display_occurrence_ids or [cue.utterance_id]))
 
-    num_lanes = max(2, min(3, int(max_lanes)))
-    order = sorted(renderable, key=lambda c: (_acoustic_bounds(c)[0], _rank(c)))
-    lane_last: dict[int, SubtitleCue | None] = {lid: None for lid in range(num_lanes)}
-    displayed: list[SubtitleCue] = []
-    overflow: list[SubtitleCue] = []
+        def concurrent(prev):
+            return not same_occurrence(prev) and _acoustically_concurrent(
+                prev, cue, overlap_threshold_s)
 
-    for c in order:
-        lc = SubtitleCue(
-            utterance_id=c.utterance_id,
-            start=c.start,
-            end=c.end,
-            text=c.text,
-            speaker=c.speaker,
-            raw_start=c.raw_start,
-            raw_end=c.raw_end,
-            lane=0,
-            timing_status=c.timing_status,
-            unrenderable=False,
-            overflow=False,
-            grouped_utterance_ids=list(c.grouped_utterance_ids),
-            source_turn_ids=list(c.source_turn_ids),
-            conflicts=list(c.conflicts),
-            translation_unit_id=c.translation_unit_id,
-            unit_occurrence_ids=list(c.unit_occurrence_ids),
-        )
+        def trim_safe(prev):
+            return not concurrent(prev) and prev.start < cue.start
 
-        def _free(lid: int) -> bool:
-            # A later short cue on a lane cannot erase an earlier active cue.
-            return not any(occ.lane == lid and occ.speaker != lc.speaker
-                           and _acoustically_concurrent(occ, lc, overlap_threshold_s)
-                           for occ in displayed)
+        def clip(prev):
+            prev.end = cue.start
+            prev.conflicts.append("display_clamped_before_next_cue")
 
-        chosen_lane: int | None = None
-        for lid in range(num_lanes):
-            if _free(lid):
-                chosen_lane = lid
-                break
+        def burden_ok(others):
+            pool = [cue, *others]
+            return (len(pool) <= 2 and sum(len(c.text) for c in pool) <= 100
+                    and sum(len(c.text) / max(0.01, c.end-c.start) for c in pool)
+                    <= target_cps * 1.8)
 
-        if chosen_lane is None:
-            lc.lane = 0
-            lc.overflow = True
-            lc.conflicts.append("three_way_overlap_ass_overflow")
-            overflow.append(lc)
+        # Split fragments must not be co-displayed as independent speakers.
+        for lane, prev in list(active.items()):
+            if same_occurrence(prev) and trim_safe(prev):
+                clip(prev)
+                del active[lane]
+
+        # If a fragment is too short for a distinct emitted onset, retain
+        # explicit pressure rather than overlapping/reordering that occurrence.
+        if any(same_occurrence(prev) for prev in active.values()):
+            cue.overflow = True
+            cue.conflicts.append("split_fragment_display_saturation")
+            overflow.append(cue)
             continue
 
-        lc.lane = chosen_lane
-        if lc.lane == 1:
-            occ0 = lane_last[0]
-            if occ0 is not None and _acoustically_concurrent(occ0, lc, overlap_threshold_s):
-                lc_solo = _solo_fraction(lc, renderable, overlap_threshold_s)
-                occ0_solo = _solo_fraction(occ0, renderable, overlap_threshold_s)
-                swap_safe = not any(
-                    (other.lane == 1 and other.speaker != occ0.speaker
-                     and _acoustically_concurrent(other, occ0, overlap_threshold_s))
-                    or (other.lane == 0 and other is not occ0 and other.speaker != lc.speaker
-                        and _acoustically_concurrent(other, lc, overlap_threshold_s))
-                    for other in displayed)
-                if swap_safe and (lc_solo > occ0_solo + 1e-6 or
-                    (abs(lc_solo - occ0_solo) <= 1e-6 and _rank(lc) < _rank(occ0))):
-                    occ0.lane = 1
-                    lc.lane = 0
-                    lane_last[0] = lc
-                    lane_last[1] = occ0
-                    displayed.append(lc)
-                    continue
+        preferred = active.get(0)
+        free = [lane for lane in range(num_lanes) if lane not in active]
+        chosen = None
+        if preferred is None:
+            chosen = 0
+        elif trim_safe(preferred):
+            clipped_dwell = cue.start - preferred.start
+            pressure = (clipped_dwell < min_display_s
+                        or len(preferred.text) / clipped_dwell > target_cps)
+            if (allow_sequential_stacking and free and pressure
+                    and not concurrent(preferred) and burden_ok(list(active.values()))):
+                chosen = free[0]
+            else:
+                clip(preferred)
+                del active[0]
+                chosen = 0
+        elif free:
+            chosen = free[0]
+        else:
+            for lane, prev in sorted(active.items()):
+                if trim_safe(prev):
+                    clip(prev)
+                    del active[lane]
+                    chosen = lane
+                    break
 
-        lane_last[lc.lane] = lc
-        displayed.append(lc)
+        if chosen is None:
+            cue.overflow = True
+            cue.conflicts.append("display_lane_saturation")
+            overflow.append(cue)
+            continue
 
-    for lid in range(num_lanes):
-        bucket = [c for c in displayed if c.lane == lid]
-        _schedule_single_lane(bucket, target_cps=target_cps, max_display_s=max_display_s)
+        # Existing padding on other lanes must not silently accumulate.
+        # Actual simultaneous speech is retained even when reading load is
+        # high; discretionary overlap is the first thing to sacrifice.
+        for lane, prev in list(active.items()):
+            if (trim_safe(prev)
+                    and (not allow_sequential_stacking or not burden_ok(list(active.values())))):
+                clip(prev)
+                del active[lane]
+        if any(not concurrent(prev) for prev in active.values()):
+            cue.conflicts.append("sequential_display_overlap")
+        if active and not burden_ok(list(active.values())):
+            cue.conflicts.append("simultaneous_display_pressure")
+        cue.lane = chosen
+        active[chosen] = cue
+        displayed.append(cue)
 
-    # Refresh CPS conflict flags against final post-scheduled display durations
     for cue in displayed + overflow:
-        final_cps = len(cue.text) / max(0.2, cue.end - cue.start)
-        if final_cps > target_cps + 4.0:
-            cue.conflicts.append(f"high_reading_speed:{final_cps:.1f}cps")
-
-    displayed.sort(key=lambda c: (c.start, c.lane, _acoustic_bounds(c)[0]))
-    overflow.sort(key=lambda c: (c.start, c.speaker))
+        cps = len(cue.text) / max(0.01, cue.end - cue.start)
+        if cps > target_cps + 4:
+            cue.conflicts.append(f"high_reading_speed:{cps:.1f}cps")
+    displayed.sort(key=lambda c: (c.start, c.display_order))
+    overflow.sort(key=lambda c: (c.start, c.display_order))
     return displayed, overflow, unrenderable
 
 
@@ -629,7 +593,7 @@ def _ass_escape(text: str) -> str:
 def format_srt(cues: Iterable[SubtitleCue], *, config: SubtitleConfig | None = None) -> str:
     """Format all renderable cues (including overflow) into UTF-8 SRT text."""
     cfg = config or SubtitleConfig()
-    ordered = sorted((c for c in cues if not c.unrenderable), key=lambda c: (c.start, c.lane, c.end))
+    ordered = sorted((c for c in cues if not c.unrenderable), key=lambda c: (c.start, c.display_order))
     blocks: list[str] = []
     for i, cue in enumerate(ordered, start=1):
         wrapped = "\n".join(wrap_subtitle_lines(cue.text, max_chars=cfg.max_chars, max_lines=cfg.max_lines))
@@ -665,12 +629,14 @@ def format_ass(lane_cues: Iterable[SubtitleCue], *, config: SubtitleConfig | Non
         "[Events]",
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ]
-    ordered = sorted((c for c in lane_cues if not c.unrenderable), key=lambda c: (c.start, c.lane, c.end))
+    ordered = sorted((c for c in lane_cues if not c.unrenderable), key=lambda c: (c.start, c.display_order))
     for cue in ordered:
         style = "Main" if cue.lane == 0 else ("Top" if cue.lane == 1 else "TopAlt")
         wrapped = "\n".join(wrap_subtitle_lines(cue.text, max_chars=cfg.max_chars, max_lines=cfg.max_lines))
         lines.append(
-            f"Dialogue: {cue.lane},{_ass_timestamp(cue.start)},{_ass_timestamp(cue.end)},{style},{cue.speaker},0,0,0,,{_ass_escape(wrapped)}"
+            f"Dialogue: {cue.lane},{_ass_timestamp(cue.start)},{_ass_timestamp(cue.end)},{style},{cue.speaker},0,0,0,,"
+            + (r"{\an5\pos(" + f"{cue.ass_position[0]},{cue.ass_position[1]}" + ")}" if cue.ass_position else "")
+            + _ass_escape(wrapped)
         )
     return "\n".join(lines) + "\n"
 
@@ -692,13 +658,22 @@ def render_subtitles(
     config: SubtitleConfig | None = None,
     sidecar_dir: Path | None = None,
     overwrite_sidecar: bool = False,
+    presentation_observations: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Render SRT and/or ASS subtitles directly from a translated or refined contract."""
     cfg = config or SubtitleConfig()
     utterances = contract.get("utterances") or []
     connected_units.validate_selected_units(utterances, require_complete=(
         (contract.get("translation_review") or {}).get("translation_unit_schema") == connected_units.SCHEMA))
-    cues = build_display_cues(utterances, config=cfg)
+    from nvidia_transcribe.presentation import admit_observations, adaptive_config, constrain_scene_padding, place_ass
+    observation = admit_observations(presentation_observations, contract.get("source") or {})
+    if cfg.ass_layout not in ("auto", "standard", "raised_main"):
+        raise ValueError("Unknown ASS layout")
+    if cfg.ass_layout == "auto":
+        cfg = adaptive_config(cfg, observation)
+    cues = build_display_cues(utterances, config=cfg,
+                              scene_boundaries_s=(observation or {}).get("known_scene_boundaries_s", []))
+    constrain_scene_padding(cues, observation)
     displayed, overflow, unrenderable = assign_subtitle_lanes(
         cues,
         utterances=utterances,
@@ -706,6 +681,13 @@ def render_subtitles(
         max_lanes=cfg.ass_max_lanes,
         target_cps=cfg.target_cps,
         max_display_s=cfg.max_display_s,
+        min_display_s=cfg.min_display_s,
+    )
+    srt_displayed, srt_overflow, srt_unrenderable = assign_subtitle_lanes(
+        cues, utterances=utterances, overlap_threshold_s=cfg.overlap_threshold_s,
+        max_lanes=cfg.ass_max_lanes, target_cps=cfg.target_cps,
+        max_display_s=cfg.max_display_s, min_display_s=cfg.min_display_s,
+        allow_sequential_stacking=False,
     )
 
     # Limit final display times after all extension/scheduling. Floor the
@@ -714,7 +696,8 @@ def render_subtitles(
     duration = _finite_nonneg((contract.get("source") or {}).get("duration_s"))
     if duration is not None:
         limit = math.floor(duration * 100 + 1e-9) / 100
-        for bucket in (displayed, overflow):
+        for bucket, unavailable in ((displayed, unrenderable), (overflow, unrenderable),
+                                    (srt_displayed, srt_unrenderable), (srt_overflow, srt_unrenderable)):
             kept = []
             for cue in bucket:
                 if cue.end > limit:
@@ -723,7 +706,7 @@ def render_subtitles(
                 if cue.end <= cue.start or round(cue.end * 100) <= round(cue.start * 100):
                     cue.unrenderable = True
                     cue.conflicts.append("unrenderable_outside_media_duration")
-                    unrenderable.append(cue)
+                    unavailable.append(cue)
                     continue
                 # A final clamp can create a new reading-speed conflict.
                 cue.conflicts = [c for c in cue.conflicts if not c.startswith("high_reading_speed:")]
@@ -732,19 +715,33 @@ def render_subtitles(
                     cue.conflicts.append(f"high_reading_speed:{cps:.1f}cps")
                 kept.append(cue)
             bucket[:] = kept
-    all_renderable = list(displayed) + list(overflow)
+    presentation = {"layout": cfg.ass_layout, "status": "manual_override" if cfg.ass_layout != "auto" else "ass_not_requested"}
+    if cfg.ass_layout == "auto" and "ass" in {f.strip().lower() for f in formats}:
+        displayed, placement_overflow, presentation = place_ass(displayed, cfg, observation)
+        overflow.extend(placement_overflow)
+        if presentation["status"] == "measurement_unavailable":
+            cfg = replace(cfg, ass_layout="raised_main")
+            presentation["effective_layout"] = "raised_main"
+    all_renderable = list(srt_displayed) + list(srt_overflow)
     lang_tag = (target_language or "en").strip().lower()
     outputs: dict[str, str] = {}
     sidecars: dict[str, str] = {}
     fmts = {f.strip().lower() for f in formats if f.strip()}
+    # A hypothetical schedule is not emitted dialogue. Keep per-format
+    # lineage, counts and conflicts restricted to requested outputs.
+    if "ass" not in fmts:
+        displayed, overflow, unrenderable = [], [], []
+    if "srt" not in fmts:
+        srt_displayed, srt_overflow, srt_unrenderable, all_renderable = [], [], [], []
 
-    no_renderable_dialogue=bool(cues) and not all_renderable
+    no_renderable_dialogue = bool(cues) and not (("srt" in fmts and all_renderable) or
+                                                 ("ass" in fmts and displayed))
     if "srt" in fmts:
         srt_text = format_srt(all_renderable, config=cfg)
         srt_out = output_dir / f"{episode_stem}.{lang_tag}.srt"
         _atomic_write(srt_out, srt_text)
         outputs["srt"] = str(srt_out)
-        if sidecar_dir is not None and not no_renderable_dialogue:
+        if sidecar_dir is not None and (all_renderable or not cues):
             sc_srt = Path(sidecar_dir) / f"{episode_stem}.{lang_tag}.srt"
             if sc_srt.exists() and not overwrite_sidecar:
                 raise FileExistsError(f"Refusing to overwrite existing sidecar without overwrite_sidecar=True: {sc_srt}")
@@ -756,13 +753,15 @@ def render_subtitles(
         ass_out = output_dir / f"{episode_stem}.{lang_tag}.ass"
         _atomic_write(ass_out, ass_text)
         outputs["ass"] = str(ass_out)
-        if sidecar_dir is not None and not no_renderable_dialogue:
+        if sidecar_dir is not None and (displayed or not cues):
             sc_ass = Path(sidecar_dir) / f"{episode_stem}.{lang_tag}.ass"
             if sc_ass.exists() and not overwrite_sidecar:
                 raise FileExistsError(f"Refusing to overwrite existing sidecar without overwrite_sidecar=True: {sc_ass}")
             _atomic_write(sc_ass, ass_text)
             sidecars["ass"] = str(sc_ass)
 
+    conflict_cues = (displayed + overflow + unrenderable if "ass" in fmts
+                     else srt_displayed + srt_overflow + srt_unrenderable)
     conflicts_summary = [
         {
             "utterance_id": c.utterance_id,
@@ -773,45 +772,66 @@ def render_subtitles(
             "text": c.text,
             "conflicts": c.conflicts,
         }
-        for c in all_renderable + unrenderable
+        for c in conflict_cues
         if c.conflicts
     ]
     # Actual event bounds are distinct from allocated display sub-cue bounds.
     by_id = {str(u.get("utterance_id") or u.get("id") or f"utt-{i:04d}"): u
              for i, u in enumerate(utterances)}
-    lineage = []
-    for disposition, bucket in (("displayed", displayed), ("overflow", overflow),
-                                ("unrenderable", unrenderable)):
-        for cue in bucket:
-            row = by_id.get(cue.utterance_id)
-            if row is None or not connected_units.native(row):
-                continue
-            lineage.append({"occurrence_id": cue.utterance_id,
-                "translation_unit_id": cue.translation_unit_id,
-                "unit_occurrence_ids": cue.unit_occurrence_ids or [cue.utterance_id],
-                "actual_event_interval": (connected_units.interval({
-                    "source_start": row.get("raw_source_start"), "source_end": row.get("raw_source_end")})
-                    if (row.get("timestamp_provenance") or {}).get("timing_source") == "viewing_validation_overlay"
-                    else connected_units.interval(row)),
-                "effective_event_interval": connected_units.interval(row),
-                "timing_status": cue.timing_status,
-                "display_allocation_interval": [cue.raw_start, cue.raw_end],
-                "display_interval": None if cue.unrenderable else [cue.start, cue.end],
-                "disposition": disposition, "lane": cue.lane, "text": cue.text,
-                "conflicts": list(cue.conflicts)})
+    def lineage_for(placed, excess, unavailable, *, srt=False):
+        lineage = []
+        for disposition, bucket in (("displayed", placed), ("overflow", excess),
+                                    ("unrenderable", unavailable)):
+            for cue in bucket:
+                ids = cue.display_occurrence_ids or [cue.utterance_id]
+                for uid in ids:
+                    row = by_id.get(uid)
+                    if row is None:
+                        continue
+                    actual = (connected_units.interval({
+                        "source_start": row.get("raw_source_start"), "source_end": row.get("raw_source_end")})
+                        if (row.get("timestamp_provenance") or {}).get("timing_source") == "viewing_validation_overlay"
+                        else connected_units.interval(row))
+                    lineage.append({"occurrence_id": uid,
+                        "display_occurrence_ids": ids,
+                        "display_event_id": cue.display_order,
+                        "translation_unit_id": cue.translation_unit_id,
+                        "unit_occurrence_ids": cue.unit_occurrence_ids or [uid],
+                        "actual_event_interval": actual,
+                        "effective_event_interval": connected_units.interval(row),
+                        "timing_status": cue.timing_status,
+                        "display_allocation_interval": [cue.raw_start, cue.raw_end],
+                        "display_interval": ([cue.start, cue.end]
+                                             if disposition == "displayed" or (srt and disposition == "overflow")
+                                             else None),
+                        "disposition": ("displayed" if srt and disposition == "overflow" else disposition),
+                        "lane": None if srt else cue.lane, "text": cue.text,
+                        "ass_position": None if srt else cue.ass_position,
+                        "ass_bounds": None if srt else cue.ass_bounds,
+                        "conflicts": list(cue.conflicts)})
+        return lineage
+
+    lineage = lineage_for(displayed, overflow, unrenderable)
+    srt_lineage = lineage_for(srt_displayed, srt_overflow, srt_unrenderable, srt=True)
     return {
         "outputs": outputs,
         "sidecars": sidecars,
         "cue_lineage": lineage,
+        "srt_cue_lineage": srt_lineage,
+        "presentation": presentation,
         "no_renderable_dialogue":no_renderable_dialogue,
         "stats": {
             "total_input_utterances": len(utterances),
-            "renderable_cues": len(all_renderable),
+            "renderable_cues": len(all_renderable) if "srt" in fmts else len(displayed),
+            "srt_displayed_cues": len(all_renderable),
+            "srt_unrenderable_cues": len(srt_unrenderable),
+            "ass_sequential_overlap_cues": sum("sequential_display_overlap" in c.conflicts for c in displayed),
             "ass_displayed_cues": len(displayed),
             "ass_lane_1_top_cues": sum(1 for c in displayed if c.lane == 1),
             "ass_overflow_cues": len(overflow),
-            "unrenderable_cues": len(unrenderable),
+            "unrenderable_cues": len(unrenderable) if "ass" in fmts else len(srt_unrenderable),
             "conflict_cues": len(conflicts_summary),
+            "ass_placement_conflict_cues": sum(any(x.startswith("placement_") for x in c.conflicts) for c in displayed + overflow),
         },
         "conflicts": conflicts_summary,
     }

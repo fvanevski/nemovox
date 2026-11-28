@@ -78,9 +78,8 @@ export interface JobOptions {
   translation_review: "off" | "conservative" | "balanced" | "expressive";
   style: "natural" | "literal" | "expressive";
   glossary: string | null;
-  ass_layout: "standard" | "raised_main";
+  ass_layout: "auto" | "standard" | "raised_main";
   ass_max_lanes: 2 | 3;
-  condense_high_cps: boolean;
   formats: ("srt" | "ass")[];
 }
 export interface JobRequest {
@@ -108,8 +107,10 @@ export interface Cue {
   text: string;
   speaker?: string | null;
   utterance_id?: string | null;
+  lane?: number | null;
+  ass_bounds?: [number, number, number, number];
 }
-export interface Preview { kind: "pending" | "subtitles" | "transcript"; cues: Cue[]; }
+export interface Preview { kind: "pending" | "subtitles" | "transcript"; cues: Cue[]; ass_cues?: Cue[] | null; presentation?: {layout: string; status: string; caption_status?: string; observation_status?: string} | null; display_stats?: Record<string, number> | null; }
 export interface Artifact { name: string; path: string; url: string; }
 
 async function json<T>(route: string, init?: RequestInit): Promise<T> {

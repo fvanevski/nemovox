@@ -49,7 +49,7 @@ written. Failed exports leave all internally generated files accessible.
 
 Studio continues to run ONE generate-subtitles CLI subprocess. It consumes
 versioned NEMOVOX_EVENT JSON progress records emitted at the actual translation,
-English review, optional condensation and rendering boundaries, and stores a
+English review and rendering boundaries, and stores a
 stage history in job.json. Skipped same-language, disabled-review and offline
 rerender paths are not recorded as successful inference.
 
@@ -64,3 +64,7 @@ logs remain available while their job-specific directories are retained.
 An omitted export plan retains internal artifacts only. Direct CLI commands
 keep their output-directory and inference behavior. See the current
 [Studio workflow](SUBTITLE_WORKFLOW.md) and [lifecycle guide](../model-resources/LIFECYCLE.md).
+
+The optional presentation observations export preserves source-bound picture/caption-region evidence. The ASS preview timeline uses emitted ASS display intervals when native browser rendering is active; SRT fallback uses its own emitted intervals. Placement diagnostics distinguish logical lanes from measured screen positions and explicitly report overflow or unavailable measurement.
+
+For rerendered jobs, preview, artifact listing and export resolve the current render manifest's declared subtitle basenames within the job directory. Older files are left intact but are not substituted for absent or missing current formats. Pre-manifest jobs retain unambiguous single-file fallback without claiming current-format ASS lineage.

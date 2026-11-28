@@ -1,6 +1,6 @@
 """Source-to-translation/ASS retention: no similarity-driven deletion of speech."""
 from nvidia_transcribe.subtitles import (
-    SubtitleCue, _deduplicate_concurrent_echo_cues, assign_subtitle_lanes,
+    SubtitleCue, assign_subtitle_lanes,
     build_display_cues,
 )
 from nvidia_transcribe.translation import _apply_safe_adjacent_regrouping
@@ -18,8 +18,6 @@ def _cue(uid, speaker, start=12.0, end=14.0, source_ids=()):
 def test_identical_english_from_different_source_turns_survives_srt_ass_lane_input():
     a = _cue("utt-01", "SPK_A", source_ids=["source-turn-a"])
     b = _cue("utt-02", "SPK_B", start=12.02, end=13.98, source_ids=["source-turn-b"])
-    kept, suppressed = _deduplicate_concurrent_echo_cues([a, b], prio={})
-    assert len(kept) == 2 and not suppressed
     displayed, overflow, unrenderable = assign_subtitle_lanes([a, b], max_lanes=3)
     assert len(displayed) == 2 and not overflow and not unrenderable
     assert {tuple(c.source_turn_ids) for c in displayed} == {
@@ -29,24 +27,25 @@ def test_identical_english_from_different_source_turns_survives_srt_ass_lane_inp
 
 def test_exact_same_source_event_replayed_cue_may_be_deduplicated():
     a = _cue("utt-01", "SPK_A", source_ids=["source-turn-one"])
-    b = _cue("utt-02", "SPK_B", source_ids=["source-turn-one"])
-    kept, suppressed = _deduplicate_concurrent_echo_cues([a, b], prio={})
-    assert len(kept) == 1 and len(suppressed) == 1
+    b = _cue("utt-01", "SPK_A", source_ids=["source-turn-one"])
+    kept, overflow, suppressed = assign_subtitle_lanes([a, b])
+    assert len(kept) == 1 and not overflow and len(suppressed) == 1
     assert suppressed[0].source_turn_ids == ["source-turn-one"]
+    assert "duplicate_display_replay" in suppressed[0].conflicts
 
 
 def test_same_source_event_phrase_repeated_at_different_times_is_preserved():
     a = _cue("utt-01", "SPK_A", source_ids=["source-turn-one"])
     b = _cue("utt-01", "SPK_A", start=14.2, end=16.2, source_ids=["source-turn-one"])
-    kept, suppressed = _deduplicate_concurrent_echo_cues([a, b], prio={})
-    assert len(kept) == 2 and not suppressed
+    kept, overflow, suppressed = assign_subtitle_lanes([a, b])
+    assert len(kept) == 2 and not overflow and not suppressed
 
 
 def test_legacy_distinct_utterance_ids_also_cannot_be_silently_deleted():
     a = _cue("utt-01", "SPK_A")
     b = _cue("utt-02", "SPK_B", start=12.1, end=13.9)
-    kept, suppressed = _deduplicate_concurrent_echo_cues([a, b], prio={})
-    assert len(kept) == 2 and not suppressed
+    kept, overflow, suppressed = assign_subtitle_lanes([a, b])
+    assert len(kept) == 2 and not overflow and not suppressed
 
 
 def test_source_turn_ids_reach_unrenderable_and_normal_cues():

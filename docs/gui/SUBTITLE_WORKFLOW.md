@@ -6,7 +6,7 @@
 2. Geometry assessment reports covered and uncovered intervals, untimed events and speaker-label distribution. Uncovered time is not proof of missing speech. Optional CPU acoustic activity is separately requested through CLI, not mandatory.
 3. Riva receives preserved source dialogue. Missing or invalid worker results fail visibly.
 4. Balanced contextual English review compares primary translations against source and nearby context, retaining original MT and consequential meaning. NInfer Messages enforces the bounded thinking contract.
-5. Render SRT/ASS; optional extra condensation is off by default.
+5. Render SRT/ASS with automatic measured ASS placement by default; no additional condensation pass.
 
 No routine acoustic re-recognition, forced lexical alignment, or speaker stitching. Independent speaker, timing or lexical evidence may be investigated for material defects without automatically modifying source events. Existing contracts are a downstream translation/render input; fresh recognition uses the new worker.
 
@@ -44,3 +44,11 @@ Configure MOSS and Riva local checkpoints and isolated worker interpreters as de
 ## English-to-English
 
 Explicit English media or imported English recordings bypass MT and English translation review, preserving source text, IDs, speakers and timing. No Riva worker is required for that route. Optional glossaries remain independently discoverable; malformed entries do not disable valid entries.
+
+## Automatic ASS presentation
+
+Native libass measures rendered text, wrapping, outline and shadow at the presentation coordinate scale. Bounded grayscale samples from the explicitly supplied, admitted non-attached video stream estimate stable picture bars and bright-stroke caption candidates. Candidate regions are not confirmed captions, language identification or evidence of absence. A dark or unsampled frame does not prove absence. A stable bar is preferred when the full measured block fits; otherwise available vertical space is used with a conservative lower reserve for unknown captions. Overlapping events retain fixed chronological positions; discretionary padding may be curtailed to fit, while real concurrency and selected English remain distinct from presentation constraints. Overflow and conflicts are reported. Only positively known scene boundaries can constrain scene padding. `standard` and `raised_main` are explicit fixed overrides. Missing native libass is reported with a fixed raised fallback, not a successful measurement.
+
+`presentation.observations.json` binds to source fingerprint, full content digest where available, and duration. It preserves sampled observations, requested seek times (not exact PTS), candidate regions and optional independently supported interval-bound caption-region evidence and scene boundaries. The latter fields are intended for admitted evidence producers; this sampler does not manufacture confirmation. Offline `--re-render` reuses the retained document without opening media if none is supplied, and never rewrites selected English. Exact output reproducibility assumes the same font and libass environment. ASS positions and measured bounds are present in cue lineage. SRT remains independently scheduled.
+
+Retained positively known scene boundaries constrain scheduling for SRT and manual ASS as well as automatic ASS. Only acquisition of new picture samples is specific to automatic ASS. Per-format lineage and counts refer to emitted formats; a hypothetical unrequested track is not an output.

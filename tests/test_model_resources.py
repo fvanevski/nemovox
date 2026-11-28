@@ -21,7 +21,7 @@ def test_default_resource_roles_preserve_current_local_services():
     assert reg.resolve("asr").device == "cuda:0"
     assert reg.resolve("source_refinement").model == "chat"
     assert reg.resolve("source_refinement") == reg.resolve("text_translation")
-    assert reg.resolve("text_translation") == reg.resolve("subtitle_condensation")
+    assert reg.resolve("text_translation") == reg.resolve("translation_review")
     assert "speech_activity" not in reg.roles
 
 
@@ -30,16 +30,16 @@ def test_host_bindings_support_distinct_text_roles(tmp_path):
         "version": 1,
         "resources": {
             "translator": {"adapter": "openai_chat", "endpoint": "http://localhost:8200/v1", "model": "translation-v2"},
-            "condensor": {"adapter": "openai_chat", "endpoint": "http://localhost:8300/v1", "model": "concise"},
+            "reviewer": {"adapter": "openai_chat", "endpoint": "http://localhost:8300/v1", "model": "review-v2"},
         },
-        "roles": {"text_translation": "translator", "subtitle_condensation": "condensor"},
+        "roles": {"text_translation": "translator", "translation_review": "reviewer"},
     })
     reg = load_model_resources(path, environ={})
     assert reg.resolve("source_refinement").name == "text_local"
     assert reg.resolve("text_translation").model == "translation-v2"
-    assert reg.resolve("subtitle_condensation").model == "concise"
+    assert reg.resolve("translation_review").model == "review-v2"
     assert len({reg.resolve(k).fingerprint() for k in
-                ("source_refinement", "text_translation", "subtitle_condensation")}) == 3
+                ("source_refinement", "text_translation", "translation_review")}) == 3
 
 
 def test_env_overrides_file_and_command_override_last(tmp_path):
@@ -151,3 +151,9 @@ def test_optional_activity_explicit_cpu(tmp_path):
     spec["device"] = "cuda:0"
     with pytest.raises(ResourceConfigError):
         load_model_resources(_file(tmp_path, doc), environ={})
+
+
+def test_retired_condensation_role_is_not_admitted(tmp_path):
+    path = _file(tmp_path, {"version": 1, "roles": {"subtitle_condensation": "text_local"}})
+    with pytest.raises(ResourceConfigError, match="Unknown roles"):
+        load_model_resources(path, environ={})
