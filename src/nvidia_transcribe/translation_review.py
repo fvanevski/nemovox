@@ -748,6 +748,7 @@ def _keyed_proposal(client,messages,ids,wire,cfg,*,record_request=None,invalid_f
             "For acoustic use focus none, never speech_activity; acoustic observes sound. "
             "For none use focus none and empty reference_id and question. "
             "Only visual may use scene, speech_activity, interaction, text or caption. "
+            "For caption focus use exactly: " + CAPTION_QUESTION + " "
             "Choose the modality justified by the actual uncertainty; do not simply switch modality "
             "to fit a previously emitted focus.")
     reply=client.complete(messages=alternate,max_tokens=cfg.max_tokens,temperature=cfg.temperature,
@@ -1287,7 +1288,7 @@ def review_translated_utterances(
                                 state["proposal_request_sha256"]=progress.request(state,"proposal_recovery",msg,schema,reply)
                             alternate,aliases=_keyed_proposal(client,messages,ids,wire,cfg,
                                 record_request=capture_keyed if native_review else None,
-                                invalid_focus=str(exc)=="invalid_evidence_focus")
+                                invalid_focus=str(exc) in ("invalid_evidence_focus","invalid_caption_question"))
                             attempts=alternate.get("_client_request_diagnostics",{}).get("completion_attempts",[])
                             native_attempts.extend({"stage":"proposal_recovery",**x} for x in attempts)
                             extra=max(0,len(attempts)-1)
@@ -1305,7 +1306,7 @@ def review_translated_utterances(
                                 if native_review:
                                     # Persist rejected attempts without admitting any proposal. Isolate
                                     # repeated focus failures at existing atomic-unit boundaries.
-                                    if str(rejected)=="invalid_evidence_focus" and split_points(start,end):
+                                    if str(rejected) in ("invalid_evidence_focus","invalid_caption_question") and split_points(start,end):
                                         state["split"]=True
                                         progress.save()
                                         receipt["outcome"]="subdivided_invalid_focus"
@@ -1408,9 +1409,11 @@ def review_translated_utterances(
                                 **({"recording_context": global_context, "advisory_discourse_terms": terms,
                                      "advisory_scene_observations":scenes,
                                      "caption_context":caption_context,
-                                     "candidate_discourse_terms":[{"id":uid,"terms":supported_terms(
-                                         item,source_entries[uid],source_entries)} for uid,item in entries.items()
-                                         if item.get("discourse_terms")],
+                                     "candidate_discourse_terms":[{"id":uid,"terms":[
+                                         {**{k:v for k,v in term.items() if k not in ("accepted_target_id","status")},
+                                          "status":"candidate_interpretation_not_selected"}
+                                         for term in supported_terms(item,source_entries[uid],source_entries)]}
+                                         for uid,item in entries.items() if item.get("discourse_terms")],
                                      "supplementary_observations": [item["supplementary_observation"] for item in entries.values()
                                          if "supplementary_observation" in item],
                                      "caption_interpretations": [{"id":uid,"caption_ids":item["caption_evidence_ids"],

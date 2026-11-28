@@ -4,6 +4,8 @@ from __future__ import annotations
 from copy import deepcopy
 import math
 
+from nvidia_transcribe.review_execution import visual_digest
+
 CAPTION_QUESTION = "Read the source-language dialogue captions in the referenced occurrence."
 CAPTION_FOCUS = "caption"
 
@@ -31,7 +33,8 @@ def frame_observations(receipts, source, stream):
         if (receipt.get("kind")!="visual" or receipt.get("status")!="observed"
                 or (receipt.get("provider") or {}).get("media_sha256")!=source["content_sha256"]
                 or receipt.get("visual_stream")!={"selector":"0:V:0","container_index":stream}
-                or not _sha(receipt.get("observation_sha256"))):
+                or not _sha(receipt.get("observation_sha256"))
+                or visual_digest(receipt)!=receipt["observation_sha256"]):
             continue
         absent=set(receipt.get("caption_absent_frame_ids",[]))
         for frame in receipt.get("frames",[]):
@@ -117,17 +120,22 @@ def routing_context(doc, receipts, source, targets):
             points=[f for f in facts if start<=f["time_s"]<=end]
             intervals=[o for o in doc.get("caption_observations",[])
                        if o["interval_s"][0]<end and o["interval_s"][1]>start]
-            positive=any(f["status"]=="present" for f in points) or any(o["status"]=="present" for o in intervals)
-            negative=any(f["status"]=="absent" for f in points)
+            positive_frames=[f for f in points if f["status"]=="present"]
+            negative_frames=[f for f in points if f["status"]=="absent"]
+            positive=bool(positive_frames) or any(o["status"]=="present" for o in intervals)
+            negative=bool(negative_frames)
             interval_absent=any(o["status"]=="absent" and o["interval_s"][0]<=start
                                 and o["interval_s"][1]>=end for o in intervals)
             conflict=(any(f["contradictory"] for f in points)
                       or positive and interval_absent
-                      or any(p["status"]=="present" and n["status"]=="absent"
-                             and p["time_s"]==n["time_s"] for p in points for n in points))
+                      or any(o["status"]=="absent" and o["interval_s"][0]<=f["time_s"]<=o["interval_s"][1]
+                             for f in positive_frames for o in intervals)
+                      or any(o["status"]=="present" and o["interval_s"][0]<=f["time_s"]<=o["interval_s"][1]
+                             for f in negative_frames for o in intervals)
+                      or any(p["time_s"]==n["time_s"] for p in positive_frames for n in negative_frames))
             if conflict:
                 status="conflicting"
-            elif positive and negative:
+            elif positive_frames and negative:
                 status="intermittent_at_observed_frames"
             elif positive:
                 status="present_in_observed_interval"

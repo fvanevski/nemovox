@@ -153,6 +153,9 @@ def test_frame_presence_defeats_conflicting_absence_without_invented_region(monk
          "observation_sha256":"d"*64,"frames":[{"id":"f","requested_seek_s":2,"sha256":"e"*64}],
          "visible_text":[{"caption_id":"visible-a","text_kind":"dialogue_caption",
                           "source_language_match":True,"frame_ids":["f"]}]}
+    from nvidia_transcribe.review_execution import visual_digest
+    obs["observation_sha256"]=visual_digest(obs)
+    assert merge_frame_observations(doc,[{**obs,"observation_sha256":"0"*64}],source)==doc
     merged=merge_frame_observations(doc,[obs],source)
     assert p.admit_observations(merged,source)==merged
     assert merged["caption_frame_observations"][0]["status"]=="present"

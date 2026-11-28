@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 
 
 def digest(value):
@@ -137,7 +138,8 @@ def supported_terms(item, target, all_rows):
         if (not isinstance(source, str) or not 1 <= len(source.strip()) <= 80
                 or source not in target["source_text"]
                 or not isinstance(english, str) or not 1 <= len(english.strip()) <= 100
-                or english.casefold() not in item["corrected_text"].casefold()
+                or not re.search(r"(?<!\w)"+re.escape(english.casefold())+r"(?!\w)",
+                                 item["corrected_text"].casefold())
                 or not isinstance(refs, list) or not 1 <= len(refs) <= 4
                 or not any(ref != target["utterance_id"] for ref in refs)
                 or any(not isinstance(ref,str) or ref not in all_rows for ref in refs)):
@@ -174,9 +176,20 @@ def relevant_terms(ledger, targets, limit=32):
     grouped = {}
     for term in relevant:
         info=term.get("interpretation")
-        key = (term["source"], term["english"].casefold(),
-               digest(info) if info is not None else None)
+        # Collapse repeated identical semantic descriptions, not competing
+        # senses. Preserve each bounded supporting record, not a guessed merge.
+        key = (term["source"],term["english"].casefold(),
+               tuple(info[k].strip().casefold() for k in
+                     ("kind","sense","referent","source_alternative")) if info else None)
         prior = grouped.get(key)
         ids = [*(prior["accepted_target_ids"] if prior else []), term["accepted_target_id"]]
-        grouped[key] = {**term, "accepted_target_ids": list(dict.fromkeys(ids))[-8:]}
+        record={**term,"accepted_target_ids":list(dict.fromkeys(ids))[-8:]}
+        if info:
+            context={"accepted_target_id":term["accepted_target_id"],"reference_ids":term["reference_ids"],
+                     "interpretation":info,"caption_evidence_ids":term["caption_evidence_ids"]}
+            contexts=[*(prior.get("supporting_contexts",[]) if prior else [])]
+            if context not in contexts:
+                contexts.append(context)
+            record["supporting_contexts"]=contexts[-4:]
+        grouped[key]=record
     return list(grouped.values())[-limit:]

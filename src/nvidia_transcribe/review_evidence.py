@@ -15,7 +15,8 @@ import time
 
 import httpx
 
-from nvidia_transcribe.media import compute_file_sha256, extract_wav_segment, visual_stream_index
+from nvidia_transcribe.media import (compute_file_sha256, extract_wav_segment, visual_stream_index,
+    MediaInspectionError)
 from nvidia_transcribe.moss_recording import process_moss_media
 from nvidia_transcribe.ninfer_messages_client import image_content_block
 from nvidia_transcribe.resource_lifecycle import managed_text_client, ResourceLifecycleError
@@ -111,7 +112,18 @@ class ReviewEvidenceProvider:
         self._visual_streams = {}
         self.presentation=static_context(admit_observations(presentation_observations,source)) if self.available else None
         if self.presentation is not None:
-            self.identity["presentation_context_sha256"]=digest(self.presentation)
+            if "video_stream_index" in self.presentation or self.presentation.get("status")=="no_video":
+                try:
+                    stream=self._visual_index()
+                except (MediaInspectionError,OSError,subprocess.SubprocessError):
+                    # Do not convert a transient probe failure to absence or
+                    # prevent the ordinary acquisition path from retrying it.
+                    self.presentation=None
+                else:
+                    if stream!=self.presentation.get("video_stream_index"):
+                        raise ValueError("Presentation observation visual stream mismatch")
+            if self.presentation is not None:
+                self.identity["presentation_context_sha256"]=digest(self.presentation)
         self.cache = {}
         self.telemetry = {"visual_attempts":0,"acoustic_attempts":0,"in_memory_reuses":0,
                           "visual_elapsed_s":0.0,"acoustic_elapsed_s":0.0,

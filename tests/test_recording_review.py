@@ -1625,3 +1625,45 @@ def test_caption_routing_intervals_and_sparse_candidates_are_not_equivalent():
     assert [x["status"] for x in out["occurrences"]]==["supported_interval_absence","unknown"]
     doc["caption_observations"].append({"interval_s":[1.5,2.5],"status":"present","evidence_sha256":"c"*64})
     assert routing_context(doc,[],source,rows)["occurrences"][0]["status"]=="conflicting"
+
+
+def test_shared_caption_context_is_bound_and_frozen_on_resume(tmp_path,monkeypatch):
+    from nvidia_transcribe import presentation
+    from nvidia_transcribe.caption_context import CAPTION_QUESTION, merge_frame_observations
+    rows=[row(0,"杯子。","Cup.",start=1,end=2),row(1,"那个。","That.",start=3,end=4)]
+    a,b=[r["id"] for r in rows]
+    vision=FixtureVision({"observations":[],"visible_text":[],"caption_absent_frame_ids":["frame-2"]})
+    initial=visual_fixture(tmp_path,monkeypatch,rows,vision)
+    source={**initial.contract["source"],"duration_s":60.,"fingerprint_sha256":"f"*64}
+    contract={**initial.contract,"source":source}
+    doc={"schema":presentation.SCHEMA,"media_fingerprint_sha256":source["fingerprint_sha256"],
+         "media_content_sha256":source["content_sha256"],"duration_s":60.,
+         "video_stream_index":0,"samples":[],"caption_observations":[],"status":"sampled"}
+    def provider(observations):
+        return ReviewEvidenceProvider(media_path=initial.path,contract=contract,lifecycle=None,
+            review_resource=initial.review_resource,visual_resource=initial.visual_resource,
+            acoustic_resource=None,review_client=vision,presentation_observations=observations)
+    with pytest.raises(ValueError,match="visual stream mismatch"):
+        provider({**doc,"video_stream_index":1})
+    def propose(t,p):
+        uid=t["utterance_id"]
+        if "supplementary_observations" in p:
+            return {"corrected_text":"Cup." if uid==a else "That."}
+        context=p["caption_context"]
+        if uid==a:
+            return {"corrected_text":"Cup.","evidence_request":{
+                "kind":"visual","reference_id":a,"question":CAPTION_QUESTION,"focus":"caption",
+                "reason":"Confirm uncertain wording."}}
+        assert context["prior_absent_frames"]==1
+        assert {o["id"]:o["status"] for o in context["occurrences"]}[a]=="absent_at_observed_frames"
+        return {"corrected_text":"That."}
+    cp=tmp_path/"progress.json"
+    out,report=run(rows,Model(propose),cfg=config(batch_size=1),evidence_provider=provider(doc),checkpoint_path=cp)
+    assert report["status"]=="completed" and len(vision.calls)==1
+    merged=merge_frame_observations(doc,report["supplementary_evidence"],source)
+    assert merged["caption_frame_observations"]
+    again=provider(merged)
+    replay,summary=run(rows,Model(lambda t,p:pytest.fail("unexpected inference")),
+        cfg=config(batch_size=1),evidence_provider=again,checkpoint_path=cp)
+    assert replay==out and summary["api_calls"]==0 and len(vision.calls)==1
+    assert summary["recording_context_receipts"]==report["recording_context_receipts"]
