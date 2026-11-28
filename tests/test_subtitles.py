@@ -226,3 +226,22 @@ def test_same_speaker_concurrent_distinct_occurrences_not_deleted():
     assert not overflow and not missing
     assert {c.utterance_id for c in placed} == {"0", "1"}
     assert {c.lane for c in placed} == {0, 1}
+
+
+def test_joint_continuation_groups_only_with_membership_and_no_intervening_event():
+    selected = {"unit_id": "joint", "selection": "jointly_adjudicated",
+                "constituents": [{"id": "a"}, {"id": "b"}]}
+    a = {"id": "a", "speaker_id": "SPK_A", "source_start": 1.0,
+         "source_end": 1.5, "translated_text": "We must", "translation_unit": selected}
+    b = {"id": "b", "speaker_id": "SPK_A", "source_start": 1.55,
+         "source_end": 2.1, "translated_text": "leave now.", "translation_unit": selected}
+    grouped = build_display_cues([a, b])
+    assert len(grouped) == 1 and grouped[0].text == "We must leave now."
+    assert grouped[0].display_occurrence_ids == ["a", "b"]
+    assert grouped[0].source_intervals == [(1.0, 1.5), (1.55, 2.1)]
+    assert len(build_display_cues([a, {**b, "translation_unit": None}])) == 2
+    assert len(build_display_cues([a, {**b, "translated_text": "Leave now."}])) == 2
+    assert len(build_display_cues([a, {**b, "speaker_id": "SPK_B"}])) == 2
+    other = {"id": "c", "speaker_id": "SPK_B", "source_start": 1.2,
+             "source_end": 1.8, "translated_text": "Wait."}
+    assert len(build_display_cues([a, b, other])) == 3
