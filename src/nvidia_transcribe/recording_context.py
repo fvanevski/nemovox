@@ -157,7 +157,7 @@ def supported_terms(item, target, all_rows):
     return result[:4]
 
 
-def relevant_terms(ledger, targets, limit=32):
+def relevant_terms(ledger, targets, limit=32, max_bytes=16000):
     # Never apply a global string replacement. Supply conflicting interpretations
     # as alternatives, restricted to literally present mentions.
     def applies(term,t):
@@ -192,4 +192,13 @@ def relevant_terms(ledger, targets, limit=32):
                 contexts.append(context)
             record["supporting_contexts"]=contexts[-4:]
         grouped[key]=record
-    return list(grouped.values())[-limit:]
+    # Keep the advisory projection bounded independently of recording context.
+    # Whole records only; do not truncate evidence anchors or alias literals.
+    selected=[]
+    remaining=max_bytes
+    for record in reversed(list(grouped.values())):
+        size=len(encode(record).encode("utf-8"))+1
+        if size<=remaining and len(selected)<limit:
+            selected.append(record)
+            remaining-=size
+    return list(reversed(selected))

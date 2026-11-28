@@ -1667,3 +1667,16 @@ def test_shared_caption_context_is_bound_and_frozen_on_resume(tmp_path,monkeypat
         cfg=config(batch_size=1),evidence_provider=again,checkpoint_path=cp)
     assert replay==out and summary["api_calls"]==0 and len(vision.calls)==1
     assert summary["recording_context_receipts"]==report["recording_context_receipts"]
+
+
+def test_caption_with_only_contradicted_frames_is_not_admissible():
+    from nvidia_transcribe.translation_review import _caption_references, ProposalDecisionError
+    caption={"caption_id":"visible-x","text_kind":"dialogue_caption","source_language_match":True,
+             "related_occurrence_ids":["u"],"frame_ids":["f1"]}
+    receipt={"kind":"visual","status":"observed","visible_text":[caption],
+             "caption_absent_frame_ids":["f1"]}
+    item={"caption_evidence_ids":["visible-x"]}
+    with pytest.raises(ProposalDecisionError,match="unbound_caption_reference"):
+        _caption_references(item,"u",[receipt])
+    caption["frame_ids"].append("f2")
+    assert _caption_references(item,"u",[receipt])==[caption]

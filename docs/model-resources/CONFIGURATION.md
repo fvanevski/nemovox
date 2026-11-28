@@ -65,7 +65,8 @@ acquisition uses the dedicated caption focus and fixed literal-retrieval questio
 requests can reuse exact observations; general text and scene focus remain available. Sampled
 bright-stroke regions are unconfirmed candidates, never proof of absence. Explicit visually
 absent frame IDs are bounded to actual inspected frames; contradictory observations become
-unknown, and absence at a frame is not interval or recording absence. The shared
+unknown, and absence at a frame is not interval or recording absence. A caption with all
+supporting frames contradicted by explicit absence is not an admissible citation. The shared
 presentation.observations.json may carry caption_frame_observations with frame/receipt hashes
 and status, without invented coordinates or literal subtitle text. A positive/conflicting
 frame defeats a contradictory interval absence for rendering. No new source timing or speaker

@@ -23,6 +23,7 @@ from nvidia_transcribe.presentation import admit_observations
 from nvidia_transcribe.refinement import load_glossary
 from nvidia_transcribe.resource_lifecycle import ModelLifecycle, managed_text_client
 from nvidia_transcribe.review_evidence import ReviewEvidenceProvider
+from nvidia_transcribe.review_execution import SCHEMA as REVIEW_SCHEMA
 from nvidia_transcribe.translation_review import TranslationReviewConfig, review_translated_utterances
 
 
@@ -136,6 +137,10 @@ def run(args):
     current=subprocess.check_output(["git","-C",str(root),"rev-parse","HEAD"],text=True).strip()
     if current!=args.expected_commit:
         raise ValueError("Wrong evaluation source commit")
+    expected_schema="native-review-progress/v1" if args.policy=="reference" else "native-review-progress/v2"
+    if REVIEW_SCHEMA!=expected_schema:
+        raise ValueError("Wrong evaluation review policy")
+    subprocess.run(["git","-C",str(root),"diff","--quiet","HEAD","--"],check=True)
     verify(args.plan,args.plan_sha256)
     plan=read(args.plan)
     if plan.get("schema")!="nemovox-semantic-evaluation/v1":
@@ -180,7 +185,8 @@ def run(args):
         context_max_bytes=control["context_max_bytes"],max_evidence_requests_per_batch=control["evidence_budget"])
     out=Path(args.output_dir)
     out.mkdir(parents=True,exist_ok=True)
-    manifest={"source_commit":current,"policy":args.policy,"plan_sha256":args.plan_sha256,
+    manifest={"source_commit":current,"policy":args.policy,"review_schema":REVIEW_SCHEMA,
+              "plan_sha256":args.plan_sha256,
               "review_resource":review.fingerprint(),"visual_resource":visual.fingerprint(),
               "acoustic_resource":acoustic.fingerprint(),"glossary_digest":gl.digest()}
     marker=out/"evaluation-inputs.json"

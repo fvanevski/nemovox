@@ -262,7 +262,9 @@ def _available_captions(uid, receipts):
     return {v["caption_id"]:v for obs in receipts if obs.get("status") == "observed"
             and obs.get("kind") == "visual" for v in obs.get("visible_text", [])
             if v.get("text_kind") == "dialogue_caption" and v.get("source_language_match") is True
-            and uid in v.get("related_occurrence_ids", [])}
+            and uid in v.get("related_occurrence_ids", [])
+            and (not obs.get("caption_absent_frame_ids") or any(
+                fid not in obs["caption_absent_frame_ids"] for fid in v.get("frame_ids",[])))}
 
 
 def _caption_references(item, uid, receipts):
@@ -1197,6 +1199,8 @@ def review_translated_utterances(
                             "does not distinguish written 他/她/它; a recognized character is not proof of gender. "
                             "Use a supported name, neutral pronoun or natural recasting when gender is unresolved. "
                             "Preserve vocatives, clauses and distinct people or concepts even if their titles match. "
+                            "Nominate only material recurring interpretations or new evidence, not routine words or "
+                            "an identical advisory record already supplied. Keep evidence explanations concise. "
                             "Return discourse_terms with exact canonical source literal, actual English rendering in your "
                             "proposal and exact reference_ids for supporting other occurrences. Return [] if none. "
                             "For entity/title/referent or alternative-sense hypotheses include interpretation: kind, "
@@ -1227,7 +1231,8 @@ def review_translated_utterances(
                                "caption_context describes source-bound geometry, unconfirmed bright-stroke candidates, "
                                "and actual previous frame/interval observations. Empty grayscale candidates and "
                                "unobserved frames are NOT caption absence. Intermittent/contradictory observations "
-                               "must not imply global absence. If supported interval absence or prior same-occurrence "
+                               "must not imply global absence. If caption_context reports no_video, do not nominate "
+                               "visual; consider acoustic or none. If supported interval absence or prior same-occurrence "
                                "caption inspection makes another caption-only question unlikely to help, prefer a "
                                "material acoustic/scene question or none; do not suppress useful scene or label evidence. "
                                "For acoustic, focus MUST be none, including when the question is about speech activity. "
@@ -1453,6 +1458,8 @@ def review_translated_utterances(
                                 "participants, polarity, honorifics, names and idioms above display-fragment style. "
                                 "Read recording_context, advisory terms and supplementary observations as fallible evidence. "
                                 "Check cited literal captions against the original ASR and actual occurrence associations. "
+                                "A caption contradicted by absence on every supporting frame is not admissible; "
+                                "mixed observations remain uncertain and do not establish an identity. "
                                 "Before comparing fluency, reconstruct who did what to whom and the complete meaning from "
                                 "source and admissible evidence; identify concrete semantic defects in BOTH strings. "
                                 "Primary MT is not evidence of a name, gender, unit, number or fact missing from source. "

@@ -308,6 +308,11 @@ class ReviewEvidenceProvider:
             {"role": "user", "content": [{"type": "text", "text": json.dumps({
                 "question": question, "recording_source_language": self.contract.get("source_language"),
                 "reference_occurrence_id": reference_id, "reference_interval": [s,e], "inspection_focus":focus}, ensure_ascii=False)}, *blocks]}]
+        if focus==CAPTION_FOCUS:
+            messages[0]["content"]+=(
+                " This is a caption-only request. Prioritize exact source-language dialogue literals "
+                "and explicit inspected-frame absence, not a broad scene description. Return scene "
+                "observations only when materially useful for interpreting the visible writing.")
         def inspect(client):
             return client.complete(messages=messages, max_tokens=self.visual_thinking_budget+2048,
                 temperature=0.0, thinking_budget=self.visual_thinking_budget, reasoning_effort="xhigh",
