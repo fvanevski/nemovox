@@ -515,6 +515,7 @@ def generate_subtitles(
         "subtitles": render_res["stats"],
         "subtitle_conflicts": render_res["conflicts"][:200],
         "cue_lineage": render_res.get("cue_lineage", []),
+        "srt_cue_lineage": render_res.get("srt_cue_lineage", []),
         "total_wall_time_s": elapsed_s,
     }
     if render_res.get("no_renderable_dialogue"):
