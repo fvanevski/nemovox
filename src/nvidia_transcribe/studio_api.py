@@ -156,14 +156,15 @@ class Options(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def default_review_for_backend(cls, values):
+        if isinstance(values,dict) and values.get("condense_high_cps"):
+            raise ValueError("Extra subtitle condensation has been removed")
         if isinstance(values,dict) and "translation_review" not in values:
             return {**values,"translation_review":"balanced" if values.get("translator","riva")=="riva" else "off"}
         return values
     style: Literal["natural", "literal", "expressive"] = "natural"
     glossary: str | None = Field(default=None, max_length=512)
-    ass_layout: Literal["standard", "raised_main"] = "standard"
+    ass_layout: Literal["auto", "standard", "raised_main"] = "auto"
     ass_max_lanes: Literal[2, 3] = 3
-    condense_high_cps: bool = False
     formats: list[Literal["srt", "ass"]] = Field(default_factory=lambda: ["srt", "ass"])
 
 
@@ -417,7 +418,7 @@ class JobRunner:
 
     def _stage_event(self, job_id: str, name: str, status: str, detail: str = "") -> None:
         """Record only known typed CLI milestones, preserving arrival order."""
-        if name not in {"download", "asr", "source_quality", "translation", "review", "condensation", "render", "export"}:
+        if name not in {"download", "asr", "source_quality", "translation", "review", "render", "export"}:
             return
         if status not in {"running", "complete", "skipped", "failed", "cancelled"}:
             return
@@ -444,13 +445,12 @@ class JobRunner:
             record["stage_history"] = stages
             if status == "running":
                 progress = {"download": 4, "asr": 8, "source_quality": 55, "translation": 60,
-                            "review": 76, "condensation": 83, "render": 90, "export": 96}[name]
+                            "review": 76, "render": 90, "export": 96}[name]
                 record["stage"] = {"download": "Downloading remote media",
                                    "asr": "Transcribing audio and speakers",
                                    "source_quality": "Checking source dialogue and timing",
                                    "translation": "Translating to English",
                                    "review": "Reviewing English translation",
-                                   "condensation": "Condensing high-CPS cues",
                                    "render": "Rendering subtitles",
                                    "export": "Saving selected files"}[name]
                 record["progress"] = max(record.get("progress", 0), progress)
@@ -670,8 +670,6 @@ class JobRunner:
                     args.insert(1, str(source))
                 if opt.source_language != "auto":
                     args.extend(["--source-language", opt.source_language])
-                if opt.condense_high_cps and spec.task == "subtitles":
-                    args.append("--condense-high-cps")
                 if opt.glossary:
                     args.extend(["--glossary", opt.glossary])
                 self._command(job_id, args, "Generating English outputs", 55)
@@ -1031,8 +1029,23 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
         root = runner.path(job_id)
         output = root / "output"
         subs = sorted(output.glob("*.srt"))
+        meta_path = output / "subtitles.metadata.json"
+        meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.is_file() else {}
+        presentation = meta.get("presentation")
+        # ASS-only jobs expose emitted display intervals, not source times.
+        if not subs and sorted(output.glob("*.ass")) and isinstance(meta.get("cue_lineage"), list):
+            unique = {}
+            for row in meta["cue_lineage"]:
+                interval = row.get("display_interval")
+                if row.get("disposition") == "displayed" and interval:
+                    unique.setdefault(row["display_event_id"], {
+                        "start": interval[0], "end": interval[1], "text": row["text"],
+                        "utterance_id": row["occurrence_id"], "lane": row.get("lane")})
+            return {"kind": "subtitles", "cues": sorted(unique.values(), key=lambda r:r["start"]),
+                    "presentation": presentation, "display_stats": meta.get("subtitles")}
         if subs:
-            return {"kind": "subtitles", "cues": _srt_cues(subs[0].read_text(encoding="utf-8"))}
+            return {"kind": "subtitles", "cues": _srt_cues(subs[0].read_text(encoding="utf-8")),
+                    "presentation": presentation, "display_stats": meta.get("subtitles")}
         candidate = output / "translated.contract.json"
         if not candidate.is_file():
             candidate = root / "asr" / "recording.contract.json"
@@ -1059,6 +1072,7 @@ def create_app(config: StudioConfig | None = None) -> FastAPI:
             root / "output/refined_source_transcript.txt",
             root / "output/final_english_subtitles.txt",
             root / "output/subtitles.metadata.json",
+            root / "output/presentation.observations.json",
             *sorted((root / "output").glob("*.srt")),
             *sorted((root / "output").glob("*.ass")),
             *(sorted(p for p in (root / "remote").glob("*")

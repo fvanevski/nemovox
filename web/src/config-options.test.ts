@@ -21,7 +21,8 @@ describe("Studio configuration guidance", () => {
     expect(INITIAL_OPTIONS.refinement).toBe("off");
     expect(INITIAL_OPTIONS.translator).toBe("riva");
     expect(INITIAL_OPTIONS.translation_review).toBe("balanced");
-    expect(INITIAL_OPTIONS.condense_high_cps).toBe(false);
+    expect(INITIAL_OPTIONS.ass_layout).toBe("auto");
+    expect(INITIAL_OPTIONS).not.toHaveProperty("condense_high_cps");
     expect(INITIAL_OPTIONS.source_language).toBe("auto");
     for (const key of ["chunk_policy", "chunk_seconds", "context_seconds", "alignment_fallback", "speaker_embeddings", "asr_mode"]) expect(INITIAL_OPTIONS).not.toHaveProperty(key);
     expect(isEnglishSourceToEnglish("en", "en")).toBe(true);

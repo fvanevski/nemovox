@@ -554,16 +554,15 @@ export default function App() {
             <SectionTitle eyebrow="04 / Presentation" title="Subtitles that fit the scene" sub="Select a layout for ordinary video or footage with burned-in source-language subtitles."/>
             <div className="grid gap-3 sm:grid-cols-2">
               {([
+                ["auto", "Automatic", "Measured ASS placement using sampled picture and caption-region evidence; unknown regions use conservative positioning."],
                 ["standard", "Standard", "Classic lower subtitles, with upper lanes for overlaps."],
-                ["raised_main", "Raised main", "Positions English above existing bottom hardsubs."],
+                ["raised_main", "Raised main", "Fixed raised lower position; not a guarantee of caption clearance."],
               ] as const).map(([value, title, desc]) => <button key={value} onClick={() => option("ass_layout", value)}
                 className={"rounded-xl border p-4 text-left " + (options.ass_layout === value ? "border-teal-500 bg-[#16343b]" : "border-[#314154] bg-[#101925] hover:border-[#537085]")}>
                 <div className="mb-2 flex items-center justify-between"><MonitorPlay size={21} className="text-teal-300"/>{options.ass_layout === value && <CheckCircle2 size={16} className="text-teal-300"/>}</div>
                 <div className="text-sm font-bold">{title}</div><div className="mt-1 text-xs leading-5 muted">{desc}</div>
               </button>)}
             </div>
-            <div className="mt-5"><Toggle title="Optional extra condensation pass (advanced)" detail="Disabled by default. Enables a second English text-model pass only for overly dense cues; otherwise one contextual review pass is used."
-              value={options.condense_high_cps} onChange={v => option("condense_high_cps", v)}/></div>
           </section>}
           {task === "subtitles" && <section className="panel p-6">
             <button onClick={() => setAdvanced(v => !v)} className="flex w-full items-center justify-between text-left">
@@ -653,6 +652,11 @@ export default function App() {
                   <span className="text-sm font-semibold">Media preview</span>
                   <div className="flex items-center gap-2"><Pill>{assPreviewReady ? "ASS · libass" : assUrl ? "HTML text fallback" : preview.data?.kind === "subtitles" ? "SRT text cues" : preview.data?.kind === "transcript" ? "Transcript cues" : "Text preview"}</Pill><Pill><Clock3 size={12}/>{secondsLabel(currentTime)}</Pill></div>
                 </div>
+                {preview.data?.presentation && <div className="px-5 py-2 text-xs muted border-b border-[#2b3c4c]">
+                  Layout: {preview.data.presentation.layout} · {preview.data.presentation.status.replaceAll("_", " ")}
+                  {preview.data.presentation.caption_status && <> · caption evidence: {preview.data.presentation.caption_status.replaceAll("_", " ")}</>}
+                  {preview.data.display_stats && <> · {preview.data.display_stats.ass_overflow_cues || 0} ASS overflow · {preview.data.display_stats.ass_placement_conflict_cues || 0} placement observations/conflicts</>}
+                </div>}
                 <div className="preview-pane relative aspect-video w-full overflow-hidden">
                   {mediaState === "loading" || mediaState === "pending"
                     ? <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center" role="status">
