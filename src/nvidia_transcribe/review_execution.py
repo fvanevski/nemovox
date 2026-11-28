@@ -15,7 +15,7 @@ import httpx
 from nvidia_transcribe.recording_context import digest
 
 
-SCHEMA = "native-review-progress/v1"
+SCHEMA = "native-review-progress/v2"
 
 
 def retryable_review_transport(exc):
@@ -43,11 +43,12 @@ class ReviewProgress:
                         raise ValueError("Native review progress digest mismatch")
                     self.records[key]=wrapped["record"]
 
-    def admit(self, base, terms, scenes):
+    def admit(self, base, terms, scenes, caption_context=None):
         key=digest(base)
         record=self.records.get(key)
         if record is None:
-            snapshot={"discourse_terms":deepcopy(terms),"scene_observations":deepcopy(scenes)}
+            snapshot={"discourse_terms":deepcopy(terms),"scene_observations":deepcopy(scenes),
+                      "caption_context":deepcopy(caption_context)}
             record={"base_sha256":key,"snapshot":snapshot,
                     "context_sha256":digest({"base":base,"snapshot":snapshot}),
                     "entries":None,"requests":{},"split":False}
@@ -110,6 +111,8 @@ def visual_digest(receipt):
     # Older receipts are admitted only after stream-equivalence validation.
     if "visual_stream" in receipt:
         body["visual_stream"] = receipt["visual_stream"]
+    if "caption_absent_frame_ids" in receipt:
+        body["caption_absent_frame_ids"]=receipt["caption_absent_frame_ids"]
     return digest(body)
 
 
@@ -179,6 +182,9 @@ def comparison_messages(messages, ids, *, recovery=False):
     data["comparisons"]=decisions
     del data["passage_checks"]
     data["caption_interpretations"]=[x for x in data["caption_interpretations"] if x["id"] in owned]
+    if "candidate_discourse_terms" in data:
+        data["candidate_discourse_terms"]=[x for x in data["candidate_discourse_terms"]
+                                           if x["id"] in owned]
     cited={v for x in data["caption_interpretations"] for v in x["caption_ids"]}
     data["supplementary_observations"]=[x for x in data["supplementary_observations"]
         if x.get("target_id") in owned or any(v["caption_id"] in cited for v in x.get("visible_text",[]))]

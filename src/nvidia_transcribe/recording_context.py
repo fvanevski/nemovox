@@ -68,11 +68,70 @@ class RecordingContext:
                 "dialogue": [records[i] for i in selected]}
 
 
+# Optional for a simple literal term; required by the prompt for entity, alias
+# and referent hypotheses. These are advisory interpretations, not identity IDs.
+INTERPRETATION_SCHEMA = {"type":"object","properties":{
+    "kind":{"type":"string","enum":["entity","title","referent","term"]},
+    "sense":{"type":"string"},"referent":{"type":"string"},
+    "confidence":{"type":"string","enum":["tentative","supported"]},
+    "basis":{"type":"string"},"source_alternative":{"type":"string"},
+    "mentions":{"type":"array","maxItems":4,"items":{"type":"object","properties":{
+        "source":{"type":"string"},"reference_id":{"type":"string"},
+        "relation":{"type":"string","enum":["alias","context"]}},
+        "required":["source","reference_id","relation"],"additionalProperties":False}}},
+    "required":["kind","sense","referent","confidence","basis","source_alternative","mentions"],
+    "additionalProperties":False}
+
+
+def _bounded_text(value, maximum, *, empty=False):
+    return isinstance(value,str) and len(value)<=maximum and (empty or bool(value.strip()))
+
+
+def _interpretation(term, item, target, all_rows):
+    info=term.get("interpretation")
+    if (not isinstance(info,dict) or set(info)!=set(INTERPRETATION_SCHEMA["required"])
+            or info["kind"] not in ("entity","title","referent","term")
+            or info["confidence"] not in ("tentative","supported")
+            or not _bounded_text(info["sense"],120)
+            or not _bounded_text(info["referent"],120,empty=info["kind"]=="term")
+            or not _bounded_text(info["basis"],300)
+            or not _bounded_text(info["source_alternative"],80,empty=True)
+            or not isinstance(info["mentions"],list) or len(info["mentions"])>4):
+        return None
+    anchored=set()
+    for mention in info["mentions"]:
+        if (not isinstance(mention,dict) or set(mention)!={"source","reference_id","relation"}
+                or not _bounded_text(mention["source"],80)
+                or not isinstance(mention["reference_id"],str)
+                or mention["reference_id"] not in term["reference_ids"]
+                or mention["relation"] not in ("alias","context")
+                or mention["source"] not in all_rows[mention["reference_id"]]["source_text"]):
+            return None
+        anchored.add(mention["reference_id"])
+    if any(term["source"] not in all_rows[ref]["source_text"] and ref not in anchored
+           for ref in term["reference_ids"]):
+        return None
+    alternative=info["source_alternative"]
+    cited=[]
+    if alternative:
+        # Alternative literal must be actually observed and explicitly used
+        # by this occurrence's admitted supplementary proposal.
+        cited=[v["caption_id"] for v in item.get("caption_observations_used",[])
+               if v.get("source_language_match") is True and v.get("text_kind")=="dialogue_caption"
+               and target["utterance_id"] in v.get("related_occurrence_ids",[])
+               and alternative in v.get("literal_text","")]
+        if not cited:
+            return None
+    return {"interpretation":info,"caption_evidence_ids":sorted(set(cited)),
+            "evidence_status":"advisory_model_interpretation_not_identity_confirmation"}
+
+
 def supported_terms(item, target, all_rows):
     """Validate literal citations; a model's accepted term is still advisory."""
     result = []
     for term in item.get("discourse_terms", []):
-        if not isinstance(term, dict) or set(term) != {"source", "english", "reference_ids"}:
+        if (not isinstance(term,dict) or not {"source","english","reference_ids"}<=set(term)
+                or set(term)-{"source","english","reference_ids","interpretation"}):
             continue
         source, english, refs = term["source"], term["english"], term["reference_ids"]
         if (not isinstance(source, str) or not 1 <= len(source.strip()) <= 80
@@ -81,25 +140,42 @@ def supported_terms(item, target, all_rows):
                 or english.casefold() not in item["corrected_text"].casefold()
                 or not isinstance(refs, list) or not 1 <= len(refs) <= 4
                 or not any(ref != target["utterance_id"] for ref in refs)
-                or any(not isinstance(ref, str) or ref not in all_rows
-                       or source not in all_rows[ref]["source_text"] for ref in refs)):
+                or any(not isinstance(ref,str) or ref not in all_rows for ref in refs)):
+            continue
+        structured={}
+        if "interpretation" in term:
+            structured=_interpretation(term,item,target,all_rows)
+            if structured is None:
+                continue
+        elif any(source not in all_rows[ref]["source_text"] for ref in refs):
             continue
         result.append({"source": source, "english": english,
                        "reference_ids": sorted(set(refs)), "accepted_target_id": target["utterance_id"],
-                       "status": "advisory_translation_interpretation"})
+                       "status": "advisory_translation_interpretation",**structured})
     return result[:4]
 
 
 def relevant_terms(ledger, targets, limit=32):
     # Never apply a global string replacement. Supply conflicting interpretations
     # as alternatives, restricted to literally present mentions.
-    relevant = [term for term in ledger if any(term["source"] in t["source_text"] for t in targets)]
+    def applies(term,t):
+        info=term.get("interpretation") or {}
+        # A pronoun/referent hypothesis belongs to cited contextual occurrences;
+        # do not propagate it just because the same pronoun appears elsewhere.
+        if info.get("kind")=="referent":
+            return t["utterance_id"] in term["reference_ids"]
+        aliases=[m["source"] for m in info.get("mentions",[]) if m["relation"]=="alias"]
+        return (t["utterance_id"] in term["reference_ids"] or
+                any(literal in t["source_text"] for literal in [term["source"],*aliases]))
+    relevant = [term for term in ledger if any(applies(term,t) for t in targets)]
     # Collapse repeated equal interpretations while preserving competing senses
     # and their exact accepted occurrences. Do not let frequent repetitions evict
     # every distinct term in the current target batch.
     grouped = {}
     for term in relevant:
-        key = (term["source"], term["english"].casefold())
+        info=term.get("interpretation")
+        key = (term["source"], term["english"].casefold(),
+               digest(info) if info is not None else None)
         prior = grouped.get(key)
         ids = [*(prior["accepted_target_ids"] if prior else []), term["accepted_target_id"]]
         grouped[key] = {**term, "accepted_target_ids": list(dict.fromkeys(ids))[-8:]}

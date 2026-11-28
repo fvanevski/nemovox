@@ -1383,9 +1383,12 @@ def test_invalid_acoustic_focus_recovery_isolates_atomic_units(tmp_path,persiste
                 item=(next(iter(schema["properties"].values())) if "response_keys" in payload
                       else schema["items"])
                 branches=item["properties"]["evidence_request"]["anyOf"]
-                assert {v["properties"]["kind"]["enum"][0]:v["properties"]["focus"]["enum"]
-                        for v in branches}=={"none":["none"],"acoustic":["none"],
-                            "visual":["scene","speech_activity","interaction","text"]}
+                assert {(v["properties"]["kind"]["enum"][0],tuple(v["properties"]["focus"]["enum"]))
+                        for v in branches}=={("none",("none",)),("acoustic",("none",)),
+                            ("visual",("scene","speech_activity","interaction","text")),("visual",("caption",))}
+                from nvidia_transcribe.caption_context import CAPTION_QUESTION
+                caption=next(v for v in branches if v["properties"]["focus"]["enum"]==["caption"])
+                assert caption["properties"]["question"]["enum"]==[CAPTION_QUESTION]
                 if "response_keys" in payload:
                     assert "focus MUST be none" in messages[0]["content"]
                     assert "incompatible modality and focus" in messages[0]["content"]
@@ -1512,3 +1515,113 @@ def test_connected_caption_citation_recovery_uses_exact_owned_choices(tmp_path,m
     replay,report=run(rows,Model(lambda t,p:pytest.fail("unexpected text inference")),
         evidence_provider=visual_fixture(tmp_path,monkeypatch,rows,no_vision),checkpoint_path=cp)
     assert replay==final and report["api_calls"]==0 and not no_vision.calls
+
+
+def structured_term(source, english, ref, *, kind="entity", sense="ruler", referent="local ruler",
+                    alternative="", mentions=None):
+    return {"source":source,"english":english,"reference_ids":[ref],"interpretation":{
+        "kind":kind,"sense":sense,"referent":referent,"confidence":"supported",
+        "basis":"Source exchange identifies the contextual role.",
+        "source_alternative":alternative,"mentions":mentions or []}}
+
+
+def test_structured_discourse_exact_anchors_distinct_senses_and_referents():
+    from nvidia_transcribe.recording_context import relevant_terms
+    a,b,c,d="a","b","c","d"
+    targets={a:{"utterance_id":a,"source_text":"王来了"},b:{"utterance_id":b,"source_text":"君主到了"},
+             c:{"utterance_id":c,"source_text":"王是姓氏"},d:{"utterance_id":d,"source_text":"他走了"}}
+    alias={"source":"君主","reference_id":b,"relation":"alias"}
+    term=structured_term("王","King",b,mentions=[alias])
+    item={"corrected_text":"The King arrived.","discourse_terms":[term]}
+    admitted=supported_terms(item,targets[a],targets)
+    assert len(admitted)==1
+    assert admitted[0]["interpretation"]["mentions"]==[alias]
+    assert relevant_terms(admitted,[targets[b]])[0]["english"]=="King"
+    forged=deepcopy(term); forged["interpretation"]["mentions"][0]["source"]="皇帝"
+    assert not supported_terms({**item,"discourse_terms":[forged]},targets[a],targets)
+    alternative=deepcopy(term); alternative["interpretation"]["source_alternative"]="国王"
+    assert not supported_terms({**item,"discourse_terms":[alternative]},targets[a],targets)
+    caption={"caption_id":"visible-a","source_language_match":True,"text_kind":"dialogue_caption",
+             "literal_text":"国王来了","related_occurrence_ids":[a]}
+    assert supported_terms({**item,"discourse_terms":[alternative],"caption_observations_used":[caption]},
+                           targets[a],targets)[0]["caption_evidence_ids"]==["visible-a"]
+    other=structured_term("王","King",c,sense="surname",referent="person surnamed Wang")
+    other_term=supported_terms({**item,"discourse_terms":[other]},targets[a],targets)
+    assert len(relevant_terms(admitted+other_term,[targets[c]]))==2
+    pronoun=structured_term("他","they",a,kind="referent",
+        mentions=[{"source":"王","reference_id":a,"relation":"context"}])
+    note=supported_terms({"corrected_text":"They left.","discourse_terms":[pronoun]},targets[d],targets)
+    assert note and not relevant_terms(note,[{"utterance_id":"unrelated","source_text":"他回来"}])
+    assert relevant_terms(note,[targets[a]])
+
+
+def test_structured_advisory_reaches_comparator_and_frozen_next_batch(tmp_path):
+    rows=[row(0,"王来了。","The ruler arrived."),row(1,"君主走了。","The ruler left.")]
+    a,b=[r["id"] for r in rows]
+    term=structured_term("王","King",b,mentions=[{"source":"君主","reference_id":b,"relation":"alias"}])
+    def propose(t,p):
+        if t["utterance_id"]==a:
+            return {"corrected_text":"The King arrived.","discourse_terms":[term]}
+        assert p["advisory_discourse_terms"][0]["interpretation"]["referent"]=="local ruler"
+        return {"corrected_text":"The King left."}
+    def compare(p,kw):
+        if a in ids(p):
+            record,=p["candidate_discourse_terms"]
+            assert record["id"]==a and record["terms"][0]["interpretation"]["sense"]=="ruler"
+        return decisions(p)
+    cp=tmp_path/"progress.json"
+    out,report=run(rows,Model(propose,compare),cfg=config(batch_size=1),checkpoint_path=cp)
+    assert report["status"]=="completed" and out[1]["translated_text"]=="The King left."
+    replay=Model(lambda t,p:pytest.fail("unexpected regenerated proposal"))
+    again,summary=run(rows,replay,cfg=config(batch_size=1),checkpoint_path=cp)
+    assert again==out and summary["api_calls"]==0
+    # A v1 semantic checkpoint cannot masquerade as current policy.
+    old=json.loads(cp.read_text()); old["schema"]="native-review-progress/v1"
+    cp.write_text(json.dumps(old))
+    fresh=Model(propose,compare)
+    _,summary=run(rows,fresh,cfg=config(batch_size=1),checkpoint_path=cp)
+    assert summary["cache_hits"]==0 and fresh.calls
+    assert json.loads(cp.read_text())["schema"]=="native-review-progress/v2"
+
+
+@pytest.mark.parametrize("conflict",[False,True])
+def test_caption_focus_reuses_exact_observation_and_projects_frame_absence(tmp_path,monkeypatch,conflict):
+    from nvidia_transcribe.caption_context import CAPTION_QUESTION, frame_observations, routing_context
+    rows=[row(0,"杯子。","Cup.",start=1,end=2),row(1,"那个。","That.",start=3,end=4)]
+    body={"observations":[],"visible_text":[],"caption_absent_frame_ids":["frame-2"]}
+    if conflict:
+        body["visible_text"]=caption_only_body()["visible_text"]
+    vision=FixtureVision(body)
+    p=visual_fixture(tmp_path,monkeypatch,rows,vision)
+    a,b=[r["id"] for r in rows]
+    req={"kind":"visual","reference_id":a,"question":CAPTION_QUESTION,"focus":"caption"}
+    first=p.collect(a,req); second=p.collect(b,req)
+    assert first["status"]==second["status"]=="observed"
+    assert first["observation_sha256"]==second["observation_sha256"]
+    assert len(vision.calls)==1 and p.telemetry["caption_attempts"]==1
+    assert p.telemetry["caption_cache_reuses"]==1
+    source={**p.contract["source"],"duration_s":60}
+    facts=frame_observations([first,second],source,0)
+    assert len(facts)==1 and facts[0]["status"]==("unknown" if conflict else "absent")
+    assert facts[0]["contradictory"] is conflict
+    doc={"video_stream_index":0,"status":"sampled","samples":[{"caption_candidates":[]}],
+         "caption_observations":[]}
+    ctx=routing_context(doc,[first],source,[{"utterance_id":a,"start":1,"end":2},
+                                          {"utterance_id":b,"start":3,"end":4}])
+    assert ctx["occurrences"][0]["status"]==("conflicting" if conflict else "absent_at_observed_frames")
+    assert ctx["occurrences"][1]["status"]=="unknown"
+    assert p.collect(a,{**req,"question":"Invent a different question"})["status"]=="invalid_nomination"
+
+
+def test_caption_routing_intervals_and_sparse_candidates_are_not_equivalent():
+    from nvidia_transcribe.caption_context import routing_context
+    source={"content_sha256":"a"*64,"duration_s":30}
+    doc={"status":"sampled","video_stream_index":0,
+         "samples":[{"caption_candidates":[[0,.8,1,.9]]},{"caption_candidates":[]}],
+         "caption_observations":[{"interval_s":[1,3],"status":"absent","evidence_sha256":"b"*64}]}
+    rows=[{"utterance_id":"a","start":1,"end":2},{"utterance_id":"b","start":2,"end":4}]
+    out=routing_context(doc,[],source,rows)
+    assert out["candidate_sample_count"]==1 and out["candidate_regions_are_unconfirmed"]
+    assert [x["status"] for x in out["occurrences"]]==["supported_interval_absence","unknown"]
+    doc["caption_observations"].append({"interval_s":[1.5,2.5],"status":"present","evidence_sha256":"c"*64})
+    assert routing_context(doc,[],source,rows)["occurrences"][0]["status"]=="conflicting"

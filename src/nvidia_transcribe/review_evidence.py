@@ -21,12 +21,14 @@ from nvidia_transcribe.ninfer_messages_client import image_content_block
 from nvidia_transcribe.resource_lifecycle import managed_text_client, ResourceLifecycleError
 from nvidia_transcribe.recording_context import digest
 from nvidia_transcribe.review_execution import visual_digest, retryable_review_transport
+from nvidia_transcribe.caption_context import CAPTION_QUESTION, CAPTION_FOCUS, static_context, routing_context
+from nvidia_transcribe.presentation import admit_observations
 
 
-_POLICY = "adaptive-media-observations/v3"
+_POLICY = "adaptive-media-observations/v4"
 _SCENE_CATEGORIES = ("participants", "actions", "interactions", "temporal_progression",
                      "speech_activity", "affect", "environment", "other")
-_VISUAL_FOCI = ("scene", "speech_activity", "interaction", "text")
+_VISUAL_FOCI = ("scene", "speech_activity", "interaction", "text", CAPTION_FOCUS)
 _VISUAL_SCHEMA = {"type": "object", "properties": {
     "observations": {"type": "array", "maxItems": 12, "items": {
         "type": "object", "properties": {
@@ -43,6 +45,8 @@ _VISUAL_SCHEMA = {"type": "object", "properties": {
             "language": {"type": "string"}, "uncertainty": {"type": "string"}},
         "required": ["frame_ids", "literal_text", "text_kind", "language", "uncertainty"], "additionalProperties": False}}},
     "required": ["observations", "visible_text"], "additionalProperties": False}
+_VISUAL_SCHEMA["properties"]["caption_absent_frame_ids"]={"type":"array","maxItems":8,
+    "items":{"type":"string"}}
 
 
 def visual_seeks(start, end, duration, max_frames, focus):
@@ -70,7 +74,8 @@ def visual_seeks(start, end, duration, max_frames, focus):
 class ReviewEvidenceProvider:
     def __init__(self, *, media_path, contract, lifecycle, review_resource,
                  visual_resource, acoustic_resource, review_client,
-                 max_frames=6, visual_thinking_budget=1024, enabled=True):
+                 max_frames=6, visual_thinking_budget=1024, enabled=True,
+                 presentation_observations=None):
         if type(max_frames) is not int or not 3 <= max_frames <= 8:
             raise ValueError("Visual inspection frame limit must be 3..8")
         if (type(visual_thinking_budget) is not int
@@ -104,9 +109,16 @@ class ReviewEvidenceProvider:
         # Lazy, content-bound stream selection. Keep the existing identity for
         # equivalent historical media; validate actual receipt compatibility.
         self._visual_streams = {}
+        self.presentation=static_context(admit_observations(presentation_observations,source)) if self.available else None
+        if self.presentation is not None:
+            self.identity["presentation_context_sha256"]=digest(self.presentation)
         self.cache = {}
         self.telemetry = {"visual_attempts":0,"acoustic_attempts":0,"in_memory_reuses":0,
-                          "visual_elapsed_s":0.0,"acoustic_elapsed_s":0.0}
+                          "visual_elapsed_s":0.0,"acoustic_elapsed_s":0.0,
+                          "caption_attempts":0,"caption_cache_reuses":0}
+
+    def caption_context(self, targets, receipts):
+        return routing_context(self.presentation,receipts,self.contract.get("source") or {},targets)
 
     def _release_review(self):
         # A separately configured resource cannot acquire the same exclusive
@@ -123,6 +135,7 @@ class ReviewEvidenceProvider:
                 or set(request)-{"kind","reference_id","question","focus"}
                 or (request.get("focus","scene") not in _VISUAL_FOCI if request.get("kind")=="visual"
                     else request.get("focus","none")!="none")
+                or request.get("focus")==CAPTION_FOCUS and request.get("question")!=CAPTION_QUESTION
                 or request["kind"] not in ("visual", "acoustic")
                 or not isinstance(request["reference_id"], str)
                 or request["reference_id"] not in self.rows
@@ -139,9 +152,11 @@ class ReviewEvidenceProvider:
         key = digest({"request": request, "provider": self.identity, "interval": [s, e]})
         if key in self.cache:
             self.telemetry["in_memory_reuses"] += 1
+            self.telemetry["caption_cache_reuses"]+=int(request.get("focus")==CAPTION_FOCUS)
             return {**base, **self.cache[key]}
         kind=request["kind"]
         self.telemetry[kind+"_attempts"] += 1
+        self.telemetry["caption_attempts"]+=int(request.get("focus")==CAPTION_FOCUS)
         started=time.perf_counter()
         try:
             if request["kind"] == "visual":
@@ -272,7 +287,12 @@ class ReviewEvidenceProvider:
              "Use dialogue_caption only for apparent dialogue subtitles, other_text for logos, labels and signs. "
              "Group frames only when the literal is identical. Record language and uncertainty (empty if legible); "
              "Use ISO source language codes (zh, fr, ja, en, etc.); unknown if uncertain. "
-             "Return an empty visible_text list when none is legible."},
+             "Return an empty visible_text list when none is legible. "
+             "Optionally return caption_absent_frame_ids ONLY for clear inspected frames in which "
+             "source-language dialogue captions are visibly absent; unreadable, obscured, dark, "
+             "uncertain or wrong-language text is not proof of absence. Do not infer absence "
+             "between frames or throughout the recording. For caption focus retrieve the actual "
+             "source-language dialogue text, not labels or a translation."},
             {"role": "user", "content": [{"type": "text", "text": json.dumps({
                 "question": question, "recording_source_language": self.contract.get("source_language"),
                 "reference_occurrence_id": reference_id, "reference_interval": [s,e], "inspection_focus":focus}, ensure_ascii=False)}, *blocks]}]
@@ -292,7 +312,8 @@ class ReviewEvidenceProvider:
         if choice["finish_reason"] != "stop":
             raise ValueError("Incomplete visual observations")
         parsed = json.loads(choice["message"]["content"])
-        if not isinstance(parsed, dict) or set(parsed) != {"observations", "visible_text"}:
+        if (not isinstance(parsed,dict) or not {"observations","visible_text"}<=set(parsed)
+                or set(parsed)-{"observations","visible_text","caption_absent_frame_ids"}):
             raise ValueError("Invalid visual observation envelope")
         observations = parsed["observations"]
         ids = {f["id"] for f in frames}
@@ -358,10 +379,16 @@ class ReviewEvidenceProvider:
         # Either evidence channel may be independently useful. Do not
         # invent a scene description to admit literal, frame-bound text;
         # equally, two empty collections are not a successful observation.
-        if not scene_records and not text_records:
+        absent=parsed.get("caption_absent_frame_ids",[])
+        if (not isinstance(absent,list) or len(absent)>len(frames)
+                or any(not isinstance(fid,str) or fid not in ids for fid in absent)
+                or len(set(absent))!=len(absent)):
+            raise ValueError("Unbound caption absence observation")
+        if not scene_records and not text_records and not absent:
             raise ValueError("No visual evidence returned")
         body = {"frames":frames, "observations":scene_records, "visible_text":text_records, "focus":focus,
-                "visual_stream":{"selector":"0:V:0","container_index":stream_index}}
+                "visual_stream":{"selector":"0:V:0","container_index":stream_index},
+                **({"caption_absent_frame_ids":absent} if absent else {})}
         return {"status": "observed", "kind": "visual", **body,
                 "model_receipt": response.get("_client_request_diagnostics", {}),
                 "observation_sha256": digest(body), "independently_confirmed": False}

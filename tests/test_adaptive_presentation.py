@@ -140,3 +140,26 @@ def test_full_content_identity_and_confirmed_absence_are_distinct(monkeypatch):
     shown,_,_=p.place_ass([cue(0,1,3),cue(1,10,12)],SubtitleConfig(),doc)
     assert shown[0].ass_bounds[3]>int(.84*1080)
     assert shown[1].ass_bounds[3]<=int(.84*1080)
+
+
+def test_frame_presence_defeats_conflicting_absence_without_invented_region(monkeypatch):
+    from nvidia_transcribe.caption_context import merge_frame_observations
+    source={**SOURCE,"content_sha256":"b"*64}
+    doc={**observations(),"media_content_sha256":source["content_sha256"],"video_stream_index":0,
+         "caption_observations":[{"interval_s":[1,5],"status":"absent","regions":[],
+                                  "evidence_sha256":"c"*64,"method":"explicit observation"}]}
+    obs={"kind":"visual","status":"observed","provider":{"media_sha256":source["content_sha256"],
+           "source_language":"zh"},"visual_stream":{"selector":"0:V:0","container_index":0},
+         "observation_sha256":"d"*64,"frames":[{"id":"f","requested_seek_s":2,"sha256":"e"*64}],
+         "visible_text":[{"caption_id":"visible-a","text_kind":"dialogue_caption",
+                          "source_language_match":True,"frame_ids":["f"]}]}
+    merged=merge_frame_observations(doc,[obs],source)
+    assert p.admit_observations(merged,source)==merged
+    assert merged["caption_frame_observations"][0]["status"]=="present"
+    assert merged["samples"]==doc["samples"] and merged["caption_observations"]==doc["caption_observations"]
+    assert merge_frame_observations(merged,[obs],source)==merged
+    available,_=p._regions(SubtitleConfig(),doc,1,3)
+    conflicting,_=p._regions(SubtitleConfig(),merged,1,3)
+    assert max(y for _,y in conflicting)<max(y for _,y in available)
+    with pytest.raises(ValueError,match="caption frame"):
+        p.admit_observations({**merged,"video_stream_index":1},source)

@@ -16,6 +16,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from nvidia_transcribe.media import _bounded_file_fingerprint, compute_file_sha256, visual_stream_index
+from nvidia_transcribe.caption_context import admit_frame_observations
 
 SCHEMA = "nemovox-presentation-observations/v1"
 
@@ -78,6 +79,7 @@ def admit_observations(doc, source):
                 or any(ch not in "0123456789abcdef" for ch in evidence)
                 or not isinstance(item.get("method"),str) or not item["method"].strip()):
             raise ValueError("Invalid caption observation")
+    admit_frame_observations(doc)
     cuts = doc.get("known_scene_boundaries_s", [])
     if (not isinstance(cuts, list) or any(not _number(t) or not 0 < t < doc["duration_s"] for t in cuts)
             or cuts != sorted(set(cuts))):
@@ -344,7 +346,10 @@ def _regions(cfg, doc, start, end):
                   if o["interval_s"][0] < end and o["interval_s"][1] > start]
     absent = (any(o["status"]=="absent" and o["interval_s"][0]<=start
                   and o["interval_s"][1]>=end for o in applicable)
-              and all(o["status"]=="absent" for o in applicable))
+              and all(o["status"]=="absent" for o in applicable)
+              and not any(start<=f["time_s"]<=end and
+                          (f["status"]=="present" or f["contradictory"])
+                          for f in (doc or {}).get("caption_frame_observations",[])))
     floor = h-gap if bottom_bar or absent else int(h*.84)
     candidates = [] if absent else [b for sample in (doc or {}).get("samples",[])
                                      for b in sample["caption_candidates"]]

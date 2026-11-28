@@ -40,9 +40,34 @@ connected allocation using the same admitted observations, with no new media acq
 Persistent failures remain visible and resumable; no invalid citation or partial connected
 allocation is admitted.
 
-These response-transport and recovery changes preserve the existing semantic policy and
-canonical receipt shapes. The existing native-review-progress/v1 identity is retained for
-compatible completed stages, subject to the same recording, context, resource, stream,
-observation, allocation and decision checks. Rejected responses are not admitted decisions.
-Do not edit checkpoint identities to force reuse; incompatible state requires explicit
-regeneration. A future semantic-policy change must separately bind its own admission identity.
+The current native-review-progress/v2 policy changes semantic prompts, discourse and caption
+routing. Prior v1 review progress is not admitted into v2; retain compatible primary MT
+checkpoints, regenerate review under the current policy, and never edit checkpoint identities
+to force reuse. Current-version snapshots bind the actual discourse, scene and caption context;
+the existing recording, resource, stream, observation, allocation and decision checks remain.
+Rejected responses are not admitted decisions.
+
+### Grounded semantic review and caption routing
+
+Accepted discourse records may include a structured interpretation with literal source,
+preferred English, sense, contextual referent, model-assessed confidence, evidence basis and
+exact alias/context mentions. An alternate source literal requires a cited, occurrence-bound,
+source-language caption actually used in the supplementary proposal. Records are advisory
+hypotheses, not a canonical entity database or string substitution. Competing senses remain
+separate; referent hypotheses only project to explicitly cited contextual occurrences.
+The existing categorical comparator inspects both exact candidates and their source/evidence,
+including materially supported neutral referents and conflicting terminology. No extra
+mandatory semantic pass is introduced.
+
+When managed review has admitted original media, it shares one bounded CPU presentation
+inspection with rendering (or reuses the retained source-bound document). Caption-only
+acquisition uses the dedicated caption focus and fixed literal-retrieval question so matching
+requests can reuse exact observations; general text and scene focus remain available. Sampled
+bright-stroke regions are unconfirmed candidates, never proof of absence. Explicit visually
+absent frame IDs are bounded to actual inspected frames; contradictory observations become
+unknown, and absence at a frame is not interval or recording absence. The shared
+presentation.observations.json may carry caption_frame_observations with frame/receipt hashes
+and status, without invented coordinates or literal subtitle text. A positive/conflicting
+frame defeats a contradictory interval absence for rendering. No new source timing or speaker
+authority is implied. Review context uses immutable sampled/interval inputs and actual
+current-run receipts, not mutable self-generated frame facts from a previous run.

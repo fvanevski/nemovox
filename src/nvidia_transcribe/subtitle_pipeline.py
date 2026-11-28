@@ -214,6 +214,33 @@ def generate_subtitles(
                if role == "translation_review" and stage_config.wire_protocol != "openai_chat" else {}),
         )
 
+    from nvidia_transcribe.presentation import admit_observations, observe_media, verify_media_source
+    from nvidia_transcribe.caption_context import merge_frame_observations
+    observations_path = out_dir / "presentation.observations.json"
+    presentation_observations = None
+    presentation_loaded = False
+
+    def load_presentation(source, *, acquire):
+        nonlocal presentation_observations, presentation_loaded
+        if presentation_loaded:
+            return presentation_observations
+        presentation_loaded=True
+        if observations_path.is_file() and (cfg.re_render_only or cfg.resume):
+            retained=json.loads(observations_path.read_text(encoding="utf-8"))
+            try:
+                presentation_observations=admit_observations(retained,source)
+            except ValueError:
+                if cfg.re_render_only or media_path is None:
+                    raise
+                presentation_observations=None
+            if media_path is not None and presentation_observations is not None:
+                verify_media_source(media_path,source)
+        if (acquire and presentation_observations is None and media_path is not None
+                and source.get("fingerprint_sha256")):
+            presentation_observations=observe_media(media_path,source)
+            _atomic_write(observations_path,json.dumps(presentation_observations,ensure_ascii=False,indent=2))
+        return presentation_observations
+
     refined_path = out_dir / "refined.contract.json"
     quality_resume="not_requested"
     salvage_review_error = False
@@ -383,7 +410,8 @@ def generate_subtitles(
                         lifecycle=lifecycle, review_resource=review_resource,
                         visual_resource=lifecycle_resources.get("visual_inspection", review_resource),
                         acoustic_resource=asr_resource, review_client=stage_client,
-                        max_frames=cfg.visual_max_frames, visual_thinking_budget=cfg.visual_thinking_budget)
+                        max_frames=cfg.visual_max_frames, visual_thinking_budget=cfg.visual_thinking_budget,
+                        presentation_observations=load_presentation(contract.get("source") or {},acquire=True))
                 translated_utts, review_summary = review_translated_utterances(
                     translated_utts, source_language=src_lang, config=cfg.translation_review,
                     glossary=gl, text_client=stage_client,
@@ -391,6 +419,13 @@ def generate_subtitles(
                     resume=cfg.resume_translation_review,
                     **({"evidence_provider": evidence_provider} if evidence_provider is not None else {}),
                 )
+            if presentation_observations is not None and evidence_provider is not None:
+                merged=merge_frame_observations(presentation_observations,
+                    review_summary.get("supplementary_evidence",[]),contract.get("source") or {})
+                admit_observations(merged,contract.get("source") or {})
+                if merged!=presentation_observations:
+                    presentation_observations=merged
+                    _atomic_write(observations_path,json.dumps(merged,ensure_ascii=False,indent=2))
             validate_deferred_review(translated_utts,review_summary,trans_summary)
             _event("review",
                    "skipped" if review_summary.get("status") == "disabled" else
@@ -447,28 +482,12 @@ def generate_subtitles(
 
     # Media observations are a separate recording-bound artifact: offline
     # rendering (including salvage) must not rewrite selected English.
-    from nvidia_transcribe.presentation import admit_observations, observe_media, verify_media_source
-    observations_path = out_dir / "presentation.observations.json"
+    # Review and renderer share the same admitted document, sampled at most
+    # once. Offline rendering without media remains inference/acquisition-free.
     observation_source = translated_contract.get("source") or {}
-    presentation_observations = None
-    # Retained scene boundaries constrain timing independently of spatial
-    # layout or output format. Only new frame acquisition is auto-ASS-specific.
-    if observations_path.is_file() and (cfg.re_render_only or cfg.resume):
-        retained = json.loads(observations_path.read_text(encoding="utf-8"))
-        try:
-            presentation_observations = admit_observations(retained, observation_source)
-        except ValueError:
-            if cfg.re_render_only or media_path is None:
-                raise
-            presentation_observations = None
-        if media_path is not None and presentation_observations is not None:
-            verify_media_source(media_path, observation_source)
     inspect_for_ass = (cfg.subtitles.ass_layout == "auto"
                        and "ass" in {f.strip().lower() for f in cfg.formats})
-    if (inspect_for_ass and presentation_observations is None and media_path is not None
-            and observation_source.get("fingerprint_sha256")):
-        presentation_observations = observe_media(media_path, observation_source)
-        _atomic_write(observations_path, json.dumps(presentation_observations, ensure_ascii=False, indent=2))
+    load_presentation(observation_source,acquire=inspect_for_ass)
 
     # Stage 4: Render English SRT & ASS subtitles
     _event("render", "running")

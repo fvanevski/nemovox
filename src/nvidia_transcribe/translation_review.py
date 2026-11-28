@@ -22,7 +22,9 @@ from nvidia_transcribe.refinement import GlossaryConfig, OpenAIChatTextClient
 from nvidia_transcribe.semantic_context import current_row_context, literal_examples, text_digest
 from nvidia_transcribe.review_uncertainty import current_uncertainty, uncertainty_veto
 from nvidia_transcribe import connected_units
-from nvidia_transcribe.recording_context import RecordingContext, digest, relevant_terms, supported_terms
+from nvidia_transcribe.recording_context import (RecordingContext, digest, relevant_terms,
+    supported_terms, INTERPRETATION_SCHEMA)
+from nvidia_transcribe.caption_context import CAPTION_QUESTION, CAPTION_FOCUS
 from nvidia_transcribe.review_execution import (ReviewProgress, scene_projection, observed_scenes,
     visual_digest, comparison_messages as keyed_messages, keyed_decisions,
     retryable_review_transport)
@@ -30,6 +32,7 @@ from nvidia_transcribe.review_execution import (ReviewProgress, scene_projection
 VALID_REVIEW_PROFILES = ("off", "conservative", "balanced", "expressive")
 VALID_REVIEW_STYLES = ("natural", "literal", "expressive")
 _PROMPT_VERSION = "mt_postedit_v14_resumable_scene_review"
+_NATIVE_PROMPT_VERSION = "mt_postedit_v15_grounded_discourse_caption_routing"
 _SCHEMA = {
     "type": "json_schema",
     "json_schema": {
@@ -196,13 +199,14 @@ _ADVISORY_PROPERTIES = {
     "discourse_terms": {"type": "array", "maxItems": 4, "items": {
         "type": "object", "properties": {
             "source": {"type": "string"}, "english": {"type": "string"},
+            "interpretation": INTERPRETATION_SCHEMA,
             "reference_ids": {"type": "array", "minItems": 1, "maxItems": 4,
                               "items": {"type": "string"}}},
         "required": ["source", "english", "reference_ids"], "additionalProperties": False}},
     "evidence_request": {"type": "object", "properties": {
         "kind": {"type": "string", "enum": ["none", "visual", "acoustic"]},
         "reference_id": {"type": "string"}, "question": {"type": "string"}, "reason": {"type": "string"},
-        "focus": {"type":"string","enum":["none","scene","speech_activity","interaction","text"]}},
+        "focus": {"type":"string","enum":["none","scene","speech_activity","interaction","text",CAPTION_FOCUS]}},
         "required": ["kind", "reference_id", "question", "reason", "focus"], "additionalProperties": False},
 }
 
@@ -221,8 +225,10 @@ def _evidence_request_schema(allow_evidence):
     none=variant("none",["none"])
     if not allow_evidence:
         return none
+    caption=variant("visual",[CAPTION_FOCUS])
+    caption["properties"]["question"]["enum"]=[CAPTION_QUESTION]
     return {"anyOf":[none,variant("acoustic",["none"]),
-                     variant("visual",["scene","speech_activity","interaction","text"])]}
+                     variant("visual",["scene","speech_activity","interaction","text"]),caption]}
 
 
 def _advisory_decision(item, *, allow_evidence, reference_ids=()):
@@ -236,9 +242,11 @@ def _advisory_decision(item, *, allow_evidence, reference_ids=()):
             or not all(isinstance(request[k], str) for k in ("reference_id","question","reason"))
             or not 1 <= len(request["reason"].strip()) <= 500):
         raise ProposalDecisionError("missing_or_invalid_evidence_assessment")
-    if (request["kind"]=="visual" and request["focus"] not in ("scene","speech_activity","interaction","text")
+    if (request["kind"]=="visual" and request["focus"] not in ("scene","speech_activity","interaction","text",CAPTION_FOCUS)
             or request["kind"]!="visual" and request["focus"]!="none"):
         raise ProposalDecisionError("invalid_evidence_focus")
+    if request["kind"]=="visual" and request["focus"]==CAPTION_FOCUS and request["question"]!=CAPTION_QUESTION:
+        raise ProposalDecisionError("invalid_caption_question")
     if request["kind"] == "none":
         if request["reference_id"] or request["question"]:
             raise ProposalDecisionError("none_evidence_assessment_has_request")
@@ -395,6 +403,9 @@ def _supplemented_proposals(client, provider, messages, wire, cfg, targets, entr
                 "admissible_caption_ids gives the complete permitted citation list per target occurrence; "
                 "use [] if none are available or used. Never borrow a neighboring occurrence's ID. "
                 "If a scene observation materially informs the interpretation, cite its observation_id in the reason. "
+                "For names, titles and pronouns distinguish literal text, alternate wording, contextual "
+                "referent, and uncertain inference. In discourse_terms interpretation.source_alternative "
+                "use only literal text from an admissible caption actually cited for that row; otherwise empty. "
                 "Keep the canonical source immutable. Return discourse_terms and caption_evidence_ids "
                 "(empty if none); do NOT return an evidence_request. No further acquisition.")
             schema=deepcopy(wire["response_format"]["schema"])
@@ -736,7 +747,7 @@ def _keyed_proposal(client,messages,ids,wire,cfg,*,record_request=None,invalid_f
             " The rejected response used an incompatible modality and focus. "
             "For acoustic use focus none, never speech_activity; acoustic observes sound. "
             "For none use focus none and empty reference_id and question. "
-            "Only visual may use scene, speech_activity, interaction or text. "
+            "Only visual may use scene, speech_activity, interaction, text or caption. "
             "Choose the modality justified by the actual uncertainty; do not simply switch modality "
             "to fit a previously emitted focus.")
     reply=client.complete(messages=alternate,max_tokens=cfg.max_tokens,temperature=cfg.temperature,
@@ -924,7 +935,8 @@ def review_translated_utterances(
     source_entries = {_uid(u, i): _entry(u, i) for i, u in enumerate(out)}
     reference_ids = frozenset(source_entries)
     signature = {
-        "version": _PROMPT_VERSION, "profile": cfg.profile, "style": cfg.style,
+        "version": _NATIVE_PROMPT_VERSION if native_review else _PROMPT_VERSION,
+        "profile": cfg.profile, "style": cfg.style,
         "source_language": source_language, "target_language": cfg.target_language,
         "model": cfg.model, "endpoint": cfg.base_url, "resource": cfg.resource_fingerprint,
         "glossary": gl.digest(), "before": cfg.context_utterances_before,
@@ -1020,19 +1032,24 @@ def review_translated_utterances(
         global_context = recording_context.for_targets(start, end) if native_review else None
         terms = relevant_terms(discourse_ledger, targets) if native_review else []
         scenes = scene_projection(scene_ledger, targets) if native_review else []
+        caption_context=None
+        if native_review and callable(getattr(evidence_provider,"caption_context",None)):
+            caption_context=evidence_provider.caption_context(before+targets+after,evidence_receipts)
         state=None
         if native_review:
             base={"config":signature,"before":before,"targets":targets,"after":after,"recording_context":global_context}
-            state=progress.admit(base,terms,scenes)
+            state=progress.admit(base,terms,scenes,caption_context)
             if state["split"]:
                 subdivide(start,end,range_index,"checkpointed_proposal_split")
                 continue
             terms=state["snapshot"]["discourse_terms"]
             scenes=state["snapshot"]["scene_observations"]
+            caption_context=state["snapshot"]["caption_context"]
             context_receipts.append({"target_ids": all_ids[start:end], "sha256": digest(global_context),
                 "representation": global_context["representation"], "coverage": global_context["coverage"],
                 "included_occurrences": global_context.get("included_occurrences"),
                 "advisory_discourse_terms": terms, "advisory_scene_observations":scenes,
+                "caption_context":caption_context,
                 "inference_context_sha256":state["context_sha256"],
                 "utf8_bytes": len(json.dumps(global_context, ensure_ascii=False, separators=(",", ":")).encode())})
         key = hashlib.sha256(json.dumps(
@@ -1074,7 +1091,7 @@ def review_translated_utterances(
         if entries is None:
             payload = {
                 **({"recording_context": global_context, "advisory_discourse_terms": terms,
-                    "advisory_scene_observations":scenes} if native_review else {}),
+                    "advisory_scene_observations":scenes,"caption_context":caption_context} if native_review else {}),
                 "glossary_characters": list(gl.characters), "glossary_terms": list(gl.terms),
                 "series_notes": gl.notes,
                 "operator_translation_examples":list({ex["id"]:ex for i in range(start,end)
@@ -1173,11 +1190,24 @@ def review_translated_utterances(
                             "not proof of an unobserved identity; retain uncertainty and consistent supported terminology. "
                             "The recording_context is read-only provisional bilingual or English dialogue, not ground truth. "
                             "Use earlier AND later dialogue for referents and scene meaning; check original source for facts. "
-                            "For EACH target explicitly assess recurring proper names, titles and specialized terms. "
-                            "Return discourse_terms with exact source literals, the English rendering in your proposal, "
-                            "and IDs of other occurrences containing the literal. Return [] if none is supported. "
-                            "Reuse supported advisory interpretations for the same sense; distinguish contextual senses, "
-                            "do not invent identities or blindly substitute. Prior advisory scene observations are "
+                            "For EACH target assess recurring names, titles, referents and specialized terms. "
+                            "Resolve who or what is meant from explicit source wording, earlier and later exchanges, "
+                            "roles and cited observations, not a familiar fictional identity. Mandarin spoken ta "
+                            "does not distinguish written 他/她/它; a recognized character is not proof of gender. "
+                            "Use a supported name, neutral pronoun or natural recasting when gender is unresolved. "
+                            "Preserve vocatives, clauses and distinct people or concepts even if their titles match. "
+                            "Return discourse_terms with exact canonical source literal, actual English rendering in your "
+                            "proposal and exact reference_ids for supporting other occurrences. Return [] if none. "
+                            "For entity/title/referent or alternative-sense hypotheses include interpretation: kind, "
+                            "sense, referent description (not a canonical ID), confidence tentative or supported, "
+                            "brief evidence basis, source_alternative (empty unless an exact cited caption supports "
+                            "alternate literal wording), and mentions with exact source text, reference_id and relation "
+                            "alias or context. Only assert an alias when supported; a context mention is not an alias. "
+                            "Ordinary repeated literal terms may omit interpretation. "
+                            "Advisory records are competing model interpretations, not established facts or replacement rules. "
+                            "Compare their evidence and context; keep incompatible senses or referents separate. "
+                            "For ambiguous names, do not force a preferred English rendering if the identity is uncertain. "
+                            "Prior advisory scene observations are "
                             "nearby visual evidence, not proof of continuing scene, speech or identity. Reuse when "
                             "they answer the current uncertainty; cite relevant observation_id in the reason and avoid redundant acquisitions. "
                             "For EACH target return evidence_request with kind, reference_id, question and a concise reason. "
@@ -1189,8 +1219,17 @@ def review_translated_utterances(
                                "could resolve material uncertainty, acoustic when re-observing speech is more discriminating. "
                                "For uncertain referents, roles, actions or apparent speaker, prefer scene evidence over "
                                "repeating clear acoustic wording. Visual focus is scene, speech_activity (mouth/beak activity), "
-                               "interaction (gestures/actions), or text (captions/labels). For acoustic, "
-                               "focus MUST be none, including when the question is about speech activity. "
+                               "interaction (gestures/actions), text (labels/signs or mixed scene/text questions), "
+                               "or caption (literal source-dialogue caption retrieval only). "
+                               "For caption use exactly this question: " + CAPTION_QUESTION + " "
+                               "Reuse prior caption observations where they answer the same occurrence question. "
+                               "caption_context describes source-bound geometry, unconfirmed bright-stroke candidates, "
+                               "and actual previous frame/interval observations. Empty grayscale candidates and "
+                               "unobserved frames are NOT caption absence. Intermittent/contradictory observations "
+                               "must not imply global absence. If supported interval absence or prior same-occurrence "
+                               "caption inspection makes another caption-only question unlikely to help, prefer a "
+                               "material acoustic/scene question or none; do not suppress useful scene or label evidence. "
+                               "For acoustic, focus MUST be none, including when the question is about speech activity. "
                                "speech_activity is a visual focus only. "
                                "For visual/acoustic specify a real relevant timed occurrence ID and a neutral observational question. "
                                "For none use empty reference_id and question, focus none, with reason. Do not investigate routine lexical corrections. "
@@ -1368,6 +1407,10 @@ def review_translated_utterances(
                             {"role": "user", "content": json.dumps({
                                 **({"recording_context": global_context, "advisory_discourse_terms": terms,
                                      "advisory_scene_observations":scenes,
+                                     "caption_context":caption_context,
+                                     "candidate_discourse_terms":[{"id":uid,"terms":supported_terms(
+                                         item,source_entries[uid],source_entries)} for uid,item in entries.items()
+                                         if item.get("discourse_terms")],
                                      "supplementary_observations": [item["supplementary_observation"] for item in entries.values()
                                          if "supplementary_observation" in item],
                                      "caption_interpretations": [{"id":uid,"caption_ids":item["caption_evidence_ids"],
@@ -1407,6 +1450,19 @@ def review_translated_utterances(
                                 "participants, polarity, honorifics, names and idioms above display-fragment style. "
                                 "Read recording_context, advisory terms and supplementary observations as fallible evidence. "
                                 "Check cited literal captions against the original ASR and actual occurrence associations. "
+                                "Before comparing fluency, reconstruct who did what to whom and the complete meaning from "
+                                "source and admissible evidence; identify concrete semantic defects in BOTH strings. "
+                                "Primary MT is not evidence of a name, gender, unit, number or fact missing from source. "
+                                "A plausible primary reconstruction may be wrong; do not prefer it merely for fluency. "
+                                "Distinguish lexical sense, idiomatic force, honorific/title, entity and referent; "
+                                "verify aliases/alternative literals against cited source occurrences. A recurring title "
+                                "or Mandarin ta spelling is not identity or gender proof. Treat candidate_discourse_terms "
+                                "as proposed interpretations; check exact selected wording and conflicting senses. "
+                                "Prefer a supported neutral reading over invented specificity, without dropping material clauses. "
+                                "A minor article, punctuation or register difference is not sufficient to reject a "
+                                "materially more faithful correction; equally, fluent paraphrase alone cannot justify "
+                                "new facts, weaker polarity, lost restrictions, merged speakers or invented identity. "
+                                "Give the decisive source/evidence contrast, not a generic preference. "
                                 "Accept a materially better supported alternative source interpretation only when the evidence "
                                 "supports it; do not presume captions prove speech or permit unsupported changes. "
                                 "Give a specific source-grounded reason for EACH decision. Return only supplied verdict IDs."
